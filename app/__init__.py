@@ -60,11 +60,13 @@ def _register_blueprints(app: Flask) -> None:
     from .routes.health import health_bp
     from .routes.main import main_bp
     from .routes.owner_applications import admin_bp, owner_applications_bp
+    from .routes.venues import venues_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(owner_applications_bp)
     app.register_blueprint(admin_bp)
+    app.register_blueprint(venues_bp)
     app.register_blueprint(health_bp)
 
 

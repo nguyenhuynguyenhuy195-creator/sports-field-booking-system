@@ -87,7 +87,7 @@ Khởi tạo hoặc cập nhật cấu trúc database trước lần chạy đ�
 .\.venv\Scripts\python.exe -m flask --app run.py db upgrade
 ```
 
-Lệnh trên đọc các migration trong `migrations/` và áp dụng chúng theo đúng thứ tự. Các migration hiện tại tạo bảng `users` và `owner_applications`; bảng `alembic_version` do Flask-Migrate dùng để ghi nhận phiên bản database.
+Lệnh trên đọc các migration trong `migrations/` và áp dụng chúng theo đúng thứ tự. Các migration hiện tại tạo bảng `users`, `owner_applications` và `venues`; bảng `alembic_version` do Flask-Migrate dùng để ghi nhận phiên bản database.
 
 Sau đó chạy website:
 
@@ -102,6 +102,7 @@ GET http://127.0.0.1:5000/health
 GET http://127.0.0.1:5000/health/ready
 GET http://127.0.0.1:5000/auth/register
 GET http://127.0.0.1:5000/auth/login
+GET http://127.0.0.1:5000/venues
 ```
 
 `/health` kiểm tra tiến trình Flask. `/health/ready` chạy `SELECT 1` để xác nhận SQL Server sẵn sàng. Hai trang `/auth/register` và `/auth/login` cung cấp chức năng tài khoản đầu tiên của hệ thống.
@@ -117,6 +118,9 @@ GET http://127.0.0.1:5000/auth/login
 - Admin chấp nhận hoặc từ chối yêu cầu; khi chấp nhận, tài khoản được chuyển thành `OWNER` trong cùng transaction.
 - Lệnh CLI tạo tài khoản admin đầu tiên mà không mở đăng ký admin công khai.
 - Giao diện responsive dùng Jinja2, Bootstrap 5 và CSS riêng.
+- OWNER tạo, sửa và xem danh sách cơ sở của chính mình; venue mới luôn chờ admin duyệt.
+- ADMIN duyệt công khai hoặc ẩn venue và hệ thống lưu dấu vết kiểm duyệt.
+- Khách chỉ xem được danh sách và chi tiết venue có trạng thái `ACTIVE`.
 
 Tạo tài khoản quản trị viên đầu tiên:
 
