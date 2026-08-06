@@ -21,6 +21,8 @@ docs/08-acceptance-criteria.md
 docs/09-test-cases.md
 docs/10-decision-log.md
 docs/diagrams/README.md
+docs/diagrams/erd.mmd
+docs/diagrams/erd.png
 migrations/README.md
 references/KE_HOACH_CHI_TIET.docx
 references/MẪU BÁO CÁO ĐỒ ÁN NGÀNH.docx

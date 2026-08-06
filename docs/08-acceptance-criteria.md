@@ -18,8 +18,9 @@
 
 - `owner_id` lấy từ `current_user`, không nhận từ form.
 - Venue mới mặc định `PENDING`, chưa hiển thị công khai.
-- Chỉ admin duyệt venue thành `ACTIVE`.
+- Chỉ admin duyệt venue thành `ACTIVE`; hệ thống lưu người duyệt, thời điểm duyệt và ghi chú kiểm duyệt nếu có.
 - Field phải thuộc venue của owner hiện tại và mặc định `INACTIVE`.
+- Không tạo hai field trùng tên trong cùng venue.
 - Chỉ field `ACTIVE` thuộc venue `ACTIVE` mới xuất hiện để đặt.
 
 ## AC-004: Cấu hình khung giá
@@ -33,6 +34,7 @@
 
 - Owner chỉ tạo bảo trì cho field của mình.
 - Thời gian hợp lệ và nằm trong ngày đã chọn.
+- Không tạo hai lịch bảo trì `ACTIVE` chồng nhau cho cùng field.
 - Không tạo được lịch bảo trì giao với booking đang chiếm chỗ.
 - Booking không được tạo trong khoảng bảo trì `ACTIVE`.
 
@@ -108,9 +110,11 @@
 - Đối thủ/người ghép đã đóng đúng hạn được refund 100%.
 - Booking chỉ chuyển `CANCELLED` sau khi refund bắt buộc thành công.
 
-## AC-015: Owner hủy booking đã thanh toán
+## AC-015: Owner hủy booking
 
 - Chỉ owner của field được hủy và phải nhập lý do.
+- Booking `CONFIRMED` chưa thu tiền có thể chuyển thẳng `CANCELLED`.
+- Booking `PARTIALLY_PAID` hoặc `PAID` phải chuyển `REFUND_PENDING`.
 - Mọi khoản đã thu được hoàn 100% qua MoMo Sandbox.
 - Payment gốc vẫn giữ `SUCCESS`; refund được lưu riêng.
 - Refund chưa xong giữ booking `REFUND_PENDING`; hoàn tất mới `CANCELLED`.
@@ -134,3 +138,4 @@
 - Hai payment/IPN đồng thời không làm tổng tiền vượt booking.
 - Hai yêu cầu thanh toán vị trí cuối không làm match vượt số chỗ.
 - Lỗi commit phải rollback toàn bộ thay đổi liên quan.
+- Filtered unique index phải cho phép nhiều mã giao dịch nullable nhưng không cho phép trùng mã đã có hoặc hai payment `SUCCESS` cho cùng contribution.

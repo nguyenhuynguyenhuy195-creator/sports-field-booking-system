@@ -1,0 +1,219 @@
+erDiagram
+    direction LR
+
+    USERS {
+        INT id PK
+        NVARCHAR full_name
+        VARCHAR email UK
+        VARCHAR phone
+        VARCHAR password_hash
+        VARCHAR role
+        VARCHAR status
+        DATETIME2 created_at
+        DATETIME2 updated_at
+    }
+
+    OWNER_APPLICATIONS {
+        INT id PK
+        INT user_id FK
+        NVARCHAR business_name
+        VARCHAR contact_phone
+        NVARCHAR note
+        VARCHAR status
+        NVARCHAR rejection_reason
+        INT reviewed_by FK
+        DATETIME2 reviewed_at
+        DATETIME2 created_at
+    }
+
+    VENUES {
+        INT id PK
+        INT owner_id FK
+        NVARCHAR name
+        NVARCHAR address
+        NVARCHAR district
+        NVARCHAR city
+        VARCHAR phone
+        NVARCHAR description
+        TIME opening_time
+        TIME closing_time
+        VARCHAR status
+        INT reviewed_by FK
+        DATETIME2 reviewed_at
+        NVARCHAR moderation_note
+        DATETIME2 created_at
+        DATETIME2 updated_at
+    }
+
+    FIELDS {
+        INT id PK
+        INT venue_id FK
+        NVARCHAR name
+        VARCHAR field_type
+        NVARCHAR surface_type
+        INT capacity
+        VARCHAR status
+        DATETIME2 created_at
+        DATETIME2 updated_at
+    }
+
+    FIELD_PRICE_SLOTS {
+        INT id PK
+        INT field_id FK
+        TINYINT day_of_week
+        TIME start_time
+        TIME end_time
+        DECIMAL hourly_price
+        VARCHAR status
+        DATETIME2 created_at
+        DATETIME2 updated_at
+    }
+
+    FIELD_MAINTENANCES {
+        INT id PK
+        INT field_id FK
+        DATE maintenance_date
+        TIME start_time
+        TIME end_time
+        NVARCHAR reason
+        VARCHAR status
+        INT created_by FK
+        DATETIME2 created_at
+    }
+
+    BOOKINGS {
+        INT id PK
+        VARCHAR booking_code UK
+        INT user_id FK
+        INT field_id FK
+        DATE booking_date
+        TIME start_time
+        TIME end_time
+        VARCHAR payment_mode
+        DECIMAL total_amount
+        DECIMAL paid_amount
+        DECIMAL cancellation_fee_amount
+        VARCHAR status
+        DATETIME2 owner_response_due_at
+        DATETIME2 initial_payment_due_at
+        DATETIME2 funding_deadline
+        NVARCHAR note
+        NVARCHAR rejection_reason
+        NVARCHAR cancellation_reason
+        DATETIME2 created_at
+        DATETIME2 updated_at
+    }
+
+    BOOKING_PRICE_DETAILS {
+        INT id PK
+        INT booking_id FK
+        INT price_slot_id FK
+        TIME start_time
+        TIME end_time
+        INT duration_minutes
+        DECIMAL hourly_price
+        DECIMAL subtotal
+    }
+
+    BOOKING_CONTRIBUTIONS {
+        INT id PK
+        INT booking_id FK
+        INT user_id FK
+        INT match_participant_id FK
+        VARCHAR contribution_type
+        DECIMAL amount_due
+        DECIMAL amount_paid
+        VARCHAR status
+        DATETIME2 expires_at
+        DATETIME2 created_at
+        DATETIME2 updated_at
+    }
+
+    PAYMENTS {
+        INT id PK
+        INT booking_id FK
+        INT contribution_id FK
+        INT payer_id FK
+        VARCHAR provider
+        VARCHAR payment_method
+        DECIMAL amount
+        VARCHAR order_id UK
+        VARCHAR request_id UK
+        VARCHAR provider_trans_id
+        VARCHAR status
+        VARCHAR result_code
+        DATETIME2 paid_at
+        DATETIME2 created_at
+        DATETIME2 updated_at
+    }
+
+    REFUNDS {
+        INT id PK
+        INT booking_id FK
+        INT payment_id FK
+        INT recipient_id FK
+        DECIMAL amount
+        NVARCHAR reason
+        VARCHAR order_id UK
+        VARCHAR request_id UK
+        VARCHAR provider_refund_trans_id
+        VARCHAR status
+        VARCHAR result_code
+        DATETIME2 refunded_at
+        DATETIME2 created_at
+        DATETIME2 updated_at
+    }
+
+    MATCHES {
+        INT id PK
+        INT creator_id FK
+        INT booking_id FK, UK
+        VARCHAR match_type
+        NVARCHAR title
+        NVARCHAR description
+        VARCHAR skill_level
+        INT total_players
+        INT required_players
+        VARCHAR status
+        DATETIME2 created_at
+        DATETIME2 updated_at
+    }
+
+    MATCH_PARTICIPANTS {
+        INT id PK
+        INT match_id FK
+        INT user_id FK
+        VARCHAR participant_type
+        NVARCHAR message
+        VARCHAR status
+        DATETIME2 payment_due_at
+        DATETIME2 created_at
+        DATETIME2 decided_at
+        DATETIME2 updated_at
+    }
+
+    USERS ||--o{ OWNER_APPLICATIONS : submits
+    USERS o|--o{ OWNER_APPLICATIONS : reviews
+    USERS ||--o{ VENUES : owns
+    USERS o|--o{ VENUES : reviews
+    VENUES ||--o{ FIELDS : contains
+    FIELDS ||--o{ FIELD_PRICE_SLOTS : prices
+    FIELDS ||--o{ FIELD_MAINTENANCES : maintains
+    USERS ||--o{ FIELD_MAINTENANCES : creates
+    USERS ||--o{ BOOKINGS : books
+    FIELDS ||--o{ BOOKINGS : receives
+    BOOKINGS ||--|{ BOOKING_PRICE_DETAILS : snapshots
+    FIELD_PRICE_SLOTS ||--o{ BOOKING_PRICE_DETAILS : sources
+    BOOKINGS ||--o{ BOOKING_CONTRIBUTIONS : allocates
+    USERS ||--o{ BOOKING_CONTRIBUTIONS : owes
+    BOOKING_CONTRIBUTIONS ||--o{ PAYMENTS : attempts
+    BOOKINGS ||--o{ PAYMENTS : collects
+    USERS ||--o{ PAYMENTS : pays
+    PAYMENTS ||--o{ REFUNDS : refunds
+    BOOKINGS ||--o{ REFUNDS : returns
+    USERS ||--o{ REFUNDS : receives
+    BOOKINGS ||--o| MATCHES : opens
+    USERS ||--o{ MATCHES : creates
+    MATCHES ||--o{ MATCH_PARTICIPANTS : accepts
+    USERS ||--o{ MATCH_PARTICIPANTS : joins
+    MATCH_PARTICIPANTS o|--o{ BOOKING_CONTRIBUTIONS : generates

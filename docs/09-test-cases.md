@@ -29,10 +29,13 @@ Application `APPROVED` và role chuyển `OWNER` trong cùng transaction.
 Tạo với owner hiện tại, trạng thái `PENDING`, không xuất hiện công khai.
 
 ### TC-VENUE-002: Admin duyệt venue
-Chuyển `ACTIVE` và xuất hiện công khai.
+Chuyển `ACTIVE`, lưu `reviewed_by`, `reviewed_at`, ghi chú nếu có và xuất hiện công khai.
 
 ### TC-FIELD-001: Field mới
 Trạng thái mặc định `INACTIVE`.
+
+### TC-FIELD-002: Trùng tên field trong cùng venue
+Từ chối tạo field thứ hai cùng tên; venue khác vẫn được phép dùng tên đó.
 
 ### TC-PRICE-001: Hai khung giá chồng nhau
 Đã có 17:00–19:00; từ chối tạo 18:00–21:00 trong cùng ngày áp dụng.
@@ -48,6 +51,9 @@ Từ chối tạo bảo trì; booking không thay đổi.
 
 ### TC-MAINT-002: Booking trùng bảo trì
 Từ chối tạo booking.
+
+### TC-MAINT-003: Hai lịch bảo trì chồng nhau
+Đã có bảo trì `ACTIVE` 18:00–20:00; từ chối tạo bảo trì `ACTIVE` 19:00–21:00 cho cùng field và ngày.
 
 ## 9.3. Booking
 
@@ -131,13 +137,16 @@ Booking chuyển `REFUND_PENDING`; creator refund 80%, người tham gia refund 
 
 ## 9.6. Refund và rút kèo
 
-### TC-REFUND-001: Owner hủy PAID
+### TC-REFUND-001: Owner hủy PARTIALLY_PAID
+Lưu lý do; tạo refund 100% cho mọi khoản đã thu; chỉ `CANCELLED` sau khi refund thành công.
+
+### TC-REFUND-002: Owner hủy PAID
 Lưu lý do; tạo refund 100% cho mọi payment; chỉ `CANCELLED` sau khi refund thành công.
 
-### TC-REFUND-002: Refund đang xử lý
+### TC-REFUND-003: Refund đang xử lý
 MoMo chưa có kết quả cuối → booking giữ `REFUND_PENDING`; query/retry không tạo refund trùng.
 
-### TC-REFUND-003: Refund callback/query lặp
+### TC-REFUND-004: Refund callback/query lặp
 Không cộng số tiền refund lần hai.
 
 ### TC-WITHDRAW-001: Rút trước trên 12 giờ
@@ -159,3 +168,17 @@ Rollback payment/contribution/booking; có thể xử lý lại IPN an toàn.
 
 ### TC-TX-003: Một refund trong nhóm thất bại
 Booking giữ `REFUND_PENDING`; refund thành công không bị tạo lại, refund thất bại có thể retry/query.
+
+## 9.8. Constraint và index SQL Server
+
+### TC-DB-001: Nhiều payment chưa có provider transaction ID
+Cho phép nhiều payment `PENDING` có `provider_trans_id = NULL`; từ chối hai bản ghi có cùng mã khác `NULL`.
+
+### TC-DB-002: Hai payment SUCCESS cho cùng contribution
+Filtered unique index hoặc transaction chỉ cho phép một payment `SUCCESS` được commit.
+
+### TC-DB-003: Hai owner application PENDING
+Chỉ một application `PENDING` của cùng user được commit khi hai request chạy đồng thời.
+
+### TC-DB-004: Không cascade delete lịch sử
+Từ chối xóa vật lý user, field hoặc booking đã có dữ liệu giao dịch; dữ liệu được chuyển trạng thái thay thế.

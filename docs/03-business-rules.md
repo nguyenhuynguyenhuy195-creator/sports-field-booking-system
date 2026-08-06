@@ -51,6 +51,7 @@ User phải đăng nhập trước khi tạo booking, tạo kèo, gửi yêu c�
 
 ### BR-010: Lịch bảo trì
 - Owner được tạo lịch bảo trì theo ngày và khoảng giờ cho field của mình.
+- Hai lịch bảo trì `ACTIVE` của cùng field không được chồng nhau.
 - Không được tạo lịch bảo trì giao với booking `PENDING`, `CONFIRMED`, `PARTIALLY_PAID` hoặc `PAID`.
 - Booking không được giao với lịch bảo trì đang hiệu lực.
 
@@ -106,8 +107,8 @@ Việc kiểm tra và tạo booking phải nằm trong cùng transaction để h
 - User chỉ được hủy booking của mình ở trạng thái `PENDING` hoặc `CONFIRMED` và trước giờ bắt đầu ít nhất 2 giờ.
 - Người tạo hủy booking `PARTIALLY_PAID` được xử lý như trường hợp không góp đủ đúng hạn.
 - User không được tự hủy booking `PAID` trong MVP.
-- Owner được hủy `CONFIRMED` hoặc `PAID` khi có sự cố và bắt buộc nhập lý do.
-- Booking `PAID` do owner hủy phải hoàn tiền thành công trước khi chuyển `CANCELLED`.
+- Owner được hủy `CONFIRMED`, `PARTIALLY_PAID` hoặc `PAID` khi có sự cố và bắt buộc nhập lý do.
+- Booking `PARTIALLY_PAID` hoặc `PAID` do owner hủy phải hoàn 100% mọi khoản đã thu và chỉ chuyển `CANCELLED` sau khi các refund bắt buộc thành công.
 
 ### BR-018: Hoàn thành booking
 Booking chỉ chuyển từ `PAID` sang `COMPLETED` sau khi thời gian sử dụng sân kết thúc.
@@ -146,8 +147,8 @@ Booking chỉ chuyển từ `PAID` sang `COMPLETED` sau khi thời gian sử d�
 - Hoàn 100% cho đối thủ/người ghép đã thanh toán đúng hạn.
 - Chỉ chuyển booking sang `CANCELLED` khi các refund cần thiết đã thành công.
 
-### BR-024: Owner hủy booking đã thanh toán
-- Khi owner hủy vì sự cố, hệ thống hoàn 100% các khoản đã thu.
+### BR-024: Owner hủy booking đã thu tiền
+- Khi owner hủy booking `PARTIALLY_PAID` hoặc `PAID` vì sự cố, hệ thống hoàn 100% các khoản đã thu.
 - Phải lưu lý do, mã giao dịch hoàn tiền và trạng thái refund.
 - Nếu refund chưa thành công, booking giữ `REFUND_PENDING`.
 
