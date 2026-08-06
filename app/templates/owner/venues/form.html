@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% from "_form_helpers.html" import render_field %}
+
+{% macro render_time_picker(title, hour_field, minute_field) %}
+    {% set time_errors = hour_field.errors + minute_field.errors %}
+    <fieldset class="time-picker-field mb-3">
+        <legend class="form-label fw-semibold">{{ title }}</legend>
+        <div class="time-picker-control{% if time_errors %} is-invalid{% endif %}">
+            <div class="time-picker-segment">
+                <span class="time-picker-caption">Giờ</span>
+                {{ hour_field(class="form-select time-picker-select", aria_label=title ~ " - giờ") }}
+            </div>
+            <span class="time-picker-colon" aria-hidden="true">:</span>
+            <div class="time-picker-segment">
+                <span class="time-picker-caption">Phút</span>
+                {{ minute_field(class="form-select time-picker-select", aria_label=title ~ " - phút") }}
+            </div>
+            <span class="time-picker-period">24H</span>
+        </div>
+        {% for error in time_errors %}
+            <div class="invalid-feedback d-block">{{ error }}</div>
+        {% endfor %}
+    </fieldset>
+{% endmacro %}
+
+{% block title %}{{ page_title }} · Sports Field Booking{% endblock %}
+
+{% block content %}
+<section class="auth-section py-5">
+    <div class="container">
+        <div class="auth-card venue-form-card mx-auto">
+            <a class="text-decoration-none" href="{{ url_for('venues.owner_index') }}">← Cơ sở của tôi</a>
+            <span class="eyebrow d-block mt-4">KHU VỰC CHỦ SÂN</span>
+            <h1 class="h2 fw-bold mt-2">{{ page_title }}</h1>
+            <p class="text-secondary">Chọn giờ mở cửa và đóng cửa thường ngày của cơ sở.</p>
+
+            {% if venue and venue.status == 'ACTIVE' %}
+                <div class="alert alert-info">Cơ sở đang hoạt động. Việc chỉnh sửa không làm thay đổi trạng thái hiện tại.</div>
+            {% endif %}
+
+            <form method="post" novalidate>
+                {{ form.hidden_tag() }}
+                {{ render_field(form.name, placeholder="Ví dụ: Sân bóng Minh Anh") }}
+                {{ render_field(form.address, placeholder="Ví dụ: 123 Nguyễn Hữu Thọ") }}
+                <div class="row">
+                    <div class="col-md-6">{{ render_field(form.district, placeholder="Ví dụ: Quận 7") }}</div>
+                    <div class="col-md-6">{{ render_field(form.city, placeholder="Ví dụ: TP. Hồ Chí Minh") }}</div>
+                </div>
+                {{ render_field(form.phone, placeholder="Ví dụ: 0901234567") }}
+                {{ render_field(form.description, rows="4", placeholder="Mô tả vị trí, tiện ích và thông tin liên hệ") }}
+                <div class="row g-3">
+                    <div class="col-md-6">{{ render_time_picker("Giờ mở cửa", form.opening_hour, form.opening_minute) }}</div>
+                    <div class="col-md-6">{{ render_time_picker("Giờ đóng cửa", form.closing_hour, form.closing_minute) }}</div>
+                </div>
+                {{ form.submit(class="btn btn-primary w-100", value=submit_label) }}
+            </form>
+        </div>
+    </div>
+</section>
+{% endblock %}

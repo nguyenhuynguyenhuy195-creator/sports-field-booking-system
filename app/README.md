@@ -4,10 +4,10 @@ Cấu trúc hiện tại:
 
 - `__init__.py`: application factory, khởi tạo extensions, cấu hình Flask-Login và đăng ký blueprint.
 - `extensions.py`: SQLAlchemy, Migrate, LoginManager và CSRFProtect dùng chung.
-- `routes/`: trang chủ, xác thực, yêu cầu owner, trang duyệt admin và health checks.
-- `models/`: model `User`, `OwnerApplication`, các vai trò và trạng thái.
-- `forms/`: biểu mẫu Flask-WTF cho xác thực, gửi yêu cầu và xét duyệt owner.
-- `services/`: nghiệp vụ tài khoản và owner application, bao gồm transaction đổi role.
+- `routes/`: trang chủ, xác thực, yêu cầu owner, quản lý/kiểm duyệt venue và health checks.
+- `models/`: model `User`, `OwnerApplication`, `Venue`, các vai trò và trạng thái.
+- `forms/`: biểu mẫu Flask-WTF cho xác thực, owner application và venue.
+- `services/`: nghiệp vụ tài khoản, owner application và venue, bao gồm kiểm tra quyền sở hữu và transaction.
 - `templates/`: layout chung và các trang Jinja2 responsive.
 - `static/`: CSS riêng theo bộ màu của dự án.
 - `integrations/`: client dịch vụ ngoài, dự kiến có MoMo Sandbox.

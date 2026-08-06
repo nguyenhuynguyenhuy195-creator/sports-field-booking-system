@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}{{ venue.name }} · Sports Field Booking{% endblock %}
+
+{% block content %}
+<section class="container py-5">
+    <a class="text-decoration-none" href="{{ url_for('venues.index') }}">← Quay lại danh sách sân</a>
+    <div class="venue-detail mt-4">
+        <div class="row g-4 align-items-start">
+            <div class="col-lg-8">
+                <span class="status-badge status-active">Đang hoạt động</span>
+                <h1 class="display-6 fw-bold mt-3">{{ venue.name }}</h1>
+                <p class="lead text-secondary">{{ venue.address }}{% if venue.district %}, {{ venue.district }}{% endif %}, {{ venue.city }}</p>
+                {% if venue.description %}
+                    <p class="venue-description mb-0">{{ venue.description }}</p>
+                {% endif %}
+            </div>
+            <div class="col-lg-4">
+                <aside class="venue-info-panel">
+                    <h2 class="h5 fw-bold">Thông tin cơ sở</h2>
+                    <dl class="mb-0">
+                        <dt>Giờ hoạt động</dt>
+                        <dd>{{ venue.opening_time.strftime('%H:%M') }}–{{ venue.closing_time.strftime('%H:%M') }}</dd>
+                        <dt>Điện thoại</dt>
+                        <dd>{{ venue.phone or 'Chưa cung cấp' }}</dd>
+                        <dt>Đơn vị quản lý</dt>
+                        <dd class="mb-0">{{ venue.owner.full_name }}</dd>
+                    </dl>
+                </aside>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

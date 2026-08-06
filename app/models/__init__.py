@@ -2,6 +2,7 @@
 
 from .owner_application import OwnerApplication, OwnerApplicationStatus
 from .user import User, UserRole, UserStatus
+from .venue import Venue, VenueStatus
 
 __all__ = [
     "OwnerApplication",
@@ -9,4 +10,6 @@ __all__ = [
     "User",
     "UserRole",
     "UserStatus",
+    "Venue",
+    "VenueStatus",
 ]

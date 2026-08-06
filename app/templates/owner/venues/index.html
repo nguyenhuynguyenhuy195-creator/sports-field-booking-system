@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Cơ sở của tôi · Sports Field Booking{% endblock %}
+
+{% block content %}
+<section class="container py-5">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+        <div>
+            <span class="eyebrow">KHU VỰC CHỦ SÂN</span>
+            <h1 class="h2 fw-bold mt-2 mb-1">Cơ sở của tôi</h1>
+            <p class="text-secondary mb-0">Tạo cơ sở và theo dõi trạng thái xét duyệt.</p>
+        </div>
+        <a class="btn btn-primary" href="{{ url_for('venues.owner_create') }}">Thêm cơ sở</a>
+    </div>
+
+    {% if venues %}
+        <div class="application-list">
+            {% for venue in venues %}
+                <article class="application-card">
+                    <div class="d-flex flex-column flex-lg-row justify-content-between gap-4">
+                        <div>
+                            <span class="status-badge status-{{ venue.status|lower }}">{{ status_labels[venue.status] }}</span>
+                            <h2 class="h5 fw-bold mt-3 mb-2">{{ venue.name }}</h2>
+                            <p class="text-secondary mb-1">{{ venue.address }}{% if venue.district %}, {{ venue.district }}{% endif %}, {{ venue.city }}</p>
+                            <p class="mb-0"><strong>Giờ hoạt động:</strong> {{ venue.opening_time.strftime('%H:%M') }}–{{ venue.closing_time.strftime('%H:%M') }}</p>
+                            {% if venue.moderation_note %}
+                                <div class="alert alert-light border mt-3 mb-0"><strong>Ghi chú kiểm duyệt:</strong> {{ venue.moderation_note }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="text-lg-end">
+                            <p class="small text-secondary mb-3">Tạo lúc {{ venue.created_at|local_datetime }}</p>
+                            <a class="btn btn-outline-primary" href="{{ url_for('venues.owner_edit', venue_id=venue.id) }}">Chỉnh sửa</a>
+                            {% if venue.status == 'ACTIVE' %}
+                                <a class="btn btn-primary" href="{{ url_for('venues.detail', venue_id=venue.id) }}">Xem công khai</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state text-center">
+            <div class="empty-state-icon" aria-hidden="true">🏟️</div>
+            <h2 class="h5 fw-bold">Bạn chưa có cơ sở nào</h2>
+            <p class="text-secondary">Cơ sở mới sẽ ở trạng thái chờ duyệt và chưa xuất hiện công khai.</p>
+            <a class="btn btn-primary" href="{{ url_for('venues.owner_create') }}">Tạo cơ sở đầu tiên</a>
+        </div>
+    {% endif %}
+</section>
+{% endblock %}

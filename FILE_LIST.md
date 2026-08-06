@@ -13,27 +13,36 @@ app/decorators.py
 app/extensions.py
 app/cli/users.py
 app/forms/owner_application.py
+app/forms/venue.py
 app/forms/auth.py
 app/forms/__init__.py
 app/models/owner_application.py
 app/models/user.py
+app/models/venue.py
 app/models/__init__.py
 app/routes/owner_applications.py
 app/routes/auth.py
 app/routes/health.py
 app/routes/main.py
+app/routes/venues.py
 app/services/owner_application.py
 app/services/auth.py
+app/services/venue.py
 app/services/__init__.py
 app/static/css/app.css
 app/templates/_form_helpers.html
 app/templates/admin/owner_applications.html
+app/templates/admin/venues.html
 app/templates/auth/login.html
 app/templates/auth/register.html
 app/templates/base.html
 app/templates/main/home.html
+app/templates/owner/venues/form.html
+app/templates/owner/venues/index.html
 app/templates/owner_applications/mine.html
 app/templates/owner_applications/new.html
+app/templates/venues/detail.html
+app/templates/venues/index.html
 app/template_filters.py
 app/__init__.py
 config.py
@@ -57,6 +66,7 @@ migrations/env.py
 migrations/script.py.mako
 migrations/versions/378937fd70e9_create_users_table.py
 migrations/versions/90b6736cc5ac_create_owner_applications_table.py
+migrations/versions/46d144661ea0_create_venues_table.py
 references/KE_HOACH_CHI_TIET.docx
 references/MẪU BÁO CÁO ĐỒ ÁN NGÀNH.docx
 references/README.md
@@ -66,10 +76,12 @@ tests/conftest.py
 tests/integration/test_auth.py
 tests/integration/test_health.py
 tests/integration/test_owner_applications.py
+tests/integration/test_venues.py
 tests/README.md
 tests/unit/test_owner_application_model.py
 tests/unit/test_template_filters.py
 tests/unit/test_user_model.py
+tests/unit/test_venue_model.py
 ```
 
 Các tài liệu Word trong `references/` được dùng làm mẫu và kế hoạch tham khảo; tài liệu Markdown trong `docs/` là nguồn yêu cầu chính của hệ thống.

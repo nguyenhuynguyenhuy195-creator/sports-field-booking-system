@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Kiểm duyệt cơ sở · Sports Field Booking{% endblock %}
+
+{% block content %}
+<section class="container py-5">
+    <div class="mb-4">
+        <span class="eyebrow">QUẢN TRỊ HỆ THỐNG</span>
+        <h1 class="h2 fw-bold mt-2 mb-1">Kiểm duyệt cơ sở</h1>
+        <p class="text-secondary mb-0">Duyệt cơ sở để hiển thị công khai hoặc ẩn cơ sở khi cần thiết.</p>
+    </div>
+
+    {% if venues %}
+        <div class="application-list">
+            {% for venue in venues %}
+                {% set form = moderation_forms[venue.id] %}
+                <article class="application-card">
+                    <div class="row g-4">
+                        <div class="col-lg-6">
+                            <span class="status-badge status-{{ venue.status|lower }}">{{ status_labels[venue.status] }}</span>
+                            <h2 class="h5 fw-bold mt-3 mb-2">{{ venue.name }}</h2>
+                            <p class="mb-1"><strong>Chủ sân:</strong> {{ venue.owner.full_name }}</p>
+                            <p class="mb-1"><strong>Email:</strong> {{ venue.owner.email }}</p>
+                            <p class="mb-1"><strong>Địa chỉ:</strong> {{ venue.address }}{% if venue.district %}, {{ venue.district }}{% endif %}, {{ venue.city }}</p>
+                            <p class="mb-1"><strong>Giờ:</strong> {{ venue.opening_time.strftime('%H:%M') }}–{{ venue.closing_time.strftime('%H:%M') }}</p>
+                            {% if venue.description %}<p class="text-secondary mt-3 mb-0">{{ venue.description }}</p>{% endif %}
+                        </div>
+                        <div class="col-lg-6">
+                            <form method="post" action="{{ url_for('venues.admin_moderate', venue_id=venue.id) }}" novalidate>
+                                {{ form.hidden_tag() }}
+                                <fieldset class="mb-3">
+                                    <legend class="form-label fw-semibold">{{ form.decision.label.text }}</legend>
+                                    {% for choice in form.decision %}
+                                        <div class="form-check mb-2">
+                                            {{ choice(class="form-check-input") }}
+                                            {{ choice.label(class="form-check-label") }}
+                                        </div>
+                                    {% endfor %}
+                                </fieldset>
+                                <div class="mb-3">
+                                    {{ form.moderation_note.label(class="form-label fw-semibold") }}
+                                    {{ form.moderation_note(class="form-control", rows="3", placeholder="Ví dụ: Đã xác minh thông tin cơ sở") }}
+                                </div>
+                                {{ form.submit(class="btn btn-primary") }}
+                            </form>
+                            {% if venue.reviewed_at %}
+                                <p class="small text-secondary mt-3 mb-0">Lần kiểm duyệt gần nhất: {{ venue.reviewed_at|local_datetime }}{% if venue.reviewer %} bởi {{ venue.reviewer.full_name }}{% endif %}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state text-center">
+            <div class="empty-state-icon" aria-hidden="true">✓</div>
+            <h2 class="h5 fw-bold">Chưa có cơ sở nào</h2>
+            <p class="text-secondary mb-0">Cơ sở do chủ sân tạo sẽ xuất hiện tại đây.</p>
+        </div>
+    {% endif %}
+</section>
+{% endblock %}

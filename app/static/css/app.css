@@ -204,6 +204,164 @@ a:hover {
     color: #41464b;
 }
 
+.status-active {
+    background: #d1e7dd;
+    color: #0a5036;
+}
+
+.status-hidden {
+    background: #f8d7da;
+    color: #842029;
+}
+
+.status-inactive {
+    background: #e2e3e5;
+    color: #41464b;
+}
+
+.venue-hero {
+    background: linear-gradient(135deg, #ffffff 0%, #e8f4ed 100%);
+    border-bottom: 1px solid var(--app-border);
+}
+
+.venue-grid {
+    display: grid;
+    gap: 1.5rem;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.venue-card,
+.venue-detail,
+.venue-info-panel {
+    background: #ffffff;
+    border: 1px solid var(--app-border);
+    border-radius: 16px;
+}
+
+.venue-card {
+    box-shadow: 0 12px 30px rgba(15, 39, 71, 0.06);
+    display: flex;
+    flex-direction: column;
+    padding: 1.5rem;
+}
+
+.venue-card-icon {
+    align-items: center;
+    background: #e8f4ed;
+    border-radius: 14px;
+    display: flex;
+    font-size: 1.75rem;
+    height: 52px;
+    justify-content: center;
+    margin-bottom: 1.25rem;
+    width: 52px;
+}
+
+.venue-detail {
+    box-shadow: 0 16px 40px rgba(15, 39, 71, 0.07);
+    padding: 2rem;
+}
+
+.venue-description {
+    line-height: 1.75;
+    white-space: pre-line;
+}
+
+.venue-info-panel {
+    background: #f8fbf9;
+    padding: 1.5rem;
+}
+
+.venue-info-panel dt {
+    color: #66788e;
+    font-size: 0.82rem;
+    font-weight: 600;
+    margin-top: 1rem;
+    text-transform: uppercase;
+}
+
+.venue-info-panel dd {
+    margin-bottom: 0;
+    margin-top: 0.25rem;
+}
+
+.venue-form-card {
+    max-width: 760px;
+}
+
+.time-picker-field {
+    min-width: 0;
+}
+
+.time-picker-control {
+    align-items: center;
+    background: #f8fbf9;
+    border: 1px solid #c8d4dc;
+    border-radius: 12px;
+    display: grid;
+    gap: 0.35rem;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
+    min-height: 72px;
+    padding: 0.45rem 0.65rem;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.time-picker-control:focus-within {
+    border-color: var(--app-primary);
+    box-shadow: 0 0 0 0.2rem rgba(20, 108, 67, 0.15);
+}
+
+.time-picker-control.is-invalid {
+    border-color: #dc3545;
+}
+
+.time-picker-segment {
+    min-width: 0;
+}
+
+.time-picker-caption {
+    color: #66788e;
+    display: block;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    margin-left: 0.75rem;
+    text-transform: uppercase;
+}
+
+.time-picker-select {
+    background-color: transparent;
+    border: 0;
+    color: var(--app-secondary);
+    font-size: 1.08rem;
+    font-weight: 700;
+    min-height: 38px;
+    padding-bottom: 0.25rem;
+    padding-top: 0.15rem;
+}
+
+.time-picker-select:focus {
+    border: 0;
+    box-shadow: none;
+}
+
+.time-picker-colon {
+    color: var(--app-primary);
+    font-size: 1.5rem;
+    font-weight: 700;
+    padding-top: 0.85rem;
+}
+
+.time-picker-period {
+    background: #dff1e7;
+    border-radius: 999px;
+    color: var(--app-primary-dark);
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    padding: 0.35rem 0.5rem;
+}
+
 @media (max-width: 575.98px) {
     .auth-card {
         border-radius: 12px;
