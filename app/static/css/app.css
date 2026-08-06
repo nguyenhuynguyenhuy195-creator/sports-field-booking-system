@@ -1,0 +1,165 @@
+:root {
+    --app-primary: #146c43;
+    --app-primary-dark: #0e4f31;
+    --app-secondary: #0f2747;
+    --app-background: #f5f7fa;
+    --app-border: #dce4e9;
+}
+
+html,
+body {
+    min-height: 100%;
+}
+
+body {
+    background: var(--app-background);
+    color: var(--app-secondary);
+    display: flex;
+    flex-direction: column;
+    font-family: "Be Vietnam Pro", "Segoe UI", sans-serif;
+    min-height: 100vh;
+}
+
+main {
+    flex: 1;
+}
+
+a {
+    color: var(--app-primary);
+}
+
+a:hover {
+    color: var(--app-primary-dark);
+}
+
+.app-navbar {
+    background: var(--app-secondary);
+    min-height: 72px;
+}
+
+.flash-container {
+    padding-top: 1rem;
+}
+
+.btn {
+    min-height: 44px;
+}
+
+.btn-primary {
+    background-color: var(--app-primary);
+    border-color: var(--app-primary);
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+    background-color: var(--app-primary-dark);
+    border-color: var(--app-primary-dark);
+}
+
+.btn-outline-primary {
+    border-color: var(--app-primary);
+    color: var(--app-primary);
+}
+
+.btn-outline-primary:hover {
+    background-color: var(--app-primary);
+    border-color: var(--app-primary);
+}
+
+.hero-section {
+    background: linear-gradient(135deg, #ffffff 0%, #edf7f1 100%);
+    border-bottom: 1px solid var(--app-border);
+}
+
+.py-lg-6 {
+    padding-bottom: 5rem;
+    padding-top: 5rem;
+}
+
+.eyebrow {
+    color: var(--app-primary);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+}
+
+.hero-panel,
+.feature-card,
+.auth-card {
+    background: #ffffff;
+    border: 1px solid var(--app-border);
+    border-radius: 16px;
+    box-shadow: 0 16px 40px rgba(15, 39, 71, 0.08);
+}
+
+.hero-panel {
+    padding: 2rem;
+}
+
+.hero-ball {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.feature-list {
+    color: #42556f;
+    padding-left: 1.25rem;
+}
+
+.feature-list li + li {
+    margin-top: 0.75rem;
+}
+
+.feature-card {
+    padding: 1.5rem;
+}
+
+.feature-number {
+    color: var(--app-primary);
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.auth-section {
+    background: linear-gradient(180deg, #eef7f2 0%, var(--app-background) 100%);
+}
+
+.auth-card {
+    max-width: 560px;
+    padding: 2rem;
+}
+
+.form-control {
+    border-color: #c8d4dc;
+    min-height: 46px;
+}
+
+.form-control:focus,
+.form-check-input:focus {
+    border-color: var(--app-primary);
+    box-shadow: 0 0 0 0.2rem rgba(20, 108, 67, 0.15);
+}
+
+.form-check-input:checked {
+    background-color: var(--app-primary);
+    border-color: var(--app-primary);
+}
+
+.app-footer {
+    background: #ffffff;
+    border-top: 1px solid var(--app-border);
+    color: #66788e;
+    font-size: 0.9rem;
+}
+
+@media (max-width: 575.98px) {
+    .auth-card {
+        border-radius: 12px;
+        padding: 1.25rem;
+    }
+
+    .py-lg-6 {
+        padding-bottom: 3rem;
+        padding-top: 3rem;
+    }
+}

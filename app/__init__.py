@@ -32,11 +32,32 @@ def _validate_required_config(app: Flask) -> None:
 def _initialize_extensions(app: Flask) -> None:
     db.init_app(app)
     migrate.init_app(app, db)
+    _configure_login_manager()
     login_manager.init_app(app)
     csrf.init_app(app)
 
 
-def _register_blueprints(app: Flask) -> None:
-    from .routes.health import health_bp
+def _configure_login_manager() -> None:
+    from .models import User
 
+    login_manager.login_view = "auth.login"
+    login_manager.login_message = "Vui lòng đăng nhập để tiếp tục."
+    login_manager.login_message_category = "warning"
+    login_manager.session_protection = "strong"
+
+    @login_manager.user_loader
+    def load_user(user_id: str) -> User | None:
+        if not user_id.isdigit():
+            return None
+        user = db.session.get(User, int(user_id))
+        return user if user is not None and user.is_active else None
+
+
+def _register_blueprints(app: Flask) -> None:
+    from .routes.auth import auth_bp
+    from .routes.health import health_bp
+    from .routes.main import main_bp
+
+    app.register_blueprint(main_bp)
+    app.register_blueprint(auth_bp)
     app.register_blueprint(health_bp)

@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Trang chủ · Sports Field Booking{% endblock %}
+
+{% block content %}
+<section class="hero-section">
+    <div class="container py-5 py-lg-6">
+        <div class="row align-items-center g-5">
+            <div class="col-lg-7">
+                <span class="eyebrow">ĐẶT SÂN · TÌM KÈO · CHIA TIỀN</span>
+                {% if current_user.is_authenticated %}
+                    <h1 class="display-5 fw-bold mt-3">Chào {{ current_user.full_name }}, sẵn sàng cho trận tiếp theo?</h1>
+                    <p class="lead text-secondary mt-3">Tài khoản của bạn đã đăng nhập với vai trò <strong>{{ current_user.role }}</strong>. Các chức năng tìm sân và đặt sân sẽ được triển khai ở bước tiếp theo.</p>
+                {% else %}
+                    <h1 class="display-5 fw-bold mt-3">Đặt sân nhanh, tìm đúng người, chia tiền rõ ràng</h1>
+                    <p class="lead text-secondary mt-3">Một nơi để người chơi đặt sân bóng, tìm đối thủ hoặc ghép thêm thành viên và thanh toán minh bạch qua MoMo Sandbox.</p>
+                    <div class="d-flex flex-column flex-sm-row gap-3 mt-4">
+                        <a class="btn btn-primary btn-lg" href="{{ url_for('auth.register') }}">Tạo tài khoản</a>
+                        <a class="btn btn-outline-primary btn-lg" href="{{ url_for('auth.login') }}">Tôi đã có tài khoản</a>
+                    </div>
+                {% endif %}
+            </div>
+            <div class="col-lg-5">
+                <div class="hero-panel">
+                    <div class="hero-ball" aria-hidden="true">⚽</div>
+                    <h2 class="h4 fw-bold">Ba cách thanh toán</h2>
+                    <ul class="feature-list mb-0">
+                        <li>Thanh toán toàn bộ tiền sân</li>
+                        <li>Hai đội chia 50/50</li>
+                        <li>Chia theo từng người tham gia</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="container py-5">
+    <div class="row g-4">
+        <div class="col-md-4">
+            <article class="feature-card h-100">
+                <span class="feature-number">01</span>
+                <h2 class="h5 fw-bold mt-3">Tìm sân phù hợp</h2>
+                <p class="text-secondary mb-0">Xem sân đang hoạt động, khung giá và thời gian có thể đặt.</p>
+            </article>
+        </div>
+        <div class="col-md-4">
+            <article class="feature-card h-100">
+                <span class="feature-number">02</span>
+                <h2 class="h5 fw-bold mt-3">Tạo kèo linh hoạt</h2>
+                <p class="text-secondary mb-0">Tìm một đội đối thủ hoặc tuyển thêm đúng số người còn thiếu.</p>
+            </article>
+        </div>
+        <div class="col-md-4">
+            <article class="feature-card h-100">
+                <span class="feature-number">03</span>
+                <h2 class="h5 fw-bold mt-3">Theo dõi thanh toán</h2>
+                <p class="text-secondary mb-0">Mỗi người biết rõ nghĩa vụ, số tiền đã đóng và chính sách hoàn tiền.</p>
+            </article>
+        </div>
+    </div>
+</section>
+{% endblock %}
