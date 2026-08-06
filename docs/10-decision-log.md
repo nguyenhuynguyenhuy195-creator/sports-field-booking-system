@@ -56,6 +56,7 @@ Thành viên có sẵn không bắt buộc tạo tài khoản. Người tạo c�
 - Không góp đủ đúng hạn: creator được hoàn 80%, 20% khoản creator đã đóng là phí giữ sân cho owner.
 - Đối thủ/người ghép đã thanh toán đúng hạn được hoàn 100%.
 - Owner hủy vì sự cố: hoàn 100% cho mọi người đã thanh toán.
+- Chính sách owner hủy áp dụng cho cả booking `PARTIALLY_PAID` và `PAID`; booking chưa thu tiền không cần tạo refund.
 - Refund là bản ghi riêng; không xóa hoặc ghi đè payment gốc.
 
 ## ADR-010: Chính sách rút khỏi kèo và no-show
@@ -67,6 +68,7 @@ Thành viên có sẵn không bắt buộc tạo tài khoản. Người tạo c�
 ## ADR-011: Venue, field và bảo trì
 
 - Venue mới `PENDING`, admin duyệt mới `ACTIVE`.
+- Venue lưu người duyệt, thời điểm duyệt và ghi chú kiểm duyệt; tên field không được trùng trong cùng venue.
 - Field mới `INACTIVE`, chỉ bật sau khi đủ cấu hình.
 - Bảo trì lưu theo ngày/khoảng giờ và không được trùng booking chiếm chỗ.
 
@@ -84,3 +86,11 @@ User đăng ký với role `USER`, gửi owner application và chỉ chuyển th
 ## ADR-014: AI và chức năng mở rộng
 
 AI lọc spam, phân tích cảm xúc, recommendation, chat thời gian thực, mobile app và theo dõi no-show nâng cao không thuộc MVP. Các mục này chỉ xem xét sau khi booking, MoMo, refund và chia tiền đã ổn định.
+
+## ADR-015: Chốt ERD và ràng buộc SQL Server
+
+- MVP sử dụng 13 bảng nghiệp vụ; chưa thêm notification, team, review, payout hoặc audit log riêng.
+- Dữ liệu giao dịch dùng foreign key `NO ACTION` và chuyển trạng thái thay vì cascade delete.
+- Unique trên mã giao dịch nullable và unique theo trạng thái phải dùng filtered unique index phù hợp SQL Server.
+- `payments` và `refunds` là lịch sử tiền gốc; số tiền tại contribution và booking là dữ liệu tổng hợp cập nhật trong cùng transaction.
+- Nguồn ERD được lưu cùng repository và phải đồng bộ với `docs/05-database-design.md` trước khi tạo migration.

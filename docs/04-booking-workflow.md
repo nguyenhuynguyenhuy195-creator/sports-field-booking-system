@@ -67,7 +67,7 @@ Booking thông thường phải được tạo trước giờ bắt đầu ít n
 
 ### Owner hủy do sự cố
 1. Owner nhập lý do hủy.
-2. Booking có tiền đã thu chuyển `REFUND_PENDING`.
+2. Booking `PARTIALLY_PAID` hoặc `PAID` chuyển `REFUND_PENDING`; booking `CONFIRMED` chưa thu tiền có thể chuyển thẳng `CANCELLED`.
 3. Backend tạo refund toàn bộ qua MoMo Sandbox cho từng khoản hợp lệ.
 4. Sau khi mọi refund thành công, booking chuyển `CANCELLED`.
 5. Nếu refund thất bại hoặc đang xử lý, booking giữ `REFUND_PENDING` để retry/query.
