@@ -47,7 +47,7 @@ MVP dùng MoMo Sandbox và hỗ trợ hoàn tiền; MoMo Production không thu�
 - Microsoft SQL Server
 - pyodbc
 
-## 4. Cấu trúc thư mục dự kiến
+## 4. Cấu trúc thư mục
 
 ```text
 app/
@@ -81,6 +81,16 @@ Cấu hình development hiện dùng Windows Authentication với SQL Server m�
 
 ## 6. Chạy ứng dụng
 
+Khởi tạo hoặc cập nhật cấu trúc database trước lần chạy đầu tiên:
+
+```bash
+.venv\Scripts\python.exe -m flask --app run.py db upgrade
+```
+
+Lệnh trên đọc các migration trong `migrations/` và áp dụng chúng theo đúng thứ tự. Migration hiện tại tạo bảng `users`; bảng `alembic_version` do Flask-Migrate dùng để ghi nhận phiên bản database.
+
+Sau đó chạy website:
+
 ```bash
 .venv\Scripts\python.exe -m flask --app run.py run
 ```
@@ -90,17 +100,28 @@ Kiểm tra ứng dụng:
 ```text
 GET http://127.0.0.1:5000/health
 GET http://127.0.0.1:5000/health/ready
+GET http://127.0.0.1:5000/auth/register
+GET http://127.0.0.1:5000/auth/login
 ```
 
-`/health` kiểm tra tiến trình Flask. `/health/ready` chạy `SELECT 1` để xác nhận SQL Server sẵn sàng. Chưa chạy `flask db init` hoặc tạo migration ở giai đoạn khởi tạo.
+`/health` kiểm tra tiến trình Flask. `/health/ready` chạy `SELECT 1` để xác nhận SQL Server sẵn sàng. Hai trang `/auth/register` và `/auth/login` cung cấp chức năng tài khoản đầu tiên của hệ thống.
 
-## 7. Chạy kiểm thử
+## 7. Chức năng đã triển khai
+
+- Đăng ký tài khoản người chơi bằng họ tên, email, số điện thoại tùy chọn và mật khẩu.
+- Chuẩn hóa email, kiểm tra email không trùng và lưu mật khẩu ở dạng băm.
+- Đăng nhập, ghi nhớ đăng nhập và đăng xuất bằng biểu mẫu POST có CSRF.
+- Từ chối đăng nhập đối với tài khoản bị khóa hoặc ngừng hoạt động.
+- Phân quyền nền tảng `USER`, `OWNER`, `ADMIN` ở phía backend.
+- Giao diện responsive dùng Jinja2, Bootstrap 5 và CSS riêng.
+
+## 8. Chạy kiểm thử
 
 ```bash
 .venv\Scripts\python.exe -m pytest
 ```
 
-## 8. Tài liệu quan trọng
+## 9. Tài liệu quan trọng
 
 Tài liệu dự án nên được đọc theo thứ tự:
 1. `docs/01-project-overview.md`

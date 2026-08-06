@@ -1,1 +1,5 @@
-"""Database models will be added module by module after the ERD is approved."""
+"""Database models exposed to Flask-Migrate and application services."""
+
+from .user import User, UserRole, UserStatus
+
+__all__ = ["User", "UserRole", "UserStatus"]

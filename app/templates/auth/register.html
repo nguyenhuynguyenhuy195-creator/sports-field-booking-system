@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% from "_form_helpers.html" import render_field %}
+
+{% block title %}Đăng ký · Sports Field Booking{% endblock %}
+
+{% block content %}
+<section class="auth-section py-5">
+    <div class="container">
+        <div class="auth-card mx-auto">
+            <div class="mb-4">
+                <span class="eyebrow">TÀI KHOẢN NGƯỜI CHƠI</span>
+                <h1 class="h2 fw-bold mt-2">Tạo tài khoản</h1>
+                <p class="text-secondary mb-0">Đăng ký để đặt sân, tạo kèo và tham gia cùng những người chơi khác.</p>
+            </div>
+
+            <form method="post" novalidate>
+                {{ form.hidden_tag() }}
+                {{ render_field(form.full_name, "name") }}
+                {{ render_field(form.email, "email") }}
+                {{ render_field(form.phone, "tel") }}
+                {{ render_field(form.password, "new-password") }}
+                {{ render_field(form.confirm_password, "new-password") }}
+                {{ form.submit(class="btn btn-primary btn-lg w-100") }}
+            </form>
+
+            <p class="text-center text-secondary mt-4 mb-0">
+                Đã có tài khoản?
+                <a href="{{ url_for('auth.login') }}">Đăng nhập</a>
+            </p>
+        </div>
+    </div>
+</section>
+{% endblock %}
