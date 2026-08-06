@@ -20,6 +20,8 @@ def create_app(config_name: str | None = None) -> Flask:
     _validate_required_config(app)
     _initialize_extensions(app)
     _register_blueprints(app)
+    _register_commands(app)
+    _register_template_filters(app)
 
     return app
 
@@ -57,7 +59,22 @@ def _register_blueprints(app: Flask) -> None:
     from .routes.auth import auth_bp
     from .routes.health import health_bp
     from .routes.main import main_bp
+    from .routes.owner_applications import admin_bp, owner_applications_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
+    app.register_blueprint(owner_applications_bp)
+    app.register_blueprint(admin_bp)
     app.register_blueprint(health_bp)
+
+
+def _register_commands(app: Flask) -> None:
+    from .cli import register_commands
+
+    register_commands(app)
+
+
+def _register_template_filters(app: Flask) -> None:
+    from .template_filters import register_template_filters
+
+    register_template_filters(app)

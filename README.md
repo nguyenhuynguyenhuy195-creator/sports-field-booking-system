@@ -71,7 +71,7 @@ migrations/
 
 ```bash
 python -m venv .venv
-.venv\Scripts\Activate.ps1
+.\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 ```
 
@@ -84,15 +84,15 @@ Cấu hình development hiện dùng Windows Authentication với SQL Server m�
 Khởi tạo hoặc cập nhật cấu trúc database trước lần chạy đầu tiên:
 
 ```bash
-.venv\Scripts\python.exe -m flask --app run.py db upgrade
+.\.venv\Scripts\python.exe -m flask --app run.py db upgrade
 ```
 
-Lệnh trên đọc các migration trong `migrations/` và áp dụng chúng theo đúng thứ tự. Migration hiện tại tạo bảng `users`; bảng `alembic_version` do Flask-Migrate dùng để ghi nhận phiên bản database.
+Lệnh trên đọc các migration trong `migrations/` và áp dụng chúng theo đúng thứ tự. Các migration hiện tại tạo bảng `users` và `owner_applications`; bảng `alembic_version` do Flask-Migrate dùng để ghi nhận phiên bản database.
 
 Sau đó chạy website:
 
 ```bash
-.venv\Scripts\python.exe -m flask --app run.py run
+.\.venv\Scripts\python.exe -m flask --app run.py run
 ```
 
 Kiểm tra ứng dụng:
@@ -113,12 +113,23 @@ GET http://127.0.0.1:5000/auth/login
 - Đăng nhập, ghi nhớ đăng nhập và đăng xuất bằng biểu mẫu POST có CSRF.
 - Từ chối đăng nhập đối với tài khoản bị khóa hoặc ngừng hoạt động.
 - Phân quyền nền tảng `USER`, `OWNER`, `ADMIN` ở phía backend.
+- Người chơi gửi và theo dõi yêu cầu trở thành chủ sân.
+- Admin chấp nhận hoặc từ chối yêu cầu; khi chấp nhận, tài khoản được chuyển thành `OWNER` trong cùng transaction.
+- Lệnh CLI tạo tài khoản admin đầu tiên mà không mở đăng ký admin công khai.
 - Giao diện responsive dùng Jinja2, Bootstrap 5 và CSS riêng.
+
+Tạo tài khoản quản trị viên đầu tiên:
+
+```bash
+.\.venv\Scripts\python.exe -m flask --app run.py users create-admin
+```
+
+Lệnh sẽ hỏi họ tên, email và mật khẩu. Mật khẩu được nhập ẩn và được lưu dưới dạng băm.
 
 ## 8. Chạy kiểm thử
 
 ```bash
-.venv\Scripts\python.exe -m pytest
+.\.venv\Scripts\python.exe -m pytest
 ```
 
 ## 9. Tài liệu quan trọng

@@ -152,6 +152,58 @@ a:hover {
     font-size: 0.9rem;
 }
 
+.application-list {
+    display: grid;
+    gap: 1rem;
+}
+
+.application-card,
+.empty-state {
+    background: #ffffff;
+    border: 1px solid var(--app-border);
+    border-radius: 16px;
+    box-shadow: 0 12px 30px rgba(15, 39, 71, 0.06);
+    padding: 1.5rem;
+}
+
+.empty-state {
+    padding-bottom: 3rem;
+    padding-top: 3rem;
+}
+
+.empty-state-icon {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+}
+
+.status-badge {
+    border-radius: 999px;
+    display: inline-flex;
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 0.4rem 0.75rem;
+}
+
+.status-pending {
+    background: #fff3cd;
+    color: #765a00;
+}
+
+.status-approved {
+    background: #d1e7dd;
+    color: #0a5036;
+}
+
+.status-rejected {
+    background: #f8d7da;
+    color: #842029;
+}
+
+.status-cancelled {
+    background: #e2e3e5;
+    color: #41464b;
+}
+
 @media (max-width: 575.98px) {
     .auth-card {
         border-radius: 12px;

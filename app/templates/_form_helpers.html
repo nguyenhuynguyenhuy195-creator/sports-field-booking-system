@@ -3,7 +3,8 @@
         {{ field.label(class="form-label") }}
         {{ field(
             class="form-control" + (" is-invalid" if field.errors else ""),
-            autocomplete=autocomplete
+            autocomplete=autocomplete,
+            **kwargs
         ) }}
         {% for error in field.errors %}
             <div class="invalid-feedback">{{ error }}</div>
