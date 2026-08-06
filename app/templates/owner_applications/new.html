@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% from "_form_helpers.html" import render_field %}
+
+{% block title %}Đăng ký chủ sân · Sports Field Booking{% endblock %}
+
+{% block content %}
+<section class="auth-section py-5">
+    <div class="container">
+        <div class="auth-card mx-auto">
+            <span class="eyebrow">DÀNH CHO ĐỐI TÁC SÂN BÓNG</span>
+            <h1 class="h2 fw-bold mt-2">Yêu cầu trở thành chủ sân</h1>
+            <p class="text-secondary">Sau khi được quản trị viên chấp nhận, tài khoản của bạn mới có quyền tạo và quản lý sân.</p>
+
+            {% if pending_application %}
+                <div class="alert alert-warning mb-4" role="alert">
+                    Bạn đã gửi yêu cầu cho <strong>{{ pending_application.business_name }}</strong> và đang chờ xét duyệt.
+                </div>
+                <a class="btn btn-primary w-100" href="{{ url_for('owner_applications.mine') }}">Xem trạng thái yêu cầu</a>
+            {% else %}
+                <form method="post" novalidate>
+                    {{ form.hidden_tag() }}
+                    {{ render_field(form.business_name, placeholder="Ví dụ: Sân bóng Minh Anh") }}
+                    {{ render_field(form.contact_phone, placeholder="Ví dụ: 0901234567") }}
+                    {{ render_field(form.note, rows="4", placeholder="Khu vực hoạt động hoặc thông tin muốn gửi đến quản trị viên") }}
+                    {{ form.submit(class="btn btn-primary w-100") }}
+                </form>
+            {% endif %}
+        </div>
+    </div>
+</section>
+{% endblock %}

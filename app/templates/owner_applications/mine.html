@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Yêu cầu chủ sân của tôi · Sports Field Booking{% endblock %}
+
+{% block content %}
+<section class="container py-5">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+        <div>
+            <span class="eyebrow">TÀI KHOẢN CỦA TÔI</span>
+            <h1 class="h2 fw-bold mt-2 mb-1">Yêu cầu trở thành chủ sân</h1>
+            <p class="text-secondary mb-0">Theo dõi kết quả xét duyệt từ quản trị viên.</p>
+        </div>
+        {% if current_user.role == 'USER' and not applications|selectattr('status', 'equalto', 'PENDING')|list %}
+            <a class="btn btn-primary" href="{{ url_for('owner_applications.create') }}">Gửi yêu cầu mới</a>
+        {% endif %}
+    </div>
+
+    {% if applications %}
+        <div class="application-list">
+            {% for application in applications %}
+                <article class="application-card">
+                    <div class="d-flex flex-column flex-md-row justify-content-between gap-3">
+                        <div>
+                            <h2 class="h5 fw-bold mb-1">{{ application.business_name }}</h2>
+                            <p class="text-secondary mb-2">{{ application.contact_phone }}</p>
+                            {% if application.note %}
+                                <p class="mb-0">{{ application.note }}</p>
+                            {% endif %}
+                        </div>
+                        <div class="text-md-end">
+                            <span class="status-badge status-{{ application.status|lower }}">
+                                {{ status_labels[application.status] }}
+                            </span>
+                            <p class="small text-secondary mt-2 mb-0">
+                                Gửi lúc {{ application.created_at|local_datetime }}
+                            </p>
+                        </div>
+                    </div>
+                    {% if application.status == 'REJECTED' %}
+                        <div class="alert alert-danger mt-3 mb-0">
+                            <strong>Lý do từ chối:</strong> {{ application.rejection_reason }}
+                        </div>
+                    {% elif application.status == 'APPROVED' %}
+                        <div class="alert alert-success mt-3 mb-0">
+                            Tài khoản của bạn đã được chuyển thành OWNER.
+                        </div>
+                    {% endif %}
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state text-center">
+            <div class="empty-state-icon" aria-hidden="true">🏟️</div>
+            <h2 class="h5 fw-bold">Bạn chưa gửi yêu cầu nào</h2>
+            <p class="text-secondary">Hãy cung cấp thông tin cơ sở để quản trị viên xét duyệt.</p>
+            {% if current_user.role == 'USER' %}
+                <a class="btn btn-primary" href="{{ url_for('owner_applications.create') }}">Gửi yêu cầu đầu tiên</a>
+            {% endif %}
+        </div>
+    {% endif %}
+</section>
+{% endblock %}

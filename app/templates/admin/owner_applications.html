@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Duyệt chủ sân · Sports Field Booking{% endblock %}
+
+{% block content %}
+<section class="container py-5">
+    <div class="mb-4">
+        <span class="eyebrow">QUẢN TRỊ HỆ THỐNG</span>
+        <h1 class="h2 fw-bold mt-2 mb-1">Yêu cầu trở thành chủ sân</h1>
+        <p class="text-secondary mb-0">Chấp nhận hoặc từ chối các yêu cầu đang chờ.</p>
+    </div>
+
+    {% if applications %}
+        <div class="application-list">
+            {% for application in applications %}
+                {% set form = review_forms[application.id] %}
+                <article class="application-card">
+                    <div class="row g-4">
+                        <div class="col-lg-5">
+                            <span class="status-badge status-pending">Đang chờ</span>
+                            <h2 class="h5 fw-bold mt-3 mb-1">{{ application.business_name }}</h2>
+                            <p class="mb-1"><strong>Người gửi:</strong> {{ application.applicant.full_name }}</p>
+                            <p class="mb-1"><strong>Email:</strong> {{ application.applicant.email }}</p>
+                            <p class="mb-1"><strong>Điện thoại:</strong> {{ application.contact_phone }}</p>
+                            {% if application.note %}
+                                <p class="text-secondary mt-3 mb-0">{{ application.note }}</p>
+                            {% endif %}
+                        </div>
+                        <div class="col-lg-7">
+                            <form method="post" action="{{ url_for('admin.review_owner_application_route', application_id=application.id) }}" novalidate>
+                                {{ form.hidden_tag() }}
+                                <fieldset class="mb-3">
+                                    <legend class="form-label fw-semibold">{{ form.decision.label.text }}</legend>
+                                    <div class="d-flex flex-column flex-sm-row gap-3">
+                                        {% for choice in form.decision %}
+                                            <div class="form-check">
+                                                {{ choice(class="form-check-input") }}
+                                                {{ choice.label(class="form-check-label") }}
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </fieldset>
+                                <div class="mb-3">
+                                    {{ form.rejection_reason.label(class="form-label fw-semibold") }}
+                                    {{ form.rejection_reason(class="form-control", rows="3", placeholder="Bắt buộc khi chọn Từ chối") }}
+                                </div>
+                                {{ form.submit(class="btn btn-primary") }}
+                            </form>
+                        </div>
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state text-center">
+            <div class="empty-state-icon" aria-hidden="true">✓</div>
+            <h2 class="h5 fw-bold">Không có yêu cầu đang chờ</h2>
+            <p class="text-secondary mb-0">Các yêu cầu mới sẽ xuất hiện tại đây.</p>
+        </div>
+    {% endif %}
+</section>
+{% endblock %}
