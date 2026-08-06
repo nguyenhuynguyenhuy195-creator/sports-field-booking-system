@@ -102,15 +102,14 @@ GET http://127.0.0.1:5000/health/ready
 
 ## 8. Tài liệu quan trọng
 
-Codex phải đọc theo thứ tự:
-1. `AGENTS.md`
-2. `docs/01-project-overview.md`
-3. `docs/02-scope-mvp.md`
-4. `docs/03-business-rules.md`
-5. `docs/04-booking-workflow.md`
-6. `docs/05-database-design.md`
-7. `docs/06-system-architecture.md`
-8. `docs/07-ui-requirements.md`
-9. `docs/08-acceptance-criteria.md`
-10. `docs/09-test-cases.md`
-11. `docs/10-decision-log.md`
+Tài liệu dự án nên được đọc theo thứ tự:
+1. `docs/01-project-overview.md`
+2. `docs/02-scope-mvp.md`
+3. `docs/03-business-rules.md`
+4. `docs/04-booking-workflow.md`
+5. `docs/05-database-design.md`
+6. `docs/06-system-architecture.md`
+7. `docs/07-ui-requirements.md`
+8. `docs/08-acceptance-criteria.md`
+9. `docs/09-test-cases.md`
+10. `docs/10-decision-log.md`
