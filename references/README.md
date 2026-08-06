@@ -4,8 +4,6 @@ Thư mục này chứa các tài liệu Word phục vụ đồ án.
 
 Đã kèm:
 - `KE_HOACH_CHI_TIET.docx`
+- `MẪU BÁO CÁO ĐỒ ÁN NGÀNH.docx`
 
-Bạn cần tự sao chép thêm file mẫu báo cáo của trường vào đây với tên:
-- `MAU_BAO_CAO_DO_AN_NGANH.docx`
-
-Các file Markdown trong `docs/` mới là nguồn yêu cầu chính để Codex viết code.
+Các file Markdown trong `docs/` là nguồn yêu cầu chính để triển khai và kiểm thử hệ thống.

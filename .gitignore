@@ -10,6 +10,7 @@ instance/
 htmlcov/
 .vscode/
 .idea/
+_local_ai_notes/
 *.log
 *.mdf
 *.ldf

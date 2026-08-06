@@ -7,4 +7,4 @@
 - `booking-form.png`
 - `owner-dashboard.png`
 
-Khi giao Codex code giao diện, chỉ rõ ảnh nào là nguồn thiết kế của màn hình đó.
+Khi triển khai giao diện, cần ghi rõ ảnh nào là nguồn thiết kế của từng màn hình.

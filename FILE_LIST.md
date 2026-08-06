@@ -1,13 +1,12 @@
 # DANH SÁCH FILE
 
-Bộ hồ sơ được chuẩn bị để Codex hiểu dự án trước khi viết code.
+Bộ hồ sơ mô tả phạm vi, nghiệp vụ, kiến trúc và cấu trúc khởi tạo của dự án.
 
 ## Cấu trúc
 
 ```text
 .env.example
 .gitignore
-AGENTS.md
 README.md
 app/README.md
 design/screenshots/README.md
@@ -23,12 +22,11 @@ docs/09-test-cases.md
 docs/10-decision-log.md
 docs/diagrams/README.md
 migrations/README.md
-prompts/01-codex-read-project.md
-prompts/02-codex-initialize-project.md
 references/KE_HOACH_CHI_TIET.docx
+references/MẪU BÁO CÁO ĐỒ ÁN NGÀNH.docx
 references/README.md
 requirements.txt
 tests/README.md
 ```
 
-File mẫu báo cáo của trường chưa được kèm vì không có bản gốc trong cuộc trò chuyện. Hãy tự sao chép vào `references/MAU_BAO_CAO_DO_AN_NGANH.docx`.
+Các tài liệu Word trong `references/` được dùng làm mẫu và kế hoạch tham khảo; tài liệu Markdown trong `docs/` là nguồn yêu cầu chính của hệ thống.
