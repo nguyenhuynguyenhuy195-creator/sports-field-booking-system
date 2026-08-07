@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Khung giá {{ field.name }} · Sports Field Booking{% endblock %}
+
+{% block content %}
+<section class="container py-5">
+    <a class="text-decoration-none" href="{{ url_for('fields.owner_index', venue_id=field.venue_id) }}">← Danh sách sân</a>
+
+    <div class="price-summary my-4">
+        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-4">
+            <div>
+                <span class="eyebrow">{{ field.venue.name }}</span>
+                <h1 class="h2 fw-bold mt-2 mb-2">Khung giá · {{ field.name }}</h1>
+                <p class="text-secondary mb-0">Cấu hình giá theo ngày và khoảng giờ. Các khung đang áp dụng trong cùng ngày không được chồng nhau.</p>
+            </div>
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+                <span class="status-badge status-{{ field.status|lower }}">
+                    {{ 'Đang hoạt động' if field.status == 'ACTIVE' else 'Chưa hoạt động' }}
+                </span>
+                {% set target_field_status = 'INACTIVE' if field.status == 'ACTIVE' else 'ACTIVE' %}
+                <form method="post" action="{{ url_for('pricing.owner_set_field_status', venue_id=field.venue_id, field_id=field.id, status=target_field_status) }}">
+                    {{ action_form.hidden_tag() }}
+                    <button class="btn {{ 'btn-outline-secondary' if field.status == 'ACTIVE' else 'btn-primary' }}" type="submit">
+                        {{ 'Tạm ngưng sân' if field.status == 'ACTIVE' else 'Bật sân' }}
+                    </button>
+                </form>
+                <a class="btn btn-primary" href="{{ url_for('pricing.owner_create', venue_id=field.venue_id, field_id=field.id) }}">Thêm khung giá</a>
+            </div>
+        </div>
+    </div>
+
+    {% if field.status == 'INACTIVE' %}
+        <div class="alert alert-info">Sân chỉ có thể bật sau khi có ít nhất một khung giá đang áp dụng.</div>
+    {% endif %}
+
+    {% if slots %}
+        <div class="price-table-card table-responsive">
+            <table class="table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Ngày</th>
+                        <th>Khoảng giờ</th>
+                        <th>Giá mỗi giờ</th>
+                        <th>Trạng thái</th>
+                        <th class="text-end">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for slot in slots %}
+                        <tr>
+                            <td class="fw-semibold">{{ day_labels[slot.day_of_week] }}</td>
+                            <td>{{ slot.start_time.strftime('%H:%M') }}–{{ slot.end_time.strftime('%H:%M') }}</td>
+                            <td class="price-amount">{{ slot.hourly_price|vnd_currency }}/giờ</td>
+                            <td><span class="status-badge status-{{ slot.status|lower }}">{{ status_labels[slot.status] }}</span></td>
+                            <td>
+                                <div class="d-flex flex-wrap justify-content-end gap-2">
+                                    <a class="btn btn-sm btn-outline-primary" href="{{ url_for('pricing.owner_edit', venue_id=field.venue_id, field_id=field.id, slot_id=slot.id) }}">Chỉnh sửa</a>
+                                    {% set target_slot_status = 'INACTIVE' if slot.status == 'ACTIVE' else 'ACTIVE' %}
+                                    <form method="post" action="{{ url_for('pricing.owner_set_slot_status', venue_id=field.venue_id, field_id=field.id, slot_id=slot.id, status=target_slot_status) }}">
+                                        {{ action_form.hidden_tag() }}
+                                        <button class="btn btn-sm {{ 'btn-outline-secondary' if slot.status == 'ACTIVE' else 'btn-outline-primary' }}" type="submit">
+                                            {{ 'Tạm ngưng' if slot.status == 'ACTIVE' else 'Bật lại' }}
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="empty-state text-center">
+            <div class="empty-state-icon" aria-hidden="true">₫</div>
+            <h2 class="h5 fw-bold">Sân chưa có khung giá</h2>
+            <p class="text-secondary">Thêm khung giá đầu tiên để chuẩn bị bật sân.</p>
+            <a class="btn btn-primary" href="{{ url_for('pricing.owner_create', venue_id=field.venue_id, field_id=field.id) }}">Thêm khung giá</a>
+        </div>
+    {% endif %}
+</section>
+{% endblock %}

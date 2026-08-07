@@ -3,7 +3,7 @@ from flask_login import current_user
 
 from app.decorators import roles_required
 from app.forms import ModerateVenueForm, VenueForm
-from app.models import UserRole, VenueStatus
+from app.models import DAY_OF_WEEK_LABELS, UserRole, VenueStatus
 from app.services import (
     VenueError,
     VenueNotFoundError,
@@ -53,6 +53,7 @@ def detail(venue_id: int):
             "SEVEN_A_SIDE": "Sân bóng 7 người",
             "ELEVEN_A_SIDE": "Sân bóng 11 người",
         },
+        day_labels=DAY_OF_WEEK_LABELS,
     )
 
 

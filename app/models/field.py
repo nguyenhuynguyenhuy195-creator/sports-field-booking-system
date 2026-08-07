@@ -75,6 +75,10 @@ class Field(db.Model):
     )
 
     venue: Mapped[Venue] = relationship()
+    price_slots: Mapped[list["FieldPriceSlot"]] = relationship(
+        back_populates="field",
+        order_by="FieldPriceSlot.day_of_week, FieldPriceSlot.start_time",
+    )
 
     @property
     def is_active(self) -> bool:

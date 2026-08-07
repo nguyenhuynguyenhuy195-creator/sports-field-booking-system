@@ -30,7 +30,10 @@
                     {% if field.status == 'INACTIVE' %}
                         <p class="small text-secondary">Sân chưa nhận đặt lịch cho đến khi có khung giá hợp lệ.</p>
                     {% endif %}
-                    <a class="btn btn-outline-primary w-100 mt-auto" href="{{ url_for('fields.owner_edit', venue_id=venue.id, field_id=field.id) }}">Chỉnh sửa sân</a>
+                    <div class="d-grid gap-2 mt-auto">
+                        <a class="btn btn-primary" href="{{ url_for('pricing.owner_index', venue_id=venue.id, field_id=field.id) }}">Quản lý khung giá</a>
+                        <a class="btn btn-outline-primary" href="{{ url_for('fields.owner_edit', venue_id=venue.id, field_id=field.id) }}">Chỉnh sửa sân</a>
+                    </div>
                 </article>
             {% endfor %}
         </div>

@@ -2,6 +2,7 @@
 
 from .field import Field, FieldStatus, FieldType
 from .owner_application import OwnerApplication, OwnerApplicationStatus
+from .price_slot import DAY_OF_WEEK_LABELS, FieldPriceSlot, PriceSlotStatus
 from .user import User, UserRole, UserStatus
 from .venue import Venue, VenueStatus
 
@@ -11,6 +12,9 @@ __all__ = [
     "FieldType",
     "OwnerApplication",
     "OwnerApplicationStatus",
+    "DAY_OF_WEEK_LABELS",
+    "FieldPriceSlot",
+    "PriceSlotStatus",
     "User",
     "UserRole",
     "UserStatus",
