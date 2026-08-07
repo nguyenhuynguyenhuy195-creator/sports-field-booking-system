@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% from "_form_helpers.html" import render_field %}
+
+{% macro render_time_picker(title, hour_field, minute_field) %}
+    {% set time_errors = hour_field.errors + minute_field.errors %}
+    <fieldset class="time-picker-field mb-3">
+        <legend class="form-label fw-semibold">{{ title }}</legend>
+        <div class="time-picker-control{% if time_errors %} is-invalid{% endif %}">
+            <div class="time-picker-segment">
+                <span class="time-picker-caption">Giờ</span>
+                {{ hour_field(class="form-select time-picker-select", aria_label=title ~ " - giờ") }}
+            </div>
+            <span class="time-picker-colon" aria-hidden="true">:</span>
+            <div class="time-picker-segment">
+                <span class="time-picker-caption">Phút</span>
+                {{ minute_field(class="form-select time-picker-select", aria_label=title ~ " - phút") }}
+            </div>
+            <span class="time-picker-period">24H</span>
+        </div>
+        {% for error in time_errors %}
+            <div class="invalid-feedback d-block">{{ error }}</div>
+        {% endfor %}
+    </fieldset>
+{% endmacro %}
+
+{% block title %}Thêm lịch bảo trì · Sports Field Booking{% endblock %}
+
+{% block content %}
+<section class="auth-section py-5">
+    <div class="container">
+        <div class="auth-card venue-form-card mx-auto">
+            <a class="text-decoration-none" href="{{ url_for('maintenance.owner_index', venue_id=field.venue_id, field_id=field.id) }}">← Danh sách bảo trì</a>
+            <span class="eyebrow d-block mt-4">{{ field.venue.name }} · {{ field.name }}</span>
+            <h1 class="h2 fw-bold mt-2">Thêm lịch bảo trì</h1>
+            <p class="text-secondary">Khoảng giờ này sẽ không thể được chọn khi đặt sân.</p>
+
+            <form method="post" novalidate>
+                {{ form.hidden_tag() }}
+                {{ render_field(form.maintenance_date) }}
+                <div class="row g-3">
+                    <div class="col-md-6">{{ render_time_picker("Giờ bắt đầu", form.start_hour, form.start_minute) }}</div>
+                    <div class="col-md-6">{{ render_time_picker("Giờ kết thúc", form.end_hour, form.end_minute) }}</div>
+                </div>
+                {{ render_field(form.reason, rows="4", placeholder="Ví dụ: Bảo dưỡng mặt cỏ và hệ thống chiếu sáng") }}
+                {{ form.submit(class="btn btn-primary w-100") }}
+            </form>
+        </div>
+    </div>
+</section>
+{% endblock %}

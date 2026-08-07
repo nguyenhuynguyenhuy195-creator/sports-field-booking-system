@@ -204,6 +204,11 @@ a:hover {
     color: #41464b;
 }
 
+.status-completed {
+    background: #dbe7f3;
+    color: #294967;
+}
+
 .status-active {
     background: #d1e7dd;
     color: #0a5036;
@@ -404,22 +409,27 @@ a:hover {
 }
 
 .price-summary,
-.price-table-card {
+.price-table-card,
+.maintenance-summary,
+.maintenance-table-card {
     background: #ffffff;
     border: 1px solid var(--app-border);
     border-radius: 16px;
     box-shadow: 0 12px 30px rgba(15, 39, 71, 0.06);
 }
 
-.price-summary {
+.price-summary,
+.maintenance-summary {
     padding: 1.5rem;
 }
 
-.price-table-card {
+.price-table-card,
+.maintenance-table-card {
     overflow: hidden;
 }
 
-.price-table-card thead th {
+.price-table-card thead th,
+.maintenance-table-card thead th {
     background: #f3f8f5;
     color: #52657a;
     font-size: 0.78rem;
@@ -429,7 +439,8 @@ a:hover {
     white-space: nowrap;
 }
 
-.price-table-card tbody td {
+.price-table-card tbody td,
+.maintenance-table-card tbody td {
     padding: 1rem;
     vertical-align: middle;
 }
@@ -438,6 +449,12 @@ a:hover {
     color: var(--app-primary-dark);
     font-weight: 700;
     white-space: nowrap;
+}
+
+.maintenance-reason {
+    min-width: 220px;
+    max-width: 420px;
+    white-space: normal;
 }
 
 @media (max-width: 575.98px) {

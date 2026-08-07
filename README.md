@@ -87,7 +87,7 @@ Khởi tạo hoặc cập nhật cấu trúc database trước lần chạy đ�
 .\.venv\Scripts\python.exe -m flask --app run.py db upgrade
 ```
 
-Lệnh trên đọc các migration trong `migrations/` và áp dụng chúng theo đúng thứ tự. Các migration hiện tại tạo bảng `users`, `owner_applications`, `venues`, `fields` và `field_price_slots`; bảng `alembic_version` do Flask-Migrate dùng để ghi nhận phiên bản database.
+Lệnh trên đọc các migration trong `migrations/` và áp dụng chúng theo đúng thứ tự. Các migration hiện tại tạo bảng `users`, `owner_applications`, `venues`, `fields`, `field_price_slots` và `field_maintenances`; bảng `alembic_version` do Flask-Migrate dùng để ghi nhận phiên bản database.
 
 Sau đó chạy website:
 
@@ -125,6 +125,8 @@ GET http://127.0.0.1:5000/venues
 - Tên sân không được trùng trong cùng một cơ sở; khách chỉ thấy sân `ACTIVE` thuộc cơ sở `ACTIVE`.
 - OWNER cấu hình giá theo sân, ngày trong tuần và khoảng giờ; các khung giá `ACTIVE` cùng ngày không được chồng nhau.
 - Field chỉ được bật `ACTIVE` khi có khung giá hợp lệ; hệ thống có thể tách nhiều khung để tính đủ giá cho một khoảng thời gian.
+- OWNER tạo và hủy lịch bảo trì theo sân, ngày và khoảng giờ; các lịch `ACTIVE` cùng sân không được chồng nhau.
+- Lịch bảo trì hết giờ được hiển thị là đã hoàn thành và lịch đã hủy không còn chặn khoảng thời gian.
 
 Tạo tài khoản quản trị viên đầu tiên:
 

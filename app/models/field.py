@@ -79,6 +79,10 @@ class Field(db.Model):
         back_populates="field",
         order_by="FieldPriceSlot.day_of_week, FieldPriceSlot.start_time",
     )
+    maintenances: Mapped[list["FieldMaintenance"]] = relationship(
+        back_populates="field",
+        order_by="FieldMaintenance.maintenance_date, FieldMaintenance.start_time",
+    )
 
     @property
     def is_active(self) -> bool:
