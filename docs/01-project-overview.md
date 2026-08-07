@@ -20,7 +20,7 @@ Xây dựng một hệ thống trực tuyến cho phép:
 - Chủ sân đăng và quản lý sân.
 - Người dùng tìm sân theo thông tin phù hợp.
 - Người dùng xem lịch trống và đặt sân.
-- Chủ sân xác nhận hoặc từ chối booking.
+- Hệ thống tự động xác nhận giữ chỗ sau khi kiểm tra hợp lệ; chủ sân theo dõi và chỉ hủy khi có sự cố.
 - Người dùng thanh toán qua MoMo Sandbox theo hình thức trả đủ, chia 50/50 với đội đối thủ hoặc chia theo đầu người.
 - Hệ thống xử lý nhiều người cùng đóng tiền, hạn thanh toán và hoàn tiền.
 - Người dùng tạo kèo tìm người hoặc tìm đối thủ; người tham gia chỉ được xác nhận sau khi hoàn thành phần tiền bắt buộc.
@@ -54,8 +54,8 @@ Người dùng đăng ký
 → Xem chi tiết
 → Chọn thời gian
 → Đặt sân
-→ Chủ sân xác nhận
-→ Chọn hình thức thanh toán
+→ Hệ thống giữ chỗ 15 phút
+→ Xác nhận hình thức thanh toán
 → Thanh toán đủ hoặc thanh toán phần đầu
 → Tạo kèo nếu cần
 → Đối thủ/người ghép thanh toán phần của mình

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Lịch đặt của tôi · Sports Field Booking{% endblock %}
+
+{% block content %}
+<section class="container py-5">
+    <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
+        <div>
+            <span class="eyebrow">BOOKING CỦA TÔI</span>
+            <h1 class="h2 fw-bold mt-2 mb-1">Lịch sử đặt sân</h1>
+            <p class="text-secondary mb-0">Theo dõi lịch giữ chỗ, giá đã chốt và thời hạn thanh toán.</p>
+        </div>
+        <a class="btn btn-primary" href="{{ url_for('venues.index') }}">Tìm sân mới</a>
+    </div>
+
+    {% if bookings %}
+        <div class="booking-list">
+            {% for booking in bookings %}
+                {% set status = effective_statuses[booking.id] %}
+                <article class="booking-list-card">
+                    <div>
+                        <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                            <span class="status-badge status-{{ status|lower|replace('_', '-') }}">{{ status_labels[status] }}</span>
+                            <span class="booking-code">{{ booking.booking_code }}</span>
+                        </div>
+                        <h2 class="h5 fw-bold mb-1">{{ booking.field.name }}</h2>
+                        <p class="text-secondary mb-0">{{ booking.field.venue.name }}</p>
+                    </div>
+                    <div class="booking-list-time">
+                        <strong>{{ booking.booking_date.strftime('%d/%m/%Y') }}</strong>
+                        <span>{{ booking.start_time.strftime('%H:%M') }}–{{ booking.end_time.strftime('%H:%M') }}</span>
+                    </div>
+                    <div class="booking-list-price">
+                        <strong>{{ booking.total_amount|vnd_currency }}</strong>
+                        <span>{{ payment_mode_labels[booking.payment_mode] }}</span>
+                    </div>
+                    <a class="btn btn-outline-primary" href="{{ url_for('bookings.detail', booking_code=booking.booking_code) }}">Xem chi tiết</a>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state text-center">
+            <div class="empty-state-icon" aria-hidden="true">📅</div>
+            <h2 class="h5 fw-bold">Bạn chưa có booking</h2>
+            <p class="text-secondary">Hãy chọn một sân đang hoạt động để giữ chỗ và thanh toán.</p>
+            <a class="btn btn-primary" href="{{ url_for('venues.index') }}">Tìm sân</a>
+        </div>
+    {% endif %}
+</section>
+{% endblock %}

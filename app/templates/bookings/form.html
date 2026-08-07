@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% from "_form_helpers.html" import render_field %}
+
+{% macro render_time_picker(title, hour_field, minute_field) %}
+    {% set time_errors = hour_field.errors + minute_field.errors %}
+    <fieldset class="time-picker-field mb-0">
+        <legend class="form-label fw-semibold">{{ title }}</legend>
+        <div class="time-picker-control{% if time_errors %} is-invalid{% endif %}">
+            <div class="time-picker-segment">
+                <span class="time-picker-caption">Giờ</span>
+                {{ hour_field(class="form-select time-picker-select", aria_label=title ~ " - giờ") }}
+            </div>
+            <span class="time-picker-colon" aria-hidden="true">:</span>
+            <div class="time-picker-segment">
+                <span class="time-picker-caption">Phút</span>
+                {{ minute_field(class="form-select time-picker-select", aria_label=title ~ " - phút") }}
+            </div>
+            <span class="time-picker-period">24H</span>
+        </div>
+        {% for error in time_errors %}
+            <div class="invalid-feedback d-block">{{ error }}</div>
+        {% endfor %}
+    </fieldset>
+{% endmacro %}
+
+{% block title %}Đặt {{ field.name }} · Sports Field Booking{% endblock %}
+
+{% block content %}
+<section class="booking-form-section py-5">
+    <div class="container">
+        <a class="text-decoration-none" href="{{ url_for('venues.detail', venue_id=field.venue_id) }}">← Chọn sân khác</a>
+
+        <ol class="booking-stepper mt-4" aria-label="Tiến trình đặt sân">
+            <li class="is-complete"><span>✓</span><strong>Chọn sân</strong></li>
+            <li class="is-active" data-step-indicator="2"><span>2</span><strong>Chọn giờ</strong></li>
+            <li data-step-indicator="3"><span>3</span><strong>Hình thức</strong></li>
+            <li data-step-indicator="4"><span>4</span><strong>Xác nhận</strong></li>
+        </ol>
+
+        <div class="booking-form-layout mt-4">
+            <form
+                method="post"
+                novalidate
+                class="auth-card booking-form-card booking-flow-form"
+                data-quote-url="{{ url_for('bookings.quote', venue_id=field.venue_id, field_id=field.id) }}"
+                data-field-name="{{ field.name }}"
+                data-venue-name="{{ field.venue.name }}"
+            >
+                {{ form.hidden_tag() }}
+
+                <section class="booking-step-panel" data-booking-step="2">
+                    <span class="eyebrow">BƯỚC 2</span>
+                    <h1 class="h3 fw-bold mt-2 mb-1">Chọn ngày và khoảng giờ</h1>
+                    <p class="text-secondary mb-4">Hệ thống sẽ kiểm tra lịch trống, bảo trì và giá trước khi bạn tiếp tục.</p>
+
+                    {{ render_field(form.booking_date, min=today.isoformat(), max=maximum_booking_date.isoformat()) }}
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">{{ render_time_picker("Giờ bắt đầu", form.start_hour, form.start_minute) }}</div>
+                        <div class="col-md-6">{{ render_time_picker("Giờ kết thúc", form.end_hour, form.end_minute) }}</div>
+                    </div>
+
+                    <div class="booking-rule-note mb-4">
+                        <strong>Điều kiện:</strong> bước 30 phút, tối thiểu 60 phút, trong giờ mở cửa
+                        {{ field.venue.opening_time.strftime('%H:%M') }}–{{ field.venue.closing_time.strftime('%H:%M') }}.
+                    </div>
+                    <div class="alert alert-danger d-none" role="alert" data-flow-error></div>
+                    <div class="booking-flow-actions justify-content-end">
+                        <button class="btn btn-primary booking-flow-control" type="button" data-next-step="3">
+                            Kiểm tra giờ và tiếp tục →
+                        </button>
+                    </div>
+                </section>
+
+                <section class="booking-step-panel" data-booking-step="3">
+                    <span class="eyebrow">BƯỚC 3</span>
+                    <h2 class="h3 fw-bold mt-2 mb-1">Chọn hình thức đặt sân</h2>
+                    <p class="text-secondary mb-4">Thông tin người đặt được lấy từ tài khoản đang đăng nhập.</p>
+
+                    <div class="booking-contact-card mb-4">
+                        <div>
+                            <span>Người đặt</span>
+                            <strong>{{ current_user.full_name }}</strong>
+                        </div>
+                        <div>
+                            <span>Email</span>
+                            <strong>{{ current_user.email }}</strong>
+                        </div>
+                        <div>
+                            <span>Số điện thoại</span>
+                            <strong>{{ current_user.phone or 'Chưa cung cấp' }}</strong>
+                        </div>
+                    </div>
+
+                    <fieldset class="mb-4">
+                        <legend class="form-label fw-semibold">{{ form.payment_mode.label.text }}</legend>
+                        <div class="booking-mode-grid">
+                            {% for option in form.payment_mode %}
+                                <label class="booking-mode-option" for="{{ option.id }}">
+                                    {{ option(class="form-check-input") }}
+                                    <span>
+                                        <strong>{{ option.label.text }}</strong>
+                                        {% if option.data == 'FULL_PAYMENT' %}
+                                            <small>Bạn thanh toán 100% để hoàn tất booking.</small>
+                                        {% elif option.data == 'SPLIT_OPPONENT' %}
+                                            <small>Đội bạn thanh toán 50%, đội đối thủ thanh toán 50%.</small>
+                                        {% else %}
+                                            <small>Nhóm hiện có và người ghép cùng chia tiền theo đầu người.</small>
+                                        {% endif %}
+                                    </span>
+                                </label>
+                            {% endfor %}
+                        </div>
+                        {% for error in form.payment_mode.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </fieldset>
+
+                    {{ render_field(form.note, rows="3", placeholder="Ví dụ: Cần bóng thi đấu hoặc áo bib") }}
+                    <div class="alert alert-danger d-none" role="alert" data-flow-error></div>
+                    <div class="booking-flow-actions">
+                        <button class="btn btn-outline-secondary booking-flow-control" type="button" data-previous-step="2">← Quay lại</button>
+                        <button class="btn btn-primary booking-flow-control" type="button" data-next-step="4">Xem lại booking →</button>
+                    </div>
+                </section>
+
+                <section class="booking-step-panel" data-booking-step="4">
+                    <span class="eyebrow">BƯỚC 4</span>
+                    <h2 class="h3 fw-bold mt-2 mb-1">Xác nhận giữ chỗ</h2>
+                    <p class="text-secondary mb-4">Kiểm tra kỹ trước khi hệ thống khóa khung giờ trong 15 phút.</p>
+
+                    <dl class="booking-review-grid">
+                        <div><dt>Cơ sở</dt><dd>{{ field.venue.name }}</dd></div>
+                        <div><dt>Sân</dt><dd>{{ field.name }}</dd></div>
+                        <div><dt>Ngày</dt><dd data-review-date>—</dd></div>
+                        <div><dt>Khoảng giờ</dt><dd data-review-time>—</dd></div>
+                        <div class="booking-detail-full"><dt>Hình thức</dt><dd data-review-mode>—</dd></div>
+                    </dl>
+
+                    <div class="booking-quote-box mt-4">
+                        <div class="d-flex justify-content-between align-items-center gap-3">
+                            <span>Tổng tiền sân</span>
+                            <strong data-review-total>Chưa tính</strong>
+                        </div>
+                        <div class="table-responsive mt-3">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead><tr><th>Khung giá</th><th>Thời lượng</th><th class="text-end">Thành tiền</th></tr></thead>
+                                <tbody data-review-segments></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="booking-hold-note my-4">
+                        <strong>Xác nhận tức thì:</strong> không cần chờ chủ sân duyệt. Sau khi tạo booking,
+                        bạn có 15 phút để hoàn tất khoản thanh toán đầu tiên.
+                    </div>
+                    <div class="alert alert-danger d-none" role="alert" data-flow-error></div>
+                    <div class="booking-flow-actions">
+                        <button class="btn btn-outline-secondary booking-flow-control" type="button" data-previous-step="3">← Quay lại</button>
+                        {{ form.submit(class="btn btn-primary", data_booking_submit="") }}
+                    </div>
+                </section>
+            </form>
+
+            <aside class="booking-help-card booking-summary-card">
+                <span class="eyebrow">THÔNG TIN ĐẶT SÂN</span>
+                <h2 class="h5 fw-bold mt-2 mb-3">{{ field.venue.name }}</h2>
+                <dl class="booking-summary-list">
+                    <div><dt>Sân</dt><dd>{{ field.name }}</dd></div>
+                    <div><dt>Loại sân</dt><dd>{{ field.field_type|replace('_', ' ') }}</dd></div>
+                    <div><dt>Sức chứa</dt><dd>{{ field.capacity }} người</dd></div>
+                    <div><dt>Giờ mở cửa</dt><dd>{{ field.venue.opening_time.strftime('%H:%M') }}–{{ field.venue.closing_time.strftime('%H:%M') }}</dd></div>
+                </dl>
+                <div class="booking-summary-total">
+                    <span>Tạm tính</span>
+                    <strong data-summary-total>Chọn giờ để xem giá</strong>
+                </div>
+                <p class="small text-secondary mb-0">Giá cuối cùng luôn được backend kiểm tra lại khi bạn xác nhận.</p>
+            </aside>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+    <script src="{{ url_for('static', filename='js/booking-flow.js') }}" defer></script>
+{% endblock %}

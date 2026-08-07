@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Quản lý booking · Sports Field Booking{% endblock %}
+
+{% block content %}
+<section class="container py-5">
+    <div class="mb-4">
+        <span class="eyebrow">DÀNH CHO CHỦ SÂN</span>
+        <h1 class="h2 fw-bold mt-2 mb-1">Quản lý booking</h1>
+        <p class="text-secondary mb-0">Theo dõi lịch được hệ thống xác nhận tự động và xử lý sự cố khi cần.</p>
+    </div>
+
+    {% if bookings %}
+        <div class="booking-list">
+            {% for booking in bookings %}
+                {% set status = effective_statuses[booking.id] %}
+                <article class="booking-list-card">
+                    <div>
+                        <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                            <span class="status-badge status-{{ status|lower|replace('_', '-') }}">{{ status_labels[status] }}</span>
+                            <span class="booking-code">{{ booking.booking_code }}</span>
+                        </div>
+                        <h2 class="h5 fw-bold mb-1">{{ booking.field.name }}</h2>
+                        <p class="text-secondary mb-0">Người đặt: {{ booking.user.full_name }}</p>
+                    </div>
+                    <div class="booking-list-time">
+                        <strong>{{ booking.booking_date.strftime('%d/%m/%Y') }}</strong>
+                        <span>{{ booking.start_time.strftime('%H:%M') }}–{{ booking.end_time.strftime('%H:%M') }}</span>
+                    </div>
+                    <div class="booking-list-price">
+                        <strong>{{ booking.total_amount|vnd_currency }}</strong>
+                        <span>{{ payment_mode_labels[booking.payment_mode] }}</span>
+                    </div>
+                    <a class="btn btn-outline-primary" href="{{ url_for('bookings.owner_detail', booking_code=booking.booking_code) }}">Xem booking</a>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state text-center">
+            <div class="empty-state-icon" aria-hidden="true">📋</div>
+            <h2 class="h5 fw-bold">Chưa có booking</h2>
+            <p class="text-secondary mb-0">Booking mới sẽ xuất hiện tại đây.</p>
+        </div>
+    {% endif %}
+</section>
+{% endblock %}

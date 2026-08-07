@@ -11,12 +11,14 @@ README.md
 app/README.md
 app/decorators.py
 app/extensions.py
+app/cli/bookings.py
 app/cli/users.py
 app/forms/owner_application.py
 app/forms/venue.py
 app/forms/field.py
 app/forms/pricing.py
 app/forms/maintenance.py
+app/forms/booking.py
 app/forms/auth.py
 app/forms/__init__.py
 app/models/owner_application.py
@@ -25,6 +27,8 @@ app/models/venue.py
 app/models/field.py
 app/models/price_slot.py
 app/models/field_maintenance.py
+app/models/booking.py
+app/models/booking_price_detail.py
 app/models/__init__.py
 app/routes/owner_applications.py
 app/routes/auth.py
@@ -34,14 +38,19 @@ app/routes/venues.py
 app/routes/fields.py
 app/routes/pricing.py
 app/routes/maintenance.py
+app/routes/bookings.py
 app/services/owner_application.py
 app/services/auth.py
 app/services/venue.py
 app/services/field.py
 app/services/pricing.py
 app/services/maintenance.py
+app/services/booking.py
+app/services/locking.py
 app/services/__init__.py
 app/static/css/app.css
+app/static/js/booking-flow.js
+app/static/js/booking-detail.js
 app/templates/_form_helpers.html
 app/templates/admin/owner_applications.html
 app/templates/admin/venues.html
@@ -55,12 +64,16 @@ app/templates/owner/pricing/form.html
 app/templates/owner/pricing/index.html
 app/templates/owner/maintenance/form.html
 app/templates/owner/maintenance/index.html
+app/templates/owner/bookings/index.html
 app/templates/owner/venues/form.html
 app/templates/owner/venues/index.html
 app/templates/owner_applications/mine.html
 app/templates/owner_applications/new.html
 app/templates/venues/detail.html
 app/templates/venues/index.html
+app/templates/bookings/form.html
+app/templates/bookings/index.html
+app/templates/bookings/detail.html
 app/template_filters.py
 app/__init__.py
 config.py
@@ -88,6 +101,8 @@ migrations/versions/46d144661ea0_create_venues_table.py
 migrations/versions/1991532703dc_create_fields_table.py
 migrations/versions/78fbcd7c9576_create_field_price_slots_table.py
 migrations/versions/95239df4b6b1_create_field_maintenances_table.py
+migrations/versions/8aecda33c702_create_bookings_and_price_snapshots.py
+migrations/versions/3dae30a3dfcb_remove_manual_owner_approval_fields.py
 references/KE_HOACH_CHI_TIET.docx
 references/MẪU BÁO CÁO ĐỒ ÁN NGÀNH.docx
 references/README.md
@@ -101,6 +116,7 @@ tests/integration/test_venues.py
 tests/integration/test_fields.py
 tests/integration/test_pricing.py
 tests/integration/test_maintenance.py
+tests/integration/test_bookings.py
 tests/README.md
 tests/unit/test_owner_application_model.py
 tests/unit/test_template_filters.py
@@ -109,6 +125,7 @@ tests/unit/test_venue_model.py
 tests/unit/test_field_model.py
 tests/unit/test_price_slot_model.py
 tests/unit/test_field_maintenance_model.py
+tests/unit/test_booking_model.py
 ```
 
 Các tài liệu Word trong `references/` được dùng làm mẫu và kế hoạch tham khảo; tài liệu Markdown trong `docs/` là nguồn yêu cầu chính của hệ thống.

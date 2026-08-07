@@ -31,10 +31,16 @@
                     </li>
                     {% if current_user.is_authenticated and current_user.role in ['USER', 'OWNER'] %}
                         <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('bookings.index') }}">Lịch đặt của tôi</a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link" href="{{ url_for('owner_applications.mine') }}">Yêu cầu chủ sân</a>
                         </li>
                     {% endif %}
                     {% if current_user.is_authenticated and current_user.is_owner %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('bookings.owner_index') }}">Quản lý booking</a>
+                        </li>
                         <li class="nav-item">
                             <a class="nav-link" href="{{ url_for('venues.owner_index') }}">Cơ sở của tôi</a>
                         </li>

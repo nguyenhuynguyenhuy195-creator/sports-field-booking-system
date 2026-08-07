@@ -14,6 +14,8 @@ from app.models import (
     UserRole,
 )
 
+from .locking import with_update_lock
+
 
 VIETNAM_TIMEZONE = timezone(timedelta(hours=7))
 
@@ -112,6 +114,18 @@ def create_maintenance(
         raise OverlappingMaintenanceError(
             "Khoảng giờ này bị chồng với một lịch bảo trì đang hoạt động."
         )
+    from .booking import booking_blocks_time
+
+    if booking_blocks_time(
+        field_id=field.id,
+        booking_date=maintenance_date,
+        start_time=start_time,
+        end_time=end_time,
+        now=now,
+    ):
+        raise MaintenanceError(
+            "Khoảng giờ này bị chồng với một booking đang chiếm chỗ."
+        )
 
     maintenance = FieldMaintenance(
         field_id=field.id,
@@ -144,9 +158,12 @@ def cancel_maintenance(
         lock=True,
     )
     maintenance = db.session.scalar(
-        db.select(FieldMaintenance)
-        .where(FieldMaintenance.id == maintenance_id)
-        .with_for_update()
+        with_update_lock(
+            db.select(FieldMaintenance).where(
+                FieldMaintenance.id == maintenance_id
+            ),
+            FieldMaintenance,
+        )
     )
     if maintenance is None:
         raise MaintenanceNotFoundError("Không tìm thấy lịch bảo trì.")
@@ -209,7 +226,7 @@ def _get_owned_field(
         .where(Field.id == field_id)
     )
     if lock:
-        statement = statement.with_for_update()
+        statement = with_update_lock(statement, Field)
     field = db.session.scalar(statement)
     if field is None:
         raise MaintenanceNotFoundError("Không tìm thấy sân.")

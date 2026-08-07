@@ -57,6 +57,7 @@ def _configure_login_manager() -> None:
 
 def _register_blueprints(app: Flask) -> None:
     from .routes.auth import auth_bp
+    from .routes.bookings import bookings_bp
     from .routes.fields import fields_bp
     from .routes.health import health_bp
     from .routes.main import main_bp
@@ -67,6 +68,7 @@ def _register_blueprints(app: Flask) -> None:
 
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
+    app.register_blueprint(bookings_bp)
     app.register_blueprint(fields_bp)
     app.register_blueprint(maintenance_bp)
     app.register_blueprint(pricing_bp)

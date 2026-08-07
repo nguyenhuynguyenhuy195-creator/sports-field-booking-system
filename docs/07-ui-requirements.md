@@ -25,6 +25,7 @@ Danh sách sân gồm bộ lọc, card venue, địa chỉ, loại sân, giá th
 
 ## 7.4. Trang tạo booking
 
+- Thể hiện tiến trình bốn bước: sân đã chọn, chọn giờ, chọn hình thức và xác nhận.
 - Chọn ngày, giờ bắt đầu và giờ kết thúc theo bước 30 phút.
 - Hiển thị điều kiện tối thiểu 60 phút, giới hạn 30 ngày và thời gian đặt trước.
 - Cho chọn một trong ba hình thức:
@@ -33,6 +34,8 @@ Danh sách sân gồm bộ lọc, card venue, địa chỉ, loại sân, giá th
   - Tìm thêm người, chia theo đầu người.
 - Với tìm người: nhập số vị trí còn thiếu; hiển thị số người tiêu chuẩn và phần người tạo phải trả.
 - Hiển thị từng đoạn khung giá, đơn giá, thời lượng, subtotal và tổng tiền dự kiến.
+- Hiển thị thông tin người đặt lấy từ tài khoản, không yêu cầu nhập lại họ tên/email.
+- Nêu rõ booking hợp lệ được giữ chỗ tự động 15 phút, không chờ owner duyệt.
 - Backend tính lại toàn bộ khi submit.
 
 ## 7.5. Chi tiết và lịch sử booking
@@ -44,7 +47,7 @@ Hiển thị:
 - Số tiền đã thu, còn thiếu và hạn góp đủ.
 - Badge trạng thái và timeline.
 - Danh sách contribution/payment/refund mà user được phép xem.
-- Nút xác nhận, từ chối, hủy, thanh toán lại hoặc trả phần còn thiếu theo quyền và trạng thái.
+- Nút hủy, thanh toán lại hoặc trả phần còn thiếu theo quyền và trạng thái; owner không có nút xác nhận/từ chối booking thông thường.
 
 ## 7.6. Trang thanh toán MoMo
 
@@ -76,7 +79,7 @@ Hiển thị:
 
 - Venue chờ duyệt/đang hoạt động/bị ẩn.
 - Field, khung giá theo ngày và lịch bảo trì.
-- Booking hôm nay, booking chờ xác nhận và countdown 30 phút.
+- Booking hôm nay, booking đang giữ chỗ/chờ thanh toán và countdown 15 phút.
 - Tiến độ thanh toán, booking chờ refund và lý do hủy.
 - Owner không được sửa giá snapshot của booking đã tạo.
 
@@ -90,8 +93,8 @@ Hiển thị:
 
 ## 7.10. Màu trạng thái booking
 
-- `PENDING`: vàng.
-- `CONFIRMED`: xanh dương.
+- `PENDING`: vàng, chỉ dùng cho dữ liệu lịch sử.
+- `CONFIRMED`: xanh dương, đang giữ chỗ/chờ thanh toán đầu tiên.
 - `PARTIALLY_PAID`: tím hoặc xanh lam nhạt.
 - `PAID`: xanh lá.
 - `REFUND_PENDING`: cam.

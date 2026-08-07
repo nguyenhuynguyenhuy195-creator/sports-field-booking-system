@@ -26,7 +26,7 @@
 - Chỉ được đặt trước tối đa 30 ngày.
 - Hệ thống kiểm tra giờ hoạt động, lịch bảo trì và trùng lịch.
 - Backend tính giá theo các khung giờ từ database và lưu chi tiết giá tại thời điểm đặt.
-- Owner xác nhận hoặc từ chối booking.
+- Booking hợp lệ được hệ thống tự động xác nhận và giữ chỗ 15 phút để thanh toán lần đầu; owner không duyệt thủ công.
 - User xem lịch sử booking và hủy khi hợp lệ.
 - Hệ thống xử lý hết hạn booking theo thời hạn đã quy định.
 

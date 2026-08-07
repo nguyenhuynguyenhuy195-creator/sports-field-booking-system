@@ -34,7 +34,7 @@ Các blueprint dự kiến:
 - `auth`: đăng ký, đăng nhập, đăng xuất.
 - `owner_applications`: gửi và xét duyệt yêu cầu owner.
 - `venues`: venue, field, giá và bảo trì.
-- `bookings`: tạo, xem, xác nhận, từ chối và hủy booking.
+- `bookings`: báo giá, tạo giữ chỗ tự động, xem và hủy booking.
 - `payments`: bắt đầu thanh toán, redirect và IPN MoMo.
 - `refunds`: yêu cầu/query refund theo quyền.
 - `matches`: tạo kèo, gửi/duyệt/rút yêu cầu.
@@ -111,7 +111,7 @@ tests/
 3. Kiểm tra field, venue, giờ hoạt động và bảo trì.
 4. Truy vấn booking chiếm chỗ giao nhau.
 5. Truy vấn toàn bộ khung giá và kiểm tra độ phủ.
-6. Tính total, tạo booking và price details.
+6. Tính total, tạo booking `CONFIRMED`, hạn thanh toán 15 phút và price details.
 7. Commit một lần; lỗi thì rollback.
 
 Mục tiêu là tránh hai request đồng thời cùng vượt qua bước kiểm tra trùng.
@@ -141,8 +141,7 @@ Không giữ transaction database mở trong lúc chờ HTTP call ra MoMo. Tạo
 ## 6.11. Xử lý thời hạn
 
 Tạo Flask CLI command hoặc worker định kỳ để:
-- Hết hạn `PENDING` quá 30 phút.
-- Hết hạn `CONFIRMED` chưa thanh toán sau 15 phút.
+- Hết hạn `CONFIRMED` chưa có khoản thanh toán đầu tiên sau 15 phút.
 - Hết hạn yêu cầu tham gia chờ thanh toán quá 15 phút.
 - Xử lý booking chia tiền còn thiếu tại mốc 12 giờ.
 - Chuyển `PAID` sang `COMPLETED` sau giờ sử dụng.
