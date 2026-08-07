@@ -1,10 +1,19 @@
 from __future__ import annotations
 
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 
 from app.extensions import db
-from app.models import Field, FieldStatus, FieldType, User, UserRole, Venue
+from app.models import (
+    Field,
+    FieldPriceSlot,
+    FieldStatus,
+    FieldType,
+    PriceSlotStatus,
+    User,
+    UserRole,
+    Venue,
+)
 from app.services.auth import normalize_full_name
 
 
@@ -43,6 +52,13 @@ def list_public_fields(venue_id: int) -> list[Field]:
     return list(
         db.session.scalars(
             db.select(Field)
+            .options(
+                selectinload(
+                    Field.price_slots.and_(
+                        FieldPriceSlot.status == PriceSlotStatus.ACTIVE.value
+                    )
+                )
+            )
             .where(
                 Field.venue_id == venue_id,
                 Field.status == FieldStatus.ACTIVE.value,

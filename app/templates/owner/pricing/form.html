@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% from "_form_helpers.html" import render_field %}
+
+{% macro render_time_picker(title, hour_field, minute_field) %}
+    {% set time_errors = hour_field.errors + minute_field.errors %}
+    <fieldset class="time-picker-field mb-3">
+        <legend class="form-label fw-semibold">{{ title }}</legend>
+        <div class="time-picker-control{% if time_errors %} is-invalid{% endif %}">
+            <div class="time-picker-segment">
+                <span class="time-picker-caption">Giờ</span>
+                {{ hour_field(class="form-select time-picker-select", aria_label=title ~ " - giờ") }}
+            </div>
+            <span class="time-picker-colon" aria-hidden="true">:</span>
+            <div class="time-picker-segment">
+                <span class="time-picker-caption">Phút</span>
+                {{ minute_field(class="form-select time-picker-select", aria_label=title ~ " - phút") }}
+            </div>
+            <span class="time-picker-period">24H</span>
+        </div>
+        {% for error in time_errors %}
+            <div class="invalid-feedback d-block">{{ error }}</div>
+        {% endfor %}
+    </fieldset>
+{% endmacro %}
+
+{% block title %}{{ page_title }} · Sports Field Booking{% endblock %}
+
+{% block content %}
+<section class="auth-section py-5">
+    <div class="container">
+        <div class="auth-card venue-form-card mx-auto">
+            <a class="text-decoration-none" href="{{ url_for('pricing.owner_index', venue_id=field.venue_id, field_id=field.id) }}">← Danh sách khung giá</a>
+            <span class="eyebrow d-block mt-4">{{ field.venue.name }} · {{ field.name }}</span>
+            <h1 class="h2 fw-bold mt-2">{{ page_title }}</h1>
+            <p class="text-secondary">Giờ hoạt động của cơ sở: {{ field.venue.opening_time.strftime('%H:%M') }}–{{ field.venue.closing_time.strftime('%H:%M') }}.</p>
+
+            {% if slot and slot.status == 'INACTIVE' %}
+                <div class="alert alert-light border">Khung giá này đang tạm ngưng. Chỉnh sửa không tự động bật lại.</div>
+            {% endif %}
+
+            <form method="post" novalidate>
+                {{ form.hidden_tag() }}
+                {{ render_field(form.day_of_week) }}
+                <div class="row g-3">
+                    <div class="col-md-6">{{ render_time_picker("Giờ bắt đầu", form.start_hour, form.start_minute) }}</div>
+                    <div class="col-md-6">{{ render_time_picker("Giờ kết thúc", form.end_hour, form.end_minute) }}</div>
+                </div>
+                {{ render_field(form.hourly_price, min="1", step="1000", inputmode="decimal", placeholder="Ví dụ: 250000") }}
+                {{ form.submit(class="btn btn-primary w-100", value=submit_label) }}
+            </form>
+        </div>
+    </div>
+</section>
+{% endblock %}

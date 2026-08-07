@@ -403,6 +403,43 @@ a:hover {
     margin-bottom: 0;
 }
 
+.price-summary,
+.price-table-card {
+    background: #ffffff;
+    border: 1px solid var(--app-border);
+    border-radius: 16px;
+    box-shadow: 0 12px 30px rgba(15, 39, 71, 0.06);
+}
+
+.price-summary {
+    padding: 1.5rem;
+}
+
+.price-table-card {
+    overflow: hidden;
+}
+
+.price-table-card thead th {
+    background: #f3f8f5;
+    color: #52657a;
+    font-size: 0.78rem;
+    letter-spacing: 0.04em;
+    padding: 1rem;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.price-table-card tbody td {
+    padding: 1rem;
+    vertical-align: middle;
+}
+
+.price-amount {
+    color: var(--app-primary-dark);
+    font-weight: 700;
+    white-space: nowrap;
+}
+
 @media (max-width: 575.98px) {
     .auth-card {
         border-radius: 12px;

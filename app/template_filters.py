@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal, InvalidOperation
 
 from flask import Flask
 
@@ -14,5 +15,18 @@ def local_datetime(value: datetime | None) -> str:
     return utc_value.astimezone(VIETNAM_TIMEZONE).strftime("%d/%m/%Y %H:%M")
 
 
+def vnd_currency(value) -> str:
+    """Format a database amount as whole Vietnamese đồng for display."""
+    if value is None:
+        return "—"
+    try:
+        amount = Decimal(str(value))
+    except (InvalidOperation, TypeError, ValueError):
+        return "—"
+    formatted = f"{amount:,.0f}".replace(",", ".")
+    return f"{formatted} đ"
+
+
 def register_template_filters(app: Flask) -> None:
     app.add_template_filter(local_datetime, "local_datetime")
+    app.add_template_filter(vnd_currency, "vnd_currency")

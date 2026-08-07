@@ -49,6 +49,19 @@
                             <dt>Sức chứa</dt>
                             <dd>{{ field.capacity }} người</dd>
                         </dl>
+                        {% if field.price_slots %}
+                            <div class="border-top mt-3 pt-3">
+                                <h4 class="h6 fw-bold">Khung giá đang áp dụng</h4>
+                                <div class="d-grid gap-2">
+                                    {% for slot in field.price_slots %}
+                                        <div class="d-flex flex-wrap justify-content-between gap-2 small">
+                                            <span>{{ day_labels[slot.day_of_week] }} · {{ slot.start_time.strftime('%H:%M') }}–{{ slot.end_time.strftime('%H:%M') }}</span>
+                                            <strong class="text-success">{{ slot.hourly_price|vnd_currency }}/giờ</strong>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        {% endif %}
                     </article>
                 {% endfor %}
             </div>
