@@ -8,15 +8,14 @@
 4. Backend kiểm tra trùng lịch trong transaction.
 5. Backend lấy các khung giá áp dụng, tách khoảng thời gian và tính tổng tiền.
 6. Nếu có đoạn thời gian chưa được cấu hình giá, từ chối tạo booking.
-7. Backend lưu booking, chi tiết giá chốt và trạng thái `PENDING`.
-8. Owner có 30 phút để xác nhận hoặc từ chối.
-9. Nếu owner xác nhận, booking chuyển `CONFIRMED` và người tạo có 15 phút để thanh toán khoản đầu tiên.
+7. Backend lưu booking, chi tiết giá chốt và trạng thái `CONFIRMED` trong cùng transaction.
+8. Hệ thống giữ chỗ 15 phút và tạo hạn `initial_payment_due_at`; owner không cần duyệt thủ công.
+9. Người tạo chuyển sang thanh toán khoản đầu tiên qua MoMo Sandbox.
 
 ## 4.2. Luồng thanh toán 100%
 
 ```text
-PENDING
-→ CONFIRMED
+CONFIRMED (giữ chỗ 15 phút)
 → Người tạo thanh toán 100% qua MoMo Sandbox
 → IPN hợp lệ
 → PAID
@@ -28,7 +27,7 @@ Booking thông thường phải được tạo trước giờ bắt đầu ít n
 ## 4.3. Luồng tìm đội đối thủ 50/50
 
 1. Booking phải được tạo trước giờ bắt đầu ít nhất 13 giờ.
-2. Sau khi owner xác nhận, người tạo thanh toán 50% trong 15 phút.
+2. Sau khi hệ thống giữ chỗ, người tạo thanh toán 50% trong 15 phút.
 3. IPN hợp lệ chuyển booking sang `PARTIALLY_PAID` và mở kèo `FIND_OPPONENT`.
 4. Đại diện đội đối thủ gửi yêu cầu.
 5. Người tạo chấp nhận một đội; yêu cầu chuyển sang chờ thanh toán.
@@ -61,7 +60,7 @@ Booking thông thường phải được tạo trước giờ bắt đầu ít n
 ## 4.6. Luồng hủy và hoàn tiền
 
 ### User hủy
-- User được hủy `PENDING` hoặc `CONFIRMED` của mình trước giờ bắt đầu ít nhất 2 giờ.
+- User được hủy `CONFIRMED` chưa thu tiền của mình trước giờ bắt đầu ít nhất 2 giờ.
 - Người tạo hủy `PARTIALLY_PAID` được áp dụng chính sách hoàn tiền giống trường hợp không góp đủ.
 - User không tự hủy `PAID` trong MVP.
 
@@ -79,24 +78,19 @@ Booking thông thường phải được tạo trước giờ bắt đầu ít n
 
 ## 4.7. Trạng thái booking
 
-- `PENDING`: chờ owner xử lý, chiếm chỗ.
-- `CONFIRMED`: owner đã xác nhận, chờ khoản thanh toán đầu tiên, chiếm chỗ.
+- `PENDING`: trạng thái cũ được giữ trong schema để tương thích migration; luồng mới không tạo trạng thái này.
+- `CONFIRMED`: hệ thống đã kiểm tra và đang giữ chỗ 15 phút, chờ khoản thanh toán đầu tiên.
 - `PARTIALLY_PAID`: đã thu một phần, đang chờ góp đủ, chiếm chỗ.
 - `PAID`: đã thu đủ tiền, chiếm chỗ.
 - `REFUND_PENDING`: đang xử lý hoàn tiền, vẫn chiếm chỗ để tránh bán lại quá sớm.
 - `COMPLETED`: đã sử dụng sân.
-- `REJECTED`: owner từ chối.
+- `REJECTED`: trạng thái lịch sử của luồng duyệt cũ; luồng mới không tạo trạng thái này.
 - `CANCELLED`: đã hủy và hoàn tiền cần thiết đã hoàn tất.
 - `EXPIRED`: hết hạn trước khi có khoản thanh toán đầu tiên.
 
 ## 4.8. Chuyển trạng thái hợp lệ
 
 ```text
-PENDING → CONFIRMED
-PENDING → REJECTED
-PENDING → CANCELLED
-PENDING → EXPIRED
-
 CONFIRMED → PAID
 CONFIRMED → PARTIALLY_PAID
 CONFIRMED → CANCELLED

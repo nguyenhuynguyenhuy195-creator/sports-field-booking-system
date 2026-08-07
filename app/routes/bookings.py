@@ -1,0 +1,285 @@
+from datetime import timedelta
+
+from flask import Blueprint, abort, flash, jsonify, redirect, render_template, url_for
+from flask_login import current_user
+
+from app.decorators import roles_required
+from app.forms import BookingActionForm, BookingForm, BookingReasonForm
+from app.models import BookingPaymentMode, BookingStatus, UserRole
+from app.services import (
+    BookingError,
+    BookingNotFoundError,
+    BookingPermissionError,
+    cancel_owner_booking,
+    cancel_user_booking,
+    create_booking,
+    current_vietnam_datetime,
+    get_booking_field,
+    get_effective_booking_status,
+    get_owner_booking,
+    get_user_booking,
+    list_owner_bookings,
+    list_user_bookings,
+    quote_booking,
+)
+
+
+bookings_bp = Blueprint("bookings", __name__)
+
+BOOKING_STATUS_LABELS = {
+    BookingStatus.PENDING.value: "Đang xử lý",
+    BookingStatus.CONFIRMED.value: "Đang giữ chỗ, chờ thanh toán",
+    BookingStatus.PARTIALLY_PAID.value: "Đã thanh toán một phần",
+    BookingStatus.PAID.value: "Đã thanh toán đủ",
+    BookingStatus.REFUND_PENDING.value: "Đang hoàn tiền",
+    BookingStatus.COMPLETED.value: "Đã hoàn thành",
+    BookingStatus.REJECTED.value: "Đã từ chối",
+    BookingStatus.CANCELLED.value: "Đã hủy",
+    BookingStatus.EXPIRED.value: "Đã hết hạn",
+}
+
+PAYMENT_MODE_LABELS = {
+    BookingPaymentMode.FULL_PAYMENT.value: "Thanh toán toàn bộ",
+    BookingPaymentMode.SPLIT_OPPONENT.value: "Tìm đối thủ, chia 50/50",
+    BookingPaymentMode.SPLIT_PLAYERS.value: "Tìm thêm người, chia theo đầu người",
+}
+
+
+@bookings_bp.route(
+    "/venues/<int:venue_id>/fields/<int:field_id>/bookings/new",
+    methods=["GET", "POST"],
+)
+@roles_required(UserRole.USER, UserRole.OWNER)
+def create(venue_id: int, field_id: int):
+    try:
+        field = get_booking_field(venue_id=venue_id, field_id=field_id)
+    except BookingNotFoundError:
+        abort(404)
+    except BookingError as exc:
+        flash(str(exc), "warning")
+        return redirect(url_for("venues.detail", venue_id=venue_id))
+
+    today = current_vietnam_datetime().date()
+    form = BookingForm()
+    if not form.is_submitted():
+        form.booking_date.data = today + timedelta(days=1)
+    if form.validate_on_submit():
+        try:
+            booking = create_booking(
+                user=current_user,
+                field_id=field.id,
+                booking_date=form.booking_date.data,
+                start_time=form.start_time_value,
+                end_time=form.end_time_value,
+                payment_mode=form.payment_mode.data,
+                note=form.note.data,
+            )
+        except BookingPermissionError:
+            abort(403)
+        except BookingNotFoundError:
+            abort(404)
+        except BookingError as exc:
+            flash(str(exc), "warning")
+        else:
+            flash(
+                "Đã giữ chỗ trong 15 phút. Hãy hoàn tất khoản thanh toán đầu tiên.",
+                "success",
+            )
+            return redirect(
+                url_for("bookings.detail", booking_code=booking.booking_code)
+            )
+
+    return render_template(
+        "bookings/form.html",
+        form=form,
+        field=field,
+        today=today,
+        maximum_booking_date=today + timedelta(days=30),
+    )
+
+
+@bookings_bp.post(
+    "/venues/<int:venue_id>/fields/<int:field_id>/bookings/quote"
+)
+@roles_required(UserRole.USER, UserRole.OWNER)
+def quote(venue_id: int, field_id: int):
+    try:
+        field = get_booking_field(venue_id=venue_id, field_id=field_id)
+    except BookingNotFoundError:
+        abort(404)
+    except BookingError as exc:
+        return jsonify(ok=False, message=str(exc)), 422
+
+    form = BookingForm()
+    if not form.validate_on_submit():
+        return jsonify(ok=False, message=_first_form_error(form)), 422
+
+    try:
+        price_quote = quote_booking(
+            user=current_user,
+            field_id=field.id,
+            booking_date=form.booking_date.data,
+            start_time=form.start_time_value,
+            end_time=form.end_time_value,
+            payment_mode=form.payment_mode.data,
+        )
+    except BookingPermissionError:
+        abort(403)
+    except BookingNotFoundError:
+        abort(404)
+    except BookingError as exc:
+        return jsonify(ok=False, message=str(exc)), 422
+
+    return jsonify(
+        ok=True,
+        total=str(price_quote.total),
+        segments=[
+            {
+                "start_time": segment.start_time.strftime("%H:%M"),
+                "end_time": segment.end_time.strftime("%H:%M"),
+                "duration_minutes": segment.duration_minutes,
+                "hourly_price": str(segment.hourly_price),
+                "subtotal": str(segment.subtotal),
+            }
+            for segment in price_quote.segments
+        ],
+    )
+
+
+@bookings_bp.get("/bookings")
+@roles_required(UserRole.USER, UserRole.OWNER)
+def index():
+    bookings = list_user_bookings(current_user.id)
+    return render_template(
+        "bookings/index.html",
+        bookings=bookings,
+        effective_statuses=_effective_statuses(bookings),
+        status_labels=BOOKING_STATUS_LABELS,
+        payment_mode_labels=PAYMENT_MODE_LABELS,
+    )
+
+
+@bookings_bp.get("/bookings/<string:booking_code>")
+@roles_required(UserRole.USER, UserRole.OWNER)
+def detail(booking_code: str):
+    try:
+        booking = get_user_booking(
+            booking_code=booking_code,
+            user_id=current_user.id,
+        )
+    except BookingNotFoundError:
+        abort(404)
+    except BookingPermissionError:
+        abort(403)
+    return render_template(
+        "bookings/detail.html",
+        booking=booking,
+        effective_status=get_effective_booking_status(booking),
+        status_labels=BOOKING_STATUS_LABELS,
+        payment_mode_labels=PAYMENT_MODE_LABELS,
+        cancel_form=BookingActionForm(),
+        owner_view=False,
+    )
+
+
+@bookings_bp.post("/bookings/<string:booking_code>/cancel")
+@roles_required(UserRole.USER, UserRole.OWNER)
+def cancel(booking_code: str):
+    form = BookingActionForm()
+    if not form.validate_on_submit():
+        flash("Yêu cầu hủy booking không hợp lệ.", "danger")
+        return redirect(url_for("bookings.detail", booking_code=booking_code))
+    try:
+        cancel_user_booking(
+            booking_code=booking_code,
+            user=current_user,
+        )
+    except BookingNotFoundError:
+        abort(404)
+    except BookingPermissionError:
+        abort(403)
+    except BookingError as exc:
+        flash(str(exc), "warning")
+    else:
+        flash("Đã hủy booking.", "success")
+    return redirect(url_for("bookings.detail", booking_code=booking_code))
+
+
+@bookings_bp.get("/owner/bookings")
+@roles_required(UserRole.OWNER)
+def owner_index():
+    bookings = list_owner_bookings(current_user.id)
+    return render_template(
+        "owner/bookings/index.html",
+        bookings=bookings,
+        effective_statuses=_effective_statuses(bookings),
+        status_labels=BOOKING_STATUS_LABELS,
+        payment_mode_labels=PAYMENT_MODE_LABELS,
+    )
+
+
+@bookings_bp.get("/owner/bookings/<string:booking_code>")
+@roles_required(UserRole.OWNER)
+def owner_detail(booking_code: str):
+    booking = _load_owner_booking(booking_code)
+    return render_template(
+        "bookings/detail.html",
+        booking=booking,
+        effective_status=get_effective_booking_status(booking),
+        status_labels=BOOKING_STATUS_LABELS,
+        payment_mode_labels=PAYMENT_MODE_LABELS,
+        owner_cancel_form=BookingReasonForm(prefix="owner-cancel"),
+        owner_view=True,
+    )
+
+
+@bookings_bp.post("/owner/bookings/<string:booking_code>/cancel")
+@roles_required(UserRole.OWNER)
+def owner_cancel(booking_code: str):
+    _load_owner_booking(booking_code)
+    form = BookingReasonForm(prefix="owner-cancel")
+    if form.validate_on_submit():
+        try:
+            cancel_owner_booking(
+                booking_code=booking_code,
+                owner=current_user,
+                reason=form.reason.data,
+            )
+        except BookingPermissionError:
+            abort(403)
+        except BookingNotFoundError:
+            abort(404)
+        except BookingError as exc:
+            flash(str(exc), "warning")
+        else:
+            flash("Đã hủy booking chưa thu tiền.", "success")
+    else:
+        flash("Vui lòng nhập lý do hủy hợp lệ.", "danger")
+    return redirect(url_for("bookings.owner_detail", booking_code=booking_code))
+
+
+def _load_owner_booking(booking_code: str):
+    try:
+        return get_owner_booking(
+            booking_code=booking_code,
+            owner_id=current_user.id,
+        )
+    except BookingNotFoundError:
+        abort(404)
+    except BookingPermissionError:
+        abort(403)
+
+
+def _effective_statuses(bookings):
+    now = current_vietnam_datetime()
+    return {
+        booking.id: get_effective_booking_status(booking, now=now)
+        for booking in bookings
+    }
+
+
+def _first_form_error(form) -> str:
+    for errors in form.errors.values():
+        if errors:
+            return errors[0]
+    return "Thông tin đặt sân chưa hợp lệ."

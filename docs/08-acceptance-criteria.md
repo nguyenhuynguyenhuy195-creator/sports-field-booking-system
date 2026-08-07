@@ -45,19 +45,19 @@
 - Không nằm trong quá khứ, không vượt 30 ngày và đáp ứng thời gian đặt trước của payment mode.
 - Nằm trong giờ mở cửa, không trùng bảo trì và booking chiếm chỗ.
 - Toàn bộ thời gian được phủ bởi khung giá.
+- Endpoint báo giá trả đúng các đoạn giá nhưng không tạo booking; submit cuối cùng phải kiểm tra lại toàn bộ.
 - Backend tách đúng từng đoạn giá, tính `total_amount` và lưu price snapshot.
-- Booking mới là `PENDING`, chiếm chỗ và có hạn owner phản hồi 30 phút.
+- Booking mới là `CONFIRMED`, chiếm chỗ và có hạn thanh toán đầu tiên 15 phút.
 
-## AC-007: Owner xác nhận hoặc từ chối
+## AC-007: Giữ chỗ tự động
 
-- Booking tồn tại, thuộc field của owner hiện tại và đang `PENDING`.
-- Xác nhận chuyển `CONFIRMED` và tạo hạn thanh toán đầu tiên 15 phút.
-- Từ chối chuyển `REJECTED`, lưu lý do và giải phóng lịch.
+- Booking chỉ được tạo sau khi backend kiểm tra hợp lệ trong transaction.
+- Không có bước hoặc endpoint owner xác nhận/từ chối booking thông thường.
+- Owner xem được booking thuộc sân của mình và có thể hủy do sự cố với lý do bắt buộc.
 - Owner khác bị từ chối và dữ liệu không thay đổi.
 
 ## AC-008: Hết hạn booking
 
-- `PENDING` quá 30 phút chưa xử lý chuyển `EXPIRED`.
 - `CONFIRMED` quá 15 phút chưa có khoản thanh toán đầu tiên chuyển `EXPIRED`.
 - Booking hết hạn không còn chiếm chỗ.
 - Job chạy lại không thay đổi trạng thái lần hai hoặc tạo tác dụng phụ trùng.
@@ -80,7 +80,7 @@
 
 ## AC-011: Chia 50/50 tìm đối thủ
 
-- Người tạo trả đúng 50% sau khi owner xác nhận.
+- Người tạo trả đúng 50% trong thời gian giữ chỗ tự động.
 - Payment thành công chuyển booking `PARTIALLY_PAID` và cho phép mở kèo.
 - Chỉ một đại diện đội đối thủ được chấp nhận.
 - Người được chấp nhận có 15 phút để trả 50%; hết hạn thì vị trí mở lại.

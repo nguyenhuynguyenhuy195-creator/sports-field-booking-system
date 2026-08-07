@@ -52,7 +52,7 @@ User phải đăng nhập trước khi tạo booking, tạo kèo, gửi yêu c�
 ### BR-010: Lịch bảo trì
 - Owner được tạo lịch bảo trì theo ngày và khoảng giờ cho field của mình.
 - Hai lịch bảo trì `ACTIVE` của cùng field không được chồng nhau.
-- Không được tạo lịch bảo trì giao với booking `PENDING`, `CONFIRMED`, `PARTIALLY_PAID` hoặc `PAID`.
+- Không được tạo lịch bảo trì giao với booking `CONFIRMED`, `PARTIALLY_PAID`, `PAID` hoặc `REFUND_PENDING`.
 - Booking không được giao với lịch bảo trì đang hiệu lực.
 
 ## 3.3. Thời gian và trùng lịch
@@ -77,7 +77,7 @@ AND
 new_end > existing_start
 ```
 
-Trạng thái chiếm chỗ: `PENDING`, `CONFIRMED`, `PARTIALLY_PAID`, `PAID` và `REFUND_PENDING`.
+Trạng thái chiếm chỗ: `CONFIRMED`, `PARTIALLY_PAID`, `PAID` và `REFUND_PENDING`.
 
 Trạng thái không chiếm chỗ: `REJECTED`, `CANCELLED`, `EXPIRED` và `COMPLETED`.
 
@@ -85,15 +85,14 @@ Việc kiểm tra và tạo booking phải nằm trong cùng transaction để h
 
 ## 3.4. Vòng đời booking
 
-### BR-014: Tạo và xác nhận booking
-- Booking mới có trạng thái `PENDING`.
-- Chỉ owner sở hữu field mới được xác nhận hoặc từ chối.
-- Chỉ booking `PENDING` được xác nhận hoặc từ chối.
-- Từ chối phải lưu lý do.
+### BR-014: Tạo và giữ chỗ tự động
+- Backend phải kiểm tra field/venue, thời gian, bảo trì, trùng lịch và độ phủ giá trước khi tạo booking.
+- Booking hợp lệ được tạo trực tiếp ở trạng thái `CONFIRMED`; không chờ owner xác nhận hoặc từ chối.
+- Hệ thống tạo `initial_payment_due_at` bằng thời điểm giữ chỗ cộng 15 phút.
+- Owner được thông báo/theo dõi booking và chỉ hủy khi có sự cố, bắt buộc lưu lý do.
 
 ### BR-015: Hết hạn
-- `PENDING` hết hạn sau 30 phút nếu owner chưa phản hồi.
-- Sau khi owner xác nhận, người tạo có 15 phút để hoàn thành khoản thanh toán đầu tiên.
+- Sau khi hệ thống giữ chỗ, người tạo có 15 phút để hoàn thành khoản thanh toán đầu tiên.
 - `CONFIRMED` chưa có khoản thanh toán đầu tiên sau 15 phút chuyển `EXPIRED`.
 - Booking `EXPIRED` không chiếm chỗ.
 
@@ -104,7 +103,7 @@ Việc kiểm tra và tạo booking phải nằm trong cùng transaction để h
 - Nếu người tạo đã trả đủ phần thiếu, người tham gia sau đó không còn nghĩa vụ thanh toán cho booking đó.
 
 ### BR-017: Hủy booking
-- User chỉ được hủy booking của mình ở trạng thái `PENDING` hoặc `CONFIRMED` và trước giờ bắt đầu ít nhất 2 giờ.
+- User chỉ được hủy booking của mình ở trạng thái `CONFIRMED` chưa thu tiền và trước giờ bắt đầu ít nhất 2 giờ.
 - Người tạo hủy booking `PARTIALLY_PAID` được xử lý như trường hợp không góp đủ đúng hạn.
 - User không được tự hủy booking `PAID` trong MVP.
 - Owner được hủy `CONFIRMED`, `PARTIALLY_PAID` hoặc `PAID` khi có sự cố và bắt buộc nhập lý do.

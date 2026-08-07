@@ -157,11 +157,9 @@ Index cần có: `(field_id, maintenance_date, status, start_time, end_time)`.
 | paid_amount | DECIMAL(12,2) | NOT NULL, DEFAULT 0 |
 | cancellation_fee_amount | DECIMAL(12,2) | NOT NULL, DEFAULT 0 |
 | status | VARCHAR(30) | NOT NULL |
-| owner_response_due_at | DATETIME2 | NOT NULL |
 | initial_payment_due_at | DATETIME2 | NULL |
 | funding_deadline | DATETIME2 | NULL |
 | note | NVARCHAR(500) | NULL |
-| rejection_reason | NVARCHAR(500) | NULL |
 | cancellation_reason | NVARCHAR(500) | NULL |
 | created_at | DATETIME2 | NOT NULL |
 | updated_at | DATETIME2 | NULL |
@@ -169,6 +167,8 @@ Index cần có: `(field_id, maintenance_date, status, start_time, end_time)`.
 Payment mode: `FULL_PAYMENT`, `SPLIT_OPPONENT`, `SPLIT_PLAYERS`.
 
 Status: `PENDING`, `CONFIRMED`, `PARTIALLY_PAID`, `PAID`, `REFUND_PENDING`, `COMPLETED`, `REJECTED`, `CANCELLED`, `EXPIRED`.
+
+Luồng tự động mới tạo booking trực tiếp ở `CONFIRMED` và bắt buộc có `initial_payment_due_at` bằng thời điểm tạo cộng 15 phút. `PENDING` và `REJECTED` chỉ còn trong CHECK constraint để tương thích dữ liệu/migration của luồng duyệt cũ, không được service mới tạo ra.
 
 `paid_amount` là số tiền thành công ròng còn được phân bổ cho booking sau refund. `cancellation_fee_amount` ghi nhận phần phí giữ sân không hoàn cho owner và mặc định bằng 0.
 
@@ -181,7 +181,7 @@ Check constraint tối thiểu:
 Index tối thiểu:
 - `(field_id, booking_date, status, start_time, end_time)` cho kiểm tra trùng.
 - `(user_id, created_at)` cho lịch sử user.
-- `(status, owner_response_due_at)` và `(status, funding_deadline)` cho xử lý hết hạn.
+- `(status, initial_payment_due_at)` và `(status, funding_deadline)` cho xử lý hết hạn.
 
 ## 5.9. Bảng `booking_price_details`
 

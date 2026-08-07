@@ -58,7 +58,7 @@ Từ chối tạo booking.
 ## 9.3. Booking
 
 ### TC-BOOKING-001: Booking hợp lệ
-Field/venue `ACTIVE`, thời gian hợp lệ, đủ giá, không trùng → tạo `PENDING` và price snapshot.
+Field/venue `ACTIVE`, thời gian hợp lệ, đủ giá, không trùng → tạo `CONFIRMED`, hạn giữ chỗ 15 phút và price snapshot.
 
 ### TC-BOOKING-002: Bước thời gian sai
 Từ chối 18:10–19:40.
@@ -77,14 +77,14 @@ Từ chối 18:00–18:30.
 ### TC-BOOKING-006: Trạng thái không chiếm chỗ
 Booking `REJECTED`, `CANCELLED`, `EXPIRED` hoặc `COMPLETED` không làm khung giờ bận.
 
-### TC-BOOKING-007: Owner xác nhận sân khác
+### TC-BOOKING-007: Owner hủy booking sân khác
 Bị từ chối và dữ liệu không đổi.
 
-### TC-BOOKING-008: PENDING hết hạn
-Quá 30 phút → `EXPIRED`; chạy job lần hai không tạo thay đổi mới.
+### TC-BOOKING-008: Báo giá trước khi giữ chỗ
+Trả đúng từng đoạn giá và tổng tiền nhưng không tạo booking hoặc chiếm chỗ.
 
-### TC-BOOKING-009: CONFIRMED hết hạn
-Không có khoản thanh toán đầu tiên sau 15 phút → `EXPIRED`.
+### TC-BOOKING-009: Giữ chỗ CONFIRMED hết hạn
+Không có khoản thanh toán đầu tiên sau 15 phút → `EXPIRED`; chạy job lần hai không tạo thay đổi mới.
 
 ### TC-BOOKING-010: Hai request đồng thời
 Chỉ một booking giao nhau được commit; request còn lại nhận lỗi hết chỗ.

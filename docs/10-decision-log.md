@@ -47,8 +47,7 @@ Thành viên có sẵn không bắt buộc tạo tài khoản. Người tạo c�
 ## ADR-008: Thời hạn booking và góp tiền
 
 - Booking thường đặt trước tối thiểu 60 phút; booking chia tiền tối thiểu 13 giờ; tối đa 30 ngày.
-- Owner phản hồi trong 30 phút.
-- Khoản thanh toán đầu tiên và payment của người được chấp nhận có hạn 15 phút.
+- Booking hợp lệ được giữ chỗ tự động; khoản thanh toán đầu tiên và payment của người được chấp nhận có hạn 15 phút.
 - Booking chia tiền phải đủ trước giờ bắt đầu 12 giờ.
 
 ## ADR-009: Chính sách không góp đủ và hoàn tiền
@@ -94,3 +93,13 @@ AI lọc spam, phân tích cảm xúc, recommendation, chat thời gian thực, 
 - Unique trên mã giao dịch nullable và unique theo trạng thái phải dùng filtered unique index phù hợp SQL Server.
 - `payments` và `refunds` là lịch sử tiền gốc; số tiền tại contribution và booking là dữ liệu tổng hợp cập nhật trong cùng transaction.
 - Nguồn ERD được lưu cùng repository và phải đồng bộ với `docs/05-database-design.md` trước khi tạo migration.
+
+## ADR-016: Tự động xác nhận và giữ chỗ booking
+
+**Ngày quyết định:** 08/08/2026
+
+- Bỏ bước owner xác nhận/từ chối đối với booking thông thường vì backend đã kiểm tra trạng thái sân, giờ hoạt động, bảo trì, độ phủ giá và trùng lịch trong transaction.
+- Booking hợp lệ được tạo trực tiếp ở `CONFIRMED` và giữ chỗ 15 phút để người tạo hoàn thành khoản thanh toán đầu tiên.
+- Quá hạn mà chưa thu tiền thì booking chuyển `EXPIRED` và giải phóng lịch; job hết hạn phải idempotent.
+- Owner vẫn xem được booking và chỉ hủy khi có sự cố, bắt buộc nhập lý do; booking đã thu tiền phải đi qua quy trình refund.
+- Trang đặt sân dùng bốn bước, lấy thông tin người đặt từ tài khoản và gọi backend báo giá trước khi submit; backend vẫn tính lại toàn bộ khi tạo booking.
