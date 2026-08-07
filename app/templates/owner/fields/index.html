@@ -32,6 +32,7 @@
                     {% endif %}
                     <div class="d-grid gap-2 mt-auto">
                         <a class="btn btn-primary" href="{{ url_for('pricing.owner_index', venue_id=venue.id, field_id=field.id) }}">Quản lý khung giá</a>
+                        <a class="btn btn-outline-primary" href="{{ url_for('maintenance.owner_index', venue_id=venue.id, field_id=field.id) }}">Quản lý bảo trì</a>
                         <a class="btn btn-outline-primary" href="{{ url_for('fields.owner_edit', venue_id=venue.id, field_id=field.id) }}">Chỉnh sửa sân</a>
                     </div>
                 </article>

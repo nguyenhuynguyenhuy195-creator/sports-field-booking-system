@@ -16,6 +16,7 @@ app/forms/owner_application.py
 app/forms/venue.py
 app/forms/field.py
 app/forms/pricing.py
+app/forms/maintenance.py
 app/forms/auth.py
 app/forms/__init__.py
 app/models/owner_application.py
@@ -23,6 +24,7 @@ app/models/user.py
 app/models/venue.py
 app/models/field.py
 app/models/price_slot.py
+app/models/field_maintenance.py
 app/models/__init__.py
 app/routes/owner_applications.py
 app/routes/auth.py
@@ -31,11 +33,13 @@ app/routes/main.py
 app/routes/venues.py
 app/routes/fields.py
 app/routes/pricing.py
+app/routes/maintenance.py
 app/services/owner_application.py
 app/services/auth.py
 app/services/venue.py
 app/services/field.py
 app/services/pricing.py
+app/services/maintenance.py
 app/services/__init__.py
 app/static/css/app.css
 app/templates/_form_helpers.html
@@ -49,6 +53,8 @@ app/templates/owner/fields/form.html
 app/templates/owner/fields/index.html
 app/templates/owner/pricing/form.html
 app/templates/owner/pricing/index.html
+app/templates/owner/maintenance/form.html
+app/templates/owner/maintenance/index.html
 app/templates/owner/venues/form.html
 app/templates/owner/venues/index.html
 app/templates/owner_applications/mine.html
@@ -81,6 +87,7 @@ migrations/versions/90b6736cc5ac_create_owner_applications_table.py
 migrations/versions/46d144661ea0_create_venues_table.py
 migrations/versions/1991532703dc_create_fields_table.py
 migrations/versions/78fbcd7c9576_create_field_price_slots_table.py
+migrations/versions/95239df4b6b1_create_field_maintenances_table.py
 references/KE_HOACH_CHI_TIET.docx
 references/MẪU BÁO CÁO ĐỒ ÁN NGÀNH.docx
 references/README.md
@@ -93,6 +100,7 @@ tests/integration/test_owner_applications.py
 tests/integration/test_venues.py
 tests/integration/test_fields.py
 tests/integration/test_pricing.py
+tests/integration/test_maintenance.py
 tests/README.md
 tests/unit/test_owner_application_model.py
 tests/unit/test_template_filters.py
@@ -100,6 +108,7 @@ tests/unit/test_user_model.py
 tests/unit/test_venue_model.py
 tests/unit/test_field_model.py
 tests/unit/test_price_slot_model.py
+tests/unit/test_field_maintenance_model.py
 ```
 
 Các tài liệu Word trong `references/` được dùng làm mẫu và kế hoạch tham khảo; tài liệu Markdown trong `docs/` là nguồn yêu cầu chính của hệ thống.
