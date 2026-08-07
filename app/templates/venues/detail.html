@@ -30,5 +30,35 @@
             </div>
         </div>
     </div>
+
+    <div class="mt-5">
+        <div class="mb-3">
+            <span class="eyebrow">SÂN ĐANG NHẬN ĐẶT LỊCH</span>
+            <h2 class="h3 fw-bold mt-2">Danh sách sân</h2>
+        </div>
+        {% if fields %}
+            <div class="field-grid">
+                {% for field in fields %}
+                    <article class="field-card">
+                        <span class="status-badge status-active">Đang hoạt động</span>
+                        <h3 class="h5 fw-bold mt-3 mb-2">{{ field.name }}</h3>
+                        <p class="text-secondary mb-2">{{ field_type_labels[field.field_type] }}</p>
+                        <dl class="field-meta mb-0">
+                            <dt>Mặt sân</dt>
+                            <dd>{{ field.surface_type or 'Chưa cung cấp' }}</dd>
+                            <dt>Sức chứa</dt>
+                            <dd>{{ field.capacity }} người</dd>
+                        </dl>
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state text-center">
+                <div class="empty-state-icon" aria-hidden="true">⚽</div>
+                <h3 class="h5 fw-bold">Chưa có sân đang nhận đặt lịch</h3>
+                <p class="text-secondary mb-0">Các sân sẽ xuất hiện khi chủ sân hoàn tất thông tin và khung giá.</p>
+            </div>
+        {% endif %}
+    </div>
 </section>
 {% endblock %}
