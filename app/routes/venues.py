@@ -13,6 +13,7 @@ from app.services import (
     get_public_venue,
     list_admin_venues,
     list_owner_venues,
+    list_public_fields,
     list_public_venues,
     moderate_venue,
     update_venue,
@@ -43,7 +44,16 @@ def detail(venue_id: int):
         venue = get_public_venue(venue_id)
     except VenueNotFoundError:
         abort(404)
-    return render_template("venues/detail.html", venue=venue)
+    return render_template(
+        "venues/detail.html",
+        venue=venue,
+        fields=list_public_fields(venue.id),
+        field_type_labels={
+            "FIVE_A_SIDE": "Sân bóng 5 người",
+            "SEVEN_A_SIDE": "Sân bóng 7 người",
+            "ELEVEN_A_SIDE": "Sân bóng 11 người",
+        },
+    )
 
 
 @venues_bp.get("/owner/venues")

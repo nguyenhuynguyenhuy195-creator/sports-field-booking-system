@@ -1,6 +1,17 @@
 """Business services that keep domain logic outside route functions."""
 
 from .auth import DuplicateEmailError, find_user_by_email, register_user
+from .field import (
+    DuplicateFieldNameError,
+    FieldError,
+    FieldNotFoundError,
+    FieldPermissionError,
+    create_field,
+    get_owner_field,
+    list_owner_fields,
+    list_public_fields,
+    update_field,
+)
 from .owner_application import (
     InvalidOwnerApplicationStateError,
     OwnerApplicationError,
@@ -29,6 +40,10 @@ from .venue import (
 
 __all__ = [
     "DuplicateEmailError",
+    "DuplicateFieldNameError",
+    "FieldError",
+    "FieldNotFoundError",
+    "FieldPermissionError",
     "InvalidOwnerApplicationStateError",
     "InvalidVenueStateError",
     "OwnerApplicationError",
@@ -38,18 +53,23 @@ __all__ = [
     "VenueNotFoundError",
     "VenuePermissionError",
     "create_venue",
+    "create_field",
     "find_pending_application",
     "find_user_by_email",
     "get_owner_venue",
+    "get_owner_field",
     "get_public_venue",
     "list_admin_venues",
     "list_pending_applications",
     "list_owner_venues",
+    "list_owner_fields",
     "list_public_venues",
+    "list_public_fields",
     "list_user_applications",
     "register_user",
     "review_owner_application",
     "submit_owner_application",
     "moderate_venue",
     "update_venue",
+    "update_field",
 ]

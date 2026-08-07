@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% from "_form_helpers.html" import render_field %}
+
+{% block title %}{{ page_title }} · Sports Field Booking{% endblock %}
+
+{% block content %}
+<section class="auth-section py-5">
+    <div class="container">
+        <div class="auth-card mx-auto">
+            <a class="text-decoration-none" href="{{ url_for('fields.owner_index', venue_id=venue.id) }}">← Danh sách sân</a>
+            <span class="eyebrow d-block mt-4">{{ venue.name }}</span>
+            <h1 class="h2 fw-bold mt-2">{{ page_title }}</h1>
+            <p class="text-secondary">Sân mới chưa nhận đặt lịch cho đến khi có khung giá hợp lệ.</p>
+
+            <form method="post" novalidate>
+                {{ form.hidden_tag() }}
+                {{ render_field(form.name, placeholder="Ví dụ: Sân số 1") }}
+                {{ render_field(form.field_type) }}
+                {{ render_field(form.surface_type, placeholder="Ví dụ: Cỏ nhân tạo") }}
+                {{ render_field(form.capacity, min="1", placeholder="Ví dụ: 14") }}
+                {{ form.submit(class="btn btn-primary w-100", value=submit_label) }}
+            </form>
+        </div>
+    </div>
+</section>
+{% endblock %}

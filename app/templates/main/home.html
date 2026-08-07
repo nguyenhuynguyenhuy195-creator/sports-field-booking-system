@@ -10,7 +10,7 @@
                 <span class="eyebrow">ĐẶT SÂN · TÌM KÈO · CHIA TIỀN</span>
                 {% if current_user.is_authenticated %}
                     <h1 class="display-5 fw-bold mt-3">Chào {{ current_user.full_name }}, sẵn sàng cho trận tiếp theo?</h1>
-                    <p class="lead text-secondary mt-3">Tài khoản của bạn đã đăng nhập với vai trò <strong>{{ current_user.role }}</strong>. Bạn có thể xem các cơ sở đã được duyệt; chức năng chọn sân con và đặt lịch sẽ được triển khai ở bước tiếp theo.</p>
+                    <p class="lead text-secondary mt-3">Tài khoản của bạn đã đăng nhập với vai trò <strong>{{ current_user.role }}</strong>. Bạn có thể xem các cơ sở đã được duyệt; chủ sân có thể quản lý cơ sở và danh sách sân trực tiếp trên hệ thống.</p>
                     <a class="btn btn-primary btn-lg mt-3" href="{{ url_for('venues.index') }}">Xem cơ sở sân bóng</a>
                 {% else %}
                     <h1 class="display-5 fw-bold mt-3">Đặt sân nhanh, tìm đúng người, chia tiền rõ ràng</h1>

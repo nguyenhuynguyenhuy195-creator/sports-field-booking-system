@@ -29,6 +29,7 @@
                         </div>
                         <div class="text-lg-end">
                             <p class="small text-secondary mb-3">Tạo lúc {{ venue.created_at|local_datetime }}</p>
+                            <a class="btn btn-outline-primary" href="{{ url_for('fields.owner_index', venue_id=venue.id) }}">Quản lý sân</a>
                             <a class="btn btn-outline-primary" href="{{ url_for('venues.owner_edit', venue_id=venue.id) }}">Chỉnh sửa</a>
                             {% if venue.status == 'ACTIVE' %}
                                 <a class="btn btn-primary" href="{{ url_for('venues.detail', venue_id=venue.id) }}">Xem công khai</a>
