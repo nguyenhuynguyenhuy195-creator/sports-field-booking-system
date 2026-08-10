@@ -24,7 +24,7 @@ Ba hình thức thanh toán:
 - `SPLIT_OPPONENT`: hai đội chia 50/50.
 - `SPLIT_PLAYERS`: chia theo đầu người.
 
-Đích MVP dùng MoMo Sandbox và hỗ trợ hoàn tiền; MoMo Production không thuộc phạm vi đồ án ngành. Hiện repository đã có nền tảng phân bổ nghĩa vụ và provider `MOCK` để kiểm thử cập nhật tiền/trạng thái mà không trừ tiền thật. Kết nối HMAC, redirect và IPN MoMo Sandbox là bước tích hợp tiếp theo.
+Đích MVP dùng MoMo Sandbox và hỗ trợ hoàn tiền; MoMo Production không thuộc phạm vi đồ án ngành. Hiện repository đã có nền tảng phân bổ nghĩa vụ, module tìm kèo/ghép người và provider `MOCK` để kiểm thử cập nhật tiền/trạng thái mà không trừ tiền thật. Kết nối HMAC, redirect và IPN MoMo Sandbox là bước tích hợp tiếp theo.
 
 ## 3. Công nghệ
 
@@ -87,7 +87,7 @@ Khởi tạo hoặc cập nhật cấu trúc database trước lần chạy đ�
 .\.venv\Scripts\python.exe -m flask --app run.py db upgrade
 ```
 
-Lệnh trên đọc các migration trong `migrations/` và áp dụng chúng theo đúng thứ tự. Các migration hiện tại tạo bảng `users`, `owner_applications`, `venues`, `fields`, `field_price_slots`, `field_maintenances`, `bookings`, `booking_price_details`, `booking_contributions`, `payments` và `refunds`; bảng `alembic_version` do Flask-Migrate dùng để ghi nhận phiên bản database.
+Lệnh trên đọc các migration trong `migrations/` và áp dụng chúng theo đúng thứ tự. Các migration hiện tại tạo bảng `users`, `owner_applications`, `venues`, `fields`, `field_price_slots`, `field_maintenances`, `bookings`, `booking_price_details`, `booking_contributions`, `payments`, `refunds`, `matches` và `match_participants`; bảng `alembic_version` do Flask-Migrate dùng để ghi nhận phiên bản database.
 
 Sau đó chạy website:
 
@@ -136,6 +136,11 @@ GET http://127.0.0.1:5000/venues
 - Trang chi tiết hiển thị từng nghĩa vụ, tiến độ đã thu/còn thiếu và lịch sử giao dịch.
 - Provider `MOCK` ghi nhận thanh toán thành công trong transaction để kiểm thử: trả 100%, trả phần đầu, chuyển `PARTIALLY_PAID`, và người tạo trả toàn bộ phần còn thiếu để chuyển `PAID`.
 - Các nghĩa vụ được trả thay chuyển `WAIVED` nhưng giữ nguyên số tiền gốc để phục vụ đối soát; hệ thống không thu vượt `total_amount` và từ chối thanh toán lặp.
+- Người tạo mở tối đa một kèo từ booking đủ điều kiện; loại kèo chia tiền được khóa theo `SPLIT_OPPONENT` hoặc `SPLIT_PLAYERS`.
+- Người chơi gửi và rút yêu cầu chưa thanh toán; người tạo kèo chấp nhận hoặc từ chối trên backend theo đúng quyền.
+- Người được chấp nhận giữ đúng một vị trí thanh toán trong 15 phút; quá hạn thì yêu cầu `EXPIRED` và vị trí được mở lại an toàn.
+- Thanh toán contribution của người tham gia tự chuyển yêu cầu sang `JOINED`; kèo đối thủ thành `CONFIRMED`, kèo tìm người chỉ thành `FULL` khi đủ số người đã tham gia.
+- Lệnh `flask matches expire` xử lý idempotent các yêu cầu đã được duyệt nhưng quá hạn thanh toán.
 
 Tạo tài khoản quản trị viên đầu tiên:
 

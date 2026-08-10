@@ -183,6 +183,7 @@ erDiagram
         INT id PK
         INT match_id FK
         INT user_id FK
+        INT contribution_id FK
         VARCHAR participant_type
         NVARCHAR message
         VARCHAR status
@@ -216,3 +217,4 @@ erDiagram
     USERS ||--o{ MATCHES : creates
     MATCHES ||--o{ MATCH_PARTICIPANTS : accepts
     USERS ||--o{ MATCH_PARTICIPANTS : joins
+    BOOKING_CONTRIBUTIONS o|--o{ MATCH_PARTICIPANTS : assigns

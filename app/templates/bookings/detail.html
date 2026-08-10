@@ -131,6 +131,21 @@
         <div class="col-lg-4">
             <aside class="booking-detail-card booking-action-card">
                 <h2 class="h5 fw-bold">Trạng thái xử lý</h2>
+                {% if not owner_view and current_user.id == booking.user_id %}
+                    {% if booking.match %}
+                        <div class="match-booking-cta mb-3">
+                            <span>Kèo gắn với booking</span>
+                            <strong>{{ booking.match.title }}</strong>
+                            <a class="btn btn-outline-primary w-100 mt-2" href="{{ url_for('matches.detail', match_id=booking.match.id) }}">Xem và quản lý kèo</a>
+                        </div>
+                    {% elif (booking.payment_mode == 'FULL_PAYMENT' and effective_status == 'PAID') or (booking.payment_mode != 'FULL_PAYMENT' and effective_status in ['PARTIALLY_PAID', 'PAID']) %}
+                        <div class="match-booking-cta mb-3">
+                            <span>Bước tiếp theo</span>
+                            <strong>Đăng kèo tìm người phù hợp</strong>
+                            <a class="btn btn-primary w-100 mt-2" href="{{ url_for('matches.create', booking_code=booking.booking_code) }}">Tạo kèo</a>
+                        </div>
+                    {% endif %}
+                {% endif %}
                 {% if effective_status == 'PENDING' %}
                     <p class="text-secondary">Booking cũ đang được hệ thống xử lý.</p>
                 {% elif effective_status == 'CONFIRMED' %}

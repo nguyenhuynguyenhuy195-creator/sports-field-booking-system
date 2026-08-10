@@ -29,6 +29,9 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('venues.index') }}">Tìm sân</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('matches.index') }}">Tìm kèo</a>
+                    </li>
                     {% if current_user.is_authenticated and current_user.role in ['USER', 'OWNER'] %}
                         <li class="nav-item">
                             <a class="nav-link" href="{{ url_for('bookings.index') }}">Lịch đặt của tôi</a>

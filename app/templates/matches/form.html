@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Đăng kèo · Sports Field Booking{% endblock %}
+
+{% block content %}
+<section class="container py-5">
+    <a class="text-decoration-none" href="{{ url_for('bookings.detail', booking_code=booking.booking_code) }}">← Quay lại booking</a>
+    <div class="row g-4 mt-1">
+        <div class="col-lg-7">
+            <div class="booking-detail-card">
+                <span class="eyebrow">BƯỚC SAU THANH TOÁN</span>
+                <h1 class="h2 fw-bold mt-2">Đăng kèo</h1>
+                <p class="text-secondary">Mô tả ngắn gọn để người phù hợp hiểu lịch thi đấu trước khi gửi yêu cầu.</p>
+
+                <form method="post" novalidate>
+                    {{ form.hidden_tag() }}
+                    {% if locked_type %}
+                        <input type="hidden" name="match_type" value="{{ locked_type }}">
+                        <div class="mb-3">
+                            <label class="form-label">Loại kèo</label>
+                            <div class="match-locked-value">{{ match_type_labels[locked_type] }}</div>
+                        </div>
+                    {% else %}
+                        <div class="mb-3">
+                            {{ form.match_type.label(class="form-label") }}
+                            {{ form.match_type(class="form-select") }}
+                        </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        {{ form.title.label(class="form-label") }}
+                        {{ form.title(class="form-control", placeholder="Ví dụ: Tìm đội giao lưu vui vẻ tối thứ Bảy") }}
+                        {% for error in form.title.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.skill_level.label(class="form-label") }}
+                        {{ form.skill_level(class="form-select") }}
+                    </div>
+
+                    {% if locked_required_players is not none %}
+                        <input type="hidden" name="required_players" value="{{ locked_required_players }}">
+                        <div class="mb-3">
+                            <label class="form-label">Số người cần tìm</label>
+                            <div class="match-locked-value">{{ locked_required_players }} người — lấy từ booking đã chốt</div>
+                        </div>
+                    {% else %}
+                        <div class="mb-3" data-match-player-count>
+                            {{ form.required_players.label(class="form-label") }}
+                            {{ form.required_players(class="form-control", min="1", max=booking.field.capacity - 1, placeholder="Chỉ nhập khi chọn tìm thêm người") }}
+                            <div class="form-text">Sân này có sức chứa chuẩn {{ booking.field.capacity }} người.</div>
+                            {% for error in form.required_players.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <div class="mb-4">
+                        {{ form.description.label(class="form-label") }}
+                        {{ form.description(class="form-control", rows="5", placeholder="Giới thiệu phong cách chơi, yêu cầu có mặt và thông tin cần biết...") }}
+                        {% for error in form.description.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                    </div>
+
+                    <button class="btn btn-primary w-100" type="submit">Đăng kèo</button>
+                </form>
+            </div>
+        </div>
+        <div class="col-lg-5">
+            <aside class="booking-detail-card booking-action-card">
+                <h2 class="h5 fw-bold">Lịch sân đã xác nhận</h2>
+                <dl class="match-booking-summary mb-0">
+                    <div><dt>Cơ sở</dt><dd>{{ booking.field.venue.name }}</dd></div>
+                    <div><dt>Sân</dt><dd>{{ booking.field.name }}</dd></div>
+                    <div><dt>Ngày</dt><dd>{{ booking.booking_date.strftime('%d/%m/%Y') }}</dd></div>
+                    <div><dt>Giờ</dt><dd>{{ booking.start_time.strftime('%H:%M') }}–{{ booking.end_time.strftime('%H:%M') }}</dd></div>
+                </dl>
+                <div class="alert alert-light border mt-3 mb-0 small">
+                    Người tham gia chỉ được tính là đã vào kèo sau khi người tạo duyệt và hoàn thành phần tiền bắt buộc.
+                </div>
+            </aside>
+        </div>
+    </div>
+</section>
+{% endblock %}

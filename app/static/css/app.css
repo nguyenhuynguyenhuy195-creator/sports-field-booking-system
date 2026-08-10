@@ -1228,6 +1228,204 @@ a:hover {
     color: #68798b;
 }
 
+.app-navbar .nav-link {
+    white-space: nowrap;
+}
+
+.app-navbar .navbar-text {
+    font-size: 0.875rem;
+    white-space: nowrap;
+}
+
+.match-hero {
+    background:
+        radial-gradient(circle at 85% 20%, rgba(20, 108, 67, 0.13), transparent 24rem),
+        linear-gradient(180deg, #f7fbf9 0%, #f5f7fa 100%);
+}
+
+.match-list-grid {
+    display: grid;
+    gap: 1.25rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.match-card,
+.match-detail-header,
+.match-empty-state,
+.match-locked-value,
+.match-booking-cta {
+    background: #fff;
+    border: 1px solid #dfe7e3;
+    border-radius: 16px;
+}
+
+.match-card {
+    box-shadow: 0 12px 35px rgba(15, 39, 71, 0.07);
+    display: flex;
+    flex-direction: column;
+    padding: 1.35rem;
+}
+
+.match-card-description {
+    display: -webkit-box;
+    min-height: 3rem;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
+
+.match-card-meta,
+.match-facts {
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.match-card-meta > div,
+.match-facts > div {
+    background: #f7f9fb;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    padding: 0.75rem;
+}
+
+.match-card-meta span,
+.match-facts span,
+.match-booking-summary dt,
+.match-booking-cta span {
+    color: #66788e;
+    font-size: 0.75rem;
+    font-weight: 500;
+    margin-bottom: 0.2rem;
+    text-transform: uppercase;
+}
+
+.match-card-meta strong,
+.match-facts strong {
+    font-size: 0.88rem;
+}
+
+.match-type-badge,
+.match-status,
+.participant-status {
+    align-items: center;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    display: inline-flex;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.35rem 0.7rem;
+    width: fit-content;
+}
+
+.match-type-find-opponent {
+    background: #eef3fb;
+    border-color: #cfdaeb;
+    color: #244f83;
+}
+
+.match-type-find-players,
+.match-status-open,
+.participant-status-joined {
+    background: #eef7f2;
+    border-color: #cfe4d8;
+    color: var(--app-primary-dark);
+}
+
+.match-status-full,
+.match-status-confirmed {
+    background: #e9f7ef;
+    border-color: #b9dfc8;
+    color: #0f6a3d;
+}
+
+.participant-status-pending,
+.participant-status-accepted-awaiting-payment {
+    background: #fff8e6;
+    border-color: #f1d997;
+    color: #80600b;
+}
+
+.participant-status-rejected,
+.participant-status-expired,
+.participant-status-withdrawn,
+.match-status-cancelled,
+.match-status-completed {
+    background: #f4f5f6;
+    border-color: #dfe4e8;
+    color: #68798b;
+}
+
+.match-empty-state {
+    grid-column: 1 / -1;
+    padding: 4rem 1.5rem;
+    text-align: center;
+}
+
+.match-empty-state .hero-ball {
+    display: inline-grid;
+}
+
+.match-locked-value {
+    background: #f7f9fb;
+    border-radius: 10px;
+    font-weight: 600;
+    padding: 0.85rem 1rem;
+}
+
+.match-booking-summary > div {
+    border-bottom: 1px solid #e8edef;
+    display: flex;
+    justify-content: space-between;
+    padding: 0.75rem 0;
+}
+
+.match-booking-summary dd {
+    font-weight: 600;
+    margin: 0;
+    text-align: right;
+}
+
+.match-detail-header {
+    align-items: center;
+    display: flex;
+    justify-content: space-between;
+    padding: 1.5rem;
+}
+
+.match-description {
+    background: #f7f9fb;
+    border-left: 4px solid var(--app-primary);
+    border-radius: 8px;
+    padding: 1rem;
+    white-space: pre-line;
+}
+
+.match-request-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.match-request-item {
+    align-items: center;
+    background: #f9fbfa;
+    border: 1px solid #e1e9e5;
+    border-radius: 12px;
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+    padding: 1rem;
+}
+
+.match-booking-cta {
+    background: #f4faf7;
+    display: flex;
+    flex-direction: column;
+    padding: 1rem;
+}
+
 @media (max-width: 991.98px) {
     .booking-form-layout,
     .booking-list-card {
@@ -1241,6 +1439,10 @@ a:hover {
 
     .booking-list-card .btn {
         width: 100%;
+    }
+
+    .match-list-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
@@ -1295,6 +1497,18 @@ a:hover {
 
     .booking-detail-grid .booking-detail-full {
         grid-column: auto;
+    }
+
+    .match-list-grid,
+    .match-card-meta,
+    .match-facts {
+        grid-template-columns: 1fr;
+    }
+
+    .match-detail-header,
+    .match-request-item {
+        align-items: stretch;
+        flex-direction: column;
     }
 }
 

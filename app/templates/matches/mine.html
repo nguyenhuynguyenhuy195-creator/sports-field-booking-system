@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Kèo của tôi · Sports Field Booking{% endblock %}
+
+{% block content %}
+<section class="container py-5">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end gap-3 mb-4">
+        <div>
+            <span class="eyebrow">TRUNG TÂM KÈO</span>
+            <h1 class="h2 fw-bold mt-2 mb-1">Kèo và yêu cầu của tôi</h1>
+            <p class="text-secondary mb-0">Theo dõi riêng kèo bạn đăng và những kèo bạn xin tham gia.</p>
+        </div>
+        <a class="btn btn-outline-primary" href="{{ url_for('matches.index') }}">Xem tất cả kèo đang mở</a>
+    </div>
+
+    <div class="booking-detail-card mb-4">
+        <h2 class="h5 fw-bold mb-3">Kèo tôi đã đăng</h2>
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead><tr><th>Kèo</th><th>Lịch đá</th><th>Trạng thái</th><th></th></tr></thead>
+                <tbody>
+                    {% for match in created_matches %}
+                        <tr>
+                            <td><strong>{{ match.title }}</strong><small class="d-block text-secondary">{{ match_type_labels[match.match_type] }}</small></td>
+                            <td>{{ match.booking.booking_date.strftime('%d/%m/%Y') }} · {{ match.booking.start_time.strftime('%H:%M') }}</td>
+                            <td><span class="match-status match-status-{{ match.status|lower }}">{{ match_status_labels[match.status] }}</span></td>
+                            <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{{ url_for('matches.detail', match_id=match.id) }}">Quản lý</a></td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="4" class="text-center text-secondary py-4">Bạn chưa đăng kèo nào.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="booking-detail-card">
+        <h2 class="h5 fw-bold mb-3">Yêu cầu tôi đã gửi</h2>
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead><tr><th>Kèo</th><th>Sân</th><th>Trạng thái</th><th></th></tr></thead>
+                <tbody>
+                    {% for request in requests %}
+                        <tr>
+                            <td><strong>{{ request.match.title }}</strong><small class="d-block text-secondary">{{ match_type_labels[request.match.match_type] }}</small></td>
+                            <td>{{ request.match.booking.field.venue.name }}</td>
+                            <td><span class="participant-status participant-status-{{ request.status|lower|replace('_', '-') }}">{{ participant_status_labels[request.status] }}</span></td>
+                            <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{{ url_for('matches.detail', match_id=request.match_id) }}">Xem</a></td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="4" class="text-center text-secondary py-4">Bạn chưa gửi yêu cầu tham gia nào.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+{% endblock %}

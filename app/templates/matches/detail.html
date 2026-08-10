@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}{{ match.title }} · Sports Field Booking{% endblock %}
+
+{% block content %}
+<section class="container py-5">
+    <a class="text-decoration-none" href="{{ url_for('matches.index') }}">← Quay lại danh sách kèo</a>
+    <div class="match-detail-header mt-4">
+        <div>
+            <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+                <span class="match-type-badge match-type-{{ match.match_type|lower|replace('_', '-') }}">{{ match_type_labels[match.match_type] }}</span>
+                <span class="match-status match-status-{{ match.status|lower }}">{{ match_status_labels[match.status] }}</span>
+            </div>
+            <h1 class="h2 fw-bold mb-2">{{ match.title }}</h1>
+            <p class="text-secondary mb-0">Đăng bởi {{ match.creator.full_name }}</p>
+        </div>
+        {% if current_user.is_authenticated and current_user.id == match.creator_id %}
+            <a class="btn btn-outline-primary" href="{{ url_for('bookings.detail', booking_code=match.booking.booking_code) }}">Xem booking và tiền sân</a>
+        {% endif %}
+    </div>
+
+    <div class="row g-4 mt-1">
+        <div class="col-lg-8">
+            <div class="booking-detail-card mb-4">
+                <h2 class="h5 fw-bold">Thông tin trận</h2>
+                <div class="match-facts">
+                    <div><span>Cơ sở</span><strong>{{ match.booking.field.venue.name }}</strong></div>
+                    <div><span>Sân</span><strong>{{ match.booking.field.name }}</strong></div>
+                    <div><span>Ngày thi đấu</span><strong>{{ match.booking.booking_date.strftime('%d/%m/%Y') }}</strong></div>
+                    <div><span>Khung giờ</span><strong>{{ match.booking.start_time.strftime('%H:%M') }}–{{ match.booking.end_time.strftime('%H:%M') }}</strong></div>
+                    <div><span>Trình độ</span><strong>{{ skill_level_labels[match.skill_level] }}</strong></div>
+                    <div>
+                        <span>Tiến độ</span>
+                        <strong>
+                            {% if match.match_type == 'FIND_OPPONENT' %}
+                                {{ 'Đã có đội đối thủ' if match.status == 'CONFIRMED' else 'Đang tìm 1 đội' }}
+                            {% else %}
+                                {{ joined_count }}/{{ match.required_players }} người đã vào đội
+                            {% endif %}
+                        </strong>
+                    </div>
+                </div>
+                {% if match.description %}
+                    <div class="match-description mt-4">{{ match.description }}</div>
+                {% endif %}
+            </div>
+
+            {% if current_user.is_authenticated and current_user.id == match.creator_id %}
+                <div class="booking-detail-card">
+                    <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+                        <div>
+                            <h2 class="h5 fw-bold mb-1">Yêu cầu tham gia</h2>
+                            <p class="small text-secondary mb-0">Chỉ duyệt người phù hợp; vị trí được giữ 15 phút trong lúc họ thanh toán.</p>
+                        </div>
+                        <span class="payment-progress-badge">{{ joined_count }}/{{ match.required_players }} đã tham gia</span>
+                    </div>
+                    <div class="match-request-list">
+                        {% for participant in match.participants %}
+                            <article class="match-request-item">
+                                <div class="flex-grow-1">
+                                    <div class="d-flex flex-wrap align-items-center gap-2">
+                                        <strong>{{ participant.user.full_name }}</strong>
+                                        <span class="participant-status participant-status-{{ participant.status|lower|replace('_', '-') }}">{{ participant_status_labels[participant.status] }}</span>
+                                    </div>
+                                    {% if participant.message %}<p class="small text-secondary mt-2 mb-0">{{ participant.message }}</p>{% endif %}
+                                    {% if participant.status == 'ACCEPTED_AWAITING_PAYMENT' %}
+                                        <div class="small mt-2">Hạn thanh toán: <strong>{{ participant.payment_due_at|local_datetime }}</strong></div>
+                                    {% endif %}
+                                </div>
+                                {% if participant.status == 'PENDING' and match.status == 'OPEN' %}
+                                    <div class="d-flex gap-2">
+                                        <form method="post" action="{{ url_for('matches.reject', match_id=match.id, participant_id=participant.id) }}">
+                                            {{ action_form.hidden_tag() }}
+                                            <button class="btn btn-sm btn-outline-danger" type="submit">Từ chối</button>
+                                        </form>
+                                        <form method="post" action="{{ url_for('matches.accept', match_id=match.id, participant_id=participant.id) }}">
+                                            {{ action_form.hidden_tag() }}
+                                            <button class="btn btn-sm btn-primary" type="submit">Chấp nhận</button>
+                                        </form>
+                                    </div>
+                                {% endif %}
+                            </article>
+                        {% else %}
+                            <div class="text-center text-secondary py-4">Chưa có ai gửi yêu cầu tham gia.</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="col-lg-4">
+            <aside class="booking-detail-card booking-action-card">
+                {% if current_user.is_authenticated and current_user.id == match.creator_id %}
+                    <h2 class="h5 fw-bold">Bạn là người tạo kèo</h2>
+                    <p class="text-secondary">Theo dõi và duyệt yêu cầu ở danh sách bên trái. Tiền sân còn thiếu được quản lý tại booking.</p>
+                    <a class="btn btn-primary w-100" href="{{ url_for('bookings.detail', booking_code=match.booking.booking_code) }}">Mở chi tiết booking</a>
+                {% elif current_request and current_request.status == 'ACCEPTED_AWAITING_PAYMENT' %}
+                    <h2 class="h5 fw-bold">Hoàn tất phần tiền của bạn</h2>
+                    <p class="text-secondary">Bạn đã được chấp nhận. Thanh toán trong 15 phút để chính thức vào kèo.</p>
+                    <div class="booking-countdown mb-3" data-booking-countdown data-deadline="{{ current_request.payment_due_at.isoformat() }}Z">Đang tính thời gian còn lại…</div>
+                    <div class="payment-due-box mb-3">
+                        <span>Phần tiền sân của bạn</span>
+                        <strong>{{ current_request.contribution.remaining_amount|vnd_currency }}</strong>
+                    </div>
+                    <form method="post" action="{{ url_for('payments.pay_mock', booking_code=match.booking.booking_code, contribution_id=current_request.contribution_id, return_to_match=match.id) }}">
+                        {{ payment_form.hidden_tag() }}
+                        <button class="btn btn-primary w-100" type="submit" data-payment-submit>Thanh toán mô phỏng</button>
+                    </form>
+                    <p class="small text-secondary mt-2">Không trừ tiền thật; đây là provider MOCK trước khi nối MoMo Sandbox.</p>
+                    <form class="mt-3" method="post" action="{{ url_for('matches.withdraw', match_id=match.id) }}">
+                        {{ action_form.hidden_tag() }}
+                        <button class="btn btn-outline-danger w-100" type="submit">Rút trước khi thanh toán</button>
+                    </form>
+                {% elif current_request and current_request.status == 'JOINED' %}
+                    <div class="alert alert-success mb-0">
+                        <strong>Bạn đã tham gia kèo.</strong><br>
+                        Phần tiền bắt buộc đã được xử lý thành công.
+                    </div>
+                {% elif current_request and current_request.status == 'PENDING' %}
+                    <h2 class="h5 fw-bold">Đang chờ duyệt</h2>
+                    <p class="text-secondary">Người tạo kèo chưa xử lý yêu cầu của bạn.</p>
+                    <form method="post" action="{{ url_for('matches.withdraw', match_id=match.id) }}">
+                        {{ action_form.hidden_tag() }}
+                        <button class="btn btn-outline-danger w-100" type="submit">Rút yêu cầu</button>
+                    </form>
+                {% elif match.status == 'OPEN' %}
+                    <h2 class="h5 fw-bold">Gửi yêu cầu tham gia</h2>
+                    {% if current_user.is_authenticated and current_user.role in ['USER', 'OWNER'] %}
+                        {% if current_request %}
+                            <div class="alert alert-light border small">Yêu cầu trước của bạn: <strong>{{ participant_status_labels[current_request.status] }}</strong>. Bạn có thể gửi lại khi kèo vẫn còn mở.</div>
+                        {% endif %}
+                        <form method="post" action="{{ url_for('matches.join', match_id=match.id) }}">
+                            {{ join_form.hidden_tag() }}
+                            {{ join_form.message.label(class="form-label") }}
+                            {{ join_form.message(class="form-control", rows="4", placeholder="Giới thiệu ngắn về đội hoặc vị trí của bạn") }}
+                            <button class="btn btn-primary w-100 mt-3" type="submit">Gửi yêu cầu tham gia</button>
+                        </form>
+                        <p class="small text-secondary mt-2 mb-0">Chỉ phải thanh toán sau khi người tạo chấp nhận.</p>
+                    {% else %}
+                        <p class="text-secondary">Đăng nhập để gửi yêu cầu và theo dõi trạng thái.</p>
+                        <a class="btn btn-primary w-100" href="{{ url_for('auth.login', next=request.path) }}">Đăng nhập để tham gia</a>
+                    {% endif %}
+                {% else %}
+                    <div class="alert alert-light border mb-0">Kèo này không còn nhận thêm yêu cầu.</div>
+                {% endif %}
+            </aside>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+    <script src="{{ url_for('static', filename='js/booking-detail.js') }}" defer></script>
+{% endblock %}

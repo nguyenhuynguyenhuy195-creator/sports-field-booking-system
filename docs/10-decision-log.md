@@ -124,3 +124,15 @@ AI lọc spam, phân tích cảm xúc, recommendation, chat thời gian thực, 
 - Chỉ các đoạn nằm giữa hai mốc mới phải `AVAILABLE`, vì vậy booking có thể kết thúc đúng tại mốc bắt đầu của booking hoặc bảo trì kế tiếp.
 - Lưới và báo giá là kiểm tra tư vấn, không khóa chỗ; thao tác tạo booking vẫn lặp lại validation và chống trùng trong transaction.
 - Giờ hoạt động tiếp tục thuộc venue và áp dụng cho các field con trong MVP; không thêm bảng hoặc cấu hình lịch riêng theo từng field.
+
+## ADR-019: Gắn yêu cầu tham gia kèo với contribution
+
+**Ngày quyết định:** 10/08/2026
+
+- Mỗi booking có tối đa một match; payment mode chia tiền quyết định loại `FIND_OPPONENT` hoặc `FIND_PLAYERS` để không tạo kèo sai nghĩa vụ.
+- Người xin tham gia bắt đầu ở `PENDING`; chỉ người tạo kèo được chấp nhận hoặc từ chối.
+- Khi chấp nhận yêu cầu cần trả tiền, hệ thống khóa và gắn một `booking_contribution` còn trống, đặt hạn 15 phút và chuyển sang `ACCEPTED_AWAITING_PAYMENT`.
+- Payment thành công cập nhật contribution, booking, match participant và match trong cùng transaction; kèo tìm người chỉ `FULL` theo số người `JOINED`, độc lập với việc booking đã đủ tiền.
+- Nếu hết 15 phút, yêu cầu thành `EXPIRED`, tài khoản được tháo khỏi contribution chưa trả và vị trí được mở lại; CLI `matches expire` xử lý idempotent.
+- Nếu creator top-up đủ tiền, participant đang được duyệt và participant được duyệt sau đó vào kèo không cần trả thêm; contribution gốc giữ `WAIVED` để đối soát.
+- Rút yêu cầu chưa thanh toán thuộc module này; rút sau khi đã thanh toán phải đi qua module refund để không thay đổi lịch sử tiền sai quy trình.

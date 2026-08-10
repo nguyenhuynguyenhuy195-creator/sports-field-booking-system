@@ -1,4 +1,4 @@
-from flask import Blueprint, abort, flash, redirect, url_for
+from flask import Blueprint, abort, flash, redirect, request, url_for
 from flask_login import current_user
 
 from app.decorators import roles_required
@@ -25,7 +25,7 @@ def pay_mock(booking_code: str, contribution_id: int):
     form = BookingActionForm(prefix="payment")
     if not form.validate_on_submit():
         flash("Yêu cầu thanh toán không hợp lệ. Vui lòng thử lại.", "danger")
-        return _booking_redirect(booking_code)
+        return _payment_redirect(booking_code)
 
     try:
         payment = pay_contribution_with_mock(
@@ -44,7 +44,7 @@ def pay_mock(booking_code: str, contribution_id: int):
             f"Thanh toán mô phỏng {payment.amount:,.0f} đ thành công.",
             "success",
         )
-    return _booking_redirect(booking_code)
+    return _payment_redirect(booking_code)
 
 
 @payments_bp.post("/bookings/<string:booking_code>/payments/mock/top-up")
@@ -76,3 +76,10 @@ def top_up_mock(booking_code: str):
 
 def _booking_redirect(booking_code: str):
     return redirect(url_for("bookings.detail", booking_code=booking_code))
+
+
+def _payment_redirect(booking_code: str):
+    raw_match_id = request.args.get("return_to_match", "")
+    if raw_match_id.isdigit():
+        return redirect(url_for("matches.detail", match_id=int(raw_match_id)))
+    return _booking_redirect(booking_code)
