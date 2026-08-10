@@ -1,6 +1,15 @@
-from datetime import timedelta
+from datetime import date, timedelta
 
-from flask import Blueprint, abort, flash, jsonify, redirect, render_template, url_for
+from flask import (
+    Blueprint,
+    abort,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
 from flask_login import current_user
 
 from app.decorators import roles_required
@@ -15,9 +24,12 @@ from app.models import (
     UserRole,
 )
 from app.services import (
+    AVAILABILITY_STEP_MINUTES,
+    MINIMUM_BOOKING_MINUTES,
     BookingError,
     BookingNotFoundError,
     BookingPermissionError,
+    build_field_availability,
     build_contribution_plan,
     cancel_owner_booking,
     cancel_user_booking,
@@ -214,6 +226,50 @@ def quote(venue_id: int, field_id: int):
     )
 
 
+@bookings_bp.get(
+    "/venues/<int:venue_id>/fields/<int:field_id>/bookings/availability"
+)
+@roles_required(UserRole.USER, UserRole.OWNER)
+def availability(venue_id: int, field_id: int):
+    try:
+        field = get_booking_field(venue_id=venue_id, field_id=field_id)
+    except BookingNotFoundError:
+        abort(404)
+    except BookingError as exc:
+        return jsonify(ok=False, message=str(exc)), 422
+
+    raw_date = request.args.get("date", "")
+    try:
+        booking_date = date.fromisoformat(raw_date)
+    except ValueError:
+        return jsonify(ok=False, message="Ngày đặt sân không hợp lệ."), 422
+
+    today = current_vietnam_datetime().date()
+    if booking_date < today or booking_date > today + timedelta(days=30):
+        return jsonify(
+            ok=False,
+            message="Ngày đặt sân phải từ hôm nay đến tối đa 30 ngày tới.",
+        ), 422
+
+    result = build_field_availability(field=field, booking_date=booking_date)
+    return jsonify(
+        ok=True,
+        date=result.booking_date.isoformat(),
+        opening_time=result.opening_time.strftime("%H:%M"),
+        closing_time=result.closing_time.strftime("%H:%M"),
+        step_minutes=AVAILABILITY_STEP_MINUTES,
+        minimum_duration_minutes=MINIMUM_BOOKING_MINUTES,
+        slots=[
+            {
+                "start_time": slot.start_time.strftime("%H:%M"),
+                "end_time": slot.end_time.strftime("%H:%M"),
+                "status": slot.status.value,
+            }
+            for slot in result.slots
+        ],
+    )
+
+
 @bookings_bp.get("/bookings")
 @roles_required(UserRole.USER, UserRole.OWNER)
 def index():
@@ -361,3 +417,6 @@ def _first_form_error(form) -> str:
         if errors:
             return errors[0]
     return "Thông tin đặt sân chưa hợp lệ."
+    AVAILABILITY_STEP_MINUTES,
+    MINIMUM_BOOKING_MINUTES,
+    build_field_availability,

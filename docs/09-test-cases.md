@@ -89,6 +89,15 @@ Không có khoản thanh toán đầu tiên sau 15 phút → `EXPIRED`; chạy j
 ### TC-BOOKING-010: Hai request đồng thời
 Chỉ một booking giao nhau được commit; request còn lại nhận lỗi hết chỗ.
 
+### TC-BOOKING-011: Lưới giờ theo trạng thái
+Với giờ hoạt động 06:00–23:00, endpoint trả 34 đoạn 30 phút; đoạn có booking là `BOOKED`, có bảo trì là `MAINTENANCE`, thiếu giá là `NO_PRICE` và đoạn hợp lệ còn lại là `AVAILABLE`.
+
+### TC-BOOKING-012: Giữ chỗ hết hạn trên lưới giờ
+Booking `CONFIRMED` chưa thanh toán có `initial_payment_due_at` đã qua không còn làm đoạn giờ là `BOOKED`, kể cả khi job hết hạn chưa kịp chạy.
+
+### TC-BOOKING-013: Chọn mốc bắt đầu và kết thúc
+Chọn 18:00 rồi 19:00 tạo khoảng 18:00–19:00, thời lượng 60 phút và bật nút tiếp tục; không cho chọn 18:00–18:30 hoặc khoảng đi qua đoạn không `AVAILABLE`.
+
 ## 9.4. Payment MoMo
 
 ### TC-PAYMENT-000: Provider MOCK nền tảng

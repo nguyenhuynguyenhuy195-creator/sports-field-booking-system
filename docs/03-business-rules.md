@@ -62,6 +62,8 @@ User phải đăng nhập trước khi tạo booking, tạo kèo, gửi yêu c�
 - Giờ bắt đầu và kết thúc phải theo bước 30 phút.
 - Thời lượng tối thiểu là 60 phút.
 - Booking phải nằm trong giờ mở cửa của venue.
+- Lưới giờ chỉ sinh các mốc có đoạn 30 phút nằm trọn trong giờ mở cửa; một khoảng chỉ có thể chọn khi mọi đoạn ở giữa đều còn trống và được phủ giá.
+- Trạng thái lưới chỉ là thông tin tại thời điểm xem; backend phải kiểm tra lại toàn bộ khi báo giá và khi tạo booking.
 
 ### BR-012: Khoảng thời gian cho phép
 - `FULL_PAYMENT` phải được tạo trước giờ bắt đầu ít nhất 60 phút.

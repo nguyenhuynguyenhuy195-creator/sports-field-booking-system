@@ -26,7 +26,10 @@ Danh sách sân gồm bộ lọc, card venue, địa chỉ, loại sân, giá th
 ## 7.4. Trang tạo booking
 
 - Thể hiện tiến trình bốn bước: sân đã chọn, chọn giờ, chọn hình thức và xác nhận.
-- Chọn ngày, giờ bắt đầu và giờ kết thúc theo bước 30 phút.
+- Chọn nhanh ngày trong dải 7 ngày hoặc bằng ô lịch; dải ngày cuộn ngang trên màn hình nhỏ và luôn đưa ngày đang chọn vào vùng nhìn thấy.
+- Hiển thị lưới mốc giờ bước 30 phút từ giờ mở cửa đến giờ đóng cửa của venue.
+- Phân biệt trực quan: còn trống, đã chọn, đã có người đặt, bảo trì, chưa áp dụng giá và thời gian đã qua.
+- User chọn mốc bắt đầu rồi mốc kết thúc; không cho chọn qua ô bận/bảo trì/thiếu giá và chỉ bật nút tiếp tục khi đủ 60 phút.
 - Hiển thị điều kiện tối thiểu 60 phút, giới hạn 30 ngày và thời gian đặt trước.
 - Cho chọn một trong ba hình thức:
   - Thanh toán 100%.
@@ -35,6 +38,7 @@ Danh sách sân gồm bộ lọc, card venue, địa chỉ, loại sân, giá th
 - Với tìm người: nhập số vị trí còn thiếu; hiển thị số người tiêu chuẩn và phần người tạo phải trả.
 - Trước khi giữ chỗ, hiển thị riêng khoản người tạo trả trước và khoản chờ đối thủ/người ghép trả.
 - Hiển thị từng đoạn khung giá, đơn giá, thời lượng, subtotal và tổng tiền dự kiến.
+- Sau khi chọn đủ khoảng giờ, hiển thị ngay khoảng đã chọn, thời lượng và tạm tính từ endpoint báo giá.
 - Hiển thị thông tin người đặt lấy từ tài khoản, không yêu cầu nhập lại họ tên/email.
 - Nêu rõ booking hợp lệ được giữ chỗ tự động 15 phút, không chờ owner duyệt.
 - Backend tính lại toàn bộ khi submit.

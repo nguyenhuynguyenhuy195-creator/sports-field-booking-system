@@ -3,14 +3,16 @@
 ## 4.1. Luồng tạo booking chung
 
 1. User đăng nhập và chọn một field đang `ACTIVE` thuộc venue `ACTIVE`.
-2. User chọn ngày, giờ bắt đầu, giờ kết thúc và hình thức thanh toán.
-3. Backend kiểm tra thời gian, giờ mở cửa, lịch bảo trì và giới hạn đặt trước.
-4. Backend kiểm tra trùng lịch trong transaction.
-5. Backend lấy các khung giá áp dụng, tách khoảng thời gian và tính tổng tiền.
-6. Nếu có đoạn thời gian chưa được cấu hình giá, từ chối tạo booking.
-7. Backend lưu booking, chi tiết giá chốt và trạng thái `CONFIRMED` trong cùng transaction.
-8. Hệ thống giữ chỗ 15 phút và tạo hạn `initial_payment_due_at`; owner không cần duyệt thủ công.
-9. Người tạo chuyển sang thanh toán khoản đầu tiên qua MoMo Sandbox.
+2. User chọn ngày; frontend gọi endpoint availability để hiển thị các mốc 30 phút theo trạng thái còn trống, đã đặt, bảo trì, thiếu giá hoặc đã qua.
+3. User chọn mốc bắt đầu và mốc kết thúc cách nhau ít nhất 60 phút; mọi đoạn 30 phút ở giữa phải liên tục và còn trống.
+4. User chọn hình thức thanh toán; frontend gọi endpoint báo giá để hiển thị tạm tính mà chưa giữ chỗ.
+5. Backend kiểm tra thời gian, giờ mở cửa, lịch bảo trì và giới hạn đặt trước.
+6. Backend kiểm tra trùng lịch trong transaction.
+7. Backend lấy các khung giá áp dụng, tách khoảng thời gian và tính tổng tiền.
+8. Nếu có đoạn thời gian chưa được cấu hình giá, từ chối tạo booking.
+9. Backend lưu booking, chi tiết giá chốt và trạng thái `CONFIRMED` trong cùng transaction.
+10. Hệ thống giữ chỗ 15 phút và tạo hạn `initial_payment_due_at`; owner không cần duyệt thủ công.
+11. Người tạo chuyển sang thanh toán khoản đầu tiên qua MoMo Sandbox.
 
 ## 4.2. Luồng thanh toán 100%
 

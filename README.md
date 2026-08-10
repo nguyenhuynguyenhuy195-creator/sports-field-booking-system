@@ -128,6 +128,7 @@ GET http://127.0.0.1:5000/venues
 - OWNER tạo và hủy lịch bảo trì theo sân, ngày và khoảng giờ; các lịch `ACTIVE` cùng sân không được chồng nhau.
 - Lịch bảo trì hết giờ được hiển thị là đã hoàn thành và lịch đã hủy không còn chặn khoảng thời gian.
 - USER/OWNER đặt field `ACTIVE`; backend kiểm tra bước 30 phút, thời lượng tối thiểu, giới hạn đặt trước, giờ mở cửa, bảo trì và booking trùng rồi tự động giữ chỗ 15 phút.
+- Trang đặt sân tải lưới mốc giờ 30 phút theo ngày, phân biệt còn trống, đã đặt, bảo trì, thiếu giá và thời gian đã qua; user chọn mốc bắt đầu/kết thúc liên tục tối thiểu 60 phút và xem tạm tính ngay trên màn hình.
 - Booking lưu snapshot từng đoạn giá và tổng tiền từ database, không nhận giá từ frontend.
 - Người chơi xem báo giá trước khi xác nhận, theo dõi lịch sử/chi tiết và hủy booking hợp lệ; chủ sân theo dõi hoặc hủy booking khi có sự cố theo quyền sở hữu.
 - Lệnh `flask bookings expire` cập nhật idempotent các booking giữ chỗ đã quá hạn thanh toán đầu tiên.

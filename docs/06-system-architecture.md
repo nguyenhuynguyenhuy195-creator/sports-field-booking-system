@@ -24,9 +24,10 @@ Trách nhiệm:
 - Hiển thị dữ liệu và trạng thái.
 - Nhận input và hiển thị validation.
 - Gửi request đến backend.
+- Render lưới mốc giờ từ dữ liệu availability và gửi khoảng đã chọn sang endpoint quote.
 - Hiển thị countdown và tiến độ đóng góp từ dữ liệu backend.
 
-Frontend không quyết định quyền, giá, số tiền đóng góp, trạng thái payment hoặc refund.
+Frontend không quyết định quyền, trạng thái availability cuối cùng, giá, số tiền đóng góp, trạng thái payment hoặc refund.
 
 ## 6.3. Route Layer
 
@@ -36,7 +37,7 @@ Thiết kế đích của các blueprint thanh toán:
 - `auth`: đăng ký, đăng nhập, đăng xuất.
 - `owner_applications`: gửi và xét duyệt yêu cầu owner.
 - `venues`: venue, field, giá và bảo trì.
-- `bookings`: báo giá, tạo giữ chỗ tự động, xem và hủy booking.
+- `bookings`: trả lịch trống theo ngày, báo giá, tạo giữ chỗ tự động, xem và hủy booking.
 - `payments`: bắt đầu thanh toán, redirect và IPN MoMo.
 - `refunds`: yêu cầu/query refund theo quyền.
 - `matches`: tạo kèo, gửi/duyệt/rút yêu cầu.
@@ -51,9 +52,9 @@ Endpoint IPN phải:
 
 ## 6.4. Service Layer
 
-Các service dự kiến:
+Các service chính:
 - `pricing_service`: kiểm tra khung giá, tách thời lượng và tính snapshot giá.
-- `availability_service`: kiểm tra giờ hoạt động, bảo trì và trùng lịch.
+- `availability_service`: sinh các đoạn 30 phút theo giờ hoạt động và phân loại từ booking, bảo trì, độ phủ giá, thời điểm hiện tại.
 - `booking_service`: tạo booking và chuyển trạng thái.
 - `contribution_service`: phân bổ nghĩa vụ 100%, 50/50 hoặc theo đầu người.
 - `payment_service`: tạo payment attempt, xử lý IPN và tổng tiền đã thu.
@@ -106,7 +107,17 @@ tests/
 └── integration/
 ```
 
-## 6.8. Transaction tạo booking
+## 6.8. API lịch trống và báo giá
+
+1. Frontend gửi ngày đã chọn đến endpoint availability.
+2. Service lấy giờ mở/đóng từ venue và sinh các đoạn 30 phút nằm trọn trong cùng ngày.
+3. Service truy vấn theo lô booking chiếm chỗ, bảo trì `ACTIVE` và khung giá `ACTIVE`, rồi gán trạng thái cho từng đoạn.
+4. Frontend chỉ cho chọn một khoảng liên tục tối thiểu 60 phút và gửi khoảng đó đến endpoint quote.
+5. Quote kiểm tra lại thời gian, trùng lịch, bảo trì và độ phủ giá rồi trả các đoạn giá/tổng tiền nhưng không tạo dữ liệu.
+
+Availability và quote không khóa chỗ. Transaction tạo booking bên dưới luôn lặp lại toàn bộ kiểm tra để xử lý trường hợp dữ liệu thay đổi sau khi user xem lịch.
+
+## 6.9. Transaction tạo booking
 
 1. Route validate form và gọi service.
 2. Service khóa phạm vi dữ liệu cần kiểm tra của field/ngày.
@@ -118,7 +129,7 @@ tests/
 
 Mục tiêu là tránh hai request đồng thời cùng vượt qua bước kiểm tra trùng.
 
-## 6.9. Transaction xử lý IPN
+## 6.10. Transaction xử lý IPN
 
 1. Xác minh chữ ký và đối chiếu dữ liệu MoMo.
 2. Tìm payment theo `order_id` và khóa payment/contribution/booking.
@@ -131,7 +142,7 @@ Mục tiêu là tránh hai request đồng thời cùng vượt qua bước ki�
 
 Không giữ transaction database mở trong lúc chờ HTTP call ra MoMo. Tạo bản ghi `PENDING`, commit, gọi MoMo, rồi xử lý kết quả trong transaction riêng.
 
-## 6.10. Transaction refund
+## 6.11. Transaction refund
 
 1. Service tính chính sách hoàn và tạo refund `PENDING` với request id duy nhất.
 2. Commit refund intent trước khi gọi MoMo.
@@ -140,7 +151,7 @@ Không giữ transaction database mở trong lúc chờ HTTP call ra MoMo. Tạo
 5. Chỉ chuyển booking `CANCELLED` khi mọi refund bắt buộc đã `SUCCESS`.
 6. Kết quả đang xử lý được query lại; retry phải idempotent.
 
-## 6.11. Xử lý thời hạn
+## 6.12. Xử lý thời hạn
 
 Tạo Flask CLI command hoặc worker định kỳ để:
 - Hết hạn `CONFIRMED` chưa có khoản thanh toán đầu tiên sau 15 phút.
@@ -151,7 +162,7 @@ Tạo Flask CLI command hoặc worker định kỳ để:
 
 Availability service cũng phải bỏ qua dữ liệu đã quá hạn theo timestamp ngay cả khi job định kỳ chưa chạy.
 
-## 6.12. Nguyên tắc bảo mật và lỗi
+## 6.13. Nguyên tắc bảo mật và lỗi
 
 - Bật CSRF cho form người dùng.
 - IPN không dùng CSRF nhưng phải xác minh HMAC.

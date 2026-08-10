@@ -49,6 +49,14 @@
 - Backend tách đúng từng đoạn giá, tính `total_amount` và lưu price snapshot.
 - Booking mới là `CONFIRMED`, chiếm chỗ và có hạn thanh toán đầu tiên 15 phút.
 
+### AC-006A: Lưới giờ trống
+
+- Endpoint availability trả các đoạn 30 phút nằm trọn trong giờ hoạt động của venue và không tạo dữ liệu.
+- Mỗi đoạn có đúng một trạng thái: `AVAILABLE`, `BOOKED`, `MAINTENANCE`, `NO_PRICE` hoặc `PAST`.
+- Giữ chỗ `CONFIRMED` đã hết hạn và chưa thanh toán không làm đoạn giờ tiếp tục hiển thị là bận.
+- Giao diện cho chọn mốc bắt đầu/kết thúc liên tục; khoảng dưới 60 phút hoặc đi qua đoạn không `AVAILABLE` không được tiếp tục.
+- Tạm tính hiển thị từ endpoint quote; tạo booking vẫn kiểm tra lại để xử lý dữ liệu thay đổi đồng thời.
+
 ## AC-007: Giữ chỗ tự động
 
 - Booking chỉ được tạo sau khi backend kiểm tra hợp lệ trong transaction.
