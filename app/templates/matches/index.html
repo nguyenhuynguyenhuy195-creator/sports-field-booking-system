@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Tìm kèo · Sports Field Booking{% endblock %}
+
+{% block content %}
+<section class="match-hero py-5">
+    <div class="container">
+        <div class="d-flex flex-column flex-lg-row align-items-lg-end justify-content-between gap-4">
+            <div>
+                <span class="eyebrow">CỘNG ĐỒNG SÂN BÓNG</span>
+                <h1 class="display-6 fw-bold mt-2 mb-2">Tìm đối thủ hoặc ghép vào đội</h1>
+                <p class="text-secondary mb-0">Mỗi kèo đã gắn với một lịch sân cụ thể, ngày giờ rõ ràng và phần tiền minh bạch.</p>
+            </div>
+            {% if current_user.is_authenticated and current_user.role in ['USER', 'OWNER'] %}
+                <a class="btn btn-outline-primary" href="{{ url_for('matches.mine') }}">Kèo và yêu cầu của tôi</a>
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+<section class="container pb-5">
+    <div class="match-list-grid">
+        {% for match in matches %}
+            {% set joined_count = match.participants|selectattr('status', 'equalto', 'JOINED')|list|length %}
+            <article class="match-card">
+                <div class="d-flex justify-content-between align-items-start gap-3">
+                    <span class="match-type-badge match-type-{{ match.match_type|lower|replace('_', '-') }}">
+                        {{ match_type_labels[match.match_type] }}
+                    </span>
+                    <span class="small text-secondary">{{ match.booking.booking_date.strftime('%d/%m/%Y') }}</span>
+                </div>
+                <h2 class="h5 fw-bold mt-3 mb-2">{{ match.title }}</h2>
+                <p class="text-secondary small mb-3 match-card-description">
+                    {{ match.description or 'Người tạo chưa thêm mô tả cho kèo này.' }}
+                </p>
+                <div class="match-card-meta">
+                    <div><span>Địa điểm</span><strong>{{ match.booking.field.venue.name }}</strong></div>
+                    <div><span>Sân</span><strong>{{ match.booking.field.name }}</strong></div>
+                    <div><span>Thời gian</span><strong>{{ match.booking.start_time.strftime('%H:%M') }}–{{ match.booking.end_time.strftime('%H:%M') }}</strong></div>
+                    <div>
+                        <span>Tiến độ</span>
+                        <strong>
+                            {% if match.match_type == 'FIND_OPPONENT' %}
+                                Chưa có đối thủ
+                            {% else %}
+                                {{ joined_count }}/{{ match.required_players }} người
+                            {% endif %}
+                        </strong>
+                    </div>
+                </div>
+                <a class="btn btn-primary w-100 mt-4" href="{{ url_for('matches.detail', match_id=match.id) }}">Xem chi tiết kèo</a>
+            </article>
+        {% else %}
+            <div class="empty-state match-empty-state">
+                <div class="hero-ball mb-3" aria-hidden="true">⚽</div>
+                <h2 class="h4 fw-bold">Chưa có kèo đang mở</h2>
+                <p class="text-secondary mb-0">Kèo sẽ xuất hiện sau khi người đặt sân hoàn thành khoản thanh toán đầu tiên.</p>
+            </div>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

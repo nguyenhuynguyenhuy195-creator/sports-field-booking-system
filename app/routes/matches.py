@@ -1,0 +1,299 @@
+from flask import Blueprint, abort, flash, redirect, render_template, url_for
+from flask_login import current_user
+
+from app.decorators import roles_required
+from app.forms import BookingActionForm, MatchActionForm, MatchForm, MatchJoinForm
+from app.models import (
+    BookingPaymentMode,
+    BookingStatus,
+    MatchParticipantStatus,
+    MatchStatus,
+    MatchType,
+    UserRole,
+)
+from app.services import (
+    BookingNotFoundError,
+    BookingPermissionError,
+    DuplicateMatchRequestError,
+    MatchmakingError,
+    MatchNotFoundError,
+    MatchPermissionError,
+    create_match,
+    decide_match_request,
+    expire_stale_match_participants,
+    get_match,
+    get_user_booking,
+    list_created_matches,
+    list_open_matches,
+    list_user_match_requests,
+    request_to_join_match,
+    validate_match_creation,
+    withdraw_match_request,
+)
+
+
+matches_bp = Blueprint("matches", __name__)
+
+MATCH_TYPE_LABELS = {
+    MatchType.FIND_OPPONENT.value: "Tìm đội đối thủ",
+    MatchType.FIND_PLAYERS.value: "Tìm thêm người chơi",
+}
+MATCH_STATUS_LABELS = {
+    MatchStatus.OPEN.value: "Đang mở",
+    MatchStatus.FULL.value: "Đã đủ người",
+    MatchStatus.CONFIRMED.value: "Đã có đối thủ",
+    MatchStatus.CANCELLED.value: "Đã hủy",
+    MatchStatus.COMPLETED.value: "Đã hoàn thành",
+}
+PARTICIPANT_STATUS_LABELS = {
+    MatchParticipantStatus.PENDING.value: "Chờ người tạo duyệt",
+    MatchParticipantStatus.ACCEPTED_AWAITING_PAYMENT.value: "Đã duyệt, chờ thanh toán",
+    MatchParticipantStatus.JOINED.value: "Đã tham gia",
+    MatchParticipantStatus.REJECTED.value: "Đã từ chối",
+    MatchParticipantStatus.EXPIRED.value: "Đã hết hạn thanh toán",
+    MatchParticipantStatus.WITHDRAWN.value: "Đã rút yêu cầu",
+}
+SKILL_LEVEL_LABELS = {
+    None: "Không yêu cầu",
+    "": "Không yêu cầu",
+    "BEGINNER": "Mới chơi",
+    "INTERMEDIATE": "Trung bình",
+    "ADVANCED": "Khá/Tốt",
+}
+
+
+@matches_bp.get("/matches")
+def index():
+    matches = list_open_matches()
+    return render_template(
+        "matches/index.html",
+        matches=matches,
+        match_type_labels=MATCH_TYPE_LABELS,
+        skill_level_labels=SKILL_LEVEL_LABELS,
+    )
+
+
+@matches_bp.get("/matches/mine")
+@roles_required(UserRole.USER, UserRole.OWNER)
+def mine():
+    expire_stale_match_participants()
+    return render_template(
+        "matches/mine.html",
+        created_matches=list_created_matches(current_user.id),
+        requests=list_user_match_requests(current_user.id),
+        match_type_labels=MATCH_TYPE_LABELS,
+        match_status_labels=MATCH_STATUS_LABELS,
+        participant_status_labels=PARTICIPANT_STATUS_LABELS,
+    )
+
+
+@matches_bp.route(
+    "/bookings/<string:booking_code>/matches/new",
+    methods=["GET", "POST"],
+)
+@roles_required(UserRole.USER, UserRole.OWNER)
+def create(booking_code: str):
+    try:
+        booking = get_user_booking(
+            booking_code=booking_code,
+            user_id=current_user.id,
+        )
+    except BookingPermissionError:
+        abort(403)
+    except BookingNotFoundError:
+        abort(404)
+    if booking.match is not None:
+        flash("Booking này đã có kèo.", "info")
+        return redirect(url_for("matches.detail", match_id=booking.match.id))
+    try:
+        validate_match_creation(booking=booking, creator=current_user)
+    except MatchPermissionError:
+        abort(403)
+    except MatchmakingError as exc:
+        flash(str(exc), "warning")
+        return redirect(
+            url_for("bookings.detail", booking_code=booking.booking_code)
+        )
+
+    locked_type = _locked_match_type(booking.payment_mode)
+    locked_required_players = (
+        booking.split_required_players
+        if booking.payment_mode == BookingPaymentMode.SPLIT_PLAYERS.value
+        else None
+    )
+    form = MatchForm()
+    if not form.is_submitted():
+        form.match_type.data = locked_type or MatchType.FIND_OPPONENT.value
+        form.required_players.data = locked_required_players
+        form.title.data = _default_match_title(booking, form.match_type.data)
+
+    if form.validate_on_submit():
+        requested_type = locked_type or form.match_type.data
+        requested_players = (
+            locked_required_players
+            if locked_required_players is not None
+            else form.required_players.data
+        )
+        try:
+            match = create_match(
+                booking_code=booking.booking_code,
+                creator=current_user,
+                title=form.title.data,
+                description=form.description.data,
+                skill_level=form.skill_level.data,
+                match_type=requested_type,
+                required_players=requested_players,
+            )
+        except MatchPermissionError:
+            abort(403)
+        except MatchNotFoundError:
+            abort(404)
+        except MatchmakingError as exc:
+            flash(str(exc), "warning")
+        else:
+            flash("Đã đăng kèo. Người chơi khác có thể gửi yêu cầu tham gia.", "success")
+            return redirect(url_for("matches.detail", match_id=match.id))
+
+    return render_template(
+        "matches/form.html",
+        form=form,
+        booking=booking,
+        locked_type=locked_type,
+        locked_required_players=locked_required_players,
+        match_type_labels=MATCH_TYPE_LABELS,
+    )
+
+
+@matches_bp.get("/matches/<int:match_id>")
+def detail(match_id: int):
+    expire_stale_match_participants(match_id=match_id)
+    try:
+        match = get_match(match_id)
+    except MatchNotFoundError:
+        abort(404)
+    current_request = None
+    if current_user.is_authenticated:
+        current_request = next(
+            (
+                participant
+                for participant in reversed(match.participants)
+                if participant.user_id == current_user.id
+            ),
+            None,
+        )
+    joined_count = sum(
+        participant.status == MatchParticipantStatus.JOINED.value
+        for participant in match.participants
+    )
+    return render_template(
+        "matches/detail.html",
+        match=match,
+        current_request=current_request,
+        joined_count=joined_count,
+        match_type_labels=MATCH_TYPE_LABELS,
+        match_status_labels=MATCH_STATUS_LABELS,
+        participant_status_labels=PARTICIPANT_STATUS_LABELS,
+        skill_level_labels=SKILL_LEVEL_LABELS,
+        join_form=MatchJoinForm(),
+        action_form=MatchActionForm(),
+        payment_form=BookingActionForm(prefix="payment"),
+    )
+
+
+@matches_bp.post("/matches/<int:match_id>/requests")
+@roles_required(UserRole.USER, UserRole.OWNER)
+def join(match_id: int):
+    form = MatchJoinForm()
+    if not form.validate_on_submit():
+        flash("Lời nhắn không hợp lệ.", "danger")
+        return redirect(url_for("matches.detail", match_id=match_id))
+    try:
+        request_to_join_match(
+            match_id=match_id,
+            user=current_user,
+            message=form.message.data,
+        )
+    except MatchNotFoundError:
+        abort(404)
+    except MatchPermissionError:
+        abort(403)
+    except (DuplicateMatchRequestError, MatchmakingError) as exc:
+        flash(str(exc), "warning")
+    else:
+        flash("Đã gửi yêu cầu. Hãy chờ người tạo kèo duyệt.", "success")
+    return redirect(url_for("matches.detail", match_id=match_id))
+
+
+@matches_bp.post(
+    "/matches/<int:match_id>/requests/<int:participant_id>/accept"
+)
+@roles_required(UserRole.USER, UserRole.OWNER)
+def accept(match_id: int, participant_id: int):
+    return _decide_request(match_id, participant_id, accept_request=True)
+
+
+@matches_bp.post(
+    "/matches/<int:match_id>/requests/<int:participant_id>/reject"
+)
+@roles_required(UserRole.USER, UserRole.OWNER)
+def reject(match_id: int, participant_id: int):
+    return _decide_request(match_id, participant_id, accept_request=False)
+
+
+@matches_bp.post("/matches/<int:match_id>/requests/withdraw")
+@roles_required(UserRole.USER, UserRole.OWNER)
+def withdraw(match_id: int):
+    form = MatchActionForm()
+    if not form.validate_on_submit():
+        flash("Yêu cầu rút không hợp lệ.", "danger")
+        return redirect(url_for("matches.detail", match_id=match_id))
+    try:
+        withdraw_match_request(match_id=match_id, user=current_user)
+    except MatchNotFoundError:
+        abort(404)
+    except MatchPermissionError:
+        abort(403)
+    except MatchmakingError as exc:
+        flash(str(exc), "warning")
+    else:
+        flash("Đã rút yêu cầu tham gia.", "success")
+    return redirect(url_for("matches.detail", match_id=match_id))
+
+
+def _decide_request(match_id: int, participant_id: int, *, accept_request: bool):
+    form = MatchActionForm()
+    if not form.validate_on_submit():
+        flash("Yêu cầu xử lý không hợp lệ.", "danger")
+        return redirect(url_for("matches.detail", match_id=match_id))
+    try:
+        decide_match_request(
+            match_id=match_id,
+            participant_id=participant_id,
+            creator=current_user,
+            accept=accept_request,
+        )
+    except MatchNotFoundError:
+        abort(404)
+    except MatchPermissionError:
+        abort(403)
+    except MatchmakingError as exc:
+        flash(str(exc), "warning")
+    else:
+        flash(
+            "Đã chấp nhận yêu cầu." if accept_request else "Đã từ chối yêu cầu.",
+            "success",
+        )
+    return redirect(url_for("matches.detail", match_id=match_id))
+
+
+def _locked_match_type(payment_mode: str) -> str | None:
+    if payment_mode == BookingPaymentMode.SPLIT_OPPONENT.value:
+        return MatchType.FIND_OPPONENT.value
+    if payment_mode == BookingPaymentMode.SPLIT_PLAYERS.value:
+        return MatchType.FIND_PLAYERS.value
+    return None
+
+
+def _default_match_title(booking, match_type: str) -> str:
+    action = "Tìm đối thủ" if match_type == MatchType.FIND_OPPONENT.value else "Tìm thêm người"
+    return f"{action} đá tại {booking.field.venue.name}"

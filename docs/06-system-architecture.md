@@ -31,7 +31,7 @@ Frontend không quyết định quyền, trạng thái availability cuối cùng
 
 ## 6.3. Route Layer
 
-Các blueprint đã có gồm `auth`, `owner_applications`, `venues`, `fields`, `pricing`, `maintenance`, `bookings`, `payments` và health checks. `payments` hiện nhận lệnh POST thanh toán/top-up mô phỏng có CSRF. Các endpoint redirect/IPN MoMo, `refunds`, `matches` và phần admin mở rộng sẽ được bổ sung ở các module kế tiếp.
+Các blueprint đã có gồm `auth`, `owner_applications`, `venues`, `fields`, `pricing`, `maintenance`, `bookings`, `payments`, `matches` và health checks. `payments` hiện nhận lệnh POST thanh toán/top-up mô phỏng có CSRF; `matches` quản lý đăng kèo, gửi/duyệt/rút yêu cầu chưa thanh toán và hạn giữ vị trí. Các endpoint redirect/IPN MoMo, `refunds` và phần admin mở rộng sẽ được bổ sung ở các module kế tiếp.
 
 Thiết kế đích của các blueprint thanh toán:
 - `auth`: đăng ký, đăng nhập, đăng xuất.

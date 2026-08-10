@@ -15,6 +15,7 @@ from .venue import time_type
 
 if TYPE_CHECKING:
     from .booking_contribution import BookingContribution
+    from .match import Match
     from .payment import Payment
     from .refund import Refund
 
@@ -195,6 +196,10 @@ class Booking(db.Model):
     refunds: Mapped[list[Refund]] = relationship(
         back_populates="booking",
         order_by="Refund.created_at",
+    )
+    match: Mapped[Match | None] = relationship(
+        back_populates="booking",
+        uselist=False,
     )
 
     @property

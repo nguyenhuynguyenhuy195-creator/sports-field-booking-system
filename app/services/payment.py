@@ -131,6 +131,12 @@ def top_up_booking_with_mock(
         payer=payer,
         current_utc=current_utc,
     )
+    from .matchmaking import join_waived_match_participants
+
+    join_waived_match_participants(
+        booking_id=booking.id,
+        joined_at=current_utc,
+    )
     _commit_payment()
     return payment
 
@@ -173,6 +179,12 @@ def _record_mock_success(
         if new_paid_amount == Decimal(booking.total_amount)
         else BookingStatus.PARTIALLY_PAID.value
     )
+    from .matchmaking import mark_participant_joined_after_payment
+
+    mark_participant_joined_after_payment(
+        contribution,
+        paid_at=current_utc,
+    )
     return payment
 
 
@@ -193,8 +205,19 @@ def _validate_payable_contribution(
     if contribution.status != ContributionStatus.PENDING.value:
         raise InvalidPaymentStateError("Khoản đóng góp đã được xử lý.")
     if contribution.expires_at is not None and contribution.expires_at <= current_utc:
-        contribution.status = ContributionStatus.EXPIRED.value
-        if booking.status == BookingStatus.CONFIRMED.value and Decimal(booking.paid_amount) == 0:
+        from .matchmaking import expire_participant_for_contribution
+
+        participant_expired = expire_participant_for_contribution(
+            contribution,
+            now=current_utc,
+        )
+        if not participant_expired:
+            contribution.status = ContributionStatus.EXPIRED.value
+        if (
+            not participant_expired
+            and booking.status == BookingStatus.CONFIRMED.value
+            and Decimal(booking.paid_amount) == 0
+        ):
             booking.status = BookingStatus.EXPIRED.value
         _commit_payment()
         raise PaymentExpiredError("Khoản thanh toán đã hết hạn.")

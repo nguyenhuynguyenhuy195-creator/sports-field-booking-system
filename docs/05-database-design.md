@@ -319,6 +319,7 @@ Validation có điều kiện:
 | id | INT | PK, IDENTITY |
 | match_id | INT | FK → matches.id, NOT NULL |
 | user_id | INT | FK → users.id, NOT NULL |
+| contribution_id | INT | FK → booking_contributions.id, NULL |
 | participant_type | VARCHAR(20) | NOT NULL |
 | message | NVARCHAR(500) | NULL |
 | status | VARCHAR(30) | NOT NULL |
@@ -332,6 +333,8 @@ Participant type: `PLAYER`, `OPPONENT_REPRESENTATIVE`.
 Status: `PENDING`, `ACCEPTED_AWAITING_PAYMENT`, `JOINED`, `REJECTED`, `EXPIRED`, `WITHDRAWN`.
 
 Service phải ngăn một user có hai yêu cầu đang hoạt động cho cùng một match.
+
+`contribution_id` được gắn khi người tạo chấp nhận yêu cầu cần thanh toán. Yêu cầu tham gia booking đã được người tạo trả đủ có thể không có contribution riêng; yêu cầu hết hạn giữ liên kết để đối soát nhưng contribution chưa thanh toán được trả về trạng thái sẵn sàng cho vị trí kế tiếp.
 
 Filtered unique index hoặc cơ chế khóa tương đương cần áp dụng cho `(match_id, user_id)` ở các trạng thái `PENDING`, `ACCEPTED_AWAITING_PAYMENT` và `JOINED`.
 

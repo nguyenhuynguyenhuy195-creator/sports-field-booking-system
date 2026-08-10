@@ -14,6 +14,13 @@ from .booking_contribution import (
 from .booking_price_detail import BookingPriceDetail
 from .field import Field, FieldStatus, FieldType
 from .field_maintenance import FieldMaintenance, FieldMaintenanceStatus
+from .match import Match, MatchStatus, MatchType
+from .match_participant import (
+    ACTIVE_PARTICIPANT_STATUSES,
+    MatchParticipant,
+    MatchParticipantStatus,
+    MatchParticipantType,
+)
 from .owner_application import OwnerApplication, OwnerApplicationStatus
 from .price_slot import DAY_OF_WEEK_LABELS, FieldPriceSlot, PriceSlotStatus
 from .payment import Payment, PaymentMethod, PaymentProvider, PaymentStatus
@@ -34,9 +41,16 @@ __all__ = [
     "FieldType",
     "FieldMaintenance",
     "FieldMaintenanceStatus",
+    "Match",
+    "MatchParticipant",
+    "MatchParticipantStatus",
+    "MatchParticipantType",
+    "MatchStatus",
+    "MatchType",
     "OwnerApplication",
     "OwnerApplicationStatus",
     "OCCUPYING_BOOKING_STATUSES",
+    "ACTIVE_PARTICIPANT_STATUSES",
     "DAY_OF_WEEK_LABELS",
     "FieldPriceSlot",
     "PriceSlotStatus",
