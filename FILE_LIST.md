@@ -49,6 +49,7 @@ app/services/venue.py
 app/services/field.py
 app/services/pricing.py
 app/services/maintenance.py
+app/services/availability.py
 app/services/booking.py
 app/services/contribution.py
 app/services/payment.py

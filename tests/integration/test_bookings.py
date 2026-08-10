@@ -263,6 +263,110 @@ def test_quote_endpoint_returns_backend_price_without_creating_booking(app, clie
         assert db.session.scalar(db.select(db.func.count(Booking.id))) == 0
 
 
+def test_availability_endpoint_marks_booked_maintenance_and_missing_price(
+    app,
+    client,
+):
+    owner = create_user(app, email="owner@example.com", role=UserRole.OWNER)
+    player = create_user(app, email="player@example.com")
+    target_date = booking_day()
+    venue_id, field_id = create_bookable_field(
+        app,
+        owner_id=owner.id,
+        target_date=target_date,
+    )
+    with app.app_context():
+        price_slot = db.session.scalar(db.select(FieldPriceSlot))
+        price_slot.start_time = time(8, 0)
+        db.session.add(
+            FieldMaintenance(
+                field_id=field_id,
+                maintenance_date=target_date,
+                start_time=time(20, 0),
+                end_time=time(21, 0),
+                reason="Bảo dưỡng mặt sân",
+                status=FieldMaintenanceStatus.ACTIVE.value,
+                created_by=owner.id,
+            )
+        )
+        db.session.commit()
+    create_booking_record(
+        app,
+        user_id=player.id,
+        field_id=field_id,
+        target_date=target_date,
+        start_time=time(18, 0),
+        end_time=time(20, 0),
+    )
+    login(client, email=player.email)
+
+    response = client.get(
+        f"/venues/{venue_id}/fields/{field_id}/bookings/availability",
+        query_string={"date": target_date.isoformat()},
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["step_minutes"] == 30
+    assert payload["minimum_duration_minutes"] == 60
+    assert len(payload["slots"]) == 34
+    slots = {slot["start_time"]: slot for slot in payload["slots"]}
+    assert slots["06:00"]["status"] == "NO_PRICE"
+    assert slots["08:00"]["status"] == "AVAILABLE"
+    assert slots["18:00"]["status"] == "BOOKED"
+    assert slots["19:30"]["status"] == "BOOKED"
+    assert slots["20:00"]["status"] == "MAINTENANCE"
+    assert slots["20:30"]["status"] == "MAINTENANCE"
+
+
+def test_availability_endpoint_releases_expired_unpaid_hold(app, client):
+    owner = create_user(app, email="owner@example.com", role=UserRole.OWNER)
+    player = create_user(app, email="player@example.com")
+    target_date = booking_day()
+    venue_id, field_id = create_bookable_field(
+        app,
+        owner_id=owner.id,
+        target_date=target_date,
+    )
+    booking_code = create_booking_record(
+        app,
+        user_id=player.id,
+        field_id=field_id,
+        target_date=target_date,
+    )
+    with app.app_context():
+        booking = db.session.scalar(
+            db.select(Booking).where(Booking.booking_code == booking_code)
+        )
+        booking.initial_payment_due_at = datetime(2020, 1, 1)
+        db.session.commit()
+    login(client, email=player.email)
+
+    response = client.get(
+        f"/venues/{venue_id}/fields/{field_id}/bookings/availability",
+        query_string={"date": target_date.isoformat()},
+    )
+
+    assert response.status_code == 200
+    slots = {slot["start_time"]: slot for slot in response.get_json()["slots"]}
+    assert slots["18:00"]["status"] == "AVAILABLE"
+
+
+def test_availability_endpoint_rejects_invalid_date(app, client):
+    owner = create_user(app, email="owner@example.com", role=UserRole.OWNER)
+    player = create_user(app, email="player@example.com")
+    venue_id, field_id = create_bookable_field(app, owner_id=owner.id)
+    login(client, email=player.email)
+
+    response = client.get(
+        f"/venues/{venue_id}/fields/{field_id}/bookings/availability",
+        query_string={"date": "khong-hop-le"},
+    )
+
+    assert response.status_code == 422
+    assert response.get_json()["ok"] is False
+
+
 @pytest.mark.parametrize(
     ("start_time", "end_time", "message"),
     [

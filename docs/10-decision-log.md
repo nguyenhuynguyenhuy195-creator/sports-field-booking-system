@@ -114,3 +114,13 @@ AI lọc spam, phân tích cảm xúc, recommendation, chat thời gian thực, 
 - Provider `MOCK` dùng để kiểm chứng quyền, deadline, chống thu dư và chuyển trạng thái trước khi nối MoMo Sandbox; giao diện phải nói rõ không trừ tiền thật.
 - Khi creator top-up, nghĩa vụ còn lại chuyển `WAIVED` nhưng không sửa số tiền gốc; tạo contribution `TOP_UP` riêng để lịch sử đối soát không bị mất.
 - Migration phải backfill contribution cho booking cũ và được chạy/kiểm tra trực tiếp trên SQL Server.
+
+## ADR-018: Lưới mốc giờ availability cho booking
+
+**Ngày quyết định:** 10/08/2026
+
+- Endpoint availability trả trạng thái theo từng đoạn 30 phút, được tính từ giờ hoạt động của venue, booking chiếm chỗ, bảo trì `ACTIVE` và độ phủ giá.
+- Giao diện hiển thị các mốc thời gian: user chọn mốc bắt đầu rồi mốc kết thúc; ví dụ 18:00 và 19:00 tạo đúng khoảng 18:00–19:00.
+- Chỉ các đoạn nằm giữa hai mốc mới phải `AVAILABLE`, vì vậy booking có thể kết thúc đúng tại mốc bắt đầu của booking hoặc bảo trì kế tiếp.
+- Lưới và báo giá là kiểm tra tư vấn, không khóa chỗ; thao tác tạo booking vẫn lặp lại validation và chống trùng trong transaction.
+- Giờ hoạt động tiếp tục thuộc venue và áp dụng cho các field con trong MVP; không thêm bảng hoặc cấu hình lịch riêng theo từng field.

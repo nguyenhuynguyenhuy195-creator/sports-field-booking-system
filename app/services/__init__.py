@@ -1,6 +1,14 @@
 """Business services that keep domain logic outside route functions."""
 
 from .auth import DuplicateEmailError, find_user_by_email, register_user
+from .availability import (
+    AVAILABILITY_STEP_MINUTES,
+    MINIMUM_BOOKING_MINUTES,
+    AvailabilitySlot,
+    AvailabilitySlotStatus,
+    FieldAvailability,
+    build_field_availability,
+)
 from .booking import (
     BookingError,
     BookingNotFoundError,
@@ -105,6 +113,10 @@ from .venue import (
 )
 
 __all__ = [
+    "AVAILABILITY_STEP_MINUTES",
+    "MINIMUM_BOOKING_MINUTES",
+    "AvailabilitySlot",
+    "AvailabilitySlotStatus",
     "BookingError",
     "BookingNotFoundError",
     "BookingPermissionError",
@@ -114,6 +126,7 @@ __all__ = [
     "DuplicateEmailError",
     "DuplicateFieldNameError",
     "FieldError",
+    "FieldAvailability",
     "FieldNotFoundError",
     "FieldPermissionError",
     "InvalidOwnerApplicationStateError",
@@ -149,6 +162,7 @@ __all__ = [
     "create_price_slot",
     "calculate_price_quote",
     "booking_blocks_time",
+    "build_field_availability",
     "cancel_owner_booking",
     "cancel_user_booking",
     "create_booking",

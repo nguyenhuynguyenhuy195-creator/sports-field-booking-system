@@ -602,6 +602,278 @@ a:hover {
     justify-content: space-between;
 }
 
+.booking-availability-picker {
+    display: none;
+}
+
+.booking-flow-form.is-enhanced .booking-availability-picker {
+    background: #fbfdfc;
+    border: 1px solid #dce8e2;
+    border-radius: 16px;
+    display: block;
+    padding: 1.25rem;
+}
+
+.booking-flow-form.is-enhanced [data-time-picker-fallback] {
+    display: none;
+}
+
+.availability-heading {
+    align-items: flex-start;
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+}
+
+.availability-loading {
+    color: #617486;
+    font-size: 0.82rem;
+    min-height: 1.25rem;
+    white-space: nowrap;
+}
+
+.availability-day-navigation {
+    align-items: stretch;
+    display: grid;
+    gap: 0.55rem;
+    grid-template-columns: 2.5rem minmax(0, 1fr) 2.5rem;
+}
+
+.availability-day-strip {
+    display: grid;
+    gap: 0.45rem;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.availability-nav-button,
+.availability-day-button,
+.availability-slot {
+    background: #ffffff;
+    border: 1px solid #d7e1e8;
+    color: #25384a;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.availability-nav-button {
+    border-radius: 10px;
+    font-size: 1.45rem;
+    font-weight: 600;
+}
+
+.availability-nav-button:disabled {
+    color: #a6b1bc;
+    cursor: not-allowed;
+}
+
+.availability-day-button {
+    align-items: center;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-height: 3.6rem;
+    padding: 0.5rem 0.25rem;
+}
+
+.availability-day-button span {
+    color: #728396;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+}
+
+.availability-day-button strong {
+    font-size: 0.88rem;
+}
+
+.availability-day-button:hover,
+.availability-day-button.is-active {
+    border-color: var(--app-primary);
+    box-shadow: 0 0 0 3px rgba(20, 108, 67, 0.1);
+}
+
+.availability-day-button.is-active {
+    background: var(--app-primary);
+    color: #ffffff;
+}
+
+.availability-day-button.is-active span {
+    color: rgba(255, 255, 255, 0.82);
+}
+
+.availability-grid {
+    display: grid;
+    gap: 0.55rem;
+    grid-template-columns: repeat(auto-fit, minmax(86px, 1fr));
+}
+
+.availability-slot {
+    border-radius: 11px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.18rem;
+    min-height: 3.55rem;
+    padding: 0.55rem 0.35rem;
+}
+
+.availability-slot strong {
+    font-size: 0.92rem;
+}
+
+.availability-slot small {
+    color: #6b7d8f;
+    font-size: 0.68rem;
+    line-height: 1.15;
+}
+
+.availability-slot.is-available {
+    border-color: #9fcbb2;
+    color: var(--app-primary-dark);
+    cursor: pointer;
+}
+
+.availability-slot.is-available:hover {
+    border-color: var(--app-primary);
+    box-shadow: 0 5px 14px rgba(20, 108, 67, 0.15);
+    transform: translateY(-1px);
+}
+
+.availability-slot.is-selected,
+.availability-slot.is-selected:hover {
+    background: var(--app-primary);
+    border-color: var(--app-primary);
+    box-shadow: 0 6px 16px rgba(20, 108, 67, 0.24);
+    color: #ffffff;
+}
+
+.availability-slot.is-selected small {
+    color: rgba(255, 255, 255, 0.82);
+}
+
+.availability-slot.is-booked {
+    background: #fff0f0;
+    border-color: #efb3b3;
+    color: #9b3030;
+}
+
+.availability-slot.is-maintenance {
+    background: #fff7e7;
+    border-color: #edce8d;
+    color: #805b17;
+}
+
+.availability-slot.is-no-price,
+.availability-slot.is-past {
+    background: #f2f4f6;
+    border-color: #dce1e5;
+    color: #7a8793;
+}
+
+.availability-slot.is-boundary {
+    background: #f7faf8;
+    border-style: dashed;
+    color: #607466;
+}
+
+.availability-slot[aria-disabled="true"] {
+    cursor: not-allowed;
+}
+
+.availability-slot.is-selected {
+    background: var(--app-primary);
+    border-color: var(--app-primary);
+    border-style: solid;
+    box-shadow: 0 6px 16px rgba(20, 108, 67, 0.24);
+    color: #ffffff;
+    cursor: pointer;
+}
+
+.availability-slot:disabled {
+    cursor: not-allowed;
+    opacity: 1;
+}
+
+.availability-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem 1rem;
+}
+
+.availability-legend span {
+    align-items: center;
+    color: #617486;
+    display: inline-flex;
+    font-size: 0.78rem;
+    gap: 0.4rem;
+}
+
+.availability-legend-swatch {
+    background: #ffffff;
+    border: 1px solid #9fcbb2;
+    border-radius: 4px;
+    display: inline-block;
+    height: 0.85rem;
+    width: 0.85rem;
+}
+
+.availability-legend-swatch.is-selected {
+    background: var(--app-primary);
+    border-color: var(--app-primary);
+}
+
+.availability-legend-swatch.is-booked {
+    background: #fff0f0;
+    border-color: #efb3b3;
+}
+
+.availability-legend-swatch.is-maintenance {
+    background: #fff7e7;
+    border-color: #edce8d;
+}
+
+.availability-legend-swatch.is-no-price {
+    background: #f2f4f6;
+    border-color: #dce1e5;
+}
+
+.availability-selection {
+    align-items: center;
+    background: #eef7f2;
+    border: 1px solid #c8dfd2;
+    border-radius: 12px;
+    display: grid;
+    gap: 0.8rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+    padding: 0.9rem 1rem;
+}
+
+.availability-selection[hidden] {
+    display: none;
+}
+
+.availability-selection > div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.availability-selection span {
+    color: #667c70;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+}
+
+.availability-selection strong {
+    color: var(--app-primary-dark);
+}
+
+.availability-empty {
+    background: #f4f6f8;
+    border-radius: 10px;
+    color: #617486;
+    padding: 1rem;
+    text-align: center;
+}
+
 .booking-contact-card,
 .booking-review-grid {
     display: grid;
@@ -984,8 +1256,23 @@ a:hover {
 
     .booking-contact-card,
     .booking-review-grid,
-    .booking-player-split-card {
+    .booking-player-split-card,
+    .availability-selection {
         grid-template-columns: 1fr;
+    }
+
+    .availability-day-strip {
+        display: flex;
+        gap: 0.35rem;
+        overflow-x: auto;
+        padding-bottom: 0.25rem;
+        scroll-snap-type: x proximity;
+    }
+
+    .availability-day-button {
+        flex: 0 0 4.25rem;
+        min-width: 4.25rem;
+        scroll-snap-align: center;
     }
 
     .booking-review-grid .booking-detail-full {

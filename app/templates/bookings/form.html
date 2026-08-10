@@ -43,9 +43,12 @@
                 novalidate
                 class="auth-card booking-form-card booking-flow-form"
                 data-quote-url="{{ url_for('bookings.quote', venue_id=field.venue_id, field_id=field.id) }}"
+                data-availability-url="{{ url_for('bookings.availability', venue_id=field.venue_id, field_id=field.id) }}"
                 data-field-name="{{ field.name }}"
                 data-venue-name="{{ field.venue.name }}"
                 data-field-capacity="{{ field.capacity }}"
+                data-minimum-date="{{ today.isoformat() }}"
+                data-maximum-date="{{ maximum_booking_date.isoformat() }}"
             >
                 {{ form.hidden_tag() }}
 
@@ -54,14 +57,65 @@
                     <h1 class="h3 fw-bold mt-2 mb-1">Chọn ngày và khoảng giờ</h1>
                     <p class="text-secondary mb-4">Hệ thống sẽ kiểm tra lịch trống, bảo trì và giá trước khi bạn tiếp tục.</p>
 
-                    {{ render_field(form.booking_date, min=today.isoformat(), max=maximum_booking_date.isoformat()) }}
-                    <div class="row g-3 mb-4">
+                    <div class="booking-date-field">
+                        {{ render_field(form.booking_date, min=today.isoformat(), max=maximum_booking_date.isoformat()) }}
+                    </div>
+
+                    <section class="booking-availability-picker mb-4" data-availability-picker aria-labelledby="availability-title">
+                        <div class="availability-heading">
+                            <div>
+                                <span class="eyebrow">LỊCH TRỐNG TRONG NGÀY</span>
+                                <h2 class="h5 fw-bold mt-2 mb-1" id="availability-title" data-availability-date-label>
+                                    Chọn ngày để xem lịch
+                                </h2>
+                                <p class="small text-secondary mb-0">
+                                    Chọn mốc bắt đầu rồi chọn mốc kết thúc cách ít nhất 60 phút.
+                                </p>
+                            </div>
+                            <span class="availability-loading" data-availability-loading aria-live="polite"></span>
+                        </div>
+
+                        <div class="availability-day-navigation mt-3">
+                            <button class="availability-nav-button" type="button" data-date-previous aria-label="Ngày trước">‹</button>
+                            <div class="availability-day-strip" data-date-strip aria-label="Chọn nhanh ngày đặt sân"></div>
+                            <button class="availability-nav-button" type="button" data-date-next aria-label="Ngày sau">›</button>
+                        </div>
+
+                        <div class="availability-grid mt-4" data-availability-grid role="grid" aria-label="Các khung giờ của sân"></div>
+                        <p class="availability-empty mt-4 mb-0" data-availability-empty hidden></p>
+
+                        <div class="availability-legend mt-4" aria-label="Chú thích trạng thái khung giờ">
+                            <span><i class="availability-legend-swatch is-available"></i>Còn trống</span>
+                            <span><i class="availability-legend-swatch is-selected"></i>Đã chọn</span>
+                            <span><i class="availability-legend-swatch is-booked"></i>Đã có người đặt</span>
+                            <span><i class="availability-legend-swatch is-maintenance"></i>Bảo trì</span>
+                            <span><i class="availability-legend-swatch is-no-price"></i>Chưa áp dụng giá</span>
+                        </div>
+
+                        <div class="availability-selection mt-4" data-selection-summary hidden aria-live="polite">
+                            <div>
+                                <span>Khoảng giờ đã chọn</span>
+                                <strong data-selection-time>—</strong>
+                            </div>
+                            <div>
+                                <span>Thời lượng</span>
+                                <strong data-selection-duration>—</strong>
+                            </div>
+                            <div>
+                                <span>Tạm tính</span>
+                                <strong data-selection-total>Đang tính giá…</strong>
+                            </div>
+                            <button class="btn btn-sm btn-outline-secondary" type="button" data-clear-selection>Chọn lại</button>
+                        </div>
+                    </section>
+
+                    <div class="row g-3 mb-4" data-time-picker-fallback>
                         <div class="col-md-6">{{ render_time_picker("Giờ bắt đầu", form.start_hour, form.start_minute) }}</div>
                         <div class="col-md-6">{{ render_time_picker("Giờ kết thúc", form.end_hour, form.end_minute) }}</div>
                     </div>
 
                     <div class="booking-rule-note mb-4">
-                        <strong>Điều kiện:</strong> bước 30 phút, tối thiểu 60 phút, trong giờ mở cửa
+                        <strong>Điều kiện:</strong> chọn liên tục, tối thiểu 60 phút và trong giờ mở cửa
                         {{ field.venue.opening_time.strftime('%H:%M') }}–{{ field.venue.closing_time.strftime('%H:%M') }}.
                     </div>
                     <div class="alert alert-danger d-none" role="alert" data-flow-error></div>
