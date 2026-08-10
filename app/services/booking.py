@@ -20,6 +20,7 @@ from app.models import (
     FieldMaintenance,
     FieldMaintenanceStatus,
     FieldStatus,
+    Refund,
     User,
     UserRole,
     VenueStatus,
@@ -329,9 +330,10 @@ def cancel_user_booking(
     if booking.status not in {
         BookingStatus.PENDING.value,
         BookingStatus.CONFIRMED.value,
+        BookingStatus.PARTIALLY_PAID.value,
     }:
         raise InvalidBookingStateError(
-            "Chỉ booking đang chờ hoặc đã được xác nhận mới có thể tự hủy."
+            "Bạn chỉ có thể tự hủy booking chưa thanh toán đủ."
         )
 
     start_at = datetime.combine(booking.booking_date, booking.start_time)
@@ -340,12 +342,24 @@ def cancel_user_booking(
             "Bạn chỉ có thể hủy trước giờ bắt đầu ít nhất 2 giờ."
         )
 
-    booking.status = BookingStatus.CANCELLED.value
-    booking.cancellation_reason = "Người đặt sân chủ động hủy booking."
-    _set_pending_contributions_status(
-        booking_ids=[booking.id],
-        status=ContributionStatus.WAIVED.value,
-    )
+    if booking.status == BookingStatus.PARTIALLY_PAID.value:
+        from .refund import RefundError, apply_funding_shortfall_refunds
+
+        try:
+            apply_funding_shortfall_refunds(
+                booking=booking,
+                reason="Người tạo hủy booking chưa góp đủ tiền.",
+                now=_local_to_utc(current_local),
+            )
+        except RefundError as exc:
+            raise InvalidBookingStateError(str(exc)) from exc
+    else:
+        booking.status = BookingStatus.CANCELLED.value
+        booking.cancellation_reason = "Người đặt sân chủ động hủy booking."
+        _set_pending_contributions_status(
+            booking_ids=[booking.id],
+            status=ContributionStatus.WAIVED.value,
+        )
     _commit_booking("Không thể hủy booking lúc này.")
     return booking
 
@@ -359,17 +373,32 @@ def cancel_owner_booking(
     _validate_owner(owner)
     normalized_reason = _normalize_required_text(reason, field_name="Lý do hủy")
     booking = _lock_owner_booking(booking_code=booking_code, owner_id=owner.id)
-    if booking.status != BookingStatus.CONFIRMED.value:
+    if booking.status not in {
+        BookingStatus.CONFIRMED.value,
+        BookingStatus.PARTIALLY_PAID.value,
+        BookingStatus.PAID.value,
+    }:
         raise InvalidBookingStateError(
-            "Ở bước hiện tại, chủ sân chỉ có thể hủy booking đã xác nhận và chưa thu tiền."
+            "Chủ sân chỉ có thể hủy booking đang giữ chỗ hoặc đã thu tiền."
         )
 
-    booking.status = BookingStatus.CANCELLED.value
-    booking.cancellation_reason = normalized_reason
-    _set_pending_contributions_status(
-        booking_ids=[booking.id],
-        status=ContributionStatus.WAIVED.value,
-    )
+    if Decimal(booking.paid_amount) > 0:
+        from .refund import RefundError, apply_owner_cancellation_refunds
+
+        try:
+            apply_owner_cancellation_refunds(
+                booking=booking,
+                reason=normalized_reason,
+            )
+        except RefundError as exc:
+            raise InvalidBookingStateError(str(exc)) from exc
+    else:
+        booking.status = BookingStatus.CANCELLED.value
+        booking.cancellation_reason = normalized_reason
+        _set_pending_contributions_status(
+            booking_ids=[booking.id],
+            status=ContributionStatus.WAIVED.value,
+        )
     _commit_booking("Không thể hủy booking lúc này.")
     return booking
 
@@ -441,7 +470,7 @@ def _booking_with_details_statement():
             BookingContribution.payments
         ),
         selectinload(Booking.payments),
-        selectinload(Booking.refunds),
+        selectinload(Booking.refunds).joinedload(Refund.recipient),
     )
 
 

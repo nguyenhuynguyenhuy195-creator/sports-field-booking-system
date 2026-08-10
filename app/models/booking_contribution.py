@@ -72,8 +72,12 @@ class BookingContribution(db.Model):
             "contribution_type",
             "slot_number",
             unique=True,
-            mssql_where=db.text("slot_number IS NOT NULL"),
-            sqlite_where=db.text("slot_number IS NOT NULL"),
+            mssql_where=db.text(
+                "slot_number IS NOT NULL AND status <> 'REFUNDED'"
+            ),
+            sqlite_where=db.text(
+                "slot_number IS NOT NULL AND status <> 'REFUNDED'"
+            ),
         ),
     )
 

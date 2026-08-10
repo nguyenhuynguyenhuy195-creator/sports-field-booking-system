@@ -26,6 +26,7 @@ from app.services import (
     list_created_matches,
     list_open_matches,
     list_user_match_requests,
+    participant_withdrawal_gets_refund,
     request_to_join_match,
     validate_match_creation,
     withdraw_match_request,
@@ -197,6 +198,12 @@ def detail(match_id: int):
         join_form=MatchJoinForm(),
         action_form=MatchActionForm(),
         payment_form=BookingActionForm(prefix="payment"),
+        withdrawal_gets_refund=(
+            participant_withdrawal_gets_refund(match.booking)
+            if current_request
+            and current_request.status == MatchParticipantStatus.JOINED.value
+            else False
+        ),
     )
 
 
@@ -256,7 +263,7 @@ def withdraw(match_id: int):
     except MatchmakingError as exc:
         flash(str(exc), "warning")
     else:
-        flash("Đã rút yêu cầu tham gia.", "success")
+        flash("Đã rút khỏi kèo và áp dụng chính sách hoàn tiền tương ứng.", "success")
     return redirect(url_for("matches.detail", match_id=match_id))
 
 

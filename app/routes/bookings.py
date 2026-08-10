@@ -21,6 +21,7 @@ from app.models import (
     ContributionType,
     PaymentProvider,
     PaymentStatus,
+    RefundStatus,
     UserRole,
 )
 from app.services import (
@@ -94,6 +95,13 @@ PAYMENT_STATUS_LABELS = {
 PAYMENT_PROVIDER_LABELS = {
     PaymentProvider.MOCK.value: "Mô phỏng nội bộ",
     PaymentProvider.MOMO.value: "MoMo",
+}
+
+REFUND_STATUS_LABELS = {
+    RefundStatus.PENDING.value: "Đang chờ xử lý",
+    RefundStatus.PROCESSING.value: "Đang xử lý",
+    RefundStatus.SUCCESS.value: "Đã hoàn thành",
+    RefundStatus.FAILED.value: "Thất bại",
 }
 
 
@@ -305,6 +313,7 @@ def detail(booking_code: str):
         contribution_status_labels=CONTRIBUTION_STATUS_LABELS,
         payment_status_labels=PAYMENT_STATUS_LABELS,
         payment_provider_labels=PAYMENT_PROVIDER_LABELS,
+        refund_status_labels=REFUND_STATUS_LABELS,
         payment_form=BookingActionForm(prefix="payment"),
         top_up_form=BookingActionForm(prefix="top-up"),
         cancel_form=BookingActionForm(),
@@ -331,7 +340,7 @@ def cancel(booking_code: str):
     except BookingError as exc:
         flash(str(exc), "warning")
     else:
-        flash("Đã hủy booking.", "success")
+        flash("Đã hủy booking và hoàn tiền theo chính sách áp dụng.", "success")
     return redirect(url_for("bookings.detail", booking_code=booking_code))
 
 
@@ -362,6 +371,7 @@ def owner_detail(booking_code: str):
         contribution_status_labels=CONTRIBUTION_STATUS_LABELS,
         payment_status_labels=PAYMENT_STATUS_LABELS,
         payment_provider_labels=PAYMENT_PROVIDER_LABELS,
+        refund_status_labels=REFUND_STATUS_LABELS,
         owner_cancel_form=BookingReasonForm(prefix="owner-cancel"),
         owner_view=True,
     )
@@ -386,7 +396,10 @@ def owner_cancel(booking_code: str):
         except BookingError as exc:
             flash(str(exc), "warning")
         else:
-            flash("Đã hủy booking chưa thu tiền.", "success")
+            flash(
+                "Đã hủy booking; các khoản đã thu (nếu có) đã được hoàn 100%.",
+                "success",
+            )
     else:
         flash("Vui lòng nhập lý do hủy hợp lệ.", "danger")
     return redirect(url_for("bookings.owner_detail", booking_code=booking_code))
