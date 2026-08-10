@@ -153,6 +153,8 @@ Index cần có: `(field_id, maintenance_date, status, start_time, end_time)`.
 | start_time | TIME(0) | NOT NULL |
 | end_time | TIME(0) | NOT NULL |
 | payment_mode | VARCHAR(30) | NOT NULL |
+| split_total_players | INT | NULL |
+| split_required_players | INT | NULL |
 | total_amount | DECIMAL(12,2) | NOT NULL, CHECK > 0 |
 | paid_amount | DECIMAL(12,2) | NOT NULL, DEFAULT 0 |
 | cancellation_fee_amount | DECIMAL(12,2) | NOT NULL, DEFAULT 0 |
@@ -177,6 +179,7 @@ Check constraint tối thiểu:
 - `total_amount > 0`.
 - `paid_amount >= 0 AND paid_amount <= total_amount`.
 - `cancellation_fee_amount >= 0 AND cancellation_fee_amount <= paid_amount`.
+- `SPLIT_PLAYERS` bắt buộc có `split_total_players > 1` và `0 < split_required_players < split_total_players`; hai cột này phải `NULL` với mode khác.
 
 Index tối thiểu:
 - `(field_id, booking_date, status, start_time, end_time)` cho kiểm tra trùng.
@@ -206,9 +209,9 @@ Check constraint: `start_time < end_time`, `duration_minutes > 0`, `hourly_price
 |---|---|---|
 | id | INT | PK, IDENTITY |
 | booking_id | INT | FK → bookings.id, NOT NULL |
-| user_id | INT | FK → users.id, NOT NULL |
-| match_participant_id | INT | FK → match_participants.id, NULL |
+| user_id | INT | FK → users.id, NULL |
 | contribution_type | VARCHAR(30) | NOT NULL |
+| slot_number | INT | NULL |
 | amount_due | DECIMAL(12,2) | NOT NULL, CHECK >= 0 |
 | amount_paid | DECIMAL(12,2) | NOT NULL, DEFAULT 0, CHECK >= 0 |
 | status | VARCHAR(30) | NOT NULL |
@@ -218,11 +221,13 @@ Check constraint: `start_time < end_time`, `duration_minutes > 0`, `hourly_price
 
 Contribution type: `CREATOR`, `OPPONENT`, `PLAYER`, `TOP_UP`.
 
-Status: `PENDING`, `PAID`, `EXPIRED`, `REFUND_PENDING`, `PARTIALLY_REFUNDED`, `REFUNDED`, `FORFEITED`.
+Status: `PENDING`, `PAID`, `EXPIRED`, `WAIVED`, `REFUND_PENDING`, `PARTIALLY_REFUNDED`, `REFUNDED`, `FORFEITED`.
 
 Tổng `amount_due` của các contribution còn hiệu lực phải đúng bằng `total_amount`; service phải khóa booking khi phân bổ hoặc cập nhật nghĩa vụ.
 
-`amount_paid` không được vượt `amount_due`. Filtered unique index cần bảo đảm một `match_participant_id` chỉ có một contribution đang hoạt động trong cùng booking.
+`user_id` để `NULL` cho vị trí đối thủ/người ghép chưa được nhận; module matchmaking sẽ gắn user sau khi chấp nhận yêu cầu. `slot_number` là `NULL` với `CREATOR`/`TOP_UP`, nhưng bắt buộc là số dương với `OPPONENT`/`PLAYER`. Filtered unique index `(booking_id, contribution_type, slot_number) WHERE slot_number IS NOT NULL` ngăn tạo trùng vị trí.
+
+`amount_paid` không được vượt `amount_due`. Khi người tạo top-up, nghĩa vụ chưa trả được chuyển `WAIVED` và giữ nguyên `amount_due` để bảo toàn lịch sử; chỉ các nghĩa vụ còn hiệu lực mới dùng khi tính số tiền cần thu.
 
 ## 5.11. Bảng `payments`
 
@@ -244,7 +249,7 @@ Tổng `amount_due` của các contribution còn hiệu lực phải đúng bằ
 | created_at | DATETIME2 | NOT NULL |
 | updated_at | DATETIME2 | NULL |
 
-Provider: `MOMO`.
+Provider: `MOCK`, `MOMO`. `MOCK` chỉ dùng cho phát triển/kiểm thử; `MOMO` dành cho Sandbox khi tích hợp client thật.
 
 Status: `PENDING`, `SUCCESS`, `FAILED`, `CANCELLED`, `EXPIRED`.
 

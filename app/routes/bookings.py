@@ -5,11 +5,20 @@ from flask_login import current_user
 
 from app.decorators import roles_required
 from app.forms import BookingActionForm, BookingForm, BookingReasonForm
-from app.models import BookingPaymentMode, BookingStatus, UserRole
+from app.models import (
+    BookingPaymentMode,
+    BookingStatus,
+    ContributionStatus,
+    ContributionType,
+    PaymentProvider,
+    PaymentStatus,
+    UserRole,
+)
 from app.services import (
     BookingError,
     BookingNotFoundError,
     BookingPermissionError,
+    build_contribution_plan,
     cancel_owner_booking,
     cancel_user_booking,
     create_booking,
@@ -44,6 +53,37 @@ PAYMENT_MODE_LABELS = {
     BookingPaymentMode.SPLIT_PLAYERS.value: "Tìm thêm người, chia theo đầu người",
 }
 
+CONTRIBUTION_TYPE_LABELS = {
+    ContributionType.CREATOR.value: "Nhóm người đặt",
+    ContributionType.OPPONENT.value: "Đội đối thủ",
+    ContributionType.PLAYER.value: "Người chơi ghép",
+    ContributionType.TOP_UP.value: "Người đặt trả phần còn thiếu",
+}
+
+CONTRIBUTION_STATUS_LABELS = {
+    ContributionStatus.PENDING.value: "Chờ thanh toán",
+    ContributionStatus.PAID.value: "Đã thanh toán",
+    ContributionStatus.EXPIRED.value: "Đã hết hạn",
+    ContributionStatus.WAIVED.value: "Đã được trả thay",
+    ContributionStatus.REFUND_PENDING.value: "Đang hoàn tiền",
+    ContributionStatus.PARTIALLY_REFUNDED.value: "Đã hoàn một phần",
+    ContributionStatus.REFUNDED.value: "Đã hoàn tiền",
+    ContributionStatus.FORFEITED.value: "Không hoàn tiền",
+}
+
+PAYMENT_STATUS_LABELS = {
+    PaymentStatus.PENDING.value: "Đang xử lý",
+    PaymentStatus.SUCCESS.value: "Thành công",
+    PaymentStatus.FAILED.value: "Thất bại",
+    PaymentStatus.CANCELLED.value: "Đã hủy",
+    PaymentStatus.EXPIRED.value: "Đã hết hạn",
+}
+
+PAYMENT_PROVIDER_LABELS = {
+    PaymentProvider.MOCK.value: "Mô phỏng nội bộ",
+    PaymentProvider.MOMO.value: "MoMo",
+}
+
 
 @bookings_bp.route(
     "/venues/<int:venue_id>/fields/<int:field_id>/bookings/new",
@@ -72,6 +112,7 @@ def create(venue_id: int, field_id: int):
                 start_time=form.start_time_value,
                 end_time=form.end_time_value,
                 payment_mode=form.payment_mode.data,
+                required_players=form.required_players.data,
                 note=form.note.data,
             )
         except BookingPermissionError:
@@ -122,6 +163,7 @@ def quote(venue_id: int, field_id: int):
             start_time=form.start_time_value,
             end_time=form.end_time_value,
             payment_mode=form.payment_mode.data,
+            required_players=form.required_players.data,
         )
     except BookingPermissionError:
         abort(403)
@@ -130,9 +172,35 @@ def quote(venue_id: int, field_id: int):
     except BookingError as exc:
         return jsonify(ok=False, message=str(exc)), 422
 
+    contribution_plan = build_contribution_plan(
+        payment_mode=form.payment_mode.data,
+        total_amount=price_quote.total,
+        total_players=(
+            field.capacity
+            if form.payment_mode.data == BookingPaymentMode.SPLIT_PLAYERS.value
+            else None
+        ),
+        required_players=form.required_players.data,
+    )
+
     return jsonify(
         ok=True,
         total=str(price_quote.total),
+        contribution_plan={
+            "creator_amount": str(contribution_plan.creator_amount),
+            "external_amount": str(contribution_plan.external_amount),
+            "total_players": contribution_plan.total_players,
+            "required_players": contribution_plan.required_players,
+            "existing_players": contribution_plan.existing_players,
+            "external_contributions": [
+                {
+                    "type": contribution.contribution_type,
+                    "slot_number": contribution.slot_number,
+                    "amount_due": str(contribution.amount_due),
+                }
+                for contribution in contribution_plan.external_contributions
+            ],
+        },
         segments=[
             {
                 "start_time": segment.start_time.strftime("%H:%M"),
@@ -177,6 +245,12 @@ def detail(booking_code: str):
         effective_status=get_effective_booking_status(booking),
         status_labels=BOOKING_STATUS_LABELS,
         payment_mode_labels=PAYMENT_MODE_LABELS,
+        contribution_type_labels=CONTRIBUTION_TYPE_LABELS,
+        contribution_status_labels=CONTRIBUTION_STATUS_LABELS,
+        payment_status_labels=PAYMENT_STATUS_LABELS,
+        payment_provider_labels=PAYMENT_PROVIDER_LABELS,
+        payment_form=BookingActionForm(prefix="payment"),
+        top_up_form=BookingActionForm(prefix="top-up"),
         cancel_form=BookingActionForm(),
         owner_view=False,
     )
@@ -228,6 +302,10 @@ def owner_detail(booking_code: str):
         effective_status=get_effective_booking_status(booking),
         status_labels=BOOKING_STATUS_LABELS,
         payment_mode_labels=PAYMENT_MODE_LABELS,
+        contribution_type_labels=CONTRIBUTION_TYPE_LABELS,
+        contribution_status_labels=CONTRIBUTION_STATUS_LABELS,
+        payment_status_labels=PAYMENT_STATUS_LABELS,
+        payment_provider_labels=PAYMENT_PROVIDER_LABELS,
         owner_cancel_form=BookingReasonForm(prefix="owner-cancel"),
         owner_view=True,
     )

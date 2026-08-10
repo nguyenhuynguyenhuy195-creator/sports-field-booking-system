@@ -91,6 +91,12 @@ Chỉ một booking giao nhau được commit; request còn lại nhận lỗi h
 
 ## 9.4. Payment MoMo
 
+### TC-PAYMENT-000: Provider MOCK nền tảng
+User đúng quyền thanh toán contribution còn hạn → tạo đúng một payment `MOCK/SUCCESS`, cập nhật contribution và booking trong cùng transaction; giao diện hiển thị lịch sử và không gọi tiền thật.
+
+### TC-PAYMENT-000B: Chống thanh toán mô phỏng sai quyền/lặp
+User khác bị từ chối; thanh toán lại contribution đã `PAID` không tăng `paid_amount` và không tạo payment thứ hai.
+
 ### TC-PAYMENT-001: Tạo payment
 Amount lấy từ contribution; order/request unique; signature đúng; trả payUrl sandbox.
 
@@ -130,7 +136,7 @@ Người tạo thanh toán phần nhóm hiện có mà không cần tạo 7 tài
 Hai user thanh toán vị trí cuối đồng thời → chỉ một người `JOINED`; không thu dư và không vượt sức chứa.
 
 ### TC-SPLIT-006: Người tạo top-up
-Người tạo trả toàn bộ số còn thiếu → booking `PAID`; contribution chưa trả được điều chỉnh về 0 để không thu thêm. Match vẫn `OPEN` nếu chưa có đủ đối thủ/người; người được chấp nhận sau đó tham gia không phải thanh toán.
+Người tạo trả toàn bộ số còn thiếu → booking `PAID`; contribution chưa trả chuyển `WAIVED`, giữ nguyên `amount_due` gốc nhưng không được thu thêm. Match vẫn `OPEN` nếu chưa có đủ đối thủ/người; người được chấp nhận sau đó tham gia không phải thanh toán.
 
 ### TC-SPLIT-007: Không đủ tiền tại deadline
 Booking chuyển `REFUND_PENDING`; creator refund 80%, người tham gia refund 100%, phí giữ sân bằng 20% khoản creator đã đóng.

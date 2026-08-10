@@ -33,6 +33,7 @@ Danh sách sân gồm bộ lọc, card venue, địa chỉ, loại sân, giá th
   - Tìm đội đối thủ, chia 50/50.
   - Tìm thêm người, chia theo đầu người.
 - Với tìm người: nhập số vị trí còn thiếu; hiển thị số người tiêu chuẩn và phần người tạo phải trả.
+- Trước khi giữ chỗ, hiển thị riêng khoản người tạo trả trước và khoản chờ đối thủ/người ghép trả.
 - Hiển thị từng đoạn khung giá, đơn giá, thời lượng, subtotal và tổng tiền dự kiến.
 - Hiển thị thông tin người đặt lấy từ tài khoản, không yêu cầu nhập lại họ tên/email.
 - Nêu rõ booking hợp lệ được giữ chỗ tự động 15 phút, không chờ owner duyệt.
@@ -47,7 +48,9 @@ Hiển thị:
 - Số tiền đã thu, còn thiếu và hạn góp đủ.
 - Badge trạng thái và timeline.
 - Danh sách contribution/payment/refund mà user được phép xem.
+- Bảng contribution hiển thị người/nhóm trả, vị trí, số phải trả, số đã trả và trạng thái; lịch sử payment tách riêng.
 - Nút hủy, thanh toán lại hoặc trả phần còn thiếu theo quyền và trạng thái; owner không có nút xác nhận/từ chối booking thông thường.
+- Trong giai đoạn provider `MOCK`, giao diện phải ghi rõ “Thanh toán mô phỏng” không trừ tiền thật và chưa gọi MoMo.
 
 ## 7.6. Trang thanh toán MoMo
 

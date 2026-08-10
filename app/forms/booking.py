@@ -1,8 +1,20 @@
 from datetime import time
 
 from flask_wtf import FlaskForm
-from wtforms import DateField, RadioField, SelectField, SubmitField, TextAreaField
-from wtforms.validators import DataRequired, InputRequired, Length, ValidationError
+from wtforms import (
+    DateField,
+    IntegerField,
+    RadioField,
+    SelectField,
+    SubmitField,
+    TextAreaField,
+)
+from wtforms.validators import (
+    DataRequired,
+    InputRequired,
+    Length,
+    ValidationError,
+)
 
 from app.models import BookingPaymentMode
 
@@ -61,6 +73,9 @@ class BookingForm(FlaskForm):
         default=BookingPaymentMode.FULL_PAYMENT.value,
         validators=[DataRequired(message="Vui lòng chọn hình thức thanh toán.")],
     )
+    required_players = IntegerField(
+        "Số người đội bạn còn thiếu",
+    )
     note = TextAreaField(
         "Ghi chú cho chủ sân",
         validators=[Length(max=500, message="Ghi chú tối đa 500 ký tự.")],
@@ -87,6 +102,19 @@ class BookingForm(FlaskForm):
             return
         if start_time >= end_time:
             raise ValidationError("Giờ kết thúc phải sau giờ bắt đầu.")
+
+    def validate_required_players(self, field) -> None:
+        if self.payment_mode.data == BookingPaymentMode.SPLIT_PLAYERS.value:
+            if field.data is None:
+                raise ValidationError(
+                    "Vui lòng nhập số người còn thiếu để hệ thống chia tiền."
+                )
+            if field.data < 1:
+                raise ValidationError("Số người còn thiếu phải từ 1 trở lên.")
+        elif field.data is not None:
+            raise ValidationError(
+                "Số người còn thiếu chỉ dùng cho hình thức chia theo đầu người."
+            )
 
 
 class BookingActionForm(FlaskForm):

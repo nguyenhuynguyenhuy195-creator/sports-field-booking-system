@@ -1,5 +1,12 @@
 (() => {
     const countdown = document.querySelector("[data-booking-countdown]");
+    document.querySelectorAll("[data-payment-submit]").forEach((button) => {
+        button.closest("form")?.addEventListener("submit", () => {
+            button.disabled = true;
+            button.textContent = "Đang xử lý...";
+        });
+    });
+
     if (!countdown) return;
 
     const deadline = new Date(countdown.dataset.deadline).getTime();

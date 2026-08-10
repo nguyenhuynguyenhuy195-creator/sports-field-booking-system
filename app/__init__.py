@@ -63,12 +63,14 @@ def _register_blueprints(app: Flask) -> None:
     from .routes.main import main_bp
     from .routes.maintenance import maintenance_bp
     from .routes.owner_applications import admin_bp, owner_applications_bp
+    from .routes.payments import payments_bp
     from .routes.pricing import pricing_bp
     from .routes.venues import venues_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(bookings_bp)
+    app.register_blueprint(payments_bp)
     app.register_blueprint(fields_bp)
     app.register_blueprint(maintenance_bp)
     app.register_blueprint(pricing_bp)

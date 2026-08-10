@@ -15,6 +15,7 @@
     let latestQuote = null;
 
     form.classList.add("is-enhanced");
+    syncPlayerSplitFields();
     setStep(currentStep);
 
     form.querySelectorAll("[data-next-step]").forEach((button) => {
@@ -43,6 +44,7 @@
     form.addEventListener("change", (event) => {
         if (event.target.matches("input, select, textarea")) {
             latestQuote = null;
+            if (event.target.name === "payment_mode") syncPlayerSplitFields();
             const summaryTotal = document.querySelector("[data-summary-total]");
             if (summaryTotal) summaryTotal.textContent = "Cần kiểm tra lại giá";
         }
@@ -113,6 +115,18 @@
         setText("[data-review-mode]", selectedModeLabel);
         setText("[data-review-total]", moneyFormatter.format(Number(quote.total)));
         setText("[data-summary-total]", moneyFormatter.format(Number(quote.total)));
+        setText(
+            "[data-review-creator-amount]",
+            moneyFormatter.format(Number(quote.contribution_plan.creator_amount)),
+        );
+        setText(
+            "[data-review-external-amount]",
+            moneyFormatter.format(Number(quote.contribution_plan.external_amount)),
+        );
+        setText(
+            "[data-review-contribution-note]",
+            contributionNote(quote.contribution_plan),
+        );
 
         const body = form.querySelector("[data-review-segments]");
         if (!body) return;
@@ -129,6 +143,30 @@
             row.append(interval, duration, subtotal);
             body.append(row);
         });
+    }
+
+    function syncPlayerSplitFields() {
+        const wrapper = form.querySelector("[data-player-split-fields]");
+        const input = form.elements.required_players;
+        if (!wrapper || !input) return;
+        const isPlayerSplit = form.querySelector(
+            "input[name='payment_mode']:checked",
+        )?.value === "SPLIT_PLAYERS";
+        wrapper.hidden = !isPlayerSplit;
+        input.required = isPlayerSplit;
+        input.disabled = !isPlayerSplit;
+        if (!isPlayerSplit) input.value = "";
+    }
+
+    function contributionNote(plan) {
+        if (Number(plan.external_amount) === 0) {
+            return "Bạn thanh toán toàn bộ tiền sân trong một lần.";
+        }
+        if (plan.total_players) {
+            return `Nhóm hiện có ${plan.existing_players}/${plan.total_players} người; `
+                + `${plan.required_players} người ghép thanh toán từng phần riêng.`;
+        }
+        return "Đội bạn trả phần đầu tiên; đội đối thủ thanh toán phần còn lại.";
     }
 
     function setText(selector, value) {

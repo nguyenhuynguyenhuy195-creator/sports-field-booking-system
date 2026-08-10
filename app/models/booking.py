@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime, time
 from decimal import Decimal
 from enum import Enum
+from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -11,6 +12,11 @@ from app.extensions import db
 from .field import Field
 from .user import User, timestamp_type, utc_now
 from .venue import time_type
+
+if TYPE_CHECKING:
+    from .booking_contribution import BookingContribution
+    from .payment import Payment
+    from .refund import Refund
 
 
 class BookingPaymentMode(str, Enum):
@@ -70,6 +76,18 @@ class Booking(db.Model):
             "AND cancellation_fee_amount <= paid_amount",
             name="ck_bookings_cancellation_fee_range",
         ),
+        db.CheckConstraint(
+            "((payment_mode = 'SPLIT_PLAYERS' "
+            "AND split_total_players IS NOT NULL "
+            "AND split_required_players IS NOT NULL "
+            "AND split_total_players > 1 "
+            "AND split_required_players > 0 "
+            "AND split_required_players < split_total_players) "
+            "OR (payment_mode <> 'SPLIT_PLAYERS' "
+            "AND split_total_players IS NULL "
+            "AND split_required_players IS NULL))",
+            name="ck_bookings_split_player_configuration",
+        ),
         db.Index(
             "ix_bookings_field_date_status_time",
             "field_id",
@@ -109,6 +127,14 @@ class Booking(db.Model):
     start_time: Mapped[time] = mapped_column(time_type, nullable=False)
     end_time: Mapped[time] = mapped_column(time_type, nullable=False)
     payment_mode: Mapped[str] = mapped_column(db.String(30), nullable=False)
+    split_total_players: Mapped[int | None] = mapped_column(
+        db.Integer,
+        nullable=True,
+    )
+    split_required_players: Mapped[int | None] = mapped_column(
+        db.Integer,
+        nullable=True,
+    )
     total_amount: Mapped[Decimal] = mapped_column(db.Numeric(12, 2), nullable=False)
     paid_amount: Mapped[Decimal] = mapped_column(
         db.Numeric(12, 2),
@@ -157,6 +183,18 @@ class Booking(db.Model):
     price_details: Mapped[list["BookingPriceDetail"]] = relationship(
         back_populates="booking",
         order_by="BookingPriceDetail.start_time",
+    )
+    contributions: Mapped[list[BookingContribution]] = relationship(
+        back_populates="booking",
+        order_by="BookingContribution.id",
+    )
+    payments: Mapped[list[Payment]] = relationship(
+        back_populates="booking",
+        order_by="Payment.created_at",
+    )
+    refunds: Mapped[list[Refund]] = relationship(
+        back_populates="booking",
+        order_by="Refund.created_at",
     )
 
     @property

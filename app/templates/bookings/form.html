@@ -45,6 +45,7 @@
                 data-quote-url="{{ url_for('bookings.quote', venue_id=field.venue_id, field_id=field.id) }}"
                 data-field-name="{{ field.name }}"
                 data-venue-name="{{ field.venue.name }}"
+                data-field-capacity="{{ field.capacity }}"
             >
                 {{ form.hidden_tag() }}
 
@@ -115,6 +116,35 @@
                         {% endfor %}
                     </fieldset>
 
+                    <div
+                        class="booking-player-split-card mb-4"
+                        data-player-split-fields
+                        {% if form.payment_mode.data != 'SPLIT_PLAYERS' %}hidden{% endif %}
+                    >
+                        <div>
+                            <span class="eyebrow">CHIA THEO ĐẦU NGƯỜI</span>
+                            <h3 class="h6 fw-bold mt-2 mb-1">Đội bạn còn thiếu bao nhiêu người?</h3>
+                            <p class="small text-secondary mb-0">
+                                Sức chứa chuẩn của sân là {{ field.capacity }} người. Nhóm hiện có trả phần của mình;
+                                mỗi người ghép sẽ có một khoản riêng.
+                            </p>
+                        </div>
+                        <div class="booking-player-count">
+                            {{ form.required_players(
+                                class="form-control" ~ (" is-invalid" if form.required_players.errors else ""),
+                                min="1",
+                                max=field.capacity - 1,
+                                inputmode="numeric",
+                                placeholder="Ví dụ: 3",
+                                aria_label=form.required_players.label.text
+                            ) }}
+                            <small>người còn thiếu</small>
+                            {% for error in form.required_players.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
                     {{ render_field(form.note, rows="3", placeholder="Ví dụ: Cần bóng thi đấu hoặc áo bib") }}
                     <div class="alert alert-danger d-none" role="alert" data-flow-error></div>
                     <div class="booking-flow-actions">
@@ -146,6 +176,17 @@
                                 <thead><tr><th>Khung giá</th><th>Thời lượng</th><th class="text-end">Thành tiền</th></tr></thead>
                                 <tbody data-review-segments></tbody>
                             </table>
+                        </div>
+                        <div class="booking-contribution-preview mt-3" data-review-contribution>
+                            <div>
+                                <span>Bạn thanh toán trước</span>
+                                <strong data-review-creator-amount>—</strong>
+                            </div>
+                            <div>
+                                <span>Phần chờ người khác thanh toán</span>
+                                <strong data-review-external-amount>—</strong>
+                            </div>
+                            <p class="small text-secondary mb-0" data-review-contribution-note></p>
                         </div>
                     </div>
 

@@ -90,6 +90,8 @@ erDiagram
         TIME start_time
         TIME end_time
         VARCHAR payment_mode
+        INT split_total_players
+        INT split_required_players
         DECIMAL total_amount
         DECIMAL paid_amount
         DECIMAL cancellation_fee_amount
@@ -117,8 +119,8 @@ erDiagram
         INT id PK
         INT booking_id FK
         INT user_id FK
-        INT match_participant_id FK
         VARCHAR contribution_type
+        INT slot_number
         DECIMAL amount_due
         DECIMAL amount_paid
         VARCHAR status
@@ -203,7 +205,7 @@ erDiagram
     BOOKINGS ||--|{ BOOKING_PRICE_DETAILS : snapshots
     FIELD_PRICE_SLOTS ||--o{ BOOKING_PRICE_DETAILS : sources
     BOOKINGS ||--o{ BOOKING_CONTRIBUTIONS : allocates
-    USERS ||--o{ BOOKING_CONTRIBUTIONS : owes
+    USERS o|--o{ BOOKING_CONTRIBUTIONS : owes
     BOOKING_CONTRIBUTIONS ||--o{ PAYMENTS : attempts
     BOOKINGS ||--o{ PAYMENTS : collects
     USERS ||--o{ PAYMENTS : pays
@@ -214,4 +216,3 @@ erDiagram
     USERS ||--o{ MATCHES : creates
     MATCHES ||--o{ MATCH_PARTICIPANTS : accepts
     USERS ||--o{ MATCH_PARTICIPANTS : joins
-    MATCH_PARTICIPANTS o|--o{ BOOKING_CONTRIBUTIONS : generates
