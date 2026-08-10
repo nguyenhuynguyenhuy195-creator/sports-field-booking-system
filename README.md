@@ -24,7 +24,7 @@ Ba hình thức thanh toán:
 - `SPLIT_OPPONENT`: hai đội chia 50/50.
 - `SPLIT_PLAYERS`: chia theo đầu người.
 
-MVP dùng MoMo Sandbox và hỗ trợ hoàn tiền; MoMo Production không thuộc phạm vi đồ án ngành.
+Đích MVP dùng MoMo Sandbox và hỗ trợ hoàn tiền; MoMo Production không thuộc phạm vi đồ án ngành. Hiện repository đã có nền tảng phân bổ nghĩa vụ và provider `MOCK` để kiểm thử cập nhật tiền/trạng thái mà không trừ tiền thật. Kết nối HMAC, redirect và IPN MoMo Sandbox là bước tích hợp tiếp theo.
 
 ## 3. Công nghệ
 
@@ -75,7 +75,7 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-Sao chép `.env.example` thành `.env`, cập nhật thông tin SQL Server và credential MoMo Sandbox. Không commit `.env` hoặc secret key.
+Sao chép `.env.example` thành `.env` và cập nhật thông tin SQL Server. Không commit `.env` hoặc secret key. Credential MoMo chỉ bổ sung khi bắt đầu bước tích hợp Sandbox thật.
 
 Cấu hình development hiện dùng Windows Authentication với SQL Server mặc định trên `localhost`. Database khởi tạo là `sports_field_booking`.
 
@@ -87,7 +87,7 @@ Khởi tạo hoặc cập nhật cấu trúc database trước lần chạy đ�
 .\.venv\Scripts\python.exe -m flask --app run.py db upgrade
 ```
 
-Lệnh trên đọc các migration trong `migrations/` và áp dụng chúng theo đúng thứ tự. Các migration hiện tại tạo bảng `users`, `owner_applications`, `venues`, `fields`, `field_price_slots`, `field_maintenances`, `bookings` và `booking_price_details`; bảng `alembic_version` do Flask-Migrate dùng để ghi nhận phiên bản database.
+Lệnh trên đọc các migration trong `migrations/` và áp dụng chúng theo đúng thứ tự. Các migration hiện tại tạo bảng `users`, `owner_applications`, `venues`, `fields`, `field_price_slots`, `field_maintenances`, `bookings`, `booking_price_details`, `booking_contributions`, `payments` và `refunds`; bảng `alembic_version` do Flask-Migrate dùng để ghi nhận phiên bản database.
 
 Sau đó chạy website:
 
@@ -131,6 +131,10 @@ GET http://127.0.0.1:5000/venues
 - Booking lưu snapshot từng đoạn giá và tổng tiền từ database, không nhận giá từ frontend.
 - Người chơi xem báo giá trước khi xác nhận, theo dõi lịch sử/chi tiết và hủy booking hợp lệ; chủ sân theo dõi hoặc hủy booking khi có sự cố theo quyền sở hữu.
 - Lệnh `flask bookings expire` cập nhật idempotent các booking giữ chỗ đã quá hạn thanh toán đầu tiên.
+- Khi tạo booking, backend phân bổ tiền theo `FULL_PAYMENT`, `SPLIT_OPPONENT` hoặc `SPLIT_PLAYERS`; hình thức chia theo người dùng sức chứa field và số người còn thiếu, làm tròn đến từng đồng nhưng vẫn đúng tổng.
+- Trang chi tiết hiển thị từng nghĩa vụ, tiến độ đã thu/còn thiếu và lịch sử giao dịch.
+- Provider `MOCK` ghi nhận thanh toán thành công trong transaction để kiểm thử: trả 100%, trả phần đầu, chuyển `PARTIALLY_PAID`, và người tạo trả toàn bộ phần còn thiếu để chuyển `PAID`.
+- Các nghĩa vụ được trả thay chuyển `WAIVED` nhưng giữ nguyên số tiền gốc để phục vụ đối soát; hệ thống không thu vượt `total_amount` và từ chối thanh toán lặp.
 
 Tạo tài khoản quản trị viên đầu tiên:
 

@@ -72,6 +72,13 @@
 - Payment thất bại được thử lại khi contribution còn hạn.
 - Không được thu vượt `total_amount`.
 
+### AC-009A: Nền tảng payment mô phỏng
+
+- Provider `MOCK` lấy amount từ contribution và không nhận amount từ form.
+- Chỉ user được gắn với contribution mới được thanh toán; request lặp hoặc contribution đã xử lý bị từ chối.
+- Payment `SUCCESS`, `contribution.amount_paid`, `booking.paid_amount` và trạng thái booking được cập nhật trong cùng transaction.
+- Giao diện ghi rõ đây là mô phỏng, không trừ tiền thật và không giả vờ là giao dịch MoMo.
+
 ## AC-010: Thanh toán 100%
 
 - `FULL_PAYMENT` yêu cầu người tạo trả toàn bộ `total_amount`.
@@ -100,7 +107,7 @@
 
 - Người tạo được xem số tiền còn thiếu và trả trước funding deadline.
 - Payment thành công đủ tổng chuyển booking `PAID`.
-- Contribution chưa thanh toán của đối thủ/người ghép được điều chỉnh về 0 để không thu dư; kèo vẫn mở cho đến khi có đủ đối thủ/người cần tìm.
+- Contribution chưa thanh toán của đối thủ/người ghép chuyển `WAIVED` để không thu thêm nhưng vẫn giữ `amount_due` gốc phục vụ đối soát; kèo vẫn mở cho đến khi có đủ đối thủ/người cần tìm.
 
 ## AC-014: Không góp đủ đúng hạn
 

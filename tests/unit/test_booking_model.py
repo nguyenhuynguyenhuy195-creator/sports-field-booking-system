@@ -37,6 +37,7 @@ def test_booking_tables_have_required_constraints_and_indexes():
     assert "ck_bookings_start_before_end" in booking_constraints
     assert "ck_bookings_total_amount_positive" in booking_constraints
     assert "ck_bookings_paid_amount_range" in booking_constraints
+    assert "ck_bookings_split_player_configuration" in booking_constraints
     assert "ck_booking_price_details_duration_positive" in detail_constraints
     assert "ix_bookings_field_date_status_time" in booking_indexes
     assert "ix_bookings_user_created" in booking_indexes

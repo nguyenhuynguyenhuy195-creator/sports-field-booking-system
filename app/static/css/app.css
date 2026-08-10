@@ -744,6 +744,50 @@ a:hover {
     margin-top: 0.3rem;
 }
 
+.booking-player-split-card {
+    align-items: center;
+    background: #f4faf7;
+    border: 1px solid #cfe4d8;
+    border-radius: 14px;
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: minmax(0, 1fr) minmax(150px, 190px);
+    padding: 1rem;
+}
+
+.booking-player-count {
+    text-align: center;
+}
+
+.booking-player-count .form-control {
+    font-size: 1.15rem;
+    font-weight: 700;
+    text-align: center;
+}
+
+.booking-player-count small {
+    color: #66788e;
+}
+
+.booking-contribution-preview {
+    background: #f7f9fb;
+    border-radius: 12px;
+    display: grid;
+    gap: 0.65rem;
+    padding: 1rem;
+}
+
+.booking-contribution-preview > div {
+    align-items: center;
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+}
+
+.booking-contribution-preview strong {
+    color: var(--app-primary-dark);
+}
+
 .booking-rule-note {
     background: #eef7f2;
     border-left: 4px solid var(--app-primary);
@@ -852,6 +896,50 @@ a:hover {
     top: 1.5rem;
 }
 
+.payment-progress-badge,
+.contribution-status {
+    background: #eef7f2;
+    border: 1px solid #cfe4d8;
+    border-radius: 999px;
+    color: var(--app-primary-dark);
+    display: inline-flex;
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 0.35rem 0.7rem;
+}
+
+.contribution-status-pending {
+    background: #fff8e6;
+    border-color: #f1d997;
+    color: #80600b;
+}
+
+.contribution-status-waived,
+.contribution-status-expired {
+    background: #f4f5f6;
+    border-color: #dfe4e8;
+    color: #68798b;
+}
+
+.payment-due-box {
+    background: #f4faf7;
+    border: 1px solid #cfe4d8;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    padding: 1rem;
+}
+
+.payment-due-box span {
+    color: #66788e;
+    font-size: 0.82rem;
+}
+
+.payment-due-box strong {
+    color: var(--app-primary-dark);
+    font-size: 1.35rem;
+}
+
 .booking-countdown {
     background: #eef7f2;
     border: 1px solid #cfe4d8;
@@ -895,7 +983,8 @@ a:hover {
     }
 
     .booking-contact-card,
-    .booking-review-grid {
+    .booking-review-grid,
+    .booking-player-split-card {
         grid-template-columns: 1fr;
     }
 

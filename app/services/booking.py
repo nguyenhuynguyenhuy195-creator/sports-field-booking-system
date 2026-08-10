@@ -11,9 +11,11 @@ from sqlalchemy.orm import joinedload, selectinload
 from app.extensions import db
 from app.models import (
     Booking,
+    BookingContribution,
     BookingPaymentMode,
     BookingPriceDetail,
     BookingStatus,
+    ContributionStatus,
     Field,
     FieldMaintenance,
     FieldMaintenanceStatus,
@@ -23,6 +25,11 @@ from app.models import (
     VenueStatus,
 )
 
+from .contribution import (
+    ContributionError,
+    add_initial_contributions,
+    build_contribution_plan,
+)
 from .locking import with_update_lock
 from .maintenance import current_vietnam_datetime
 from .pricing import PriceQuote, PricingError, calculate_price_quote
@@ -64,6 +71,7 @@ def create_booking(
     start_time: time,
     end_time: time,
     payment_mode: str,
+    required_players: int | None = None,
     note: str | None = None,
     now: datetime | None = None,
 ) -> Booking:
@@ -114,6 +122,19 @@ def create_booking(
         )
     except PricingError as exc:
         raise BookingError(str(exc)) from exc
+    try:
+        contribution_plan = build_contribution_plan(
+            payment_mode=normalized_mode,
+            total_amount=quote.total,
+            total_players=(
+                field.capacity
+                if normalized_mode == BookingPaymentMode.SPLIT_PLAYERS.value
+                else None
+            ),
+            required_players=required_players,
+        )
+    except ContributionError as exc:
+        raise BookingError(str(exc)) from exc
 
     start_at_local = datetime.combine(booking_date, start_time)
     funding_deadline = None
@@ -128,6 +149,8 @@ def create_booking(
         start_time=start_time,
         end_time=end_time,
         payment_mode=normalized_mode,
+        split_total_players=contribution_plan.total_players,
+        split_required_players=contribution_plan.required_players,
         total_amount=quote.total,
         paid_amount=Decimal("0.00"),
         cancellation_fee_amount=Decimal("0.00"),
@@ -150,6 +173,11 @@ def create_booking(
                 subtotal=segment.subtotal,
             )
         )
+    add_initial_contributions(
+        booking=booking,
+        creator_user_id=user.id,
+        plan=contribution_plan,
+    )
 
     _commit_booking("Không thể tạo booking lúc này. Vui lòng thử lại.")
     return booking
@@ -163,6 +191,7 @@ def quote_booking(
     start_time: time,
     end_time: time,
     payment_mode: str,
+    required_players: int | None = None,
     now: datetime | None = None,
 ) -> PriceQuote:
     """Validate a proposed interval and return a server-calculated quote.
@@ -204,7 +233,7 @@ def quote_booking(
             "Khoảng giờ này đã có người đặt hoặc đang được giữ chỗ."
         )
     try:
-        return calculate_price_quote(
+        quote = calculate_price_quote(
             field_id=field.id,
             day_of_week=booking_date.weekday(),
             start_time=start_time,
@@ -212,6 +241,20 @@ def quote_booking(
         )
     except PricingError as exc:
         raise BookingError(str(exc)) from exc
+    try:
+        build_contribution_plan(
+            payment_mode=normalized_mode,
+            total_amount=quote.total,
+            total_players=(
+                field.capacity
+                if normalized_mode == BookingPaymentMode.SPLIT_PLAYERS.value
+                else None
+            ),
+            required_players=required_players,
+        )
+    except ContributionError as exc:
+        raise BookingError(str(exc)) from exc
+    return quote
 
 
 def get_booking_field(*, venue_id: int, field_id: int) -> Field:
@@ -299,6 +342,10 @@ def cancel_user_booking(
 
     booking.status = BookingStatus.CANCELLED.value
     booking.cancellation_reason = "Người đặt sân chủ động hủy booking."
+    _set_pending_contributions_status(
+        booking_ids=[booking.id],
+        status=ContributionStatus.WAIVED.value,
+    )
     _commit_booking("Không thể hủy booking lúc này.")
     return booking
 
@@ -319,6 +366,10 @@ def cancel_owner_booking(
 
     booking.status = BookingStatus.CANCELLED.value
     booking.cancellation_reason = normalized_reason
+    _set_pending_contributions_status(
+        booking_ids=[booking.id],
+        status=ContributionStatus.WAIVED.value,
+    )
     _commit_booking("Không thể hủy booking lúc này.")
     return booking
 
@@ -372,6 +423,10 @@ def expire_stale_bookings(*, now: datetime | None = None) -> int:
     for booking in stale_bookings:
         booking.status = BookingStatus.EXPIRED.value
     if stale_bookings:
+        _set_pending_contributions_status(
+            booking_ids=[booking.id for booking in stale_bookings],
+            status=ContributionStatus.EXPIRED.value,
+        )
         _commit_booking("Không thể cập nhật các booking đã hết hạn.")
     return len(stale_bookings)
 
@@ -381,6 +436,12 @@ def _booking_with_details_statement():
         joinedload(Booking.user),
         joinedload(Booking.field).joinedload(Field.venue),
         selectinload(Booking.price_details),
+        selectinload(Booking.contributions).joinedload(BookingContribution.user),
+        selectinload(Booking.contributions).selectinload(
+            BookingContribution.payments
+        ),
+        selectinload(Booking.payments),
+        selectinload(Booking.refunds),
     )
 
 
@@ -525,6 +586,24 @@ def _expire_stale_bookings_for_field(*, field_id: int, now_utc: datetime) -> Non
     )
     for booking in stale_bookings:
         booking.status = BookingStatus.EXPIRED.value
+    if stale_bookings:
+        _set_pending_contributions_status(
+            booking_ids=[booking.id for booking in stale_bookings],
+            status=ContributionStatus.EXPIRED.value,
+        )
+
+
+def _set_pending_contributions_status(*, booking_ids: list[int], status: str) -> None:
+    if not booking_ids:
+        return
+    contributions = db.session.scalars(
+        db.select(BookingContribution).where(
+            BookingContribution.booking_id.in_(booking_ids),
+            BookingContribution.status == ContributionStatus.PENDING.value,
+        )
+    )
+    for contribution in contributions:
+        contribution.status = status
 
 
 def _lock_owner_booking(*, booking_code: str, owner_id: int) -> Booking:

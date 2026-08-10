@@ -119,6 +119,8 @@ Với booking 18:00–20:00, phải từ chối 17:00–19:00, 18:00–20:00, 19
 
 ## 4.10. Xử lý MoMo
 
+Giai đoạn nền tảng hiện dùng provider `MOCK`: service xác minh quyền và hạn, lấy amount từ contribution, tạo payment `SUCCESS`, rồi cập nhật contribution/booking trong cùng transaction. Không có chuyển hướng và không trừ tiền thật. Luồng MoMo Sandbox bên dưới là bước tích hợp kế tiếp trên cùng model/service.
+
 1. Backend tạo payment `PENDING` với `orderId` và `requestId` duy nhất.
 2. Backend ký HMAC bằng secret key từ biến môi trường.
 3. User được chuyển đến `payUrl` của MoMo Sandbox.

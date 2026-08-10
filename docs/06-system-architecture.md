@@ -10,8 +10,8 @@ Browser
 → SQL Server
 
 Payment Service
-→ MoMo Client
-→ MoMo Sandbox API
+→ Provider MOCK (đã triển khai, nội bộ)
+→ MoMo Client → MoMo Sandbox API (bước kế tiếp)
 ```
 
 Flask render giao diện bằng Jinja2. Nghiệp vụ không được đặt toàn bộ trong route.
@@ -30,7 +30,9 @@ Frontend không quyết định quyền, giá, số tiền đóng góp, trạng 
 
 ## 6.3. Route Layer
 
-Các blueprint dự kiến:
+Các blueprint đã có gồm `auth`, `owner_applications`, `venues`, `fields`, `pricing`, `maintenance`, `bookings`, `payments` và health checks. `payments` hiện nhận lệnh POST thanh toán/top-up mô phỏng có CSRF. Các endpoint redirect/IPN MoMo, `refunds`, `matches` và phần admin mở rộng sẽ được bổ sung ở các module kế tiếp.
+
+Thiết kế đích của các blueprint thanh toán:
 - `auth`: đăng ký, đăng nhập, đăng xuất.
 - `owner_applications`: gửi và xét duyệt yêu cầu owner.
 - `venues`: venue, field, giá và bảo trì.

@@ -103,3 +103,14 @@ AI lọc spam, phân tích cảm xúc, recommendation, chat thời gian thực, 
 - Quá hạn mà chưa thu tiền thì booking chuyển `EXPIRED` và giải phóng lịch; job hết hạn phải idempotent.
 - Owner vẫn xem được booking và chỉ hủy khi có sự cố, bắt buộc nhập lý do; booking đã thu tiền phải đi qua quy trình refund.
 - Trang đặt sân dùng bốn bước, lấy thông tin người đặt từ tài khoản và gọi backend báo giá trước khi submit; backend vẫn tính lại toàn bộ khi tạo booking.
+
+## ADR-017: Nền tảng contribution và provider thanh toán mô phỏng
+
+**Ngày quyết định:** 08/08/2026
+
+- Tạo contribution ngay trong transaction tạo booking để tổng nghĩa vụ luôn khớp `total_amount`.
+- `SPLIT_PLAYERS` chụp lại sức chứa field và số người còn thiếu tại thời điểm booking; thành viên sẵn có không cần tài khoản riêng.
+- Vị trí đối thủ/người ghép chưa được nhận có `user_id = NULL` và `slot_number` duy nhất; module matchmaking sẽ gắn tài khoản sau.
+- Provider `MOCK` dùng để kiểm chứng quyền, deadline, chống thu dư và chuyển trạng thái trước khi nối MoMo Sandbox; giao diện phải nói rõ không trừ tiền thật.
+- Khi creator top-up, nghĩa vụ còn lại chuyển `WAIVED` nhưng không sửa số tiền gốc; tạo contribution `TOP_UP` riêng để lịch sử đối soát không bị mất.
+- Migration phải backfill contribution cho booking cũ và được chạy/kiểm tra trực tiếp trên SQL Server.

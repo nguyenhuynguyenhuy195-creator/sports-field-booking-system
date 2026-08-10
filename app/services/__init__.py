@@ -20,6 +20,13 @@ from .booking import (
     list_user_bookings,
     quote_booking,
 )
+from .contribution import (
+    ContributionError,
+    ContributionPlan,
+    PlannedContribution,
+    add_initial_contributions,
+    build_contribution_plan,
+)
 from .field import (
     DuplicateFieldNameError,
     FieldError,
@@ -73,6 +80,15 @@ from .pricing import (
     set_price_slot_status,
     update_price_slot,
 )
+from .payment import (
+    InvalidPaymentStateError,
+    PaymentError,
+    PaymentExpiredError,
+    PaymentNotFoundError,
+    PaymentPermissionError,
+    pay_contribution_with_mock,
+    top_up_booking_with_mock,
+)
 from .venue import (
     InvalidVenueStateError,
     VenueError,
@@ -93,6 +109,8 @@ __all__ = [
     "BookingNotFoundError",
     "BookingPermissionError",
     "BookingUnavailableError",
+    "ContributionError",
+    "ContributionPlan",
     "DuplicateEmailError",
     "DuplicateFieldNameError",
     "FieldError",
@@ -100,6 +118,7 @@ __all__ = [
     "FieldPermissionError",
     "InvalidOwnerApplicationStateError",
     "InvalidBookingStateError",
+    "InvalidPaymentStateError",
     "InvalidMaintenanceStateError",
     "InvalidVenueStateError",
     "OwnerApplicationError",
@@ -112,6 +131,11 @@ __all__ = [
     "MaintenancePermissionError",
     "OverlappingMaintenanceError",
     "OverlappingPriceSlotError",
+    "PaymentError",
+    "PaymentExpiredError",
+    "PaymentNotFoundError",
+    "PaymentPermissionError",
+    "PlannedContribution",
     "PriceQuote",
     "PriceSegment",
     "PricingError",
@@ -128,6 +152,8 @@ __all__ = [
     "cancel_owner_booking",
     "cancel_user_booking",
     "create_booking",
+    "add_initial_contributions",
+    "build_contribution_plan",
     "expire_stale_bookings",
     "get_booking_field",
     "cancel_maintenance",
@@ -158,6 +184,7 @@ __all__ = [
     "maintenance_blocks_time",
     "register_user",
     "quote_booking",
+    "pay_contribution_with_mock",
     "review_owner_application",
     "submit_owner_application",
     "set_field_activation",
@@ -166,4 +193,5 @@ __all__ = [
     "update_venue",
     "update_field",
     "update_price_slot",
+    "top_up_booking_with_mock",
 ]

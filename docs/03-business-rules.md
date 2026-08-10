@@ -101,6 +101,7 @@ Việc kiểm tra và tạo booking phải nằm trong cùng transaction để h
 - Người tạo được thanh toán phần còn thiếu bất kỳ lúc nào trước hạn.
 - Khi tổng tiền thành công bằng `total_amount`, booking chuyển `PAID`.
 - Nếu người tạo đã trả đủ phần thiếu, người tham gia sau đó không còn nghĩa vụ thanh toán cho booking đó.
+- Nghĩa vụ cũ được chuyển `WAIVED` khi người tạo trả thay; không sửa `amount_due` về 0 để vẫn đối soát được phân bổ ban đầu.
 
 ### BR-017: Hủy booking
 - User chỉ được hủy booking của mình ở trạng thái `CONFIRMED` chưa thu tiền và trước giờ bắt đầu ít nhất 2 giờ.
@@ -116,6 +117,7 @@ Booking chỉ chuyển từ `PAID` sang `COMPLETED` sau khi thời gian sử d�
 
 ### BR-019: Nguyên tắc thanh toán
 - Chỉ dùng MoMo Sandbox trong phiên bản đồ án ngành.
+- Trước khi nối MoMo Sandbox thật, provider `MOCK` được phép dùng trong môi trường phát triển/kiểm thử; provider này áp dụng cùng quy tắc số tiền, quyền và transaction nhưng không trừ tiền thật.
 - Số tiền thanh toán được lấy từ nghĩa vụ đóng góp trong database.
 - Tổng payment `SUCCESS` sau khi trừ refund không được vượt `total_amount`.
 - Mỗi nghĩa vụ đóng góp chỉ được có một kết quả thanh toán thành công còn hiệu lực.
