@@ -10,11 +10,14 @@
                 <span class="eyebrow">ĐẶT SÂN · TÌM KÈO · CHIA TIỀN</span>
                 {% if current_user.is_authenticated %}
                     <h1 class="display-5 fw-bold mt-3">Chào {{ current_user.full_name }}, sẵn sàng cho trận tiếp theo?</h1>
-                    <p class="lead text-secondary mt-3">Tài khoản của bạn đã đăng nhập với vai trò <strong>{{ current_user.role }}</strong>. Bạn có thể xem các cơ sở đã được duyệt; chủ sân có thể quản lý cơ sở và danh sách sân trực tiếp trên hệ thống.</p>
-                    <a class="btn btn-primary btn-lg mt-3" href="{{ url_for('venues.index') }}">Xem cơ sở sân bóng</a>
+                    <p class="lead text-secondary mt-3">Kiểm tra lịch trống, chọn khung giờ phù hợp và theo dõi mọi khoản thanh toán ngay trên một trang.</p>
+                    <div class="d-flex flex-column flex-sm-row gap-3 mt-4">
+                        <a class="btn btn-primary btn-lg" href="{{ url_for('venues.index') }}">Tìm sân để đặt</a>
+                        <a class="btn btn-outline-primary btn-lg" href="{{ url_for('matches.index') }}">Xem kèo đang mở</a>
+                    </div>
                 {% else %}
                     <h1 class="display-5 fw-bold mt-3">Đặt sân nhanh, tìm đúng người, chia tiền rõ ràng</h1>
-                    <p class="lead text-secondary mt-3">Một nơi để người chơi đặt sân bóng, tìm đối thủ hoặc ghép thêm thành viên và thanh toán minh bạch qua MoMo Sandbox.</p>
+                    <p class="lead text-secondary mt-3">Một nơi để người chơi kiểm tra lịch trống, đặt sân, tìm đối thủ hoặc ghép thêm thành viên và theo dõi chi phí rõ ràng.</p>
                     <div class="d-flex flex-column flex-sm-row gap-3 mt-4">
                         <a class="btn btn-primary btn-lg" href="{{ url_for('auth.register') }}">Tạo tài khoản</a>
                         <a class="btn btn-outline-primary btn-lg" href="{{ url_for('auth.login') }}">Tôi đã có tài khoản</a>
@@ -42,7 +45,7 @@
             <article class="feature-card h-100">
                 <span class="feature-number">01</span>
                 <h2 class="h5 fw-bold mt-3">Tìm sân phù hợp</h2>
-                <p class="text-secondary mb-3">Xem các cơ sở sân bóng đã được quản trị viên xác minh và công khai.</p>
+                <p class="text-secondary mb-3">Xem địa chỉ, giờ hoạt động, danh sách sân và các khung giá đang áp dụng.</p>
                 <a class="fw-semibold text-decoration-none" href="{{ url_for('venues.index') }}">Xem danh sách →</a>
             </article>
         </div>

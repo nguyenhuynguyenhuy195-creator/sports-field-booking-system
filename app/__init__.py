@@ -1,6 +1,6 @@
 import os
 
-from flask import Flask
+from flask import Flask, render_template
 
 from config import CONFIG_BY_NAME
 
@@ -22,6 +22,8 @@ def create_app(config_name: str | None = None) -> Flask:
     _register_blueprints(app)
     _register_commands(app)
     _register_template_filters(app)
+    _register_error_handlers(app)
+    _register_response_headers(app)
 
     return app
 
@@ -92,3 +94,22 @@ def _register_template_filters(app: Flask) -> None:
     from .template_filters import register_template_filters
 
     register_template_filters(app)
+
+
+def _register_error_handlers(app: Flask) -> None:
+    @app.errorhandler(403)
+    def forbidden(_error):
+        return render_template("errors/403.html"), 403
+
+    @app.errorhandler(404)
+    def not_found(_error):
+        return render_template("errors/404.html"), 404
+
+
+def _register_response_headers(app: Flask) -> None:
+    @app.after_request
+    def add_vietnamese_html_headers(response):
+        if response.mimetype == "text/html":
+            response.headers["Content-Type"] = "text/html; charset=utf-8"
+            response.headers["Content-Language"] = "vi"
+        return response

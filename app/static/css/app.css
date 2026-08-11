@@ -37,6 +37,77 @@ a:hover {
     min-height: 72px;
 }
 
+.app-navbar .navbar-brand {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.app-account-nav {
+    min-width: 0;
+}
+
+.app-account-toggle {
+    align-items: center;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 12px;
+    color: #ffffff !important;
+    display: flex;
+    gap: 0.65rem;
+    max-width: 230px;
+    min-height: 44px;
+    padding: 0.45rem 0.75rem !important;
+}
+
+.app-account-toggle:hover,
+.app-account-toggle:focus,
+.app-account-toggle[aria-expanded="true"] {
+    background: rgba(255, 255, 255, 0.16);
+    border-color: rgba(255, 255, 255, 0.55);
+}
+
+.app-account-avatar {
+    align-items: center;
+    background: #ffffff;
+    border-radius: 50%;
+    color: var(--app-primary-dark);
+    display: inline-flex;
+    flex: 0 0 30px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    height: 30px;
+    justify-content: center;
+}
+
+.app-account-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.app-account-menu {
+    border: 1px solid var(--app-border);
+    border-radius: 12px;
+    box-shadow: 0 18px 45px rgba(15, 39, 71, 0.16);
+    min-width: 250px;
+    padding: 0.5rem;
+}
+
+.app-account-menu .dropdown-header {
+    color: #66788e;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    margin: 0;
+    text-transform: uppercase;
+}
+
+.app-account-menu .dropdown-item {
+    border-radius: 8px;
+    min-height: 42px;
+    padding: 0.65rem 0.75rem;
+}
+
 .flash-container {
     padding-top: 1rem;
 }
@@ -173,6 +244,36 @@ a:hover {
 
 .empty-state-icon {
     font-size: 2.5rem;
+    margin-bottom: 1rem;
+}
+
+.error-section {
+    align-items: center;
+    background: linear-gradient(180deg, #eef7f2 0%, var(--app-background) 100%);
+    display: flex;
+    min-height: calc(100vh - 150px);
+}
+
+.error-card {
+    background: #ffffff;
+    border: 1px solid var(--app-border);
+    border-radius: 20px;
+    box-shadow: 0 18px 50px rgba(15, 39, 71, 0.1);
+    max-width: 680px;
+    padding: 2.5rem;
+}
+
+.error-code {
+    color: var(--app-primary);
+    display: block;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    margin-bottom: 0.75rem;
+}
+
+.error-icon {
+    font-size: 3rem;
     margin-bottom: 1rem;
 }
 
@@ -1552,6 +1653,44 @@ a:hover {
     }
 }
 
+@media (max-width: 1199.98px) {
+    .app-navbar .navbar-collapse {
+        border-top: 1px solid rgba(255, 255, 255, 0.14);
+        margin-top: 0.8rem;
+        padding-bottom: 1rem;
+        padding-top: 0.8rem;
+    }
+
+    .app-navbar .nav-link {
+        padding-bottom: 0.65rem;
+        padding-top: 0.65rem;
+    }
+
+    .app-account-nav {
+        border-top: 1px solid rgba(255, 255, 255, 0.14);
+        margin-top: 0.35rem;
+        padding-top: 0.8rem;
+    }
+
+    .app-account-toggle {
+        justify-content: flex-start;
+        max-width: none;
+        width: 100%;
+    }
+
+    .app-account-menu {
+        box-shadow: none;
+        margin-top: 0.5rem;
+        position: static !important;
+        transform: none !important;
+        width: 100%;
+    }
+
+    .app-navbar-actions {
+        width: 100%;
+    }
+}
+
 @media (max-width: 767.98px) {
     .booking-stepper strong {
         display: none;
@@ -1627,5 +1766,10 @@ a:hover {
     .py-lg-6 {
         padding-bottom: 3rem;
         padding-top: 3rem;
+    }
+
+    .error-card {
+        border-radius: 14px;
+        padding: 1.5rem;
     }
 }
