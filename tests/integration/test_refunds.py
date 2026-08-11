@@ -266,6 +266,9 @@ def test_creator_cancel_route_renders_refund_history(app, client):
 
     page = response.get_data(as_text=True)
     assert response.status_code == 200
+    assert "Lịch sử thanh toán" in page
     assert "Lịch sử hoàn tiền" in page
     assert "160.000" in page
     assert "Phí giữ sân" in page
+    assert "Còn thiếu:" not in page
+    assert "Booking đã được hủy" in page

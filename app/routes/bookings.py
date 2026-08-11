@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+from decimal import Decimal
 
 from flask import (
     Blueprint,
@@ -314,6 +315,7 @@ def detail(booking_code: str):
         payment_status_labels=PAYMENT_STATUS_LABELS,
         payment_provider_labels=PAYMENT_PROVIDER_LABELS,
         refund_status_labels=REFUND_STATUS_LABELS,
+        successful_refund_total=_successful_refund_total(booking),
         payment_form=BookingActionForm(prefix="payment"),
         top_up_form=BookingActionForm(prefix="top-up"),
         cancel_form=BookingActionForm(),
@@ -372,6 +374,7 @@ def owner_detail(booking_code: str):
         payment_status_labels=PAYMENT_STATUS_LABELS,
         payment_provider_labels=PAYMENT_PROVIDER_LABELS,
         refund_status_labels=REFUND_STATUS_LABELS,
+        successful_refund_total=_successful_refund_total(booking),
         owner_cancel_form=BookingReasonForm(prefix="owner-cancel"),
         owner_view=True,
     )
@@ -423,6 +426,17 @@ def _effective_statuses(bookings):
         booking.id: get_effective_booking_status(booking, now=now)
         for booking in bookings
     }
+
+
+def _successful_refund_total(booking) -> Decimal:
+    return sum(
+        (
+            Decimal(refund.amount)
+            for refund in booking.refunds
+            if refund.status == RefundStatus.SUCCESS.value
+        ),
+        Decimal("0.00"),
+    )
 
 
 def _first_form_error(form) -> str:
