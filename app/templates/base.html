@@ -13,7 +13,7 @@
     {% block head %}{% endblock %}
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark app-navbar">
+    <nav class="navbar navbar-expand-xl navbar-dark app-navbar">
         <div class="container">
             <a class="navbar-brand fw-bold" href="{{ url_for('main.home') }}">
                 Sân Bóng Online
@@ -22,7 +22,7 @@
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="mainNavbar">
-                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                <ul class="navbar-nav me-xl-auto mb-2 mb-xl-0">
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('main.home') }}">Trang chủ</a>
                     </li>
@@ -36,39 +36,46 @@
                         <li class="nav-item">
                             <a class="nav-link" href="{{ url_for('bookings.index') }}">Lịch đặt của tôi</a>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('owner_applications.mine') }}">Yêu cầu chủ sân</a>
-                        </li>
-                    {% endif %}
-                    {% if current_user.is_authenticated and current_user.is_owner %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('bookings.owner_index') }}">Quản lý booking</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('venues.owner_index') }}">Cơ sở của tôi</a>
-                        </li>
-                    {% endif %}
-                    {% if current_user.is_authenticated and current_user.is_admin %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('admin.owner_applications') }}">Duyệt chủ sân</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('venues.admin_index') }}">Duyệt cơ sở</a>
-                        </li>
                     {% endif %}
                 </ul>
-                <div class="d-flex flex-column flex-lg-row gap-2 align-items-lg-center">
-                    {% if current_user.is_authenticated %}
-                        <span class="navbar-text me-lg-2">Xin chào, {{ current_user.full_name }}</span>
-                        <form method="post" action="{{ url_for('auth.logout') }}">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button class="btn btn-outline-light" type="submit">Đăng xuất</button>
-                        </form>
-                    {% else %}
+                {% if current_user.is_authenticated %}
+                    <ul class="navbar-nav ms-xl-auto app-account-nav">
+                        <li class="nav-item dropdown">
+                            <button class="nav-link dropdown-toggle app-account-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Mở menu tài khoản">
+                                <span class="app-account-avatar" aria-hidden="true">{{ current_user.full_name[:1]|upper }}</span>
+                                <span class="app-account-name">{{ current_user.full_name }}</span>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end app-account-menu">
+                                <li><h2 class="dropdown-header">Tài khoản</h2></li>
+                                {% if current_user.role == 'USER' %}
+                                    <li><a class="dropdown-item" href="{{ url_for('owner_applications.mine') }}">Yêu cầu trở thành chủ sân</a></li>
+                                {% endif %}
+                                {% if current_user.is_owner %}
+                                    <li><h2 class="dropdown-header">Quản lý chủ sân</h2></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('bookings.owner_index') }}">Quản lý lịch đặt</a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('venues.owner_index') }}">Quản lý cơ sở</a></li>
+                                {% endif %}
+                                {% if current_user.is_admin %}
+                                    <li><h2 class="dropdown-header">Quản trị hệ thống</h2></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('admin.owner_applications') }}">Duyệt yêu cầu chủ sân</a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('venues.admin_index') }}">Duyệt cơ sở</a></li>
+                                {% endif %}
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <form class="m-0" method="post" action="{{ url_for('auth.logout') }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button class="dropdown-item text-danger" type="submit">Đăng xuất</button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                {% else %}
+                    <div class="d-flex flex-column flex-xl-row gap-2 align-items-xl-center app-navbar-actions">
                         <a class="btn btn-outline-light" href="{{ url_for('auth.login') }}">Đăng nhập</a>
                         <a class="btn btn-light text-success fw-semibold" href="{{ url_for('auth.register') }}">Đăng ký</a>
-                    {% endif %}
-                </div>
+                    </div>
+                {% endif %}
             </div>
         </div>
     </nav>
@@ -89,8 +96,8 @@
 
     <footer class="app-footer py-4 mt-auto">
         <div class="container d-flex flex-column flex-md-row justify-content-between gap-2">
-            <span>Sports Field Booking System</span>
-            <span>Flask · SQL Server · MoMo Sandbox</span>
+            <span class="fw-semibold">Sân Bóng Online</span>
+            <span>Đặt sân, tìm kèo và chia tiền rõ ràng.</span>
         </div>
     </footer>
 

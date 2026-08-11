@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}Không tìm thấy trang · Sports Field Booking{% endblock %}
+
+{% block content %}
+<section class="error-section py-5">
+    <div class="container">
+        <div class="error-card text-center mx-auto">
+            <span class="error-code" aria-hidden="true">404</span>
+            <div class="error-icon" aria-hidden="true">⚽</div>
+            <h1 class="h2 fw-bold">Không tìm thấy trang bạn cần</h1>
+            <p class="text-secondary mb-4">Đường dẫn có thể đã thay đổi hoặc nội dung không còn tồn tại. Hãy quay lại trang chủ hoặc tìm một sân khác.</p>
+            <div class="d-flex flex-column flex-sm-row justify-content-center gap-3">
+                <a class="btn btn-primary" href="{{ url_for('main.home') }}">Về trang chủ</a>
+                <a class="btn btn-outline-primary" href="{{ url_for('venues.index') }}">Tìm sân</a>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

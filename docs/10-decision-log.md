@@ -136,3 +136,11 @@ AI lọc spam, phân tích cảm xúc, recommendation, chat thời gian thực, 
 - Nếu hết 15 phút, yêu cầu thành `EXPIRED`, tài khoản được tháo khỏi contribution chưa trả và vị trí được mở lại; CLI `matches expire` xử lý idempotent.
 - Nếu creator top-up đủ tiền, participant đang được duyệt và participant được duyệt sau đó vào kèo không cần trả thêm; contribution gốc giữ `WAIVED` để đối soát.
 - Rút yêu cầu chưa thanh toán thuộc module này; rút sau khi đã thanh toán phải đi qua module refund để không thay đổi lịch sử tiền sai quy trình.
+
+## ADR-020: Mở lại vị trí sau refund
+
+**Ngày quyết định:** 11/08/2026
+
+- Khi người tham gia đã thanh toán rút trước trận trên 12 giờ, contribution cũ chuyển `REFUNDED` và tiếp tục gắn với payment/refund lịch sử.
+- Hệ thống tạo contribution mới cùng `slot_number` cho người thay thế; không tái sử dụng nghĩa vụ đã có payment `SUCCESS`.
+- Filtered unique index chỉ cho phép một nghĩa vụ chưa hoàn hết trên mỗi vị trí, đồng thời cho phép lưu nhiều contribution `REFUNDED` theo thời gian.

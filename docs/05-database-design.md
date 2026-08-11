@@ -225,7 +225,7 @@ Status: `PENDING`, `PAID`, `EXPIRED`, `WAIVED`, `REFUND_PENDING`, `PARTIALLY_REF
 
 Tổng `amount_due` của các contribution còn hiệu lực phải đúng bằng `total_amount`; service phải khóa booking khi phân bổ hoặc cập nhật nghĩa vụ.
 
-`user_id` để `NULL` cho vị trí đối thủ/người ghép chưa được nhận; module matchmaking sẽ gắn user sau khi chấp nhận yêu cầu. `slot_number` là `NULL` với `CREATOR`/`TOP_UP`, nhưng bắt buộc là số dương với `OPPONENT`/`PLAYER`. Filtered unique index `(booking_id, contribution_type, slot_number) WHERE slot_number IS NOT NULL` ngăn tạo trùng vị trí.
+`user_id` để `NULL` cho vị trí đối thủ/người ghép chưa được nhận; module matchmaking sẽ gắn user sau khi chấp nhận yêu cầu. `slot_number` là `NULL` với `CREATOR`/`TOP_UP`, nhưng bắt buộc là số dương với `OPPONENT`/`PLAYER`. Filtered unique index `(booking_id, contribution_type, slot_number) WHERE slot_number IS NOT NULL AND status <> 'REFUNDED'` ngăn tạo trùng nghĩa vụ còn hiệu lực. Khi người đã thanh toán được hoàn 100% và rút khỏi kèo, contribution cũ giữ lịch sử ở `REFUNDED`; hệ thống tạo contribution mới cùng vị trí cho người thay thế.
 
 `amount_paid` không được vượt `amount_due`. Khi người tạo top-up, nghĩa vụ chưa trả được chuyển `WAIVED` và giữ nguyên `amount_due` để bảo toàn lịch sử; chỉ các nghĩa vụ còn hiệu lực mới dùng khi tính số tiền cần thu.
 

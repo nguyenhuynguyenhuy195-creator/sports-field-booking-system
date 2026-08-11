@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}Không có quyền truy cập · Sports Field Booking{% endblock %}
+
+{% block content %}
+<section class="error-section py-5">
+    <div class="container">
+        <div class="error-card text-center mx-auto">
+            <span class="error-code" aria-hidden="true">403</span>
+            <div class="error-icon" aria-hidden="true">🔒</div>
+            <h1 class="h2 fw-bold">Bạn không có quyền truy cập trang này</h1>
+            <p class="text-secondary mb-4">Tài khoản hiện tại không được phép sử dụng chức năng này. Bạn có thể quay lại trang chủ hoặc tiếp tục với các chức năng dành cho mình.</p>
+            <div class="d-flex flex-column flex-sm-row justify-content-center gap-3">
+                <a class="btn btn-primary" href="{{ url_for('main.home') }}">Về trang chủ</a>
+                {% if current_user.is_authenticated and current_user.role in ['USER', 'OWNER'] %}
+                    <a class="btn btn-outline-primary" href="{{ url_for('bookings.index') }}">Xem lịch đặt của tôi</a>
+                {% else %}
+                    <a class="btn btn-outline-primary" href="{{ url_for('venues.index') }}">Xem danh sách sân</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

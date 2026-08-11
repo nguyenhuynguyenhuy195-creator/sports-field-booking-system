@@ -204,7 +204,9 @@ def test_mock_payment_route_updates_booking_and_renders_history(app, client):
     assert response.status_code == 200
     page = response.get_data(as_text=True)
     assert "Đã thanh toán đủ" in page
+    assert "Lịch sử thanh toán" in page
     assert "Lịch sử giao dịch" in page
+    assert "Chi tiết tính giá" in page
     with app.app_context():
         booking = db.session.scalar(db.select(Booking))
         assert booking.status == BookingStatus.PAID.value

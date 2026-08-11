@@ -16,17 +16,36 @@
             <p class="text-secondary mb-0">{{ booking.field.venue.name }}</p>
         </div>
         <div class="booking-total-panel">
-            <span>Tổng tiền đã chốt</span>
-            <strong>{{ booking.total_amount|vnd_currency }}</strong>
-            <small>Đã thu: {{ booking.paid_amount|vnd_currency }}</small>
-            <small>Còn thiếu: {{ booking.remaining_amount|vnd_currency }}</small>
+            {% if effective_status == 'CANCELLED' %}
+                <span>Đã hoàn cho người thanh toán</span>
+                <strong>{{ successful_refund_total|vnd_currency }}</strong>
+                <small>Tiền sân ban đầu: {{ booking.total_amount|vnd_currency }}</small>
+                {% if not booking.payments %}<small>Booking chưa phát sinh thanh toán.</small>{% endif %}
+                {% if booking.cancellation_fee_amount > 0 %}
+                    <small>Phí giữ sân: {{ booking.cancellation_fee_amount|vnd_currency }}</small>
+                {% endif %}
+            {% elif effective_status == 'REFUND_PENDING' %}
+                <span>Đang xử lý hoàn tiền</span>
+                <strong>{{ booking.paid_amount|vnd_currency }}</strong>
+                <small>Số tiền ròng đang ghi nhận</small>
+            {% else %}
+                <span>Tổng tiền sân</span>
+                <strong>{{ booking.total_amount|vnd_currency }}</strong>
+                <small>Đã thanh toán: {{ booking.paid_amount|vnd_currency }}</small>
+                <small>Còn lại: {{ booking.remaining_amount|vnd_currency }}</small>
+            {% endif %}
         </div>
     </div>
 
     <div class="row g-4 mt-1">
         <div class="col-lg-8">
             <div class="booking-detail-card mb-4">
-                <h2 class="h5 fw-bold">Thông tin lịch đặt</h2>
+                <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
+                    <div>
+                        <h2 class="h5 fw-bold mb-1">Chi tiết đặt sân</h2>
+                        <p class="small text-secondary mb-0">Thông tin quan trọng của lịch đã xác nhận.</p>
+                    </div>
+                </div>
                 <dl class="booking-detail-grid mb-0">
                     <div><dt>Ngày sử dụng</dt><dd>{{ booking.booking_date.strftime('%d/%m/%Y') }}</dd></div>
                     <div><dt>Khoảng giờ</dt><dd>{{ booking.start_time.strftime('%H:%M') }}–{{ booking.end_time.strftime('%H:%M') }}</dd></div>
@@ -40,99 +59,144 @@
                 </dl>
             </div>
 
-            <div class="booking-detail-card mb-4">
-                <h2 class="h5 fw-bold">Chi tiết giá tại thời điểm đặt</h2>
-                <div class="table-responsive">
-                    <table class="table align-middle mb-0">
-                        <thead><tr><th>Khoảng giờ</th><th>Thời lượng</th><th>Đơn giá</th><th class="text-end">Thành tiền</th></tr></thead>
-                        <tbody>
-                            {% for detail in booking.price_details %}
-                                <tr>
-                                    <td>{{ detail.start_time.strftime('%H:%M') }}–{{ detail.end_time.strftime('%H:%M') }}</td>
-                                    <td>{{ detail.duration_minutes }} phút</td>
-                                    <td>{{ detail.hourly_price|vnd_currency }}/giờ</td>
-                                    <td class="text-end fw-semibold">{{ detail.subtotal|vnd_currency }}</td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                        <tfoot><tr><th colspan="3">Tổng cộng</th><th class="text-end">{{ booking.total_amount|vnd_currency }}</th></tr></tfoot>
-                    </table>
-                </div>
-            </div>
-
-            <div class="booking-detail-card mb-4">
-                <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
-                    <div>
-                        <h2 class="h5 fw-bold mb-1">Phân bổ tiền sân</h2>
-                        <p class="small text-secondary mb-0">Mỗi dòng là một nghĩa vụ thanh toán độc lập.</p>
-                    </div>
-                    <span class="payment-progress-badge">
-                        {{ booking.paid_amount|vnd_currency }} / {{ booking.total_amount|vnd_currency }}
-                    </span>
-                </div>
-                <div class="table-responsive">
-                    <table class="table align-middle mb-0 contribution-table">
-                        <thead>
-                            <tr>
-                                <th>Người/nhóm trả</th>
-                                <th>Trạng thái</th>
-                                <th class="text-end">Phải trả</th>
-                                <th class="text-end">Đã trả</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for contribution in booking.contributions %}
-                                <tr class="{% if contribution.status == 'WAIVED' %}text-secondary{% endif %}">
-                                    <td>
-                                        <strong>{{ contribution_type_labels[contribution.contribution_type] }}</strong>
-                                        {% if contribution.slot_number %}<small class="d-block">Vị trí {{ contribution.slot_number }}</small>{% endif %}
-                                        <small class="d-block text-secondary">
-                                            {{ contribution.user.full_name if contribution.user else 'Chưa có tài khoản nhận phần' }}
-                                        </small>
-                                    </td>
-                                    <td>
-                                        <span class="contribution-status contribution-status-{{ contribution.status|lower|replace('_', '-') }}">
-                                            {{ contribution_status_labels[contribution.status] }}
-                                        </span>
-                                    </td>
-                                    <td class="text-end fw-semibold">{{ contribution.amount_due|vnd_currency }}</td>
-                                    <td class="text-end">{{ contribution.amount_paid|vnd_currency }}</td>
-                                </tr>
-                            {% else %}
-                                <tr><td colspan="4" class="text-center text-secondary py-4">Booking cũ chưa có dữ liệu phân bổ.</td></tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            {% if booking.payments %}
-                <div class="booking-detail-card">
-                    <h2 class="h5 fw-bold mb-3">Lịch sử giao dịch</h2>
-                    <div class="table-responsive">
+            <div class="booking-disclosure-stack">
+                <details class="booking-disclosure">
+                    <summary>
+                        <span>
+                            <strong>Chi tiết tính giá</strong>
+                            <small>{{ booking.price_details|length }} khung giá · Tổng {{ booking.total_amount|vnd_currency }}</small>
+                        </span>
+                        <span class="booking-disclosure-icon" aria-hidden="true">+</span>
+                    </summary>
+                    <div class="booking-disclosure-body table-responsive">
                         <table class="table align-middle mb-0">
-                            <thead><tr><th>Thời điểm</th><th>Kênh</th><th>Trạng thái</th><th class="text-end">Số tiền</th></tr></thead>
+                            <thead><tr><th>Khoảng giờ</th><th>Thời lượng</th><th>Đơn giá</th><th class="text-end">Thành tiền</th></tr></thead>
                             <tbody>
-                                {% for payment in booking.payments %}
+                                {% for detail in booking.price_details %}
                                     <tr>
-                                        <td>{{ payment.created_at|local_datetime }}</td>
-                                        <td>{{ payment_provider_labels[payment.provider] }}</td>
-                                        <td>{{ payment_status_labels[payment.status] }}</td>
-                                        <td class="text-end fw-semibold">{{ payment.amount|vnd_currency }}</td>
+                                        <td>{{ detail.start_time.strftime('%H:%M') }}–{{ detail.end_time.strftime('%H:%M') }}</td>
+                                        <td>{{ detail.duration_minutes }} phút</td>
+                                        <td>{{ detail.hourly_price|vnd_currency }}/giờ</td>
+                                        <td class="text-end fw-semibold">{{ detail.subtotal|vnd_currency }}</td>
                                     </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot><tr><th colspan="3">Tổng cộng</th><th class="text-end">{{ booking.total_amount|vnd_currency }}</th></tr></tfoot>
+                        </table>
+                    </div>
+                </details>
+
+                <details class="booking-disclosure">
+                    <summary>
+                        <span>
+                            <strong>Phân chia tiền sân</strong>
+                            <small>{{ booking.contributions|length }} khoản đóng góp · Mở để xem đối soát</small>
+                        </span>
+                        <span class="booking-disclosure-icon" aria-hidden="true">+</span>
+                    </summary>
+                    <div class="booking-disclosure-body table-responsive">
+                        <table class="table align-middle mb-0 contribution-table">
+                            <thead>
+                                <tr>
+                                    <th>Người/nhóm trả</th>
+                                    <th>Trạng thái</th>
+                                    <th class="text-end">Phải trả</th>
+                                    <th class="text-end">Đã ghi nhận</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for contribution in booking.contributions %}
+                                    <tr class="{% if contribution.status == 'WAIVED' %}text-secondary{% endif %}">
+                                        <td>
+                                            <strong>{{ contribution_type_labels[contribution.contribution_type] }}</strong>
+                                            {% if contribution.slot_number %}<small class="d-block">Vị trí {{ contribution.slot_number }}</small>{% endif %}
+                                            <small class="d-block text-secondary">
+                                                {{ contribution.user.full_name if contribution.user else 'Chưa có tài khoản nhận phần' }}
+                                            </small>
+                                        </td>
+                                        <td>
+                                            <span class="contribution-status contribution-status-{{ contribution.status|lower|replace('_', '-') }}">
+                                                {{ contribution_status_labels[contribution.status] }}
+                                            </span>
+                                        </td>
+                                        <td class="text-end fw-semibold">{{ contribution.amount_due|vnd_currency }}</td>
+                                        <td class="text-end">{{ contribution.amount_paid|vnd_currency }}</td>
+                                    </tr>
+                                {% else %}
+                                    <tr><td colspan="4" class="text-center text-secondary py-4">Booking cũ chưa có dữ liệu phân chia.</td></tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
-                </div>
-            {% endif %}
+                </details>
+
+                {% if booking.payments or booking.refunds %}
+                    <details class="booking-disclosure">
+                        <summary>
+                            <span>
+                                <strong>Lịch sử thanh toán</strong>
+                                <small>{{ booking.payments|length }} thanh toán · {{ booking.refunds|length }} hoàn tiền</small>
+                            </span>
+                            <span class="booking-disclosure-icon" aria-hidden="true">+</span>
+                        </summary>
+                        <div class="booking-disclosure-body">
+                            {% if booking.payments %}
+                                <h3 class="h6 fw-bold mb-3">Lịch sử giao dịch</h3>
+                                <div class="table-responsive mb-4">
+                                    <table class="table align-middle mb-0">
+                                        <thead><tr><th>Thời điểm</th><th>Kênh</th><th>Trạng thái</th><th class="text-end">Số tiền</th></tr></thead>
+                                        <tbody>
+                                            {% for payment in booking.payments %}
+                                                <tr>
+                                                    <td>{{ payment.created_at|local_datetime }}</td>
+                                                    <td>{{ payment_provider_labels[payment.provider] }}</td>
+                                                    <td>{{ payment_status_labels[payment.status] }}</td>
+                                                    <td class="text-end fw-semibold">{{ payment.amount|vnd_currency }}</td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% endif %}
+
+                            {% if booking.refunds %}
+                                <div class="d-flex flex-wrap justify-content-between gap-2 mb-3">
+                                    <div>
+                                        <h3 class="h6 fw-bold mb-1">Lịch sử hoàn tiền</h3>
+                                        <p class="small text-secondary mb-0">Provider MOCK không chuyển tiền thật.</p>
+                                    </div>
+                                    <span class="payment-progress-badge">{{ booking.refunds|length }} giao dịch</span>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table align-middle mb-0">
+                                        <thead><tr><th>Người nhận</th><th>Lý do</th><th>Trạng thái</th><th class="text-end">Số tiền</th></tr></thead>
+                                        <tbody>
+                                            {% for refund in booking.refunds %}
+                                                <tr>
+                                                    <td>
+                                                        <strong>{{ refund.recipient.full_name }}</strong>
+                                                        <small class="d-block text-secondary">{{ refund.refunded_at|local_datetime }}</small>
+                                                    </td>
+                                                    <td class="small">{{ refund.reason }}</td>
+                                                    <td>{{ refund_status_labels[refund.status] }}</td>
+                                                    <td class="text-end fw-semibold">{{ refund.amount|vnd_currency }}</td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </details>
+                {% endif %}
+            </div>
         </div>
 
         <div class="col-lg-4">
             <aside class="booking-detail-card booking-action-card">
-                <h2 class="h5 fw-bold">Trạng thái xử lý</h2>
+                <h2 class="h5 fw-bold">Trạng thái và thao tác</h2>
                 {% if not owner_view and current_user.id == booking.user_id %}
-                    {% if booking.match %}
+                    {% if booking.match and booking.match.status != 'CANCELLED' and effective_status in ['PARTIALLY_PAID', 'PAID'] %}
                         <div class="match-booking-cta mb-3">
                             <span>Kèo gắn với booking</span>
                             <strong>{{ booking.match.title }}</strong>
@@ -195,27 +259,61 @@
                         <strong>Đã thanh toán đủ.</strong><br>
                         Booking được giữ chắc chắn cho khung giờ đã chọn.
                     </div>
+                {% elif effective_status == 'REFUND_PENDING' %}
+                    <div class="alert alert-warning mb-0">
+                        <strong>Đang xử lý hoàn tiền.</strong><br>
+                        Lịch sân vẫn được giữ cho đến khi mọi khoản hoàn bắt buộc thành công.
+                    </div>
+                {% elif effective_status == 'CANCELLED' %}
+                    <div class="booking-final-status booking-final-status-cancelled">
+                        <strong>Booking đã được hủy.</strong>
+                        {% if booking.refunds %}
+                            <span>Hoàn tiền đã được ghi nhận trong lịch sử thanh toán.</span>
+                        {% else %}
+                            <span>Booking chưa thu tiền nên không phát sinh hoàn tiền.</span>
+                        {% endif %}
+                    </div>
+                {% elif effective_status == 'EXPIRED' %}
+                    <div class="booking-final-status">
+                        <strong>Booking đã hết hạn.</strong>
+                        <span>Khoảng giờ không còn được giữ cho booking này.</span>
+                    </div>
+                {% elif effective_status == 'COMPLETED' %}
+                    <div class="booking-final-status booking-final-status-completed">
+                        <strong>Booking đã hoàn thành.</strong>
+                        <span>Lịch sử thanh toán vẫn được lưu để đối soát.</span>
+                    </div>
                 {% endif %}
 
                 {% if booking.cancellation_reason %}
-                    <div class="alert alert-warning"><strong>Lý do hủy:</strong><br>{{ booking.cancellation_reason }}</div>
+                    <div class="booking-cancellation-note">
+                        <span>Lý do hủy</span>
+                        <strong>{{ booking.cancellation_reason }}</strong>
+                    </div>
                 {% endif %}
 
-                {% if owner_view and effective_status == 'CONFIRMED' and booking.paid_amount == 0 %}
+                {% if owner_view and effective_status in ['CONFIRMED', 'PARTIALLY_PAID', 'PAID'] %}
                     <form method="post" action="{{ url_for('bookings.owner_cancel', booking_code=booking.booking_code) }}">
                         {{ owner_cancel_form.hidden_tag() }}
                         {{ owner_cancel_form.reason.label(class="form-label") }}
                         {{ owner_cancel_form.reason(class="form-control", rows="3", placeholder="Nêu sự cố buộc phải hủy") }}
                         <button class="btn btn-outline-danger w-100 mt-3" type="submit">Hủy booking</button>
                     </form>
+                    {% if booking.paid_amount > 0 %}
+                        <p class="small text-secondary mt-2 mb-0">Hệ thống sẽ hoàn 100% mọi khoản đã thu rồi mới giải phóng lịch sân.</p>
+                    {% endif %}
                 {% elif not owner_view and effective_status in ['PENDING', 'CONFIRMED'] %}
                     <form method="post" action="{{ url_for('bookings.cancel', booking_code=booking.booking_code) }}">
                         {{ cancel_form.hidden_tag() }}
                         <button class="btn btn-outline-danger w-100" type="submit">Hủy booking</button>
                     </form>
                     <p class="small text-secondary mt-2 mb-0">Chỉ hủy được trước giờ bắt đầu ít nhất 2 giờ.</p>
-                {% elif effective_status not in ['PARTIALLY_PAID', 'PAID'] %}
-                    <p class="text-secondary mb-0">Booking này hiện không còn thao tác phù hợp.</p>
+                {% elif not owner_view and effective_status == 'PARTIALLY_PAID' %}
+                    <form method="post" action="{{ url_for('bookings.cancel', booking_code=booking.booking_code) }}">
+                        {{ cancel_form.hidden_tag() }}
+                        <button class="btn btn-outline-danger w-100" type="submit">Hủy và yêu cầu hoàn tiền</button>
+                    </form>
+                    <p class="small text-secondary mt-2 mb-0">Bạn được hoàn 80% phần đã đóng; 20% được giữ làm phí giữ sân. Người tham gia khác được hoàn 100%.</p>
                 {% endif %}
             </aside>
         </div>

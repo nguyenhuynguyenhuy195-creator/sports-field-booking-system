@@ -98,6 +98,10 @@ def test_login_and_logout_complete_session_flow(app, client):
     home_response = client.get("/")
     assert "Nguyễn Văn A" in home_response.get_data(as_text=True)
     assert "Đăng xuất" in home_response.get_data(as_text=True)
+    assert "Mở menu tài khoản" in home_response.get_data(as_text=True)
+    assert "Yêu cầu trở thành chủ sân" in home_response.get_data(as_text=True)
+    assert home_response.content_type == "text/html; charset=utf-8"
+    assert home_response.headers["Content-Language"] == "vi"
 
     logout_response = client.post("/auth/logout")
     assert logout_response.status_code == 302
@@ -172,4 +176,35 @@ def test_roles_required_rejects_user_without_permission(app: Flask, client):
         )
 
     assert login(client).status_code == 302
-    assert client.get("/owner-only").status_code == 403
+    response = client.get("/owner-only")
+
+    assert response.status_code == 403
+    assert "Bạn không có quyền truy cập trang này" in response.get_data(as_text=True)
+    assert response.content_type == "text/html; charset=utf-8"
+
+
+def test_unicode_account_name_is_preserved_in_rendered_html(app, client):
+    with app.app_context():
+        register_user(
+            full_name="Tài khoản kiểm thử Refund",
+            email="refund@example.com",
+            phone=None,
+            password=DEFAULT_PASSWORD,
+        )
+
+    assert login(client, email="refund@example.com").status_code == 302
+
+    response = client.get("/")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "Tài khoản kiểm thử Refund" in html
+    assert "T?i kho?n ki?m th? Refund" not in html
+
+
+def test_unknown_route_uses_friendly_vietnamese_404_page(client):
+    response = client.get("/duong-dan-khong-ton-tai")
+
+    assert response.status_code == 404
+    assert "Không tìm thấy trang bạn cần" in response.get_data(as_text=True)
+    assert response.headers["Content-Language"] == "vi"

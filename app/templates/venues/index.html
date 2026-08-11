@@ -5,9 +5,9 @@
 {% block content %}
 <section class="venue-hero py-5">
     <div class="container">
-        <span class="eyebrow">CƠ SỞ ĐÃ ĐƯỢC DUYỆT</span>
+        <span class="eyebrow">DANH SÁCH SÂN BÓNG</span>
         <h1 class="display-6 fw-bold mt-2 mb-2">Tìm cơ sở sân bóng phù hợp</h1>
-        <p class="text-secondary mb-0">Danh sách này chỉ hiển thị các cơ sở đang hoạt động và đã được quản trị viên duyệt.</p>
+        <p class="text-secondary mb-0">Xem địa chỉ, giờ hoạt động và chọn sân phù hợp với lịch chơi của bạn.</p>
     </div>
 </section>
 
@@ -22,7 +22,6 @@
                             <p class="small text-uppercase text-success fw-bold mb-2">{{ venue.city }}</p>
                             <h2 class="h5 fw-bold mb-2">{{ venue.name }}</h2>
                         </div>
-                        <span class="status-badge status-active">Hoạt động</span>
                     </div>
                     <p class="text-secondary mb-2">{{ venue.address }}{% if venue.district %}, {{ venue.district }}{% endif %}</p>
                     <p class="mb-4"><strong>Giờ mở cửa:</strong> {{ venue.opening_time.strftime('%H:%M') }}–{{ venue.closing_time.strftime('%H:%M') }}</p>
@@ -34,7 +33,7 @@
         <div class="empty-state text-center">
             <div class="empty-state-icon" aria-hidden="true">🏟️</div>
             <h2 class="h5 fw-bold">Chưa có cơ sở đang hoạt động</h2>
-            <p class="text-secondary mb-0">Các cơ sở sẽ xuất hiện sau khi được quản trị viên xét duyệt.</p>
+            <p class="text-secondary mb-0">Hiện chưa có sân phù hợp. Vui lòng quay lại sau.</p>
         </div>
     {% endif %}
 </section>

@@ -292,7 +292,7 @@ def withdraw_match_request(
     user: User,
     now: datetime | None = None,
 ) -> MatchParticipant:
-    """Withdraw an unpaid request; paid withdrawals wait for the refund module."""
+    """Withdraw a request and apply the paid-participant refund policy."""
     _validate_actor(user)
     current_utc = _normalize_utc(now)
     match = _lock_match(match_id)
@@ -317,11 +317,42 @@ def withdraw_match_request(
     if participant is None:
         raise MatchNotFoundError("Bạn không có yêu cầu đang hoạt động trong kèo này.")
     if participant.status == MatchParticipantStatus.JOINED.value:
-        raise InvalidMatchStateError(
-            "Yêu cầu đã thanh toán cần đi qua quy trình hoàn tiền trước khi rút."
-        )
+        if _booking_has_ended(match.booking, current_utc=current_utc):
+            raise InvalidMatchStateError("Kèo đã kết thúc nên không thể báo rút.")
+        contribution = participant.contribution
+        if participant_withdrawal_gets_refund(
+            match.booking,
+            now=current_utc,
+        ):
+            if (
+                contribution is not None
+                and contribution.status == ContributionStatus.PAID.value
+                and Decimal(contribution.amount_paid) > 0
+            ):
+                from .refund import RefundError, refund_joined_participant
 
-    _release_unpaid_contribution(participant)
+                try:
+                    refund_joined_participant(
+                        booking=match.booking,
+                        contribution=contribution,
+                        participant_id=participant.id,
+                        now=current_utc,
+                    )
+                except RefundError as exc:
+                    raise InvalidMatchStateError(str(exc)) from exc
+            elif (
+                contribution is not None
+                and contribution.status == ContributionStatus.WAIVED.value
+            ):
+                contribution.user_id = None
+                contribution.expires_at = match.booking.funding_deadline
+        elif (
+            contribution is not None
+            and contribution.status == ContributionStatus.PAID.value
+        ):
+            contribution.status = ContributionStatus.FORFEITED.value
+    else:
+        _release_unpaid_contribution(participant)
     participant.status = MatchParticipantStatus.WITHDRAWN.value
     participant.decided_at = current_utc
     participant.payment_due_at = None
@@ -329,6 +360,16 @@ def withdraw_match_request(
         match.status = MatchStatus.OPEN.value
     _commit_matchmaking("Không thể rút yêu cầu lúc này.")
     return participant
+
+
+def participant_withdrawal_gets_refund(
+    booking: Booking,
+    *,
+    now: datetime | None = None,
+) -> bool:
+    """Return whether a joined participant is still outside the 12-hour cutoff."""
+    current_utc = _normalize_utc(now)
+    return _booking_start_utc(booking) - current_utc > timedelta(hours=12)
 
 
 def expire_stale_match_participants(
@@ -682,6 +723,11 @@ def _booking_has_ended(booking: Booking, *, current_utc: datetime) -> bool:
     )
     end_at = datetime.combine(booking.booking_date, booking.end_time)
     return end_at <= local_now.replace(tzinfo=None)
+
+
+def _booking_start_utc(booking: Booking) -> datetime:
+    local_start = datetime.combine(booking.booking_date, booking.start_time)
+    return local_start - timedelta(hours=7)
 
 
 def _normalize_utc(value: datetime | None) -> datetime:

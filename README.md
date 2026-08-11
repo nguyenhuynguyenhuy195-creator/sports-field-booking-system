@@ -24,7 +24,7 @@ Ba hình thức thanh toán:
 - `SPLIT_OPPONENT`: hai đội chia 50/50.
 - `SPLIT_PLAYERS`: chia theo đầu người.
 
-Đích MVP dùng MoMo Sandbox và hỗ trợ hoàn tiền; MoMo Production không thuộc phạm vi đồ án ngành. Hiện repository đã có nền tảng phân bổ nghĩa vụ, module tìm kèo/ghép người và provider `MOCK` để kiểm thử cập nhật tiền/trạng thái mà không trừ tiền thật. Kết nối HMAC, redirect và IPN MoMo Sandbox là bước tích hợp tiếp theo.
+Đích MVP dùng MoMo Sandbox và hỗ trợ hoàn tiền; MoMo Production không thuộc phạm vi đồ án ngành. Hiện repository đã có nền tảng phân bổ nghĩa vụ, module tìm kèo/ghép người, cùng provider `MOCK` cho cả thanh toán và hoàn tiền để kiểm thử chính sách 100%, 80/20 và rút khỏi kèo mà không chuyển tiền thật. Kết nối HMAC, redirect, IPN và Refund API MoMo Sandbox là bước tích hợp tiếp theo.
 
 ## 3. Công nghệ
 
@@ -141,6 +141,10 @@ GET http://127.0.0.1:5000/venues
 - Người được chấp nhận giữ đúng một vị trí thanh toán trong 15 phút; quá hạn thì yêu cầu `EXPIRED` và vị trí được mở lại an toàn.
 - Thanh toán contribution của người tham gia tự chuyển yêu cầu sang `JOINED`; kèo đối thủ thành `CONFIRMED`, kèo tìm người chỉ thành `FULL` khi đủ số người đã tham gia.
 - Lệnh `flask matches expire` xử lý idempotent các yêu cầu đã được duyệt nhưng quá hạn thanh toán.
+- Chủ sân hủy booking đã thu tiền sẽ hoàn 100%; người tạo hủy booking chưa góp đủ hoặc quá funding deadline được hoàn 80%, giữ 20% làm phí giữ sân và hoàn 100% cho người tham gia.
+- Người tham gia đã thanh toán rút trước trận trên 12 giờ được hoàn 100% và mở lại vị trí; rút trong vòng 12 giờ không hoàn tiền nhưng vẫn mở vị trí thay thế mà không thu thêm khi booking đã đủ.
+- Payment gốc tiếp tục giữ `SUCCESS`; mỗi lần hoàn được lưu riêng trong `refunds`, cập nhật số tiền ròng của contribution/booking và hiển thị trên trang chi tiết.
+- Lệnh `flask refunds funding-expire` xử lý idempotent booking chia tiền không góp đủ trước hạn 12 giờ.
 
 Tạo tài khoản quản trị viên đầu tiên:
 
