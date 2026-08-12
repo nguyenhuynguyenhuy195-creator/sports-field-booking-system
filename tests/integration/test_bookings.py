@@ -707,6 +707,89 @@ def test_booking_routes_enforce_auth_and_ownership(app, client):
     assert client.post(f"/owner/bookings/{code}/reject").status_code == 404
 
 
+def test_owner_booking_index_groups_bookings_by_user_facing_state(app, client):
+    owner = create_user(app, email="owner@example.com", role=UserRole.OWNER)
+    player = create_user(app, email="player@example.com")
+    target_date = booking_day(7)
+    _, field_id = create_bookable_field(
+        app,
+        owner_id=owner.id,
+        target_date=target_date,
+    )
+
+    processing_code = create_booking_record(
+        app,
+        user_id=player.id,
+        field_id=field_id,
+        target_date=target_date,
+    )
+    upcoming_code = create_booking_record(
+        app,
+        user_id=player.id,
+        field_id=field_id,
+        target_date=booking_day(14),
+    )
+    completed_code = create_booking_record(
+        app,
+        user_id=player.id,
+        field_id=field_id,
+        target_date=booking_day(21),
+    )
+    cancelled_code = create_booking_record(
+        app,
+        user_id=player.id,
+        field_id=field_id,
+        target_date=booking_day(28),
+    )
+
+    with app.app_context():
+        upcoming = db.session.scalar(
+            db.select(Booking).where(Booking.booking_code == upcoming_code)
+        )
+        completed = db.session.scalar(
+            db.select(Booking).where(Booking.booking_code == completed_code)
+        )
+        cancelled = db.session.scalar(
+            db.select(Booking).where(Booking.booking_code == cancelled_code)
+        )
+        upcoming.status = BookingStatus.PAID.value
+        upcoming.paid_amount = upcoming.total_amount
+        completed.status = BookingStatus.COMPLETED.value
+        completed.paid_amount = completed.total_amount
+        cancelled.status = BookingStatus.CANCELLED.value
+        db.session.commit()
+
+    login(client, email=owner.email)
+    response = client.get("/owner/bookings")
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    expected_sections = [
+        ("upcoming", "Sắp diễn ra", upcoming_code),
+        ("processing", "Đang xử lý", processing_code),
+        ("completed", "Đã hoàn thành", completed_code),
+        ("closed", "Đã hủy hoặc hết hạn", cancelled_code),
+    ]
+    assert html.count('data-bs-toggle="pill"') == 4
+    panel_positions = [
+        html.index(f'id="owner-booking-panel-{key}"')
+        for key, _, _ in expected_sections
+    ]
+    assert panel_positions == sorted(panel_positions)
+    for index, (key, title, booking_code) in enumerate(expected_sections):
+        assert f'data-owner-booking-tab="{key}"' in html
+        assert title in html
+        panel_end = (
+            panel_positions[index + 1]
+            if index + 1 < len(panel_positions)
+            else len(html)
+        )
+        panel_html = html[panel_positions[index] : panel_end]
+        assert booking_code in panel_html
+    assert "Cơ sở booking" in html
+    assert "Người kiểm thử booking" in html
+
+
 def test_booking_index_groups_bookings_by_user_facing_state(app, client):
     owner = create_user(app, email="owner@example.com", role=UserRole.OWNER)
     player = create_user(app, email="player@example.com")

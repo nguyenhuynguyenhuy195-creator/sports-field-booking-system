@@ -310,7 +310,7 @@ def index():
     return render_template(
         "bookings/index.html",
         bookings=bookings,
-        booking_groups=_group_user_bookings(bookings),
+        booking_groups=_group_bookings_for_display(bookings),
         status_labels=BOOKING_STATUS_LABELS,
         payment_mode_labels=PAYMENT_MODE_LABELS,
     )
@@ -377,7 +377,7 @@ def owner_index():
     return render_template(
         "owner/bookings/index.html",
         bookings=bookings,
-        effective_statuses=_effective_statuses(bookings),
+        booking_groups=_group_bookings_for_display(bookings),
         status_labels=BOOKING_STATUS_LABELS,
         payment_mode_labels=PAYMENT_MODE_LABELS,
     )
@@ -452,7 +452,7 @@ def _effective_statuses(bookings, *, now: datetime | None = None):
     }
 
 
-def _group_user_bookings(bookings: list[Booking]) -> list[dict]:
+def _group_bookings_for_display(bookings: list[Booking]) -> list[dict]:
     now = current_vietnam_datetime()
     effective_statuses = _effective_statuses(bookings, now=now)
     grouped_entries = {group["key"]: [] for group in BOOKING_LIST_GROUPS}
