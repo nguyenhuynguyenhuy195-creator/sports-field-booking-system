@@ -86,6 +86,22 @@ def _create_match(
         return match.id
 
 
+def test_empty_match_list_guides_user_to_booking_flow(app, client):
+    player = create_user(app, email="player@example.com")
+    login(client, email=player.email)
+
+    response = client.get("/matches")
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "Chưa có kèo đang mở" in html
+    assert "Tìm sân để đặt" in html
+    assert 'href="/venues"' in html
+    assert "Xem kèo của tôi" in html
+    assert 'href="/matches/mine"' in html
+    assert "hoàn thành khoản thanh toán đầu tiên" not in html
+
+
 def test_opponent_request_payment_confirms_match_and_booking(app):
     owner = create_user(app, email="owner@example.com", role=UserRole.OWNER)
     creator = create_user(app, email="creator@example.com")

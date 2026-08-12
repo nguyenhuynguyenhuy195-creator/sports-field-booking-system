@@ -707,6 +707,132 @@ def test_booking_routes_enforce_auth_and_ownership(app, client):
     assert client.post(f"/owner/bookings/{code}/reject").status_code == 404
 
 
+def test_booking_index_groups_bookings_by_user_facing_state(app, client):
+    owner = create_user(app, email="owner@example.com", role=UserRole.OWNER)
+    player = create_user(app, email="player@example.com")
+    target_date = booking_day(7)
+    _, field_id = create_bookable_field(
+        app,
+        owner_id=owner.id,
+        target_date=target_date,
+    )
+
+    processing_code = create_booking_record(
+        app,
+        user_id=player.id,
+        field_id=field_id,
+        target_date=target_date,
+    )
+    upcoming_code = create_booking_record(
+        app,
+        user_id=player.id,
+        field_id=field_id,
+        target_date=booking_day(14),
+    )
+    completed_code = create_booking_record(
+        app,
+        user_id=player.id,
+        field_id=field_id,
+        target_date=booking_day(21),
+    )
+    cancelled_code = create_booking_record(
+        app,
+        user_id=player.id,
+        field_id=field_id,
+        target_date=booking_day(28),
+    )
+
+    with app.app_context():
+        upcoming = db.session.scalar(
+            db.select(Booking).where(Booking.booking_code == upcoming_code)
+        )
+        completed = db.session.scalar(
+            db.select(Booking).where(Booking.booking_code == completed_code)
+        )
+        cancelled = db.session.scalar(
+            db.select(Booking).where(Booking.booking_code == cancelled_code)
+        )
+        upcoming.status = BookingStatus.PAID.value
+        upcoming.paid_amount = upcoming.total_amount
+        completed.status = BookingStatus.COMPLETED.value
+        completed.paid_amount = completed.total_amount
+        cancelled.status = BookingStatus.CANCELLED.value
+        db.session.commit()
+
+    login(client, email=player.email)
+    response = client.get("/bookings")
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    expected_sections = [
+        ("upcoming", "Sắp diễn ra", upcoming_code),
+        ("processing", "Đang xử lý", processing_code),
+        ("completed", "Đã hoàn thành", completed_code),
+        ("closed", "Đã hủy hoặc hết hạn", cancelled_code),
+    ]
+    assert html.count('data-bs-toggle="pill"') == 4
+    tab_positions = [
+        html.index(f'data-booking-tab="{key}"')
+        for key, _, _ in expected_sections
+    ]
+    assert tab_positions == sorted(tab_positions)
+    assert 'data-booking-tab="upcoming"' in html
+    assert 'aria-selected="true"' in html[tab_positions[0] : tab_positions[1]]
+
+    panel_positions = [
+        html.index(f'id="booking-panel-{key}"')
+        for key, _, _ in expected_sections
+    ]
+    assert panel_positions == sorted(panel_positions)
+    for index, (key, title, booking_code) in enumerate(expected_sections):
+        assert title in html[tab_positions[index] : panel_positions[0]]
+        panel_end = (
+            panel_positions[index + 1]
+            if index + 1 < len(panel_positions)
+            else len(html)
+        )
+        panel_html = html[panel_positions[index] : panel_end]
+        assert f'data-booking-panel="{key}"' in panel_html
+        assert booking_code in panel_html
+    assert html.count('class="booking-code"') == 4
+
+
+def test_booking_index_keeps_empty_tabs_visible(app, client):
+    owner = create_user(app, email="owner@example.com", role=UserRole.OWNER)
+    player = create_user(app, email="player@example.com")
+    target_date = booking_day(7)
+    _, field_id = create_bookable_field(
+        app,
+        owner_id=owner.id,
+        target_date=target_date,
+    )
+    create_booking_record(
+        app,
+        user_id=player.id,
+        field_id=field_id,
+        target_date=target_date,
+    )
+
+    login(client, email=player.email)
+    response = client.get("/bookings")
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    expected_counts = {
+        "upcoming": 0,
+        "processing": 1,
+        "completed": 0,
+        "closed": 0,
+    }
+    for key, count in expected_counts.items():
+        tab_start = html.index(f'data-booking-tab="{key}"')
+        tab_end = html.index(">", tab_start)
+        assert f'data-booking-count="{count}"' in html[tab_start:tab_end]
+        panel_start = html.index(f'id="booking-panel-{key}"')
+        assert f'data-booking-panel="{key}"' in html[panel_start : panel_start + 300]
+    assert html.count("Chưa có lịch trong mục này") == 3
+
+
 def test_create_booking_rolls_back_booking_and_details_on_commit_failure(
     app,
     monkeypatch,

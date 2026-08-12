@@ -54,7 +54,15 @@
             <div class="empty-state match-empty-state">
                 <div class="hero-ball mb-3" aria-hidden="true">⚽</div>
                 <h2 class="h4 fw-bold">Chưa có kèo đang mở</h2>
-                <p class="text-secondary mb-0">Kèo sẽ xuất hiện sau khi người đặt sân hoàn thành khoản thanh toán đầu tiên.</p>
+                <p class="text-secondary mb-4">Bắt đầu từ việc chọn một sân phù hợp, sau đó hệ thống sẽ hướng dẫn bạn tạo kèo tìm đối thủ hoặc người chơi.</p>
+                <div class="d-flex flex-wrap justify-content-center gap-2">
+                    <a class="btn btn-primary" href="{{ url_for('venues.index') }}">Tìm sân để đặt</a>
+                    {% if current_user.is_authenticated and current_user.role in ['USER', 'OWNER'] %}
+                        <a class="btn btn-outline-primary" href="{{ url_for('matches.mine') }}">Xem kèo của tôi</a>
+                    {% else %}
+                        <a class="btn btn-outline-primary" href="{{ url_for('auth.login') }}">Đăng nhập để tạo kèo</a>
+                    {% endif %}
+                </div>
             </div>
         {% endfor %}
     </div>
