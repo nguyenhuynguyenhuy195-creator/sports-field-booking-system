@@ -1,9 +1,17 @@
-from flask import Blueprint, abort, flash, redirect, render_template, url_for
+from flask import (
+    Blueprint,
+    abort,
+    flash,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
 from flask_login import current_user
 
 from app.decorators import roles_required
-from app.forms import ModerateVenueForm, VenueForm
-from app.models import DAY_OF_WEEK_LABELS, UserRole, VenueStatus
+from app.forms import ModerateVenueForm, VenueForm, VenueSearchForm
+from app.models import DAY_OF_WEEK_LABELS, FieldType, UserRole, VenueStatus
 from app.services import (
     VenueError,
     VenueNotFoundError,
@@ -14,8 +22,8 @@ from app.services import (
     list_admin_venues,
     list_owner_venues,
     list_public_fields,
-    list_public_venues,
     moderate_venue,
+    search_public_venues,
     update_venue,
 )
 
@@ -28,13 +36,50 @@ VENUE_STATUS_LABELS = {
     VenueStatus.HIDDEN.value: "Đã bị ẩn",
     VenueStatus.INACTIVE.value: "Ngừng hoạt động",
 }
+FIELD_TYPE_LABELS = {
+    FieldType.FIVE_A_SIDE.value: "Sân bóng 5 người",
+    FieldType.SEVEN_A_SIDE.value: "Sân bóng 7 người",
+    FieldType.ELEVEN_A_SIDE.value: "Sân bóng 11 người",
+}
 
 
 @venues_bp.get("/venues")
 def index():
+    form = VenueSearchForm(request.args)
+    venue_results = []
+    search_page = None
+    search_is_valid = form.validate()
+    if search_is_valid:
+        try:
+            search_page = search_public_venues(
+                query=form.q.data,
+                field_type=form.field_type.data,
+                min_price=form.min_price.data,
+                max_price=form.max_price.data,
+                page=request.args.get("page", 1, type=int) or 1,
+            )
+            venue_results = search_page.items
+        except VenueError as exc:
+            flash(str(exc), "danger")
+            search_is_valid = False
+
     return render_template(
         "venues/index.html",
-        venues=list_public_venues(),
+        form=form,
+        venue_results=venue_results,
+        field_type_labels=FIELD_TYPE_LABELS,
+        search_page=search_page,
+        pagination_params={
+            "q": form.q.data or None,
+            "field_type": form.field_type.data or None,
+            "min_price": form.min_price.data,
+            "max_price": form.max_price.data,
+        },
+        has_active_filters=any(
+            request.args.get(name, "").strip()
+            for name in ("q", "field_type", "min_price", "max_price")
+        ),
+        search_is_valid=search_is_valid,
     )
 
 
@@ -48,11 +93,7 @@ def detail(venue_id: int):
         "venues/detail.html",
         venue=venue,
         fields=list_public_fields(venue.id),
-        field_type_labels={
-            "FIVE_A_SIDE": "Sân bóng 5 người",
-            "SEVEN_A_SIDE": "Sân bóng 7 người",
-            "ELEVEN_A_SIDE": "Sân bóng 11 người",
-        },
+        field_type_labels=FIELD_TYPE_LABELS,
         day_labels=DAY_OF_WEEK_LABELS,
     )
 

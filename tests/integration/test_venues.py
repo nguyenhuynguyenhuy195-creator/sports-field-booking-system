@@ -1,11 +1,22 @@
 from dataclasses import dataclass
 from datetime import time
+from decimal import Decimal
 
 import pytest
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.extensions import db
-from app.models import User, UserRole, Venue, VenueStatus
+from app.models import (
+    Field,
+    FieldPriceSlot,
+    FieldStatus,
+    FieldType,
+    PriceSlotStatus,
+    User,
+    UserRole,
+    Venue,
+    VenueStatus,
+)
 from app.services import VenueError, create_venue, register_user
 
 
@@ -78,6 +89,57 @@ def create_venue_for_owner(app, owner_id: int, **overrides) -> int:
         }
         values.update(overrides)
         venue = create_venue(owner=owner, **values)
+        return venue.id
+
+
+def create_searchable_venue(
+    app,
+    *,
+    owner_id: int,
+    name: str,
+    address: str,
+    district: str | None,
+    city: str,
+    field_name: str,
+    field_type: FieldType,
+    hourly_price: Decimal,
+    venue_status: VenueStatus = VenueStatus.ACTIVE,
+    field_status: FieldStatus = FieldStatus.ACTIVE,
+) -> int:
+    with app.app_context():
+        venue = Venue(
+            owner_id=owner_id,
+            name=name,
+            address=address,
+            district=district,
+            city=city,
+            opening_time=time(6, 0),
+            closing_time=time(23, 0),
+            status=venue_status.value,
+        )
+        db.session.add(venue)
+        db.session.flush()
+
+        field = Field(
+            venue_id=venue.id,
+            name=field_name,
+            field_type=field_type.value,
+            capacity=10,
+            status=field_status.value,
+        )
+        db.session.add(field)
+        db.session.flush()
+        db.session.add(
+            FieldPriceSlot(
+                field_id=field.id,
+                day_of_week=0,
+                start_time=time(6, 0),
+                end_time=time(23, 0),
+                hourly_price=hourly_price,
+                status=PriceSlotStatus.ACTIVE.value,
+            )
+        )
+        db.session.commit()
         return venue.id
 
 
@@ -173,6 +235,255 @@ def test_pending_and_hidden_venues_are_not_public(app, client):
         db.session.commit()
 
     assert client.get(f"/venues/{pending_id}").status_code == 404
+
+
+def test_public_venue_search_matches_name_and_area(app, client):
+    owner = create_user(
+        app,
+        email="search-owner@example.com",
+        role=UserRole.OWNER,
+    )
+    create_searchable_venue(
+        app,
+        owner_id=owner.id,
+        name="Sân bóng Hòa Bình",
+        address="25 Nguyễn Tất Thành",
+        district="Quận Thanh Khê",
+        city="Đà Nẵng",
+        field_name="Sân 5A",
+        field_type=FieldType.FIVE_A_SIDE,
+        hourly_price=Decimal("220000"),
+    )
+    create_searchable_venue(
+        app,
+        owner_id=owner.id,
+        name="Sân bóng Phú Mỹ",
+        address="12 Nguyễn Lương Bằng",
+        district="Quận Liên Chiểu",
+        city="Đà Nẵng",
+        field_name="Sân 7A",
+        field_type=FieldType.SEVEN_A_SIDE,
+        hourly_price=Decimal("350000"),
+    )
+
+    by_name = client.get("/venues", query_string={"q": "hòa bình"})
+    by_area = client.get("/venues", query_string={"q": "thanh khê"})
+
+    assert by_name.status_code == 200
+    assert "Sân bóng Hòa Bình" in by_name.get_data(as_text=True)
+    assert "Sân bóng Phú Mỹ" not in by_name.get_data(as_text=True)
+    assert by_area.status_code == 200
+    assert "Sân bóng Hòa Bình" in by_area.get_data(as_text=True)
+    assert "Sân bóng Phú Mỹ" not in by_area.get_data(as_text=True)
+
+
+def test_public_venue_filters_combine_field_type_and_matching_type_price(
+    app,
+    client,
+):
+    owner = create_user(
+        app,
+        email="filter-owner@example.com",
+        role=UserRole.OWNER,
+    )
+    target_id = create_searchable_venue(
+        app,
+        owner_id=owner.id,
+        name="Cụm sân Thành Công",
+        address="10 Đường A",
+        district="Quận 7",
+        city="TP. Hồ Chí Minh",
+        field_name="Sân 7 tiêu chuẩn",
+        field_type=FieldType.SEVEN_A_SIDE,
+        hourly_price=Decimal("350000"),
+    )
+    create_searchable_venue(
+        app,
+        owner_id=owner.id,
+        name="Cụm sân Giá Cao",
+        address="20 Đường B",
+        district="Quận 7",
+        city="TP. Hồ Chí Minh",
+        field_name="Sân 7 cao cấp",
+        field_type=FieldType.SEVEN_A_SIDE,
+        hourly_price=Decimal("500000"),
+    )
+    create_searchable_venue(
+        app,
+        owner_id=owner.id,
+        name="Cụm sân Chưa Mở",
+        address="30 Đường C",
+        district="Quận 7",
+        city="TP. Hồ Chí Minh",
+        field_name="Sân 7 chưa mở",
+        field_type=FieldType.SEVEN_A_SIDE,
+        hourly_price=Decimal("320000"),
+        field_status=FieldStatus.INACTIVE,
+    )
+    create_searchable_venue(
+        app,
+        owner_id=owner.id,
+        name="Cụm sân Bị Ẩn",
+        address="40 Đường D",
+        district="Quận 7",
+        city="TP. Hồ Chí Minh",
+        field_name="Sân 7 bị ẩn",
+        field_type=FieldType.SEVEN_A_SIDE,
+        hourly_price=Decimal("330000"),
+        venue_status=VenueStatus.HIDDEN,
+    )
+
+    response = client.get(
+        "/venues",
+        query_string={
+            "field_type": FieldType.SEVEN_A_SIDE.value,
+            "min_price": "300000",
+            "max_price": "400000",
+        },
+    )
+    page = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "Cụm sân Thành Công" in page
+    assert "Cụm sân Giá Cao" not in page
+    assert "Cụm sân Chưa Mở" not in page
+    assert "Cụm sân Bị Ẩn" not in page
+    assert f'/venues/{target_id}' in page
+    assert "350.000 đ/giờ" in page
+    assert 'aria-label="Bỏ lọc Sân bóng 7 người"' in page
+    assert "Xóa tất cả" in page
+    assert "Xóa bộ lọc" not in page
+
+
+def test_price_filter_uses_selected_field_type_price(app, client):
+    owner = create_user(
+        app,
+        email="mixed-price-owner@example.com",
+        role=UserRole.OWNER,
+    )
+    venue_id = create_searchable_venue(
+        app,
+        owner_id=owner.id,
+        name="Cụm sân Nhiều Loại",
+        address="50 Đường E",
+        district="Quận 3",
+        city="TP. Hồ Chí Minh",
+        field_name="Sân 5 giá tốt",
+        field_type=FieldType.FIVE_A_SIDE,
+        hourly_price=Decimal("150000"),
+    )
+    with app.app_context():
+        field = Field(
+            venue_id=venue_id,
+            name="Sân 7 buổi tối",
+            field_type=FieldType.SEVEN_A_SIDE.value,
+            capacity=14,
+            status=FieldStatus.ACTIVE.value,
+        )
+        db.session.add(field)
+        db.session.flush()
+        db.session.add(
+            FieldPriceSlot(
+                field_id=field.id,
+                day_of_week=0,
+                start_time=time(6, 0),
+                end_time=time(23, 0),
+                hourly_price=Decimal("450000"),
+                status=PriceSlotStatus.ACTIVE.value,
+            )
+        )
+        db.session.commit()
+
+    response = client.get(
+        "/venues",
+        query_string={
+            "field_type": FieldType.SEVEN_A_SIDE.value,
+            "max_price": "200000",
+        },
+    )
+
+    assert response.status_code == 200
+    assert "Cụm sân Nhiều Loại" not in response.get_data(as_text=True)
+
+
+def test_invalid_venue_price_range_keeps_values_and_shows_error(app, client):
+    response = client.get(
+        "/venues",
+        query_string={"min_price": "500000", "max_price": "200000"},
+    )
+    page = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "Giá tối thiểu không được lớn hơn giá tối đa." in page
+    assert 'name="min_price"' in page
+    assert 'value="500000"' in page
+    assert 'name="max_price"' in page
+    assert 'value="200000"' in page
+    assert 'collapse venue-filter-collapse show' in page
+
+
+def test_search_treats_sql_wildcards_as_literal_text(app, client):
+    owner = create_user(
+        app,
+        email="wildcard-owner@example.com",
+        role=UserRole.OWNER,
+    )
+    create_searchable_venue(
+        app,
+        owner_id=owner.id,
+        name="Sân không có ký hiệu đặc biệt",
+        address="60 Đường F",
+        district="Quận 1",
+        city="TP. Hồ Chí Minh",
+        field_name="Sân 5 thường",
+        field_type=FieldType.FIVE_A_SIDE,
+        hourly_price=Decimal("200000"),
+    )
+
+    response = client.get("/venues", query_string={"q": "%"})
+
+    assert response.status_code == 200
+    assert "Sân không có ký hiệu đặc biệt" not in response.get_data(as_text=True)
+
+
+def test_venue_search_paginates_and_keeps_filters(app, client):
+    owner = create_user(
+        app,
+        email="pagination-owner@example.com",
+        role=UserRole.OWNER,
+    )
+    for number in range(1, 11):
+        create_searchable_venue(
+            app,
+            owner_id=owner.id,
+            name=f"Sân Phân Trang {number:02d}",
+            address=f"{number} Đường Kiểm Thử",
+            district="Quận Hải Châu",
+            city="Đà Nẵng",
+            field_name=f"Sân 5 số {number:02d}",
+            field_type=FieldType.FIVE_A_SIDE,
+            hourly_price=Decimal("200000"),
+        )
+
+    query = {
+        "q": "Phân Trang",
+        "field_type": FieldType.FIVE_A_SIDE.value,
+        "min_price": "100000",
+        "max_price": "300000",
+        "page": "2",
+    }
+    response = client.get("/venues", query_string=query)
+    page = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "10 cơ sở phù hợp" in page
+    assert "Trang 2/2" in page
+    assert "Sân Phân Trang 10" in page
+    assert "Sân Phân Trang 01" not in page
+    assert 'value="Phân Trang"' in page
+    assert f'selected value="{FieldType.FIVE_A_SIDE.value}"' in page
+    assert 'value="100000"' in page
+    assert 'value="300000"' in page
 
 
 def test_owner_updates_own_venue_without_changing_moderation_status(app, client):

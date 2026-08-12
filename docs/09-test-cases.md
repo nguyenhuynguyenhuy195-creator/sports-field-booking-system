@@ -31,6 +31,21 @@ Tạo với owner hiện tại, trạng thái `PENDING`, không xuất hiện c�
 ### TC-VENUE-002: Admin duyệt venue
 Chuyển `ACTIVE`, lưu `reviewed_by`, `reviewed_at`, ghi chú nếu có và xuất hiện công khai.
 
+### TC-VENUE-003: Tìm theo tên và khu vực
+Từ khóa khớp tên hoặc quận/huyện → trả đúng venue; venue khác không xuất hiện.
+
+### TC-VENUE-004: Kết hợp loại sân và khoảng giá
+Chọn sân 7 người, giá từ 300.000 đến 400.000đ/giờ → chỉ venue có field sân 7 `ACTIVE` với “giá từ” trong khoảng xuất hiện; venue/field chưa hoạt động bị loại.
+
+### TC-VENUE-005: Giá theo đúng loại sân
+Venue có sân 5 giá 150.000đ và sân 7 giá 450.000đ; lọc sân 7 tối đa 200.000đ → venue không được trả về.
+
+### TC-VENUE-006: Bộ lọc không hợp lệ và wildcard
+Giá tối thiểu lớn hơn giá tối đa hiển thị lỗi và giữ input; từ khóa `%` được tìm như ký tự thường, không trả về toàn bộ venue.
+
+### TC-VENUE-007: Phân trang và giữ bộ lọc
+Có 10 venue cùng khớp → trang đầu tối đa 9 kết quả, trang hai hiển thị phần còn lại, tổng kết quả đúng và điều kiện tìm/lọc vẫn được chọn.
+
 ### TC-FIELD-001: Field mới
 Trạng thái mặc định `INACTIVE`.
 

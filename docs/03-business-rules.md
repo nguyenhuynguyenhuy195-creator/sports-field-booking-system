@@ -32,6 +32,14 @@ User phải đăng nhập trước khi tạo booking, tạo kèo, gửi yêu c�
 - Chỉ venue `ACTIVE` mới được hiển thị công khai.
 - Admin có thể chuyển venue thành `ACTIVE` hoặc `HIDDEN`.
 
+### BR-006A: Tìm kiếm và lọc venue công khai
+- Từ khóa được tìm trên tên venue, địa chỉ, quận/huyện và tỉnh/thành phố; khoảng trắng thừa được chuẩn hóa và ký tự wildcard phải được hiểu như văn bản thường.
+- Danh sách chỉ trả venue `ACTIVE` có ít nhất một field `ACTIVE`.
+- Lọc loại sân chỉ xét field `ACTIVE` thuộc loại đã chọn.
+- “Giá từ” là giá theo giờ thấp nhất trong các khung giá `ACTIVE` của field `ACTIVE`; nếu đã chọn loại sân thì chỉ tính trên loại đó.
+- Khoảng giá được so sánh với “giá từ”; giá tối thiểu không được lớn hơn giá tối đa.
+- Các điều kiện được kết hợp đồng thời và phải được giữ khi chuyển trang kết quả.
+
 ### BR-007: Kích hoạt field
 - Field mới mặc định `INACTIVE`.
 - Chỉ field `ACTIVE` thuộc venue `ACTIVE` mới nhận booking.
