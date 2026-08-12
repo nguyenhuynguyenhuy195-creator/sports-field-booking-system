@@ -128,6 +128,8 @@ from .refund import (
 )
 from .venue import (
     InvalidVenueStateError,
+    PublicVenueSearchPage,
+    PublicVenueSearchResult,
     VenueError,
     VenueNotFoundError,
     VenuePermissionError,
@@ -138,6 +140,7 @@ from .venue import (
     list_owner_venues,
     list_public_venues,
     moderate_venue,
+    search_public_venues,
     update_venue,
 )
 
@@ -189,6 +192,8 @@ __all__ = [
     "PlannedContribution",
     "PriceQuote",
     "PriceSegment",
+    "PublicVenueSearchPage",
+    "PublicVenueSearchResult",
     "PricingError",
     "PricingNotFoundError",
     "PricingPermissionError",
@@ -256,6 +261,7 @@ __all__ = [
     "submit_owner_application",
     "set_field_activation",
     "set_price_slot_status",
+    "search_public_venues",
     "moderate_venue",
     "update_venue",
     "update_field",

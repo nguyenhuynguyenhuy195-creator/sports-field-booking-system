@@ -14,7 +14,16 @@
 
 Trang chủ gồm navbar, hero, form tìm sân, venue nổi bật, kèo đang mở và footer.
 
-Danh sách sân gồm bộ lọc, card venue, địa chỉ, loại sân, giá tham khảo thấp nhất, phân trang và empty state. Chỉ venue/field `ACTIVE` được hiển thị.
+Danh sách sân gồm:
+- Ô tìm theo tên venue, địa chỉ, quận/huyện hoặc tỉnh/thành phố.
+- Bộ lọc loại sân, giá tối thiểu và giá tối đa theo đơn vị đồng/giờ.
+- Card venue hiển thị địa chỉ, các loại field đang hoạt động, giờ hoạt động và “giá từ” thấp nhất.
+- Ô tìm kiếm là thao tác chính; loại sân và khoảng giá nằm trong nhóm bộ lọc phụ, tự hiển thị trên desktop và có thể thu gọn trên mobile.
+- Điều kiện đang áp dụng hiển thị thành các thẻ có thể bỏ riêng; toàn trang chỉ dùng một hành động “Xóa tất cả”.
+- Kết quả phân trang 9 venue/trang; từ khóa và bộ lọc phải được giữ khi chuyển trang.
+- Empty state riêng cho chưa có dữ liệu, không tìm thấy kết quả và bộ lọc không hợp lệ.
+
+Chỉ venue `ACTIVE` có field `ACTIVE` được hiển thị. Khi chọn loại sân, giá tham khảo và khoảng giá phải được tính trên loại sân đã chọn.
 
 ## 7.3. Trang chi tiết venue/field
 

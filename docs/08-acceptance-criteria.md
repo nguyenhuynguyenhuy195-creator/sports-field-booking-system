@@ -23,6 +23,17 @@
 - Không tạo hai field trùng tên trong cùng venue.
 - Chỉ field `ACTIVE` thuộc venue `ACTIVE` mới xuất hiện để đặt.
 
+### AC-003A: Tìm kiếm và lọc sân công khai
+
+- Tìm được venue theo tên, địa chỉ, quận/huyện hoặc tỉnh/thành phố mà không phân biệt chữ hoa/thường.
+- Ký tự `%`, `_` và `\` trong từ khóa được hiểu là văn bản thường, không mở rộng thành wildcard SQL.
+- Chỉ venue `ACTIVE` có ít nhất một field `ACTIVE` xuất hiện; field chưa hoạt động không làm venue khớp bộ lọc.
+- Lọc loại sân và khoảng giá có thể dùng riêng hoặc kết hợp với từ khóa.
+- “Giá từ” và khoảng giá lấy mức thấp nhất của khung giá `ACTIVE`; khi lọc loại sân, phép tính chỉ xét field `ACTIVE` thuộc loại đó.
+- Giá âm, vượt giới hạn hoặc giá tối thiểu lớn hơn giá tối đa hiển thị lỗi tiếng Việt và không làm lỗi trang.
+- Kết quả hiển thị tối đa 9 venue/trang, có tổng số kết quả và giữ nguyên điều kiện khi chuyển trang.
+- Không có kết quả phải hiển thị empty state và nút xóa bộ lọc.
+
 ## AC-004: Cấu hình khung giá
 
 - Owner chỉ cấu hình giá cho field của mình.

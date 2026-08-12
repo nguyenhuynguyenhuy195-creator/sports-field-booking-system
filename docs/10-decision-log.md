@@ -144,3 +144,15 @@ AI lọc spam, phân tích cảm xúc, recommendation, chat thời gian thực, 
 - Khi người tham gia đã thanh toán rút trước trận trên 12 giờ, contribution cũ chuyển `REFUNDED` và tiếp tục gắn với payment/refund lịch sử.
 - Hệ thống tạo contribution mới cùng `slot_number` cho người thay thế; không tái sử dụng nghĩa vụ đã có payment `SUCCESS`.
 - Filtered unique index chỉ cho phép một nghĩa vụ chưa hoàn hết trên mỗi vị trí, đồng thời cho phép lưu nhiều contribution `REFUNDED` theo thời gian.
+
+## ADR-021: Tìm kiếm và lọc venue công khai
+
+**Ngày quyết định:** 12/08/2026
+
+- Tận dụng các cột venue, field và khung giá hiện có; không thêm bảng hoặc migration cho module tìm kiếm MVP.
+- Từ khóa tìm trên tên, địa chỉ, quận/huyện và tỉnh/thành phố; ký tự wildcard do người dùng nhập phải được escape trước khi tạo điều kiện `LIKE`.
+- Chỉ venue `ACTIVE` có field `ACTIVE` được đưa vào danh sách công khai.
+- “Giá từ” là mức `hourly_price` thấp nhất của khung giá `ACTIVE` trên field `ACTIVE`; khi chọn loại sân, giá và khoảng lọc cùng xét đúng loại đó.
+- Các điều kiện tìm kiếm được kết hợp bằng `AND`, truy vấn và tính giá nằm trong service, route chỉ validate query string và render kết quả.
+- Kết quả được sắp theo tên và phân trang 9 venue/trang; điều kiện tìm/lọc được giữ trong liên kết chuyển trang.
+- Google Maps, tìm quanh vị trí GPS, đánh giá và gợi ý thông minh tiếp tục nằm ngoài module này.

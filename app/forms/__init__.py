@@ -7,7 +7,7 @@ from .maintenance import MaintenanceActionForm, MaintenanceForm
 from .matchmaking import MatchActionForm, MatchForm, MatchJoinForm
 from .owner_application import OwnerApplicationForm, ReviewOwnerApplicationForm
 from .pricing import PriceSlotForm, PricingActionForm
-from .venue import ModerateVenueForm, VenueForm
+from .venue import ModerateVenueForm, VenueForm, VenueSearchForm
 
 __all__ = [
     "BookingActionForm",
@@ -27,4 +27,5 @@ __all__ = [
     "ReviewOwnerApplicationForm",
     "ModerateVenueForm",
     "VenueForm",
+    "VenueSearchForm",
 ]

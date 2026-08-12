@@ -121,6 +121,7 @@ GET http://127.0.0.1:5000/venues
 - OWNER tạo, sửa và xem danh sách cơ sở của chính mình; venue mới luôn chờ admin duyệt.
 - ADMIN duyệt công khai hoặc ẩn venue và hệ thống lưu dấu vết kiểm duyệt.
 - Khách chỉ xem được danh sách và chi tiết venue có trạng thái `ACTIVE`.
+- Danh sách công khai cho tìm theo tên/địa chỉ/quận-thành phố, lọc loại sân và khoảng “giá từ”; chỉ field `ACTIVE` tham gia bộ lọc, kết quả được phân trang và giữ nguyên điều kiện khi chuyển trang.
 - OWNER tạo, sửa và xem các sân con thuộc cơ sở của chính mình; sân mới luôn có trạng thái `INACTIVE`.
 - Tên sân không được trùng trong cùng một cơ sở; khách chỉ thấy sân `ACTIVE` thuộc cơ sở `ACTIVE`.
 - OWNER cấu hình giá theo sân, ngày trong tuần và khoảng giờ; các khung giá `ACTIVE` cùng ngày không được chồng nhau.

@@ -1,20 +1,88 @@
 from datetime import time
 
 from flask_wtf import FlaskForm
-from wtforms import RadioField, SelectField, StringField, SubmitField, TextAreaField
+from wtforms import (
+    DecimalField,
+    RadioField,
+    SelectField,
+    StringField,
+    SubmitField,
+    TextAreaField,
+)
 from wtforms.validators import (
     DataRequired,
     Length,
+    NumberRange,
     Optional,
     Regexp,
     ValidationError,
 )
 
-from app.models import VenueStatus
+from app.models import FieldType, VenueStatus
 
 
 HOUR_CHOICES = [(f"{hour:02d}", f"{hour:02d}") for hour in range(24)]
 MINUTE_CHOICES = [(f"{minute:02d}", f"{minute:02d}") for minute in range(60)]
+FIELD_TYPE_FILTER_CHOICES = [
+    ("", "Tất cả loại sân"),
+    (FieldType.FIVE_A_SIDE.value, "Sân bóng 5 người"),
+    (FieldType.SEVEN_A_SIDE.value, "Sân bóng 7 người"),
+    (FieldType.ELEVEN_A_SIDE.value, "Sân bóng 11 người"),
+]
+
+
+class VenueSearchForm(FlaskForm):
+    """Validate public venue filters submitted through the query string."""
+
+    class Meta:
+        csrf = False
+
+    q = StringField(
+        "Tên sân hoặc khu vực",
+        validators=[
+            Optional(),
+            Length(max=150, message="Nội dung tìm kiếm tối đa 150 ký tự."),
+        ],
+    )
+    field_type = SelectField(
+        "Loại sân",
+        choices=FIELD_TYPE_FILTER_CHOICES,
+        validators=[Optional()],
+    )
+    min_price = DecimalField(
+        "Giá từ",
+        places=0,
+        validators=[
+            Optional(),
+            NumberRange(
+                min=0,
+                max=10_000_000,
+                message="Giá phải từ 0 đến 10.000.000 đồng/giờ.",
+            ),
+        ],
+    )
+    max_price = DecimalField(
+        "Giá đến",
+        places=0,
+        validators=[
+            Optional(),
+            NumberRange(
+                min=0,
+                max=10_000_000,
+                message="Giá phải từ 0 đến 10.000.000 đồng/giờ.",
+            ),
+        ],
+    )
+
+    def validate_max_price(self, field) -> None:
+        if (
+            self.min_price.data is not None
+            and field.data is not None
+            and self.min_price.data > field.data
+        ):
+            raise ValidationError(
+                "Giá tối thiểu không được lớn hơn giá tối đa."
+            )
 
 
 class VenueForm(FlaskForm):
