@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from flask import (
@@ -16,6 +16,7 @@ from flask_login import current_user
 from app.decorators import roles_required
 from app.forms import BookingActionForm, BookingForm, BookingReasonForm
 from app.models import (
+    Booking,
     BookingPaymentMode,
     BookingStatus,
     ContributionStatus,
@@ -104,6 +105,29 @@ REFUND_STATUS_LABELS = {
     RefundStatus.SUCCESS.value: "Đã hoàn thành",
     RefundStatus.FAILED.value: "Thất bại",
 }
+
+BOOKING_LIST_GROUPS = (
+    {
+        "key": "upcoming",
+        "title": "Sắp diễn ra",
+        "description": "Các lịch đã hoàn tất bước xác nhận và chưa diễn ra.",
+    },
+    {
+        "key": "processing",
+        "title": "Đang xử lý",
+        "description": "Các lịch vẫn còn bước cần xử lý trước khi diễn ra.",
+    },
+    {
+        "key": "completed",
+        "title": "Đã hoàn thành",
+        "description": "Các lịch đã kết thúc để bạn tiện xem lại.",
+    },
+    {
+        "key": "closed",
+        "title": "Đã hủy hoặc hết hạn",
+        "description": "Các lịch không còn hiệu lực và không chiếm chỗ.",
+    },
+)
 
 
 @bookings_bp.route(
@@ -286,7 +310,7 @@ def index():
     return render_template(
         "bookings/index.html",
         bookings=bookings,
-        effective_statuses=_effective_statuses(bookings),
+        booking_groups=_group_bookings_for_display(bookings),
         status_labels=BOOKING_STATUS_LABELS,
         payment_mode_labels=PAYMENT_MODE_LABELS,
     )
@@ -353,7 +377,7 @@ def owner_index():
     return render_template(
         "owner/bookings/index.html",
         bookings=bookings,
-        effective_statuses=_effective_statuses(bookings),
+        booking_groups=_group_bookings_for_display(bookings),
         status_labels=BOOKING_STATUS_LABELS,
         payment_mode_labels=PAYMENT_MODE_LABELS,
     )
@@ -420,12 +444,61 @@ def _load_owner_booking(booking_code: str):
         abort(403)
 
 
-def _effective_statuses(bookings):
-    now = current_vietnam_datetime()
+def _effective_statuses(bookings, *, now: datetime | None = None):
+    current_local = now or current_vietnam_datetime()
     return {
-        booking.id: get_effective_booking_status(booking, now=now)
+        booking.id: get_effective_booking_status(booking, now=current_local)
         for booking in bookings
     }
+
+
+def _group_bookings_for_display(bookings: list[Booking]) -> list[dict]:
+    now = current_vietnam_datetime()
+    effective_statuses = _effective_statuses(bookings, now=now)
+    grouped_entries = {group["key"]: [] for group in BOOKING_LIST_GROUPS}
+
+    for booking in bookings:
+        status = effective_statuses[booking.id]
+        group_key = _booking_group_key(booking=booking, status=status, now=now)
+        grouped_entries[group_key].append(
+            {
+                "booking": booking,
+                "status": status,
+            }
+        )
+
+    for group_key in ("upcoming", "processing"):
+        grouped_entries[group_key].sort(key=_booking_entry_start)
+    for group_key in ("completed", "closed"):
+        grouped_entries[group_key].sort(key=_booking_entry_start, reverse=True)
+
+    return [
+        {
+            **group,
+            "entries": grouped_entries[group["key"]],
+        }
+        for group in BOOKING_LIST_GROUPS
+    ]
+
+
+def _booking_group_key(*, booking: Booking, status: str, now: datetime) -> str:
+    if status in {
+        BookingStatus.REJECTED.value,
+        BookingStatus.CANCELLED.value,
+        BookingStatus.EXPIRED.value,
+    }:
+        return "closed"
+    if status == BookingStatus.COMPLETED.value:
+        return "completed"
+    if status == BookingStatus.PAID.value:
+        booking_end = datetime.combine(booking.booking_date, booking.end_time)
+        return "completed" if booking_end <= now else "upcoming"
+    return "processing"
+
+
+def _booking_entry_start(entry: dict) -> datetime:
+    booking = entry["booking"]
+    return datetime.combine(booking.booking_date, booking.start_time)
 
 
 def _successful_refund_total(booking) -> Decimal:

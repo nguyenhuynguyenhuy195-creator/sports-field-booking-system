@@ -1175,6 +1175,96 @@ a:hover {
     gap: 1rem;
 }
 
+.booking-tabs {
+    display: flex;
+    gap: 0.65rem;
+    overflow-x: auto;
+    padding: 0.2rem 0 0.75rem;
+    scrollbar-width: thin;
+}
+
+.booking-tab {
+    align-items: center;
+    background: #ffffff;
+    border: 1px solid var(--app-border);
+    border-radius: 999px;
+    color: #52677d;
+    cursor: pointer;
+    display: inline-flex;
+    flex: 0 0 auto;
+    gap: 0.55rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+    padding: 0.65rem 0.9rem;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.booking-tab:hover {
+    border-color: #8bbda4;
+    color: var(--app-primary-dark);
+}
+
+.booking-tab:focus-visible {
+    box-shadow: 0 0 0 0.25rem rgba(24, 121, 78, 0.16);
+    outline: 0;
+}
+
+.booking-tab.active {
+    background: var(--app-primary);
+    border-color: var(--app-primary);
+    box-shadow: 0 8px 20px rgba(24, 121, 78, 0.2);
+    color: #ffffff;
+}
+
+.booking-tab-count {
+    align-items: center;
+    background: #e9f4ee;
+    border-radius: 999px;
+    color: var(--app-primary-dark);
+    display: inline-flex;
+    font-size: 0.72rem;
+    justify-content: center;
+    min-width: 1.55rem;
+    padding: 0.12rem 0.45rem;
+}
+
+.booking-tab.active .booking-tab-count {
+    background: rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+}
+
+.booking-tab-panels {
+    margin-top: 1rem;
+}
+
+.booking-group-description {
+    color: #66788e;
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+.booking-panel-empty {
+    align-items: center;
+    background: #ffffff;
+    border: 1px dashed #bdcbd8;
+    border-radius: 16px;
+    display: flex;
+    gap: 1rem;
+    padding: 1.35rem;
+}
+
+.booking-panel-empty-icon {
+    align-items: center;
+    background: #eef7f2;
+    border-radius: 50%;
+    display: inline-flex;
+    flex: 0 0 auto;
+    font-size: 1.25rem;
+    height: 2.75rem;
+    justify-content: center;
+    width: 2.75rem;
+}
+
 .booking-list-card {
     align-items: center;
     background: #ffffff;
@@ -1189,9 +1279,11 @@ a:hover {
 
 .booking-code {
     color: #65778c;
+    display: inline-block;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 0.78rem;
-    font-weight: 700;
+    font-size: 0.7rem;
+    font-weight: 500;
+    margin-top: 0.65rem;
 }
 
 .booking-list-time,
