@@ -44,6 +44,38 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.venue-field-type-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    min-height: 52px;
+}
+
+.venue-field-type-option {
+    background: #fff;
+    border: 1px solid #cbd8e2;
+    border-radius: 12px;
+    color: var(--app-secondary);
+    font-weight: 600;
+    min-height: 52px;
+    padding: 0.65rem 0.9rem;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
+}
+
+.venue-field-type-option:hover,
+.venue-field-type-option:focus-visible {
+    border-color: var(--app-primary);
+    box-shadow: 0 0 0 3px rgba(20, 108, 67, 0.12);
+    color: var(--app-primary-dark);
+    outline: 0;
+}
+
+.venue-field-type-option.is-selected {
+    background: #e8f4ed;
+    border-color: var(--app-primary);
+    color: var(--app-primary-dark);
+}
+
 .venue-radius-filter,
 .venue-price-filter {
     min-width: 0;

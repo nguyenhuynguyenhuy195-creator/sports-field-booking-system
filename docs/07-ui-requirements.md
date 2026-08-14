@@ -14,7 +14,7 @@
 ## 7.2. Trang chủ và danh sách venue
 
 - Ô tìm theo tên, địa chỉ, quận/huyện hoặc tỉnh/thành phố.
-- Bộ lọc sport, field type và khoảng giá.
+- Bộ lọc sport, field type và khoảng giá; khi user đổi sport, trang tự áp dụng bộ lọc để hiển thị toàn bộ venue có field thuộc sport đó. Chỉ các field type thực tế thuộc sport đã chọn được hiển thị trực tiếp thành nút, không có nút “Tất cả”; khi chưa chọn nút field type nào thì sport vẫn bao gồm mọi loại sân của chính nó. Bấm lại field type đang chọn để bỏ lọc chi tiết. Card kết quả chỉ liệt kê field type thuộc sport/field type đang lọc.
 - Nút “Dùng vị trí của tôi” và bán kính 3/5/10 km.
 - Nếu browser từ chối vị trí, hiển thị hướng dẫn ngắn và giữ tìm kiếm văn bản hoạt động.
 - Hai chế độ xem: danh sách và bản đồ; mobile ưu tiên danh sách và cho mở bản đồ riêng.

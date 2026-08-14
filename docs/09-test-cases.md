@@ -72,7 +72,7 @@ Từ khóa + sport + field type + khoảng giá trả đúng venue có field ACT
 
 ### TC-SEARCH-002: Sport/type không khớp
 
-Chọn FOOTBALL cùng TENNIS_STANDARD hiển thị lỗi, không trả kết quả sai.
+UI tự áp dụng tìm kiếm khi đổi sport, chỉ trả về venue có field thuộc sport đó và card chỉ liệt kê field type đang khớp. Danh sách nút field type không có nút “Tất cả”, chỉ hiển thị loại thuộc sport đã chọn, cho bấm lại để bỏ lọc chi tiết và tự xóa lựa chọn cũ khi đổi sport. URL bị sửa thành FOOTBALL cùng TENNIS_STANDARD vẫn hiển thị lỗi, không trả kết quả sai.
 
 ### TC-SEARCH-003: Wildcard và phân trang
 

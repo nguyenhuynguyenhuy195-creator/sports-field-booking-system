@@ -119,6 +119,88 @@ def test_default_catalog_has_four_sports_and_six_field_types(app):
         }
 
 
+def test_public_filter_options_include_their_parent_sport(app, client):
+    response = client.get("/venues")
+    page = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert 'id="field-type-filter-options"' in page
+    assert (
+        'data-sport="BADMINTON" value="BADMINTON_STANDARD"'
+        in page
+    )
+    assert 'data-sport="FOOTBALL" value="FOOTBALL_5"' in page
+    assert 'data-sport="FOOTBALL" value="FOOTBALL_7"' in page
+    assert 'data-sport="FOOTBALL" value="FOOTBALL_11"' in page
+    assert 'data-sport="PICKLEBALL" value="PICKLEBALL_STANDARD"' in page
+    assert 'data-sport="TENNIS" value="TENNIS_STANDARD"' in page
+
+
+def test_public_search_rejects_mismatched_sport_and_field_type(app, client):
+    response = client.get(
+        "/venues",
+        query_string={
+            "sport": SportCode.FOOTBALL.value,
+            "field_type": FieldTypeCode.TENNIS_STANDARD.value,
+        },
+    )
+    page = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "Loại sân không thuộc bộ môn đã chọn." in page
+    assert "Bộ lọc chưa hợp lệ" in page
+
+
+def test_sport_filter_only_summarizes_matching_field_types(app):
+    owner_id = create_user(
+        app,
+        email="mixed-sport-owner@example.com",
+        role=UserRole.OWNER,
+    )
+    venue_id = create_public_venue_with_field(
+        app,
+        owner_id=owner_id,
+        name="Cơ sở đa môn",
+        latitude=None,
+        longitude=None,
+        field_type_code=FieldTypeCode.BADMINTON_STANDARD.value,
+    )
+
+    with app.app_context():
+        football_type_id = db.session.scalar(
+            db.select(FieldType.id).where(
+                FieldType.code == FieldTypeCode.FOOTBALL_5.value
+            )
+        )
+        football_field = Field(
+            venue_id=venue_id,
+            name="Sân bóng đá 5 người",
+            field_type_id=football_type_id,
+            capacity=10,
+            status=FieldStatus.ACTIVE.value,
+        )
+        db.session.add(football_field)
+        db.session.flush()
+        db.session.add(
+            FieldPriceSlot(
+                field_id=football_field.id,
+                day_of_week=0,
+                start_time=time(6, 0),
+                end_time=time(23, 0),
+                hourly_price=Decimal("300000"),
+                status=PriceSlotStatus.ACTIVE.value,
+            )
+        )
+        db.session.commit()
+
+        result = search_public_venues(sport=SportCode.BADMINTON.value)
+
+        assert result.total == 1
+        assert [item.code for item in result.items[0].field_types] == [
+            FieldTypeCode.BADMINTON_STANDARD.value
+        ]
+
+
 def test_owner_can_create_tennis_field_from_catalog(app):
     owner_id = create_user(
         app,

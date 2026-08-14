@@ -59,8 +59,15 @@
                     {% for error in form.sport.errors %}<div class="invalid-feedback">{{ error }}</div>{% endfor %}
                 </div>
                 <div>
-                    {{ form.field_type.label(class_="form-label fw-semibold") }}
+                    {{ form.field_type.label(id="field-type-filter-label", class_="form-label fw-semibold") }}
                     {{ form.field_type(class_="form-select" + (" is-invalid" if form.field_type.errors else "")) }}
+                    <div
+                        id="field-type-filter-options"
+                        class="venue-field-type-options d-none"
+                        role="group"
+                        aria-labelledby="field-type-filter-label"
+                    ></div>
+                    <div id="field-type-filter-help" class="form-text">Chọn bộ môn để thu gọn danh sách loại sân.</div>
                     {% for error in form.field_type.errors %}<div class="invalid-feedback">{{ error }}</div>{% endfor %}
                 </div>
                 <div class="venue-radius-filter">

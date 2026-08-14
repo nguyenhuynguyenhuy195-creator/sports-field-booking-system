@@ -263,6 +263,21 @@ def search_public_venues(
         )
 
     venue_ids = [venue.id for venue, _, _ in page_rows]
+    visible_field_type_conditions = [
+        Field.venue_id.in_(venue_ids),
+        Field.status == FieldStatus.ACTIVE.value,
+        FieldType.status == CatalogStatus.ACTIVE.value,
+        Sport.status == CatalogStatus.ACTIVE.value,
+    ]
+    if selected_field_type is not None:
+        visible_field_type_conditions.append(
+            Field.field_type_id == selected_field_type.id
+        )
+    elif selected_sport is not None:
+        visible_field_type_conditions.append(
+            FieldType.sport_id == selected_sport.id
+        )
+
     field_type_rows = db.session.execute(
         db.select(
             Field.venue_id,
@@ -273,12 +288,7 @@ def search_public_venues(
         )
         .join(FieldType, FieldType.id == Field.field_type_id)
         .join(Sport, Sport.id == FieldType.sport_id)
-        .where(
-            Field.venue_id.in_(venue_ids),
-            Field.status == FieldStatus.ACTIVE.value,
-            FieldType.status == CatalogStatus.ACTIVE.value,
-            Sport.status == CatalogStatus.ACTIVE.value,
-        )
+        .where(*visible_field_type_conditions)
         .distinct()
     ).all()
     types_by_venue: dict[int, list[PublicFieldTypeSummary]] = {}
