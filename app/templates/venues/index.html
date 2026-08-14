@@ -1,22 +1,24 @@
 {% extends "base.html" %}
 
-{% block title %}Tìm sân · Sports Field Booking{% endblock %}
+{% block title %}Tìm sân thể thao · Sports Field Booking{% endblock %}
 
 {% block content %}
 <section class="venue-hero venue-search-hero py-4">
     <div class="container">
-        <span class="eyebrow">TÌM SÂN BÓNG</span>
-        <h1 class="venue-page-title fw-bold mt-2 mb-2">Chọn sân phù hợp cho trận đấu của bạn</h1>
-        <p class="text-secondary mb-0">Tìm theo tên hoặc khu vực, sau đó lọc loại sân và mức giá phù hợp.</p>
+        <span class="eyebrow">TÌM SÂN THỂ THAO</span>
+        <h1 class="venue-page-title fw-bold mt-2 mb-2">Chọn sân phù hợp và gần bạn</h1>
+        <p class="text-secondary mb-0">Tìm bóng đá, cầu lông, pickleball hoặc tennis theo khu vực, giá và khoảng cách.</p>
     </div>
 </section>
 
 <section class="container venue-search-content py-4 py-lg-5">
-    <form class="venue-search-panel" method="get" action="{{ url_for('venues.index') }}" role="search">
+    <form id="venue-search-form" class="venue-search-panel" method="get" action="{{ url_for('venues.index') }}" role="search">
+        {{ form.latitude() }}
+        {{ form.longitude() }}
         <div class="venue-search-heading">
             <div>
-                <h2 class="h5 fw-bold mb-1">Bạn muốn tìm sân ở đâu?</h2>
-                <p class="small text-secondary mb-0">Nhập tên sân hoặc khu vực để bắt đầu.</p>
+                <h2 class="h5 fw-bold mb-1">Bạn muốn chơi ở đâu?</h2>
+                <p class="small text-secondary mb-0">Nhập tên/khu vực hoặc dùng vị trí hiện tại để tìm sân gần nhất.</p>
             </div>
         </div>
 
@@ -28,18 +30,12 @@
                 </svg>
                 {{ form.q(
                     class_="form-control venue-search-input" + (" is-invalid" if form.q.errors else ""),
-                    placeholder="Nhập tên sân, quận/huyện hoặc thành phố",
+                    placeholder="Tên cơ sở, quận/huyện hoặc thành phố",
                     autocomplete="off",
                     aria_label="Tên sân hoặc khu vực"
                 ) }}
             </div>
-            <button class="btn btn-primary venue-search-submit" type="submit">
-                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none">
-                    <circle cx="11" cy="11" r="6.5"></circle>
-                    <path d="m16 16 4 4"></path>
-                </svg>
-                <span>Tìm sân</span>
-            </button>
+            <button class="btn btn-primary venue-search-submit" type="submit">Tìm sân</button>
         </div>
         {% for error in form.q.errors %}<div class="invalid-feedback d-block mt-2">{{ error }}</div>{% endfor %}
 
@@ -48,54 +44,48 @@
             type="button"
             data-bs-toggle="collapse"
             data-bs-target="#venueAdvancedFilters"
-            aria-expanded="false"
+            aria-expanded="{{ 'true' if has_active_filters else 'false' }}"
             aria-controls="venueAdvancedFilters"
         >
-            <span class="venue-filter-toggle-label">
-                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none">
-                    <path d="M4 6h16M7 12h10M10 18h4"></path>
-                </svg>
-                Bộ lọc nâng cao
-            </span>
-            <svg class="venue-filter-chevron" aria-hidden="true" viewBox="0 0 24 24" fill="none">
-                <path d="m7 9 5 5 5-5"></path>
-            </svg>
+            <span class="venue-filter-toggle-label">⚙ Bộ lọc và vị trí</span>
+            <span aria-hidden="true">⌄</span>
         </button>
 
-        <div class="collapse venue-filter-collapse{% if form.field_type.errors or form.min_price.errors or form.max_price.errors %} show{% endif %}" id="venueAdvancedFilters">
-            <div class="venue-filter-grid">
+        <div class="collapse venue-filter-collapse{% if has_active_filters or form.errors %} show{% endif %}" id="venueAdvancedFilters">
+            <div class="venue-filter-grid venue-filter-grid-multisport">
+                <div>
+                    {{ form.sport.label(class_="form-label fw-semibold") }}
+                    {{ form.sport(class_="form-select" + (" is-invalid" if form.sport.errors else "")) }}
+                    {% for error in form.sport.errors %}<div class="invalid-feedback">{{ error }}</div>{% endfor %}
+                </div>
                 <div>
                     {{ form.field_type.label(class_="form-label fw-semibold") }}
                     {{ form.field_type(class_="form-select" + (" is-invalid" if form.field_type.errors else "")) }}
                     {% for error in form.field_type.errors %}<div class="invalid-feedback">{{ error }}</div>{% endfor %}
                 </div>
-
+                <div class="venue-radius-filter">
+                    {{ form.radius_km.label(class_="form-label fw-semibold") }}
+                    <div class="d-flex gap-2">
+                        {{ form.radius_km(class_="form-select" + (" is-invalid" if form.radius_km.errors else "")) }}
+                        <button id="use-current-location" class="btn btn-outline-primary text-nowrap" type="button">⌖ Dùng vị trí của tôi</button>
+                    </div>
+                    <p id="location-search-status" class="form-text mb-0" role="status">
+                        {% if form.latitude.data is not none and form.longitude.data is not none %}Đang dùng vị trí đã chọn.{% else %}Trình duyệt chỉ hỏi quyền khi bạn bấm nút.{% endif %}
+                    </p>
+                    {% for error in form.radius_km.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                    {% for error in form.latitude.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                    {% for error in form.longitude.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                </div>
                 <fieldset class="venue-price-filter">
                     <legend class="form-label fw-semibold">Khoảng giá mỗi giờ</legend>
                     <div class="venue-price-controls">
                         <div class="input-group">
-                            {{ form.min_price(
-                                class_="form-control" + (" is-invalid" if form.min_price.errors else ""),
-                                min="0",
-                                max="10000000",
-                                step="1000",
-                                inputmode="numeric",
-                                placeholder="Từ",
-                                aria_label="Giá tối thiểu"
-                            ) }}
+                            {{ form.min_price(class_="form-control" + (" is-invalid" if form.min_price.errors else ""), min="0", max="10000000", step="1000", inputmode="numeric", placeholder="Từ") }}
                             <span class="input-group-text">đ</span>
                         </div>
                         <span class="venue-price-separator" aria-hidden="true">–</span>
                         <div class="input-group">
-                            {{ form.max_price(
-                                class_="form-control" + (" is-invalid" if form.max_price.errors else ""),
-                                min="0",
-                                max="10000000",
-                                step="1000",
-                                inputmode="numeric",
-                                placeholder="Đến",
-                                aria_label="Giá tối đa"
-                            ) }}
+                            {{ form.max_price(class_="form-control" + (" is-invalid" if form.max_price.errors else ""), min="0", max="10000000", step="1000", inputmode="numeric", placeholder="Đến") }}
                             <span class="input-group-text">đ</span>
                         </div>
                     </div>
@@ -109,41 +99,16 @@
             <div class="venue-active-filters" aria-label="Bộ lọc đang áp dụng">
                 <span class="venue-active-filter-title">Đang lọc:</span>
                 <div class="venue-filter-chips">
-                    {% if form.q.data and form.q.data.strip() %}
-                        <a
-                            class="venue-filter-chip"
-                            href="{{ url_for('venues.index', field_type=pagination_params.field_type, min_price=pagination_params.min_price, max_price=pagination_params.max_price) }}"
-                            aria-label="Bỏ từ khóa {{ form.q.data }}"
-                        >
-                            <span>“{{ form.q.data }}”</span><span aria-hidden="true">×</span>
-                        </a>
-                    {% endif %}
-                    {% if form.field_type.data %}
-                        <a
-                            class="venue-filter-chip"
-                            href="{{ url_for('venues.index', q=pagination_params.q, min_price=pagination_params.min_price, max_price=pagination_params.max_price) }}"
-                            aria-label="Bỏ lọc {{ field_type_labels[form.field_type.data] }}"
-                        >
-                            <span>{{ field_type_labels[form.field_type.data] }}</span><span aria-hidden="true">×</span>
-                        </a>
-                    {% endif %}
+                    {% if form.q.data and form.q.data.strip() %}<span class="venue-type-chip">“{{ form.q.data }}”</span>{% endif %}
+                    {% if form.sport.data %}<span class="venue-type-chip">{{ sport_labels[form.sport.data] }}</span>{% endif %}
+                    {% if form.field_type.data %}<span class="venue-type-chip">{{ field_type_labels[form.field_type.data] }}</span>{% endif %}
+                    {% if form.radius_km.data %}<span class="venue-type-chip">Trong {{ form.radius_km.data }} km</span>{% endif %}
                     {% if form.min_price.data is not none or form.max_price.data is not none %}
-                        <a
-                            class="venue-filter-chip"
-                            href="{{ url_for('venues.index', q=pagination_params.q, field_type=pagination_params.field_type) }}"
-                            aria-label="Bỏ lọc khoảng giá"
-                        >
-                            <span>
-                                {% if form.min_price.data is not none and form.max_price.data is not none %}
-                                    {{ form.min_price.data|vnd_currency }} – {{ form.max_price.data|vnd_currency }}/giờ
-                                {% elif form.min_price.data is not none %}
-                                    Từ {{ form.min_price.data|vnd_currency }}/giờ
-                                {% else %}
-                                    Đến {{ form.max_price.data|vnd_currency }}/giờ
-                                {% endif %}
-                            </span>
-                            <span aria-hidden="true">×</span>
-                        </a>
+                        <span class="venue-type-chip">
+                            {% if form.min_price.data is not none and form.max_price.data is not none %}{{ form.min_price.data|vnd_currency }}–{{ form.max_price.data|vnd_currency }}
+                            {% elif form.min_price.data is not none %}Từ {{ form.min_price.data|vnd_currency }}
+                            {% else %}Đến {{ form.max_price.data|vnd_currency }}{% endif %}
+                        </span>
                     {% endif %}
                 </div>
                 <a class="venue-clear-all" href="{{ url_for('venues.index') }}">Xóa tất cả</a>
@@ -160,60 +125,55 @@
         </div>
 
         {% if venue_results %}
+            {% if map_markers and google_maps_api_key %}
+                <details class="venue-map-panel mb-4">
+                    <summary class="fw-semibold">Xem {{ map_markers|length }} cơ sở trên bản đồ</summary>
+                    <div id="venue-public-map" class="venue-public-map mt-3" data-markers='{{ map_markers|tojson }}'></div>
+                </details>
+            {% endif %}
             <div class="venue-grid">
                 {% for result in venue_results %}
                     {% set venue = result.venue %}
                     <article class="venue-card h-100">
                         <div class="d-flex justify-content-between align-items-start gap-3">
-                            <div class="venue-card-icon" aria-hidden="true">⚽</div>
-                            {% if result.starting_price is not none %}
-                                <div class="venue-starting-price text-end">
-                                    <span>Giá từ</span>
-                                    <strong>{{ result.starting_price|vnd_currency }}/giờ</strong>
-                                </div>
-                            {% endif %}
+                            <div class="venue-card-icon" aria-hidden="true">🏟️</div>
+                            <div class="venue-starting-price text-end">
+                                {% if result.distance_km is not none %}<span class="d-block text-success fw-semibold">Cách {{ '%.1f'|format(result.distance_km) }} km</span>{% endif %}
+                                {% if result.starting_price is not none %}<span>Giá từ</span><strong>{{ result.starting_price|vnd_currency }}/giờ</strong>{% endif %}
+                            </div>
                         </div>
                         <p class="small text-uppercase text-success fw-bold mb-2">{{ venue.city }}</p>
                         <h3 class="h5 fw-bold mb-2">{{ venue.name }}</h3>
-                        <p class="venue-location text-secondary mb-3">
-                            <span aria-hidden="true">⌖</span>
-                            <span>{{ venue.address }}{% if venue.district %}, {{ venue.district }}{% endif %}</span>
-                        </p>
+                        <p class="venue-location text-secondary mb-3"><span aria-hidden="true">⌖</span> {{ venue.address }}{% if venue.district %}, {{ venue.district }}{% endif %}</p>
                         <div class="venue-type-list mb-3" aria-label="Các loại sân đang hoạt động">
                             {% for active_field_type in result.field_types %}
-                                <span class="venue-type-chip">{{ field_type_labels[active_field_type] }}</span>
+                                <span class="venue-type-chip">{{ active_field_type.sport_name }} · {{ active_field_type.name }}</span>
                             {% endfor %}
                         </div>
-                        <p class="small mb-4"><strong>Giờ hoạt động:</strong> {{ venue.opening_time.strftime('%H:%M') }}–{{ venue.closing_time.strftime('%H:%M') }}</p>
-                        <a class="btn btn-outline-primary w-100 mt-auto" href="{{ url_for('venues.detail', venue_id=venue.id) }}">Xem sân và lịch trống</a>
+                        <p class="small mb-3"><strong>Giờ hoạt động:</strong> {{ venue.opening_time.strftime('%H:%M') }}–{{ venue.closing_time.strftime('%H:%M') }}</p>
+                        <div class="d-grid gap-2 mt-auto">
+                            <a class="btn btn-primary" href="{{ url_for('venues.detail', venue_id=venue.id) }}">Xem sân và lịch trống</a>
+                            <a class="btn btn-outline-primary" href="{{ result.directions_url }}" target="_blank" rel="noopener noreferrer">Mở chỉ đường</a>
+                        </div>
                     </article>
                 {% endfor %}
             </div>
             {% if search_page.pages > 1 %}
                 <nav class="venue-pagination" aria-label="Phân trang kết quả tìm sân">
                     {% if search_page.has_previous %}
-                        <a class="btn btn-outline-primary" href="{{ url_for('venues.index', q=pagination_params.q, field_type=pagination_params.field_type, min_price=pagination_params.min_price, max_price=pagination_params.max_price, page=search_page.page - 1) }}">← Trang trước</a>
-                    {% else %}
-                        <span class="btn btn-outline-secondary disabled" aria-disabled="true">← Trang trước</span>
-                    {% endif %}
+                        <a class="btn btn-outline-primary" href="{{ url_for('venues.index', q=pagination_params.q, sport=pagination_params.sport, field_type=pagination_params.field_type, min_price=pagination_params.min_price, max_price=pagination_params.max_price, latitude=pagination_params.latitude, longitude=pagination_params.longitude, radius_km=pagination_params.radius_km, page=search_page.page - 1) }}">← Trang trước</a>
+                    {% else %}<span class="btn btn-outline-secondary disabled" aria-disabled="true">← Trang trước</span>{% endif %}
                     <span class="venue-pagination-status">Trang {{ search_page.page }}/{{ search_page.pages }}</span>
                     {% if search_page.has_next %}
-                        <a class="btn btn-outline-primary" href="{{ url_for('venues.index', q=pagination_params.q, field_type=pagination_params.field_type, min_price=pagination_params.min_price, max_price=pagination_params.max_price, page=search_page.page + 1) }}">Trang sau →</a>
-                    {% else %}
-                        <span class="btn btn-outline-secondary disabled" aria-disabled="true">Trang sau →</span>
-                    {% endif %}
+                        <a class="btn btn-outline-primary" href="{{ url_for('venues.index', q=pagination_params.q, sport=pagination_params.sport, field_type=pagination_params.field_type, min_price=pagination_params.min_price, max_price=pagination_params.max_price, latitude=pagination_params.latitude, longitude=pagination_params.longitude, radius_km=pagination_params.radius_km, page=search_page.page + 1) }}">Trang sau →</a>
+                    {% else %}<span class="btn btn-outline-secondary disabled" aria-disabled="true">Trang sau →</span>{% endif %}
                 </nav>
             {% endif %}
         {% else %}
             <div class="venue-search-empty">
                 <div class="venue-empty-icon" aria-hidden="true">⌕</div>
-                {% if has_active_filters %}
-                    <h2 class="h5 fw-bold">Chưa tìm thấy sân phù hợp</h2>
-                    <p class="text-secondary mb-0">Hãy thử từ khóa rộng hơn hoặc bỏ bớt một điều kiện lọc ở phía trên.</p>
-                {% else %}
-                    <h2 class="h5 fw-bold">Chưa có cơ sở đang hoạt động</h2>
-                    <p class="text-secondary mb-0">Hiện chưa có sân có thể đặt. Vui lòng quay lại sau.</p>
-                {% endif %}
+                <h2 class="h5 fw-bold">Chưa tìm thấy sân phù hợp</h2>
+                <p class="text-secondary mb-0">Hãy thử tăng bán kính, đổi bộ môn hoặc bỏ bớt điều kiện lọc.</p>
             </div>
         {% endif %}
     {% else %}
@@ -224,4 +184,12 @@
         </div>
     {% endif %}
 </section>
+{% endblock %}
+
+{% block scripts %}
+    <script src="{{ url_for('static', filename='js/venue-search-location.js') }}"></script>
+    {% if map_markers and google_maps_api_key %}
+        <script src="{{ url_for('static', filename='js/venue-public-map.js') }}"></script>
+        <script async src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key|urlencode }}&loading=async&callback=initVenuePublicMap&language=vi&region=VN"></script>
+    {% endif %}
 {% endblock %}

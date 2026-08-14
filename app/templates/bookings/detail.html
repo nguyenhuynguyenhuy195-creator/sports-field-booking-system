@@ -31,8 +31,14 @@
             {% else %}
                 <span>Tổng tiền sân</span>
                 <strong>{{ booking.total_amount|vnd_currency }}</strong>
-                <small>Đã thanh toán: {{ booking.paid_amount|vnd_currency }}</small>
-                <small>Còn lại: {{ booking.remaining_amount|vnd_currency }}</small>
+                {% if booking.payment_policy == 'DEPOSIT_30' %}
+                    <small>Cọc 30%: {{ booking.deposit_amount|vnd_currency }}</small>
+                    <small>Đã cọc: {{ booking.paid_amount|vnd_currency }}</small>
+                    <small>Còn lại trả tại sân: {{ booking.balance_due_at_venue|vnd_currency }}</small>
+                {% else %}
+                    <small>Đã thanh toán online: {{ booking.paid_amount|vnd_currency }}</small>
+                    <small>Còn thiếu: {{ booking.remaining_amount|vnd_currency }}</small>
+                {% endif %}
             {% endif %}
         </div>
     </div>
@@ -50,10 +56,15 @@
                     <div><dt>Ngày sử dụng</dt><dd>{{ booking.booking_date.strftime('%d/%m/%Y') }}</dd></div>
                     <div><dt>Khoảng giờ</dt><dd>{{ booking.start_time.strftime('%H:%M') }}–{{ booking.end_time.strftime('%H:%M') }}</dd></div>
                     <div><dt>Người đặt</dt><dd>{{ booking.user.full_name }}</dd></div>
-                    <div><dt>Hình thức</dt><dd>{{ payment_mode_labels[booking.payment_mode] }}</dd></div>
-                    {% if booking.payment_mode == 'SPLIT_PLAYERS' %}
-                        <div><dt>Sức chứa dùng để chia</dt><dd>{{ booking.split_total_players }} người</dd></div>
-                        <div><dt>Đang tìm thêm</dt><dd>{{ booking.split_required_players }} người</dd></div>
+                    <div><dt>Bộ môn</dt><dd>{{ booking.field.field_type.sport.name }}</dd></div>
+                    <div><dt>Loại sân</dt><dd>{{ booking.field.field_type.name }}</dd></div>
+                    {% if booking.play_format %}<div><dt>Hình thức thi đấu</dt><dd>{{ play_format_labels[booking.play_format] }}</dd></div>{% endif %}
+                    <div><dt>Mục đích đặt sân</dt><dd>{{ booking_mode_labels[booking.booking_mode] }}</dd></div>
+                    {% if booking.payment_policy == 'LEGACY_FULL_ONLINE' %}
+                        <div class="booking-detail-full"><dt>Chính sách thanh toán</dt><dd>Thanh toán online theo chính sách cũ</dd></div>
+                    {% endif %}
+                    {% if booking.booking_mode == 'FIND_PLAYERS' %}
+                        <div><dt>Đang tìm thêm</dt><dd>{{ booking.requested_players }} người</dd></div>
                     {% endif %}
                     {% if booking.note %}<div class="booking-detail-full"><dt>Ghi chú</dt><dd>{{ booking.note }}</dd></div>{% endif %}
                 </dl>
@@ -202,7 +213,7 @@
                             <strong>{{ booking.match.title }}</strong>
                             <a class="btn btn-outline-primary w-100 mt-2" href="{{ url_for('matches.detail', match_id=booking.match.id) }}">Xem và quản lý kèo</a>
                         </div>
-                    {% elif (booking.payment_mode == 'FULL_PAYMENT' and effective_status == 'PAID') or (booking.payment_mode != 'FULL_PAYMENT' and effective_status in ['PARTIALLY_PAID', 'PAID']) %}
+                    {% elif (booking.booking_mode == 'FIND_OPPONENT' and effective_status == 'PARTIALLY_PAID') or (booking.booking_mode == 'FIND_PLAYERS' and effective_status == 'PAID') %}
                         <div class="match-booking-cta mb-3">
                             <span>Bước tiếp theo</span>
                             <strong>Đăng kèo tìm người phù hợp</strong>
@@ -228,36 +239,47 @@
                                     <span>Khoản bạn cần trả trước</span>
                                     <strong>{{ contribution.remaining_amount|vnd_currency }}</strong>
                                 </div>
-                                <form method="post" action="{{ url_for('payments.pay_mock', booking_code=booking.booking_code, contribution_id=contribution.id) }}">
+                                <form method="post" action="{{ url_for('payments.pay_momo' if momo_enabled else 'payments.pay_mock', booking_code=booking.booking_code, contribution_id=contribution.id) }}">
                                     {{ payment_form.hidden_tag() }}
                                     <button class="btn btn-primary w-100" type="submit" data-payment-submit>
-                                        Thanh toán mô phỏng
+                                        {{ 'Thanh toán cọc qua MoMo Sandbox' if momo_enabled else 'Thanh toán mô phỏng' }}
                                     </button>
                                 </form>
                             {% endif %}
                         {% endfor %}
-                        <p class="small text-secondary mt-2">
-                            Đây là giao dịch mô phỏng để kiểm thử đầy đủ luồng. Chưa trừ tiền thật và chưa gọi MoMo.
-                        </p>
+                        {% if momo_enabled %}
+                            <p class="small text-secondary mt-2">Bạn sẽ được chuyển sang trang thanh toán thử nghiệm của MoMo.</p>
+                        {% else %}
+                            <p class="small text-secondary mt-2">MoMo Sandbox chưa được cấu hình; nút hiện tại chỉ ghi nhận giao dịch mô phỏng.</p>
+                        {% endif %}
                     {% endif %}
                 {% elif effective_status == 'PARTIALLY_PAID' %}
                     {% if owner_view %}
                         <p class="text-secondary mb-0">Người đặt đã trả phần đầu. Hệ thống đang chờ các phần còn lại.</p>
                     {% else %}
                         <div class="alert alert-success">Khoản thanh toán đầu tiên đã thành công.</div>
-                        <p class="text-secondary">Còn thiếu {{ booking.remaining_amount|vnd_currency }} trước {{ booking.funding_deadline|local_datetime }}.</p>
-                        <form method="post" action="{{ url_for('payments.top_up_mock', booking_code=booking.booking_code) }}">
-                            {{ top_up_form.hidden_tag() }}
-                            <button class="btn btn-primary w-100" type="submit" data-payment-submit>
-                                Trả toàn bộ phần còn thiếu
-                            </button>
-                        </form>
-                        <p class="small text-secondary mt-2 mb-0">Dùng khi chưa tìm đủ đối thủ hoặc người ghép và bạn muốn giữ sân.</p>
+                        <p class="text-secondary">Còn thiếu {{ booking.remaining_amount|vnd_currency }} tiền cọc từ phía đối thủ.</p>
+                        <p class="small text-secondary">Hạn nhận đối thủ: {{ booking.matchmaking_deadline|local_datetime }}. Nếu chưa có đối thủ, bạn có 30 phút tiếp theo để trả thay.</p>
+                        {% if top_up_window_open %}
+                            <form method="post" action="{{ url_for('payments.top_up_momo' if momo_enabled else 'payments.top_up_mock', booking_code=booking.booking_code) }}">
+                                {{ top_up_form.hidden_tag() }}
+                                <button class="btn btn-primary w-100" type="submit" data-payment-submit>
+                                    Trả phần cọc đối thủ còn thiếu
+                                </button>
+                            </form>
+                            <p class="small text-secondary mt-2 mb-0">Cửa sổ trả thay kết thúc lúc {{ booking.funding_deadline|local_datetime }}.</p>
+                        {% else %}
+                            <p class="small text-secondary mb-0">Nút trả thay chỉ mở trong 30 phút sau hạn tìm đối thủ.</p>
+                        {% endif %}
                     {% endif %}
                 {% elif effective_status == 'PAID' %}
                     <div class="alert alert-success mb-0">
-                        <strong>Đã thanh toán đủ.</strong><br>
-                        Booking được giữ chắc chắn cho khung giờ đã chọn.
+                        <strong>{{ 'Đã thanh toán cọc.' if booking.payment_policy == 'DEPOSIT_30' else 'Đã thanh toán đủ.' }}</strong><br>
+                        {% if booking.payment_policy == 'DEPOSIT_30' %}
+                            Còn {{ booking.balance_due_at_venue|vnd_currency }} thanh toán tại sân.
+                        {% else %}
+                            Booking được giữ chắc chắn cho khung giờ đã chọn.
+                        {% endif %}
                     </div>
                 {% elif effective_status == 'REFUND_PENDING' %}
                     <div class="alert alert-warning mb-0">

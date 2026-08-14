@@ -63,7 +63,7 @@
                                     </div>
                                     <div class="booking-list-price">
                                         <strong>{{ booking.total_amount|vnd_currency }}</strong>
-                                        <span>{{ payment_mode_labels[booking.payment_mode] }}</span>
+                                        <span>{{ booking_mode_labels[booking.booking_mode] }}</span>
                                     </div>
                                     <a class="btn btn-outline-primary" href="{{ url_for('bookings.detail', booking_code=booking.booking_code) }}">Xem chi tiết</a>
                                 </article>

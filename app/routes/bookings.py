@@ -1,9 +1,10 @@
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
 from flask import (
     Blueprint,
     abort,
+    current_app,
     flash,
     jsonify,
     redirect,
@@ -17,12 +18,13 @@ from app.decorators import roles_required
 from app.forms import BookingActionForm, BookingForm, BookingReasonForm
 from app.models import (
     Booking,
-    BookingPaymentMode,
+    BookingMode,
     BookingStatus,
     ContributionStatus,
     ContributionType,
     PaymentProvider,
     PaymentStatus,
+    PlayFormat,
     RefundStatus,
     UserRole,
 )
@@ -34,6 +36,7 @@ from app.services import (
     BookingPermissionError,
     build_field_availability,
     build_contribution_plan,
+    calculate_deposit_amount,
     cancel_owner_booking,
     cancel_user_booking,
     create_booking,
@@ -62,10 +65,15 @@ BOOKING_STATUS_LABELS = {
     BookingStatus.EXPIRED.value: "Đã hết hạn",
 }
 
-PAYMENT_MODE_LABELS = {
-    BookingPaymentMode.FULL_PAYMENT.value: "Thanh toán toàn bộ",
-    BookingPaymentMode.SPLIT_OPPONENT.value: "Tìm đối thủ, chia 50/50",
-    BookingPaymentMode.SPLIT_PLAYERS.value: "Tìm thêm người, chia theo đầu người",
+BOOKING_MODE_LABELS = {
+    BookingMode.DIRECT_BOOKING.value: "Đặt sân cho nhóm",
+    BookingMode.FIND_OPPONENT.value: "Tìm đối thủ",
+    BookingMode.FIND_PLAYERS.value: "Tìm thêm người",
+}
+
+PLAY_FORMAT_LABELS = {
+    PlayFormat.SINGLES.value: "Đánh đơn",
+    PlayFormat.DOUBLES.value: "Đánh đôi",
 }
 
 CONTRIBUTION_TYPE_LABELS = {
@@ -156,8 +164,9 @@ def create(venue_id: int, field_id: int):
                 booking_date=form.booking_date.data,
                 start_time=form.start_time_value,
                 end_time=form.end_time_value,
-                payment_mode=form.payment_mode.data,
-                required_players=form.required_players.data,
+                booking_mode=form.booking_mode.data,
+                play_format=form.play_format.data,
+                requested_players=form.requested_players.data,
                 note=form.note.data,
             )
         except BookingPermissionError:
@@ -207,8 +216,9 @@ def quote(venue_id: int, field_id: int):
             booking_date=form.booking_date.data,
             start_time=form.start_time_value,
             end_time=form.end_time_value,
-            payment_mode=form.payment_mode.data,
-            required_players=form.required_players.data,
+            booking_mode=form.booking_mode.data,
+            play_format=form.play_format.data,
+            requested_players=form.requested_players.data,
         )
     except BookingPermissionError:
         abort(403)
@@ -217,26 +227,22 @@ def quote(venue_id: int, field_id: int):
     except BookingError as exc:
         return jsonify(ok=False, message=str(exc)), 422
 
+    deposit_amount = calculate_deposit_amount(price_quote.total)
     contribution_plan = build_contribution_plan(
-        payment_mode=form.payment_mode.data,
-        total_amount=price_quote.total,
-        total_players=(
-            field.capacity
-            if form.payment_mode.data == BookingPaymentMode.SPLIT_PLAYERS.value
-            else None
-        ),
-        required_players=form.required_players.data,
+        booking_mode=form.booking_mode.data,
+        deposit_amount=deposit_amount,
+        requested_players=form.requested_players.data,
     )
 
     return jsonify(
         ok=True,
         total=str(price_quote.total),
+        deposit_amount=str(deposit_amount),
+        venue_balance=str(price_quote.total - deposit_amount),
         contribution_plan={
             "creator_amount": str(contribution_plan.creator_amount),
             "external_amount": str(contribution_plan.external_amount),
-            "total_players": contribution_plan.total_players,
-            "required_players": contribution_plan.required_players,
-            "existing_players": contribution_plan.existing_players,
+            "requested_players": contribution_plan.requested_players,
             "external_contributions": [
                 {
                     "type": contribution.contribution_type,
@@ -312,7 +318,8 @@ def index():
         bookings=bookings,
         booking_groups=_group_bookings_for_display(bookings),
         status_labels=BOOKING_STATUS_LABELS,
-        payment_mode_labels=PAYMENT_MODE_LABELS,
+        booking_mode_labels=BOOKING_MODE_LABELS,
+        play_format_labels=PLAY_FORMAT_LABELS,
     )
 
 
@@ -333,17 +340,20 @@ def detail(booking_code: str):
         booking=booking,
         effective_status=get_effective_booking_status(booking),
         status_labels=BOOKING_STATUS_LABELS,
-        payment_mode_labels=PAYMENT_MODE_LABELS,
+        booking_mode_labels=BOOKING_MODE_LABELS,
+        play_format_labels=PLAY_FORMAT_LABELS,
         contribution_type_labels=CONTRIBUTION_TYPE_LABELS,
         contribution_status_labels=CONTRIBUTION_STATUS_LABELS,
         payment_status_labels=PAYMENT_STATUS_LABELS,
         payment_provider_labels=PAYMENT_PROVIDER_LABELS,
         refund_status_labels=REFUND_STATUS_LABELS,
         successful_refund_total=_successful_refund_total(booking),
+        top_up_window_open=_top_up_window_open(booking),
         payment_form=BookingActionForm(prefix="payment"),
         top_up_form=BookingActionForm(prefix="top-up"),
         cancel_form=BookingActionForm(),
         owner_view=False,
+        momo_enabled=current_app.config.get("MOMO_ENABLED", False),
     )
 
 
@@ -379,7 +389,7 @@ def owner_index():
         bookings=bookings,
         booking_groups=_group_bookings_for_display(bookings),
         status_labels=BOOKING_STATUS_LABELS,
-        payment_mode_labels=PAYMENT_MODE_LABELS,
+        booking_mode_labels=BOOKING_MODE_LABELS,
     )
 
 
@@ -392,15 +402,18 @@ def owner_detail(booking_code: str):
         booking=booking,
         effective_status=get_effective_booking_status(booking),
         status_labels=BOOKING_STATUS_LABELS,
-        payment_mode_labels=PAYMENT_MODE_LABELS,
+        booking_mode_labels=BOOKING_MODE_LABELS,
+        play_format_labels=PLAY_FORMAT_LABELS,
         contribution_type_labels=CONTRIBUTION_TYPE_LABELS,
         contribution_status_labels=CONTRIBUTION_STATUS_LABELS,
         payment_status_labels=PAYMENT_STATUS_LABELS,
         payment_provider_labels=PAYMENT_PROVIDER_LABELS,
         refund_status_labels=REFUND_STATUS_LABELS,
         successful_refund_total=_successful_refund_total(booking),
+        top_up_window_open=_top_up_window_open(booking),
         owner_cancel_form=BookingReasonForm(prefix="owner-cancel"),
         owner_view=True,
+        momo_enabled=current_app.config.get("MOMO_ENABLED", False),
     )
 
 
@@ -509,6 +522,17 @@ def _successful_refund_total(booking) -> Decimal:
             if refund.status == RefundStatus.SUCCESS.value
         ),
         Decimal("0.00"),
+    )
+
+
+def _top_up_window_open(booking: Booking) -> bool:
+    now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+    return bool(
+        booking.booking_mode == BookingMode.FIND_OPPONENT.value
+        and booking.status == BookingStatus.PARTIALLY_PAID.value
+        and booking.matchmaking_deadline is not None
+        and booking.funding_deadline is not None
+        and booking.matchmaking_deadline <= now_utc < booking.funding_deadline
     )
 
 

@@ -2,128 +2,163 @@
 
 ## 7.1. Phong cách và khả dụng
 
-- Hiện đại, thể thao, chuyên nghiệp và dễ sử dụng.
-- Responsive trên desktop và mobile.
-- Primary `#146C43`, Secondary `#0F2747`, Background `#F5F7FA`.
+- Hiện đại, thể thao, chuyên nghiệp và dễ dùng.
+- Responsive trên desktop/mobile.
+- Primary #146C43, Secondary #0F2747, Background #F5F7FA.
 - Font Be Vietnam Pro hoặc Inter.
 - Card bo góc 12–16px; button cao 42–48px.
-- Button thanh toán/hủy phải có trạng thái disabled và loading để tránh gửi lặp.
-- Mọi lỗi nghiệp vụ, hết hạn và trạng thái MoMo phải được diễn đạt rõ bằng tiếng Việt.
+- Button thanh toán/hủy có disabled/loading để tránh gửi lặp.
+- Lỗi nghiệp vụ, deadline, vị trí và trạng thái MoMo được diễn đạt rõ bằng tiếng Việt.
+- Giao diện phân biệt rõ “Tổng tiền sân”, “Cọc online 30%” và “Còn lại trả tại sân”.
 
-## 7.2. Trang chủ và danh sách sân
+## 7.2. Trang chủ và danh sách venue
 
-Trang chủ gồm navbar, hero, form tìm sân, venue nổi bật, kèo đang mở và footer.
+- Ô tìm theo tên, địa chỉ, quận/huyện hoặc tỉnh/thành phố.
+- Bộ lọc sport, field type và khoảng giá.
+- Nút “Dùng vị trí của tôi” và bán kính 3/5/10 km.
+- Nếu browser từ chối vị trí, hiển thị hướng dẫn ngắn và giữ tìm kiếm văn bản hoạt động.
+- Hai chế độ xem: danh sách và bản đồ; mobile ưu tiên danh sách và cho mở bản đồ riêng.
+- Card venue hiển thị địa chỉ, sport/field type đang hoạt động, giờ hoạt động, giá từ và khoảng cách nếu có.
+- Marker hiển thị tên, khoảng cách, giá từ và nút xem chi tiết.
+- Điều kiện đang lọc hiển thị thành chip; phân trang giữ nguyên query.
+- Chỉ venue ACTIVE có field ACTIVE xuất hiện.
 
-Danh sách sân gồm:
-- Ô tìm theo tên venue, địa chỉ, quận/huyện hoặc tỉnh/thành phố.
-- Bộ lọc loại sân, giá tối thiểu và giá tối đa theo đơn vị đồng/giờ.
-- Card venue hiển thị địa chỉ, các loại field đang hoạt động, giờ hoạt động và “giá từ” thấp nhất.
-- Ô tìm kiếm là thao tác chính; loại sân và khoảng giá nằm trong nhóm bộ lọc phụ, tự hiển thị trên desktop và có thể thu gọn trên mobile.
-- Điều kiện đang áp dụng hiển thị thành các thẻ có thể bỏ riêng; toàn trang chỉ dùng một hành động “Xóa tất cả”.
-- Kết quả phân trang 9 venue/trang; từ khóa và bộ lọc phải được giữ khi chuyển trang.
-- Empty state riêng cho chưa có dữ liệu, không tìm thấy kết quả và bộ lọc không hợp lệ.
+## 7.3. Form owner tạo/sửa venue
 
-Chỉ venue `ACTIVE` có field `ACTIVE` được hiển thị. Khi chọn loại sân, giá tham khảo và khoảng giá phải được tính trên loại sân đã chọn.
+- Nhập tên, số liên hệ, mô tả và giờ hoạt động.
+- Ô địa chỉ dùng Places Autocomplete.
+- Sau khi chọn gợi ý, hiển thị bản đồ và marker để owner kiểm tra.
+- Lưu place ID, địa chỉ chuẩn hóa và tọa độ trong hidden fields nhưng backend vẫn validate.
+- Nếu owner sửa chữ trong địa chỉ sau khi chọn place, yêu cầu chọn/xác nhận lại vị trí.
+- Không hiển thị API key server hoặc chi tiết billing.
 
-## 7.3. Trang chi tiết venue/field
+Venue cũ chưa có tọa độ phải có cảnh báo riêng: vẫn hoạt động theo tìm kiếm văn bản nhưng chưa xuất hiện trong “gần tôi”.
 
-- Thông tin venue, địa chỉ, giờ hoạt động và danh sách field.
-- Loại sân, sức chứa, trạng thái và các khung giá theo ngày.
-- Lịch trống và lịch bảo trì không cho chọn.
-- Nút đặt sân chỉ bật với field `ACTIVE` và thời gian hợp lệ.
+## 7.4. Trang chi tiết venue/field
 
-## 7.4. Trang tạo booking
+- Hiển thị venue, địa chỉ, giờ hoạt động và các field theo từng sport.
+- Bản đồ có marker và nút “Mở chỉ đường trên Google Maps”.
+- Field hiển thị sport, field type, capacity, trạng thái và khung giá.
+- Nút đặt sân chỉ bật với field ACTIVE.
+- Không hiển thị đánh giá Google hoặc cơ sở bên ngoài trong MVP.
 
-- Thể hiện tiến trình bốn bước: sân đã chọn, chọn giờ, chọn hình thức và xác nhận.
-- Chọn nhanh ngày trong dải 7 ngày hoặc bằng ô lịch; dải ngày cuộn ngang trên màn hình nhỏ và luôn đưa ngày đang chọn vào vùng nhìn thấy.
-- Hiển thị lưới mốc giờ bước 30 phút từ giờ mở cửa đến giờ đóng cửa của venue.
-- Phân biệt trực quan: còn trống, đã chọn, đã có người đặt, bảo trì, chưa áp dụng giá và thời gian đã qua.
-- User chọn mốc bắt đầu rồi mốc kết thúc; không cho chọn qua ô bận/bảo trì/thiếu giá và chỉ bật nút tiếp tục khi đủ 60 phút.
-- Hiển thị điều kiện tối thiểu 60 phút, giới hạn 30 ngày và thời gian đặt trước.
-- Cho chọn một trong ba hình thức:
-  - Thanh toán 100%.
-  - Tìm đội đối thủ, chia 50/50.
-  - Tìm thêm người, chia theo đầu người.
-- Với tìm người: nhập số vị trí còn thiếu; hiển thị số người tiêu chuẩn và phần người tạo phải trả.
-- Trước khi giữ chỗ, hiển thị riêng khoản người tạo trả trước và khoản chờ đối thủ/người ghép trả.
-- Hiển thị từng đoạn khung giá, đơn giá, thời lượng, subtotal và tổng tiền dự kiến.
-- Sau khi chọn đủ khoảng giờ, hiển thị ngay khoảng đã chọn, thời lượng và tạm tính từ endpoint báo giá.
-- Hiển thị thông tin người đặt lấy từ tài khoản, không yêu cầu nhập lại họ tên/email.
-- Nêu rõ booking hợp lệ được giữ chỗ tự động 15 phút, không chờ owner duyệt.
-- Backend tính lại toàn bộ khi submit.
+## 7.5. Trang tạo booking
 
-## 7.5. Chi tiết và lịch sử booking
+Tiến trình bốn bước:
+
+1. Sân đã chọn.
+2. Chọn ngày/giờ.
+3. Chọn hình thức.
+4. Xác nhận và thanh toán cọc.
+
+Yêu cầu:
+
+- Dải ngày 7 ngày và lưới mốc 30 phút theo giờ hoạt động.
+- Phân biệt còn trống, đã chọn, đã đặt, bảo trì, thiếu giá và đã qua.
+- Chọn khoảng liên tục tối thiểu 60 phút.
+- Với cầu lông, pickleball và tennis: chọn Đánh đơn hoặc Đánh đôi.
+- Với bóng đá: không hiển thị lựa chọn đơn/đôi.
+- Ba booking mode:
+  - Đặt sân cho nhóm của tôi.
+  - Tìm đối thủ.
+  - Tìm thêm người chơi.
+- SINGLES không hiển thị FIND_PLAYERS.
+- FIND_PLAYERS hiển thị ô số vị trí muốn tìm và giải thích người ghép trả tại sân.
+- Số vị trí FIND_PLAYERS được lưu cùng booking trước khi creator thanh toán cọc/mở match.
+- FIND_OPPONENT ghi rõ phải đặt trước 24 giờ, tìm xong trước 12 giờ và hai phía chia đôi tiền cọc.
+- Trước submit hiển thị các đoạn giá, total, cọc 30%, creator cần trả ngay và 70% trả tại sân.
+- Nêu rõ booking giữ chỗ 15 phút và không chờ owner duyệt.
+- Backend tính lại khi submit.
+
+## 7.6. Chi tiết và lịch sử booking
 
 Hiển thị:
-- Mã booking, venue/field và ngày giờ.
-- Hình thức thanh toán.
-- Chi tiết giá chốt và `total_amount`.
-- Số tiền đã thu, còn thiếu và hạn góp đủ.
-- Badge trạng thái và timeline.
-- Danh sách contribution/payment/refund mà user được phép xem.
-- Bảng contribution hiển thị người/nhóm trả, vị trí, số phải trả, số đã trả và trạng thái; lịch sử payment tách riêng.
-- Nút hủy, thanh toán lại hoặc trả phần còn thiếu theo quyền và trạng thái; owner không có nút xác nhận/từ chối booking thông thường.
-- Trong giai đoạn provider `MOCK`, giao diện phải ghi rõ “Thanh toán mô phỏng” không trừ tiền thật và chưa gọi MoMo.
 
-## 7.6. Trang thanh toán MoMo
+- Mã booking, venue/field, sport, field type, play format và ngày giờ.
+- Booking mode.
+- Snapshot giá và total_amount.
+- Deposit rate/amount, đã cọc, còn thiếu cọc và balance trả tại sân.
+- Badge phải dùng “Đã thanh toán cọc”, không gây hiểu nhầm đã thanh toán toàn bộ.
+- Booking `LEGACY_FULL_ONLINE` phải có nhãn “Thanh toán online theo chính sách cũ”, không dùng nhãn cọc 30%.
+- Timeline và deadline 15 phút/12 giờ/30 phút khi áp dụng.
+- Contribution/payment/refund mà user được phép xem.
+- Nút thanh toán lại, top-up hoặc hủy theo quyền/trạng thái.
+- Owner không có nút duyệt booking thông thường.
+- Provider MOCK phải ghi “Thanh toán mô phỏng, không trừ tiền thật”.
 
-- Hiển thị chính xác booking, người trả, số tiền và thời hạn.
+## 7.7. Trang thanh toán MoMo
+
+- Hiển thị đúng booking, người trả, contribution và số tiền cọc.
 - Nút “Thanh toán qua MoMo Sandbox”.
-- Sau redirect, hiển thị “Đang xác minh” cho đến khi backend nhận/xác nhận IPN.
-- Không hiển thị thành công chỉ dựa trên query string redirect.
-- Cho phép thử lại khi payment thất bại và nghĩa vụ vẫn còn hạn.
+- Sau redirect hiển thị “Đang xác minh” cho đến khi IPN hợp lệ.
+- Không hiển thị thành công chỉ dựa trên query string.
+- Cho thử lại khi payment thất bại và nghĩa vụ còn hạn.
+- Không hiển thị QR ngân hàng owner, ví admin hoặc chức năng rút tiền.
 
-## 7.7. Trang tìm kèo
+## 7.8. Trang tìm kèo
 
 ### Danh sách và chi tiết
-- Phân biệt `FIND_OPPONENT` và `FIND_PLAYERS`.
-- Hiển thị field, ngày giờ, trình độ, số vị trí còn thiếu và tiến độ thanh toán.
-- Không công khai secret hoặc thông tin giao dịch nhạy cảm.
 
-### Người tạo
-- Xem, chấp nhận hoặc từ chối yêu cầu.
-- Thấy countdown 15 phút của yêu cầu đang chờ thanh toán.
-- Thấy số tiền còn thiếu và nút trả phần còn lại.
+- Phân biệt Tìm đối thủ và Tìm thêm người.
+- Hiển thị sport, play format, field, ngày giờ, trình độ và số vị trí.
+- Không công khai số điện thoại participant.
+
+### Creator – FIND_OPPONENT
+
+- Xem/chấp nhận/từ chối yêu cầu.
+- Xem countdown 15 phút và deadline trước trận 12 giờ.
+- Xem phần cọc đối thủ còn thiếu và nút creator top-up trong cửa sổ 30 phút.
+
+### Creator – FIND_PLAYERS
+
+- Xem số vị trí còn thiếu.
+- Chấp nhận/từ chối không phụ thuộc payment.
+- Chỉ sau khi chấp nhận mới thấy số điện thoại và nút liên hệ qua Zalo.
+- Giao diện ghi rõ tiền được thu trực tiếp tại sân.
 
 ### Người tham gia
-- Gửi yêu cầu và xem trạng thái.
-- Sau khi được chấp nhận, xem số tiền phải trả và countdown 15 phút.
-- Chỉ hiển thị “Đã tham gia” sau payment thành công; nếu người tạo đã trả đủ booking thì hiển thị rõ vị trí không còn phải thanh toán.
-- Có nút rút; giao diện phải hiển thị rõ chính sách hoàn tiền trên/dưới mốc 12 giờ.
 
-## 7.8. Dashboard owner
+- Form FIND_PLAYERS bắt buộc số điện thoại dùng Zalo và checkbox đồng ý chia sẻ với creator nếu được chấp nhận.
+- Trước khi được chấp nhận, hiển thị trạng thái chờ duyệt nhưng không hiển thị số cho bên khác.
+- Sau khi được chấp nhận, hiển thị “Đã tham gia – thanh toán tại sân”, không có nút MoMo/countdown.
+- Cho phép rút; vị trí mở lại và không có refund vì chưa thanh toán online.
 
-- Venue chờ duyệt/đang hoạt động/bị ẩn.
-- Field, khung giá theo ngày và lịch bảo trì.
-- Booking hôm nay, booking đang giữ chỗ/chờ thanh toán và countdown 15 phút.
-- Tiến độ thanh toán, booking chờ refund và lý do hủy.
-- Owner không được sửa giá snapshot của booking đã tạo.
+## 7.9. Dashboard owner
 
-## 7.9. Dashboard admin
+- Venue chờ duyệt/đang hoạt động/bị ẩn và cảnh báo thiếu tọa độ.
+- Field nhóm theo sport, khung giá và bảo trì.
+- Booking hôm nay, đang giữ chỗ/chờ cọc/chờ đối thủ.
+- Tiền cọc, phần dự kiến trả tại sân, refund và lý do hủy.
+- Owner không được sửa snapshot booking.
 
-- Tài khoản và yêu cầu trở thành owner.
-- Venue chờ duyệt và chức năng ẩn venue.
-- Danh sách booking, payment, contribution, refund và match.
-- Bộ lọc theo trạng thái, ngày và mã giao dịch.
-- Không hiển thị secret key MoMo.
+## 7.10. Dashboard admin
 
-## 7.10. Màu trạng thái booking
+- Account, owner application và venue chờ duyệt.
+- Kiểm tra địa chỉ/marker trước khi kích hoạt venue mới.
+- Danh sách booking, contribution, payment, refund và match.
+- Bộ lọc theo trạng thái, sport, ngày và mã giao dịch.
+- Không hiển thị secret key; số liên hệ chỉ hiện theo quyền cần thiết.
 
-- `PENDING`: vàng, chỉ dùng cho dữ liệu lịch sử.
-- `CONFIRMED`: xanh dương, đang giữ chỗ/chờ thanh toán đầu tiên.
-- `PARTIALLY_PAID`: tím hoặc xanh lam nhạt.
-- `PAID`: xanh lá.
-- `REFUND_PENDING`: cam.
-- `COMPLETED`: xám hoặc xanh đậm.
-- `CANCELLED`, `REJECTED`: đỏ.
-- `EXPIRED`: xám.
+## 7.11. Màu trạng thái
 
-## 7.11. Trạng thái rỗng và lỗi bắt buộc
+- CONFIRMED: xanh dương, đang giữ chỗ/chờ cọc đầu tiên.
+- PARTIALLY_PAID: tím, đã cọc một phần.
+- PAID: xanh lá với nhãn “Đã thanh toán cọc”.
+- REFUND_PENDING: cam.
+- COMPLETED: xanh đậm hoặc xám.
+- CANCELLED/REJECTED: đỏ.
+- EXPIRED: xám.
+- PENDING chỉ dùng dữ liệu lịch sử.
 
-- Không có khung giá phủ đủ thời gian.
-- Khung giờ đã có người đặt hoặc đang bảo trì.
-- Venue/field chưa hoạt động.
-- Booking hoặc yêu cầu thanh toán đã hết hạn.
-- Payment đang xác minh, thất bại hoặc đã được xử lý.
-- Refund đang xử lý hoặc thất bại.
-- Kèo đã đủ người, đã có đối thủ hoặc vị trí vừa được người khác thanh toán.
+## 7.12. Empty state và lỗi bắt buộc
+
+- Không có venue theo bộ lọc hoặc bán kính.
+- Không cấp quyền vị trí hoặc venue chưa có tọa độ.
+- Field/venue chưa hoạt động.
+- Play format không hợp lệ với sport/booking mode.
+- Khung giờ bận, bảo trì, thiếu giá hoặc quá hạn.
+- Payment đang xác minh, thất bại hoặc đã xử lý.
+- Refund đang xử lý/thất bại.
+- Kèo đủ người/đã có đối thủ.
+- Yêu cầu FIND_PLAYERS thiếu số Zalo.
+- User không có quyền xem số liên hệ.

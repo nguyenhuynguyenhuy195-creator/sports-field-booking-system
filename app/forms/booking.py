@@ -16,23 +16,23 @@ from wtforms.validators import (
     ValidationError,
 )
 
-from app.models import BookingPaymentMode
+from app.models import BookingMode, PlayFormat
 
 
 BOOKING_HOUR_CHOICES = [(f"{hour:02d}", f"{hour:02d}") for hour in range(24)]
 BOOKING_MINUTE_CHOICES = [("00", "00"), ("30", "30")]
-PAYMENT_MODE_CHOICES = [
+BOOKING_MODE_CHOICES = [
     (
-        BookingPaymentMode.FULL_PAYMENT.value,
-        "Thanh toán toàn bộ tiền sân",
+        BookingMode.DIRECT_BOOKING.value,
+        "Đặt sân cho nhóm của tôi",
     ),
     (
-        BookingPaymentMode.SPLIT_OPPONENT.value,
-        "Tìm đối thủ và chia tiền 50/50",
+        BookingMode.FIND_OPPONENT.value,
+        "Tìm đối thủ — hai phía chia đôi khoản cọc",
     ),
     (
-        BookingPaymentMode.SPLIT_PLAYERS.value,
-        "Tìm thêm người và chia theo đầu người",
+        BookingMode.FIND_PLAYERS.value,
+        "Tìm thêm người — người ghép trả tại sân",
     ),
 ]
 
@@ -67,14 +67,22 @@ class BookingForm(FlaskForm):
         default="00",
         validators=[DataRequired(message="Vui lòng chọn phút kết thúc.")],
     )
-    payment_mode = RadioField(
-        "Hình thức thanh toán",
-        choices=PAYMENT_MODE_CHOICES,
-        default=BookingPaymentMode.FULL_PAYMENT.value,
-        validators=[DataRequired(message="Vui lòng chọn hình thức thanh toán.")],
+    play_format = RadioField(
+        "Hình thức thi đấu",
+        choices=[
+            (PlayFormat.SINGLES.value, "Đánh đơn"),
+            (PlayFormat.DOUBLES.value, "Đánh đôi"),
+        ],
+        validate_choice=False,
     )
-    required_players = IntegerField(
-        "Số người đội bạn còn thiếu",
+    booking_mode = RadioField(
+        "Mục đích đặt sân",
+        choices=BOOKING_MODE_CHOICES,
+        default=BookingMode.DIRECT_BOOKING.value,
+        validators=[DataRequired(message="Vui lòng chọn mục đích đặt sân.")],
+    )
+    requested_players = IntegerField(
+        "Số người muốn tìm thêm",
     )
     note = TextAreaField(
         "Ghi chú cho chủ sân",
@@ -103,17 +111,17 @@ class BookingForm(FlaskForm):
         if start_time >= end_time:
             raise ValidationError("Giờ kết thúc phải sau giờ bắt đầu.")
 
-    def validate_required_players(self, field) -> None:
-        if self.payment_mode.data == BookingPaymentMode.SPLIT_PLAYERS.value:
+    def validate_requested_players(self, field) -> None:
+        if self.booking_mode.data == BookingMode.FIND_PLAYERS.value:
             if field.data is None:
                 raise ValidationError(
-                    "Vui lòng nhập số người còn thiếu để hệ thống chia tiền."
+                    "Vui lòng nhập số người bạn muốn tìm thêm."
                 )
             if field.data < 1:
-                raise ValidationError("Số người còn thiếu phải từ 1 trở lên.")
+                raise ValidationError("Số người muốn tìm phải từ 1 trở lên.")
         elif field.data is not None:
             raise ValidationError(
-                "Số người còn thiếu chỉ dùng cho hình thức chia theo đầu người."
+                "Số người muốn tìm chỉ dùng cho hình thức tìm thêm người."
             )
 
 

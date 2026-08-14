@@ -38,6 +38,8 @@ Tài liệu kỹ thuật tham chiếu:
 
 ## ADR-007: Ba hình thức thanh toán booking
 
+**Trạng thái:** Được thay thế bởi ADR-023 và ADR-024 cho booking mới; giữ để giải thích dữ liệu/code lịch sử.
+
 - `FULL_PAYMENT`: người tạo trả 100%.
 - `SPLIT_OPPONENT`: hai đội chia 50/50.
 - `SPLIT_PLAYERS`: chia theo đầu người; người tạo trả phần nhóm có sẵn, người ghép trả phần của họ.
@@ -46,11 +48,15 @@ Thành viên có sẵn không bắt buộc tạo tài khoản. Người tạo c�
 
 ## ADR-008: Thời hạn booking và góp tiền
 
+**Trạng thái:** Được thay thế một phần bởi ADR-023.
+
 - Booking thường đặt trước tối thiểu 60 phút; booking chia tiền tối thiểu 13 giờ; tối đa 30 ngày.
 - Booking hợp lệ được giữ chỗ tự động; khoản thanh toán đầu tiên và payment của người được chấp nhận có hạn 15 phút.
 - Booking chia tiền phải đủ trước giờ bắt đầu 12 giờ.
 
 ## ADR-009: Chính sách không góp đủ và hoàn tiền
+
+**Trạng thái:** Chỉ còn áp dụng cho tiền cọc FIND_OPPONENT theo ADR-023; người ghép mới không thanh toán online.
 
 - Không góp đủ đúng hạn: creator được hoàn 80%, 20% khoản creator đã đóng là phí giữ sân cho owner.
 - Đối thủ/người ghép đã thanh toán đúng hạn được hoàn 100%.
@@ -59,6 +65,8 @@ Thành viên có sẵn không bắt buộc tạo tài khoản. Người tạo c�
 - Refund là bản ghi riêng; không xóa hoặc ghi đè payment gốc.
 
 ## ADR-010: Chính sách rút khỏi kèo và no-show
+
+**Trạng thái:** Được thay thế một phần bởi ADR-024 đối với FIND_PLAYERS.
 
 - Rút trước giờ bắt đầu trên 12 giờ: hoàn 100% và mở lại vị trí.
 - Rút trong vòng 12 giờ hoặc no-show: không hoàn tiền.
@@ -88,6 +96,8 @@ AI lọc spam, phân tích cảm xúc, recommendation, chat thời gian thực, 
 
 ## ADR-015: Chốt ERD và ràng buộc SQL Server
 
+**Trạng thái:** Số bảng và ERD được thay thế bởi ADR-022; nguyên tắc SQL Server/lịch sử vẫn còn hiệu lực.
+
 - MVP sử dụng 13 bảng nghiệp vụ; chưa thêm notification, team, review, payout hoặc audit log riêng.
 - Dữ liệu giao dịch dùng foreign key `NO ACTION` và chuyển trạng thái thay vì cascade delete.
 - Unique trên mã giao dịch nullable và unique theo trạng thái phải dùng filtered unique index phù hợp SQL Server.
@@ -105,6 +115,8 @@ AI lọc spam, phân tích cảm xúc, recommendation, chat thời gian thực, 
 - Trang đặt sân dùng bốn bước, lấy thông tin người đặt từ tài khoản và gọi backend báo giá trước khi submit; backend vẫn tính lại toàn bộ khi tạo booking.
 
 ## ADR-017: Nền tảng contribution và provider thanh toán mô phỏng
+
+**Trạng thái:** Phân bổ SPLIT_PLAYERS được thay thế bởi ADR-023/024; provider MOCK và nguyên tắc lịch sử vẫn còn hiệu lực.
 
 **Ngày quyết định:** 08/08/2026
 
@@ -127,6 +139,8 @@ AI lọc spam, phân tích cảm xúc, recommendation, chat thời gian thực, 
 
 ## ADR-019: Gắn yêu cầu tham gia kèo với contribution
 
+**Trạng thái:** Chỉ còn áp dụng cho đại diện đối thủ theo ADR-024; người ghép mới không gắn contribution.
+
 **Ngày quyết định:** 10/08/2026
 
 - Mỗi booking có tối đa một match; payment mode chia tiền quyết định loại `FIND_OPPONENT` hoặc `FIND_PLAYERS` để không tạo kèo sai nghĩa vụ.
@@ -139,6 +153,8 @@ AI lọc spam, phân tích cảm xúc, recommendation, chat thời gian thực, 
 
 ## ADR-020: Mở lại vị trí sau refund
 
+**Trạng thái:** Chỉ áp dụng cho contribution PLAYER lịch sử; FIND_PLAYERS mới rút không có refund theo ADR-024.
+
 **Ngày quyết định:** 11/08/2026
 
 - Khi người tham gia đã thanh toán rút trước trận trên 12 giờ, contribution cũ chuyển `REFUNDED` và tiếp tục gắn với payment/refund lịch sử.
@@ -146,6 +162,8 @@ AI lọc spam, phân tích cảm xúc, recommendation, chat thời gian thực, 
 - Filtered unique index chỉ cho phép một nghĩa vụ chưa hoàn hết trên mỗi vị trí, đồng thời cho phép lưu nhiều contribution `REFUNDED` theo thời gian.
 
 ## ADR-021: Tìm kiếm và lọc venue công khai
+
+**Trạng thái:** Phần Google Maps/tìm gần được mở rộng bởi ADR-025; tìm kiếm văn bản và giá từ vẫn còn hiệu lực.
 
 **Ngày quyết định:** 12/08/2026
 
@@ -156,3 +174,77 @@ AI lọc spam, phân tích cảm xúc, recommendation, chat thời gian thực, 
 - Các điều kiện tìm kiếm được kết hợp bằng `AND`, truy vấn và tính giá nằm trong service, route chỉ validate query string và render kết quả.
 - Kết quả được sắp theo tên và phân trang 9 venue/trang; điều kiện tìm/lọc được giữ trong liên kết chuyển trang.
 - Google Maps, tìm quanh vị trí GPS, đánh giá và gợi ý thông minh tiếp tục nằm ngoài module này.
+
+## ADR-022: Mở rộng thành hệ thống đặt sân thể thao đa môn
+
+**Ngày quyết định:** 12/08/2026
+
+- MVP hỗ trợ bóng đá, cầu lông, pickleball và tennis.
+- Tạo hai bảng danh mục `sports` và `field_types`; ERD mục tiêu tăng từ 13 lên 15 bảng.
+- Mỗi field thuộc đúng một field type và qua đó thuộc đúng một sport; một venue có thể có nhiều field thuộc nhiều sport.
+- Field đã có booking không được đổi field type; owner phải ngừng field cũ và tạo field mới để bảo toàn lịch sử.
+- Seed bóng đá 5/7/11 người và một field type tiêu chuẩn cho mỗi môn dùng vợt.
+- Cầu lông, pickleball và tennis chọn `SINGLES`/`DOUBLES` ở booking; bóng đá không chọn play format.
+- Không phân loại mặt sân tennis, thuê dụng cụ, huấn luyện viên hoặc giải đấu trong MVP.
+- Dữ liệu `field_type` bóng đá cũ phải được backfill trước khi bỏ cột/check constraint cũ.
+
+## ADR-023: Cọc 30% qua MoMo Sandbox
+
+**Ngày quyết định:** 12/08/2026
+
+- Không thu 100% tiền sân online trong thiết kế mới.
+- Backend snapshot `deposit_rate = 30%` và `deposit_amount`; 70% còn lại thanh toán tại sân và không được hệ thống xác nhận trong MVP.
+- Booking mới gắn `payment_policy = DEPOSIT_30`; booking cũ backfill `LEGACY_FULL_ONLINE`, rate 1 và deposit bằng total để không làm sai lịch sử.
+- `DIRECT_BOOKING` và `FIND_PLAYERS`: creator thanh toán toàn bộ khoản cọc.
+- `FIND_OPPONENT`: creator/opponent mỗi bên thanh toán một nửa khoản cọc, tương đương 15% total mỗi bên.
+- `PAID` được giữ để giảm độ phức tạp migration nhưng có nghĩa “đã đủ cọc”; UI phải ghi rõ.
+- FIND_OPPONENT đặt trước tối thiểu 24 giờ, tìm và nhận cọc đối thủ trước 12 giờ; creator có thêm 30 phút top-up.
+- Không top-up: hoàn 80% khoản creator đã đóng, giữ 20% chính khoản đó làm phí giữ sân.
+- MoMo Sandbox dùng trình diễn, MOCK dùng test. MoMo Production, QR ngân hàng thật, ví admin và payout nằm ngoài MVP.
+
+ADR này thay thế mô hình FULL_PAYMENT/SPLIT_OPPONENT/SPLIT_PLAYERS đối với booking mới. Migration phải giữ nguyên ý nghĩa payment lịch sử, không tự biến giao dịch 100% cũ thành cọc 30%.
+
+## ADR-024: Tìm thêm người không thanh toán online
+
+**Ngày quyết định:** 12/08/2026
+
+- Creator tự chọn số vị trí FIND_PLAYERS trong giới hạn field/play format.
+- Số vị trí được snapshot ở `bookings.requested_players` trước khi match được mở.
+- Creator chịu toàn bộ khoản cọc booking; người ghép không có contribution, payment_due_at hoặc refund online.
+- Khi creator chấp nhận, participant chuyển thẳng `JOINED`.
+- Người ghép trả trực tiếp cho creator tại sân.
+- Yêu cầu phải có số điện thoại dùng Zalo; chỉ creator xem được sau khi chấp nhận, không công khai và không tiếp tục hiển thị sau khi booking kết thúc/hủy.
+- Participant rút thì mở lại vị trí, không tạo refund.
+- MVP không chấm điểm, tự động cảnh cáo hoặc khóa vì no-show.
+- Đối với môn dùng vợt, SINGLES chỉ tìm đối thủ; DOUBLES có thể tìm đối thủ hoặc tìm thêm người.
+
+ADR này thay thế việc gắn contribution/payment cho PLAYER trong ADR-017/019. Contribution PLAYER cũ chỉ giữ cho lịch sử.
+
+## ADR-025: Google Maps cho venue nội bộ
+
+**Ngày quyết định:** 12/08/2026
+
+- Venue lưu `google_place_id`, `latitude`, `longitude`.
+- Owner dùng Places Autocomplete và kiểm tra marker khi tạo/sửa venue.
+- User tìm venue đã ACTIVE trong bán kính 3/5/10 km, xem khoảng cách gần đúng, marker và nút mở Google Maps chỉ đường.
+- Browser Geolocation là tùy chọn; từ chối quyền không làm mất tìm kiếm văn bản.
+- Không dùng Nearby Search để đưa địa điểm ngoài database vào hệ thống.
+- Venue cũ chưa tọa độ vẫn tìm theo văn bản nhưng không tham gia tìm bán kính.
+- API key phải giới hạn referrer/API, nằm ngoài source khi cần và có quota/cảnh báo chi phí.
+
+Tài liệu tham chiếu:
+
+- [Places API](https://developers.google.com/maps/documentation/places/web-service)
+- [Place Autocomplete (New)](https://developers.google.com/maps/documentation/javascript/place-autocomplete-new)
+- [Google Maps API Security](https://developers.google.com/maps/api-security-best-practices)
+
+## ADR-026: Cập nhật tài liệu trước migration đa môn
+
+**Ngày quyết định:** 12/08/2026
+
+- README, docs/01–docs/10 và ERD được cập nhật trước khi sửa model/code.
+- Chưa tạo hoặc chạy migration trong bước tài liệu.
+- Sau khi user duyệt ERD, triển khai theo các PR riêng: catalog/migration → Maps/search → booking đa môn → matchmaking → cọc 30% → MoMo Sandbox.
+- Mỗi migration phải backfill an toàn, review constraint/index trên SQL Server, chạy test hồi quy và không xóa migration cũ.
+
+**Cập nhật triển khai 13/08/2026:** Chuỗi thay đổi đã được thực hiện bằng các migration `b2e91c4a7d10`, `c4f8d2a6e901` và `d7a1b9e4c320`. SQL Server giữ nguyên dữ liệu booking cũ dưới chính sách `LEGACY_FULL_ONLINE`. Tích hợp MoMo đã có create payment, HMAC, redirect, IPN, query và refund; kiểm thử gọi Sandbox thật còn phụ thuộc credential M4B và URL HTTPS công khai, không dùng secret giả hoặc commit secret vào Git.

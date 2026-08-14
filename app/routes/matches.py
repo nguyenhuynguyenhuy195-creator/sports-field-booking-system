@@ -1,10 +1,20 @@
-from flask import Blueprint, abort, flash, redirect, render_template, url_for
+from datetime import datetime
+
+from flask import (
+    Blueprint,
+    abort,
+    current_app,
+    flash,
+    redirect,
+    render_template,
+    url_for,
+)
 from flask_login import current_user
 
 from app.decorators import roles_required
 from app.forms import BookingActionForm, MatchActionForm, MatchForm, MatchJoinForm
 from app.models import (
-    BookingPaymentMode,
+    BookingMode,
     BookingStatus,
     MatchParticipantStatus,
     MatchStatus,
@@ -19,6 +29,7 @@ from app.services import (
     MatchNotFoundError,
     MatchPermissionError,
     create_match,
+    current_vietnam_datetime,
     decide_match_request,
     expire_stale_match_participants,
     get_match,
@@ -116,10 +127,10 @@ def create(booking_code: str):
             url_for("bookings.detail", booking_code=booking.booking_code)
         )
 
-    locked_type = _locked_match_type(booking.payment_mode)
+    locked_type = _locked_match_type(booking.booking_mode)
     locked_required_players = (
-        booking.split_required_players
-        if booking.payment_mode == BookingPaymentMode.SPLIT_PLAYERS.value
+        booking.requested_players
+        if booking.booking_mode == BookingMode.FIND_PLAYERS.value
         else None
     )
     form = MatchForm()
@@ -195,7 +206,11 @@ def detail(match_id: int):
         match_status_labels=MATCH_STATUS_LABELS,
         participant_status_labels=PARTICIPANT_STATUS_LABELS,
         skill_level_labels=SKILL_LEVEL_LABELS,
-        join_form=MatchJoinForm(),
+        join_form=MatchJoinForm(
+            contact_phone=(
+                current_user.phone if current_user.is_authenticated else None
+            )
+        ),
         action_form=MatchActionForm(),
         payment_form=BookingActionForm(prefix="payment"),
         withdrawal_gets_refund=(
@@ -204,6 +219,8 @@ def detail(match_id: int):
             and current_request.status == MatchParticipantStatus.JOINED.value
             else False
         ),
+        contact_visible=_contact_visible(match.booking),
+        momo_enabled=current_app.config.get("MOMO_ENABLED", False),
     )
 
 
@@ -212,13 +229,15 @@ def detail(match_id: int):
 def join(match_id: int):
     form = MatchJoinForm()
     if not form.validate_on_submit():
-        flash("Lời nhắn không hợp lệ.", "danger")
+        flash("Thông tin tham gia không hợp lệ.", "danger")
         return redirect(url_for("matches.detail", match_id=match_id))
     try:
         request_to_join_match(
             match_id=match_id,
             user=current_user,
             message=form.message.data,
+            contact_phone=form.contact_phone.data,
+            share_contact=form.share_contact.data,
         )
     except MatchNotFoundError:
         abort(404)
@@ -293,10 +312,10 @@ def _decide_request(match_id: int, participant_id: int, *, accept_request: bool)
     return redirect(url_for("matches.detail", match_id=match_id))
 
 
-def _locked_match_type(payment_mode: str) -> str | None:
-    if payment_mode == BookingPaymentMode.SPLIT_OPPONENT.value:
+def _locked_match_type(booking_mode: str) -> str | None:
+    if booking_mode == BookingMode.FIND_OPPONENT.value:
         return MatchType.FIND_OPPONENT.value
-    if payment_mode == BookingPaymentMode.SPLIT_PLAYERS.value:
+    if booking_mode == BookingMode.FIND_PLAYERS.value:
         return MatchType.FIND_PLAYERS.value
     return None
 
@@ -304,3 +323,13 @@ def _locked_match_type(payment_mode: str) -> str | None:
 def _default_match_title(booking, match_type: str) -> str:
     action = "Tìm đối thủ" if match_type == MatchType.FIND_OPPONENT.value else "Tìm thêm người"
     return f"{action} đá tại {booking.field.venue.name}"
+
+
+def _contact_visible(booking) -> bool:
+    if booking.status not in {
+        BookingStatus.PARTIALLY_PAID.value,
+        BookingStatus.PAID.value,
+    }:
+        return False
+    end_at = datetime.combine(booking.booking_date, booking.end_time)
+    return end_at > current_vietnam_datetime()

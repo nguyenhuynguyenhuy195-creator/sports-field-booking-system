@@ -2,16 +2,6 @@ from flask_wtf import FlaskForm
 from wtforms import IntegerField, SelectField, StringField, SubmitField
 from wtforms.validators import DataRequired, InputRequired, Length, NumberRange, Optional
 
-from app.models import FieldType
-
-
-FIELD_TYPE_CHOICES = [
-    (FieldType.FIVE_A_SIDE.value, "Sân bóng 5 người"),
-    (FieldType.SEVEN_A_SIDE.value, "Sân bóng 7 người"),
-    (FieldType.ELEVEN_A_SIDE.value, "Sân bóng 11 người"),
-]
-
-
 class FieldForm(FlaskForm):
     name = StringField(
         "Tên sân",
@@ -22,7 +12,7 @@ class FieldForm(FlaskForm):
     )
     field_type = SelectField(
         "Loại sân",
-        choices=FIELD_TYPE_CHOICES,
+        choices=[],
         validators=[DataRequired(message="Vui lòng chọn loại sân.")],
     )
     surface_type = StringField(

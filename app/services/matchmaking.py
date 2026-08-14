@@ -12,7 +12,8 @@ from app.models import (
     ACTIVE_PARTICIPANT_STATUSES,
     Booking,
     BookingContribution,
-    BookingPaymentMode,
+    BookingMode,
+    BookingPaymentPolicy,
     BookingStatus,
     ContributionStatus,
     ContributionType,
@@ -27,6 +28,7 @@ from app.models import (
     UserRole,
 )
 
+from .auth import normalize_phone
 from .locking import with_update_lock
 
 
@@ -188,6 +190,8 @@ def request_to_join_match(
     match_id: int,
     user: User,
     message: str | None = None,
+    contact_phone: str | None = None,
+    share_contact: bool = False,
     now: datetime | None = None,
 ) -> MatchParticipant:
     _validate_actor(user)
@@ -211,6 +215,17 @@ def request_to_join_match(
         )
     _ensure_match_has_capacity(match)
 
+    normalized_phone = normalize_phone(contact_phone)
+    if match.match_type == MatchType.FIND_PLAYERS.value:
+        if not normalized_phone:
+            raise MatchmakingError(
+                "Vui lòng nhập số điện thoại có Zalo để người tạo kèo liên hệ."
+            )
+        if not share_contact:
+            raise MatchmakingError(
+                "Bạn cần đồng ý chia sẻ số điện thoại sau khi được chấp nhận."
+            )
+
     participant = MatchParticipant(
         match_id=match.id,
         user_id=user.id,
@@ -220,6 +235,11 @@ def request_to_join_match(
             else MatchParticipantType.PLAYER.value
         ),
         message=_optional_text(message, field_name="Lời nhắn", maximum=500),
+        contact_phone=(
+            normalized_phone
+            if match.match_type == MatchType.FIND_PLAYERS.value
+            else None
+        ),
         status=MatchParticipantStatus.PENDING.value,
     )
     db.session.add(participant)
@@ -261,14 +281,17 @@ def decide_match_request(
         payment_due_at = current_utc + timedelta(
             minutes=PARTICIPANT_PAYMENT_MINUTES
         )
-        if (
-            match.booking.funding_deadline is not None
-            and payment_due_at > match.booking.funding_deadline
-        ):
+        payment_cutoff = (
+            match.booking.matchmaking_deadline
+            if match.booking.uses_deposit_policy
+            else match.booking.funding_deadline
+        )
+        if payment_cutoff is not None and current_utc >= payment_cutoff:
             raise InvalidMatchStateError(
-                "Không còn đủ 15 phút trước hạn góp tiền. "
-                "Người tạo cần trả phần còn thiếu để tiếp tục ghép người."
+                "Đã hết hạn tìm đối thủ cho booking này."
             )
+        if payment_cutoff is not None and payment_due_at > payment_cutoff:
+            payment_due_at = payment_cutoff
         contribution.user_id = participant.user_id
         contribution.expires_at = payment_due_at
         participant.payment_due_at = payment_due_at
@@ -316,7 +339,11 @@ def withdraw_match_request(
     )
     if participant is None:
         raise MatchNotFoundError("Bạn không có yêu cầu đang hoạt động trong kèo này.")
-    if participant.status == MatchParticipantStatus.JOINED.value:
+    free_player_join = (
+        match.match_type == MatchType.FIND_PLAYERS.value
+        and match.booking.payment_policy == BookingPaymentPolicy.DEPOSIT_30.value
+    )
+    if participant.status == MatchParticipantStatus.JOINED.value and not free_player_join:
         if _booking_has_ended(match.booking, current_utc=current_utc):
             raise InvalidMatchStateError("Kèo đã kết thúc nên không thể báo rút.")
         contribution = participant.contribution
@@ -359,6 +386,12 @@ def withdraw_match_request(
     if match.status in {MatchStatus.FULL.value, MatchStatus.CONFIRMED.value}:
         match.status = MatchStatus.OPEN.value
     _commit_matchmaking("Không thể rút yêu cầu lúc này.")
+    from .refund import RefundError, process_pending_momo_refunds
+
+    try:
+        process_pending_momo_refunds(booking_id=match.booking_id)
+    except RefundError:
+        db.session.rollback()
     return participant
 
 
@@ -541,6 +574,11 @@ def _lock_participant(*, match_id: int, participant_id: int) -> MatchParticipant
 
 
 def _lock_available_contribution(match: Match) -> BookingContribution | None:
+    if (
+        match.match_type == MatchType.FIND_PLAYERS.value
+        and match.booking.payment_policy == BookingPaymentPolicy.DEPOSIT_30.value
+    ):
+        return None
     contribution_type = (
         ContributionType.OPPONENT.value
         if match.match_type == MatchType.FIND_OPPONENT.value
@@ -565,7 +603,7 @@ def _lock_available_contribution(match: Match) -> BookingContribution | None:
     contribution = db.session.scalar(statement)
     if contribution is not None:
         return contribution
-    if match.booking.payment_mode == BookingPaymentMode.FULL_PAYMENT.value:
+    if match.booking.booking_mode == BookingMode.DIRECT_BOOKING.value:
         return None
     if match.booking.status == BookingStatus.PAID.value:
         return None
@@ -577,7 +615,21 @@ def _validate_booking_can_open_match(
     *,
     current_utc: datetime,
 ) -> None:
-    if booking.payment_mode == BookingPaymentMode.FULL_PAYMENT.value:
+    if booking.payment_policy == BookingPaymentPolicy.DEPOSIT_30.value:
+        if booking.booking_mode == BookingMode.DIRECT_BOOKING.value:
+            raise InvalidMatchStateError(
+                "Booking đá nội bộ hoặc đã có kèo không mở tin tìm người."
+            )
+        if booking.booking_mode == BookingMode.FIND_OPPONENT.value:
+            allowed = booking.status == BookingStatus.PARTIALLY_PAID.value
+            if (
+                booking.matchmaking_deadline is not None
+                and current_utc >= booking.matchmaking_deadline
+            ):
+                raise InvalidMatchStateError("Đã hết hạn tìm đối thủ cho booking này.")
+        else:
+            allowed = booking.status == BookingStatus.PAID.value
+    elif booking.booking_mode == BookingMode.DIRECT_BOOKING.value:
         allowed = booking.status == BookingStatus.PAID.value
     else:
         allowed = booking.status in MATCHABLE_BOOKING_STATUSES
@@ -590,15 +642,15 @@ def _validate_booking_can_open_match(
 
 
 def _resolve_match_type(booking: Booking, requested_type: str | None) -> str:
-    if booking.payment_mode == BookingPaymentMode.SPLIT_OPPONENT.value:
+    if booking.booking_mode == BookingMode.FIND_OPPONENT.value:
         expected = MatchType.FIND_OPPONENT.value
-    elif booking.payment_mode == BookingPaymentMode.SPLIT_PLAYERS.value:
+    elif booking.booking_mode == BookingMode.FIND_PLAYERS.value:
         expected = MatchType.FIND_PLAYERS.value
     else:
         expected = requested_type or ""
     if expected not in {item.value for item in MatchType}:
         raise MatchmakingError("Loại kèo không hợp lệ.")
-    if requested_type and booking.payment_mode != BookingPaymentMode.FULL_PAYMENT.value:
+    if requested_type and booking.booking_mode != BookingMode.DIRECT_BOOKING.value:
         if requested_type != expected:
             raise MatchmakingError("Loại kèo không khớp hình thức booking.")
     return expected
@@ -612,10 +664,10 @@ def _resolve_player_configuration(
 ) -> tuple[int | None, int]:
     if match_type == MatchType.FIND_OPPONENT.value:
         return None, 1
-    total_players = booking.split_total_players or booking.field.capacity
+    total_players = booking.field.capacity
     normalized_required = (
-        booking.split_required_players
-        if booking.payment_mode == BookingPaymentMode.SPLIT_PLAYERS.value
+        booking.requested_players
+        if booking.booking_mode == BookingMode.FIND_PLAYERS.value
         else required_players
     )
     if (
@@ -637,6 +689,13 @@ def _validate_match_is_open(match: Match, *, current_utc: datetime) -> None:
         raise InvalidMatchStateError("Booking của kèo không còn hiệu lực.")
     if _booking_has_ended(match.booking, current_utc=current_utc):
         raise InvalidMatchStateError("Kèo đã qua thời gian thi đấu.")
+    if (
+        match.match_type == MatchType.FIND_OPPONENT.value
+        and match.booking.uses_deposit_policy
+        and match.booking.matchmaking_deadline is not None
+        and current_utc >= match.booking.matchmaking_deadline
+    ):
+        raise InvalidMatchStateError("Đã hết hạn tìm đối thủ cho booking này.")
 
 
 def _ensure_match_has_capacity(match: Match) -> None:

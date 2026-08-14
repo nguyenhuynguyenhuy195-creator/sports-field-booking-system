@@ -146,26 +146,43 @@
                         </div>
                     </div>
 
+                    {% if field.field_type.sport.code != 'FOOTBALL' %}
+                        <fieldset class="mb-4">
+                            <legend class="form-label fw-semibold">{{ form.play_format.label.text }}</legend>
+                            <div class="booking-mode-grid">
+                                {% for option in form.play_format %}
+                                    <label class="booking-mode-option" for="{{ option.id }}">
+                                        {{ option(class="form-check-input") }}
+                                        <span><strong>{{ option.label.text }}</strong></span>
+                                    </label>
+                                {% endfor %}
+                            </div>
+                            {% for error in form.play_format.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                        </fieldset>
+                    {% endif %}
+
                     <fieldset class="mb-4">
-                        <legend class="form-label fw-semibold">{{ form.payment_mode.label.text }}</legend>
+                        <legend class="form-label fw-semibold">{{ form.booking_mode.label.text }}</legend>
                         <div class="booking-mode-grid">
-                            {% for option in form.payment_mode %}
+                            {% for option in form.booking_mode %}
                                 <label class="booking-mode-option" for="{{ option.id }}">
                                     {{ option(class="form-check-input") }}
                                     <span>
                                         <strong>{{ option.label.text }}</strong>
-                                        {% if option.data == 'FULL_PAYMENT' %}
-                                            <small>Bạn thanh toán 100% để hoàn tất booking.</small>
-                                        {% elif option.data == 'SPLIT_OPPONENT' %}
-                                            <small>Đội bạn thanh toán 50%, đội đối thủ thanh toán 50%.</small>
+                                        {% if option.data == 'DIRECT_BOOKING' %}
+                                            <small>Bạn trả toàn bộ khoản cọc 30%; phần còn lại thanh toán tại sân.</small>
+                                        {% elif option.data == 'FIND_OPPONENT' %}
+                                            <small>Mỗi đội trả 15% tiền sân, tổng cộng đủ khoản cọc 30%.</small>
                                         {% else %}
-                                            <small>Nhóm hiện có và người ghép cùng chia tiền theo đầu người.</small>
+                                            <small>Bạn trả cọc 30%; người ghép không cọc và trả phần của họ tại sân.</small>
                                         {% endif %}
                                     </span>
                                 </label>
                             {% endfor %}
                         </div>
-                        {% for error in form.payment_mode.errors %}
+                        {% for error in form.booking_mode.errors %}
                             <div class="invalid-feedback d-block">{{ error }}</div>
                         {% endfor %}
                     </fieldset>
@@ -173,27 +190,26 @@
                     <div
                         class="booking-player-split-card mb-4"
                         data-player-split-fields
-                        {% if form.payment_mode.data != 'SPLIT_PLAYERS' %}hidden{% endif %}
+                        {% if form.booking_mode.data != 'FIND_PLAYERS' %}hidden{% endif %}
                     >
                         <div>
-                            <span class="eyebrow">CHIA THEO ĐẦU NGƯỜI</span>
+                            <span class="eyebrow">TÌM THÊM NGƯỜI</span>
                             <h3 class="h6 fw-bold mt-2 mb-1">Đội bạn còn thiếu bao nhiêu người?</h3>
                             <p class="small text-secondary mb-0">
-                                Sức chứa chuẩn của sân là {{ field.capacity }} người. Nhóm hiện có trả phần của mình;
-                                mỗi người ghép sẽ có một khoản riêng.
+                                Bạn tự chọn số vị trí còn thiếu. Người được duyệt để lại số Zalo và thanh toán trực tiếp tại sân.
                             </p>
                         </div>
                         <div class="booking-player-count">
-                            {{ form.required_players(
-                                class="form-control" ~ (" is-invalid" if form.required_players.errors else ""),
+                            {{ form.requested_players(
+                                class="form-control" ~ (" is-invalid" if form.requested_players.errors else ""),
                                 min="1",
                                 max=field.capacity - 1,
                                 inputmode="numeric",
                                 placeholder="Ví dụ: 3",
-                                aria_label=form.required_players.label.text
+                                aria_label=form.requested_players.label.text
                             ) }}
                             <small>người còn thiếu</small>
-                            {% for error in form.required_players.errors %}
+                            {% for error in form.requested_players.errors %}
                                 <div class="invalid-feedback d-block">{{ error }}</div>
                             {% endfor %}
                         </div>
@@ -237,8 +253,12 @@
                                 <strong data-review-creator-amount>—</strong>
                             </div>
                             <div>
-                                <span>Phần chờ người khác thanh toán</span>
+                                <span>Phần chờ đội đối thủ thanh toán</span>
                                 <strong data-review-external-amount>—</strong>
+                            </div>
+                            <div>
+                                <span>Còn lại thanh toán tại sân</span>
+                                <strong data-review-venue-balance>—</strong>
                             </div>
                             <p class="small text-secondary mb-0" data-review-contribution-note></p>
                         </div>
@@ -261,7 +281,8 @@
                 <h2 class="h5 fw-bold mt-2 mb-3">{{ field.venue.name }}</h2>
                 <dl class="booking-summary-list">
                     <div><dt>Sân</dt><dd>{{ field.name }}</dd></div>
-                    <div><dt>Loại sân</dt><dd>{{ field.field_type|replace('_', ' ') }}</dd></div>
+                    <div><dt>Bộ môn</dt><dd>{{ field.field_type.sport.name }}</dd></div>
+                    <div><dt>Loại sân</dt><dd>{{ field.field_type.name }}</dd></div>
                     <div><dt>Sức chứa</dt><dd>{{ field.capacity }} người</dd></div>
                     <div><dt>Giờ mở cửa</dt><dd>{{ field.venue.opening_time.strftime('%H:%M') }}–{{ field.venue.closing_time.strftime('%H:%M') }}</dd></div>
                 </dl>

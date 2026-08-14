@@ -3,8 +3,10 @@
 from .booking import (
     OCCUPYING_BOOKING_STATUSES,
     Booking,
-    BookingPaymentMode,
+    BookingMode,
+    BookingPaymentPolicy,
     BookingStatus,
+    PlayFormat,
 )
 from .booking_contribution import (
     BookingContribution,
@@ -12,7 +14,8 @@ from .booking_contribution import (
     ContributionType,
 )
 from .booking_price_detail import BookingPriceDetail
-from .field import Field, FieldStatus, FieldType
+from .field import Field, FieldStatus
+from .field_type import FieldType, FieldTypeCode
 from .field_maintenance import FieldMaintenance, FieldMaintenanceStatus
 from .match import Match, MatchStatus, MatchType
 from .match_participant import (
@@ -25,20 +28,24 @@ from .owner_application import OwnerApplication, OwnerApplicationStatus
 from .price_slot import DAY_OF_WEEK_LABELS, FieldPriceSlot, PriceSlotStatus
 from .payment import Payment, PaymentMethod, PaymentProvider, PaymentStatus
 from .refund import Refund, RefundStatus
+from .sport import CatalogStatus, Sport, SportCode
 from .user import User, UserRole, UserStatus
 from .venue import Venue, VenueStatus
 
 __all__ = [
     "Booking",
-    "BookingPaymentMode",
+    "BookingMode",
+    "BookingPaymentPolicy",
     "BookingContribution",
     "BookingPriceDetail",
     "BookingStatus",
+    "PlayFormat",
     "ContributionStatus",
     "ContributionType",
     "Field",
     "FieldStatus",
     "FieldType",
+    "FieldTypeCode",
     "FieldMaintenance",
     "FieldMaintenanceStatus",
     "Match",
@@ -60,6 +67,9 @@ __all__ = [
     "PaymentStatus",
     "Refund",
     "RefundStatus",
+    "CatalogStatus",
+    "Sport",
+    "SportCode",
     "User",
     "UserRole",
     "UserStatus",

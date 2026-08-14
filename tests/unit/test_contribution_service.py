@@ -2,63 +2,62 @@ from decimal import Decimal
 
 import pytest
 
-from app.models import BookingPaymentMode, ContributionType
-from app.services import ContributionError, build_contribution_plan
+from app.models import BookingMode, ContributionType
+from app.services import (
+    ContributionError,
+    build_contribution_plan,
+    calculate_deposit_amount,
+)
 
 
-def test_full_payment_allocates_everything_to_creator():
+def test_deposit_is_thirty_percent_rounded_to_whole_vnd():
+    assert calculate_deposit_amount(Decimal("400001")) == Decimal("120000")
+    assert calculate_deposit_amount(Decimal("400002")) == Decimal("120001")
+
+
+def test_direct_booking_allocates_entire_deposit_to_creator():
     plan = build_contribution_plan(
-        payment_mode=BookingPaymentMode.FULL_PAYMENT.value,
-        total_amount=Decimal("400000"),
+        booking_mode=BookingMode.DIRECT_BOOKING.value,
+        deposit_amount=Decimal("120000"),
     )
 
-    assert plan.creator_amount == Decimal("400000")
+    assert plan.creator_amount == Decimal("120000")
     assert plan.external_amount == Decimal("0")
     assert len(plan.contributions) == 1
 
 
-def test_opponent_split_keeps_exact_total_when_amount_is_odd():
+def test_opponent_mode_splits_deposit_exactly_when_amount_is_odd():
     plan = build_contribution_plan(
-        payment_mode=BookingPaymentMode.SPLIT_OPPONENT.value,
-        total_amount=Decimal("400001"),
+        booking_mode=BookingMode.FIND_OPPONENT.value,
+        deposit_amount=Decimal("120001"),
     )
 
     assert [part.amount_due for part in plan.contributions] == [
-        Decimal("200000"),
-        Decimal("200001"),
+        Decimal("60000"),
+        Decimal("60001"),
     ]
-    assert sum(part.amount_due for part in plan.contributions) == plan.total_amount
+    assert sum(part.amount_due for part in plan.contributions) == plan.deposit_amount
+    assert plan.external_contributions[0].contribution_type == ContributionType.OPPONENT.value
 
 
-def test_player_split_assigns_rounding_remainder_to_last_external_player():
+def test_find_players_charges_only_creator_and_keeps_requested_count():
     plan = build_contribution_plan(
-        payment_mode=BookingPaymentMode.SPLIT_PLAYERS.value,
-        total_amount=Decimal("1000003"),
-        total_players=10,
-        required_players=3,
+        booking_mode=BookingMode.FIND_PLAYERS.value,
+        deposit_amount=Decimal("300000"),
+        requested_players=3,
     )
 
-    assert plan.existing_players == 7
-    assert plan.creator_amount == Decimal("700000")
-    assert [part.contribution_type for part in plan.external_contributions] == [
-        ContributionType.PLAYER.value,
-        ContributionType.PLAYER.value,
-        ContributionType.PLAYER.value,
-    ]
-    assert [part.amount_due for part in plan.external_contributions] == [
-        Decimal("100000"),
-        Decimal("100000"),
-        Decimal("100003"),
-    ]
-    assert sum(part.amount_due for part in plan.contributions) == plan.total_amount
+    assert plan.creator_amount == Decimal("300000")
+    assert plan.external_amount == Decimal("0")
+    assert plan.requested_players == 3
+    assert plan.external_contributions == ()
 
 
-@pytest.mark.parametrize("required_players", [None, 0, 10, 11])
-def test_player_split_rejects_invalid_missing_player_count(required_players):
+@pytest.mark.parametrize("requested_players", [None, 0, -1])
+def test_find_players_requires_positive_requested_count(requested_players):
     with pytest.raises(ContributionError):
         build_contribution_plan(
-            payment_mode=BookingPaymentMode.SPLIT_PLAYERS.value,
-            total_amount=Decimal("400000"),
-            total_players=10,
-            required_players=required_players,
+            booking_mode=BookingMode.FIND_PLAYERS.value,
+            deposit_amount=Decimal("120000"),
+            requested_players=requested_players,
         )

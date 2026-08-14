@@ -7,6 +7,13 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+def env_flag(name: str, default: bool = False) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
 def build_database_uri() -> str:
     """Build a SQLAlchemy URI from environment variables without exposing secrets."""
     driver = os.getenv("DB_DRIVER", "ODBC Driver 17 for SQL Server")
@@ -41,6 +48,18 @@ class BaseConfig:
     SECRET_KEY = os.getenv("SECRET_KEY")
     SQLALCHEMY_DATABASE_URI = build_database_uri()
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    GOOGLE_MAPS_BROWSER_API_KEY = os.getenv("GOOGLE_MAPS_BROWSER_API_KEY", "")
+    MOMO_ENABLED = env_flag("MOMO_ENABLED")
+    MOMO_PARTNER_CODE = os.getenv("MOMO_PARTNER_CODE", "")
+    MOMO_ACCESS_KEY = os.getenv("MOMO_ACCESS_KEY", "")
+    MOMO_SECRET_KEY = os.getenv("MOMO_SECRET_KEY", "")
+    MOMO_BASE_URL = os.getenv(
+        "MOMO_BASE_URL",
+        "https://test-payment.momo.vn",
+    )
+    MOMO_REDIRECT_URL = os.getenv("MOMO_REDIRECT_URL", "")
+    MOMO_IPN_URL = os.getenv("MOMO_IPN_URL", "")
+    MOMO_TIMEOUT_SECONDS = int(os.getenv("MOMO_TIMEOUT_SECONDS", "30"))
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
     REMEMBER_COOKIE_HTTPONLY = True

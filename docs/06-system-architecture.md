@@ -10,8 +10,13 @@ Browser
 → SQL Server
 
 Payment Service
-→ Provider MOCK (đã triển khai, nội bộ)
-→ MoMo Client → MoMo Sandbox API (bước kế tiếp)
+→ Provider MOCK (phát triển và test)
+→ MoMo Client → MoMo Sandbox API (bật bằng cấu hình môi trường)
+
+Browser
+→ Google Maps JavaScript / Places Autocomplete
+→ Flask nhận place ID và tọa độ đã validate
+→ Location Service lọc venue nội bộ theo bán kính
 ```
 
 Flask render giao diện bằng Jinja2. Nghiệp vụ không được đặt toàn bộ trong route.
@@ -25,18 +30,20 @@ Trách nhiệm:
 - Nhận input và hiển thị validation.
 - Gửi request đến backend.
 - Render lưới mốc giờ từ dữ liệu availability và gửi khoảng đã chọn sang endpoint quote.
-- Hiển thị countdown và tiến độ đóng góp từ dữ liệu backend.
+- Hiển thị countdown, tiền cọc 30% và phần 70% trả tại sân từ dữ liệu backend.
+- Hiển thị Places Autocomplete, bản đồ/marker và xin quyền Geolocation khi user chủ động yêu cầu.
 
-Frontend không quyết định quyền, trạng thái availability cuối cùng, giá, số tiền đóng góp, trạng thái payment hoặc refund.
+Frontend không quyết định quyền, trạng thái availability cuối cùng, giá, tiền cọc, khoảng cách tin cậy, trạng thái payment hoặc refund.
 
 ## 6.3. Route Layer
 
-Các blueprint đã có gồm `auth`, `owner_applications`, `venues`, `fields`, `pricing`, `maintenance`, `bookings`, `payments`, `matches` và health checks. `payments` hiện nhận lệnh POST thanh toán/top-up mô phỏng có CSRF; `matches` quản lý đăng kèo, gửi/duyệt/rút yêu cầu chưa thanh toán và hạn giữ vị trí. Các endpoint redirect/IPN MoMo, `refunds` và phần admin mở rộng sẽ được bổ sung ở các module kế tiếp.
+Các blueprint hiện có gồm `auth`, `owner_applications`, `venues`, `fields`, `pricing`, `maintenance`, `bookings`, `payments`, `matches` và health checks. Code hiện hỗ trợ danh mục đa môn, vị trí Google Maps, ba booking mode, cọc 30%, `MOCK` và MoMo Sandbox; booking lịch sử được giữ riêng bằng `LEGACY_FULL_ONLINE`.
 
 Thiết kế đích của các blueprint thanh toán:
 - `auth`: đăng ký, đăng nhập, đăng xuất.
 - `owner_applications`: gửi và xét duyệt yêu cầu owner.
-- `venues`: venue, field, giá và bảo trì.
+- `venues`: tìm/lọc theo sport, field type, giá, vị trí và hiển thị venue.
+- `fields`: quản lý field theo danh mục sport/field type.
 - `bookings`: trả lịch trống theo ngày, báo giá, tạo giữ chỗ tự động, xem và hủy booking.
 - `payments`: bắt đầu thanh toán, redirect và IPN MoMo.
 - `refunds`: yêu cầu/query refund theo quyền.
@@ -55,11 +62,13 @@ Endpoint IPN phải:
 Các service chính:
 - `pricing_service`: kiểm tra khung giá, tách thời lượng và tính snapshot giá.
 - `availability_service`: sinh các đoạn 30 phút theo giờ hoạt động và phân loại từ booking, bảo trì, độ phủ giá, thời điểm hiện tại.
-- `booking_service`: tạo booking và chuyển trạng thái.
-- `contribution_service`: phân bổ nghĩa vụ 100%, 50/50 hoặc theo đầu người.
+- `sport_catalog_service`: đọc danh mục sport/field type và validate quan hệ.
+- `location_service`: validate tọa độ, tạo bounding box/tính khoảng cách và sắp xếp venue nội bộ.
+- `booking_service`: validate play format, tính cọc 30%, tạo booking và chuyển trạng thái.
+- `contribution_service`: phân bổ tiền cọc creator/opponent; không tạo nghĩa vụ online cho người ghép.
 - `payment_service`: tạo payment attempt, xử lý IPN và tổng tiền đã thu.
 - `refund_service`: tính số tiền hoàn, gọi/query MoMo và hoàn tất hủy.
-- `match_service`: tạo kèo, duyệt yêu cầu, mở lại vị trí và gắn contribution.
+- `match_service`: tạo kèo, duyệt yêu cầu, bảo vệ số Zalo, mở lại vị trí và chỉ gắn contribution cho đối thủ.
 - `owner_application_service`: xử lý yêu cầu chuyển role.
 - `expiration_service`: hết hạn booking, yêu cầu thanh toán và hạn góp tiền.
 
@@ -78,15 +87,25 @@ Trách nhiệm:
 
 Credential và endpoint phải đọc từ biến môi trường. Sandbox và production phải tách cấu hình; MVP chỉ bật sandbox.
 
-## 6.6. Model Layer
+## 6.6. Google Maps và Places
+
+- Maps JavaScript API hiển thị bản đồ/marker ở frontend.
+- Places API (New) hỗ trợ autocomplete địa chỉ của owner.
+- Browser Geolocation chỉ chạy khi user bấm cho phép.
+- Backend chỉ tìm trong bảng `venues`; không dùng Nearby Search để nhập địa điểm ngoài hệ thống.
+- Tọa độ từ request được validate trước khi lưu hoặc tính khoảng cách.
+- Danh sách theo bán kính phải lọc/sắp xếp trước khi phân trang; MVP có thể dùng bounding box rồi Haversine trong service.
+- API key browser được giới hạn HTTP referrer và API; server key nếu có dùng biến môi trường.
+
+## 6.7. Model Layer
 
 Trách nhiệm:
-- Định nghĩa 13 bảng và quan hệ trong `docs/05-database-design.md`.
+- Định nghĩa 15 bảng mục tiêu và quan hệ trong `docs/05-database-design.md`.
 - Khai báo primary key, foreign key, unique/check constraint và index.
 - Dùng `DECIMAL` cho tiền và `DATETIME2` cho timestamp UTC.
 - Không chứa orchestration nghiệp vụ dài trong model.
 
-## 6.7. Cấu trúc thư mục dự kiến
+## 6.8. Cấu trúc thư mục dự kiến
 
 ```text
 app/
@@ -107,7 +126,9 @@ tests/
 └── integration/
 ```
 
-## 6.8. API lịch trống và báo giá
+Google Maps client-side nằm trong `static/js`; logic validate/tìm khoảng cách nằm trong service, không đặt trong template hoặc route.
+
+## 6.9. API lịch trống và báo giá
 
 1. Frontend gửi ngày đã chọn đến endpoint availability.
 2. Service lấy giờ mở/đóng từ venue và sinh các đoạn 30 phút nằm trọn trong cùng ngày.
@@ -117,32 +138,33 @@ tests/
 
 Availability và quote không khóa chỗ. Transaction tạo booking bên dưới luôn lặp lại toàn bộ kiểm tra để xử lý trường hợp dữ liệu thay đổi sau khi user xem lịch.
 
-## 6.9. Transaction tạo booking
+## 6.10. Transaction tạo booking
 
 1. Route validate form và gọi service.
 2. Service khóa phạm vi dữ liệu cần kiểm tra của field/ngày.
 3. Kiểm tra field, venue, giờ hoạt động và bảo trì.
 4. Truy vấn booking chiếm chỗ giao nhau.
 5. Truy vấn toàn bộ khung giá và kiểm tra độ phủ.
-6. Tính total, tạo booking `CONFIRMED`, hạn thanh toán 15 phút và price details.
-7. Commit một lần; lỗi thì rollback.
+6. Validate sport/play format/booking mode, tính total và snapshot cọc 30%.
+7. Tạo booking `CONFIRMED`, deadline, price details và contribution tiền cọc.
+8. Commit một lần; lỗi thì rollback.
 
 Mục tiêu là tránh hai request đồng thời cùng vượt qua bước kiểm tra trùng.
 
-## 6.10. Transaction xử lý IPN
+## 6.11. Transaction xử lý IPN
 
 1. Xác minh chữ ký và đối chiếu dữ liệu MoMo.
 2. Tìm payment theo `order_id` và khóa payment/contribution/booking.
 3. Nếu payment đã có kết quả cuối cùng, trả response idempotent.
 4. Cập nhật payment và contribution.
-5. Tính lại tổng tiền thành công của booking.
+5. Tính lại tổng tiền cọc thành công của booking.
 6. Chuyển `PARTIALLY_PAID` hoặc `PAID` khi đúng điều kiện.
-7. Cập nhật trạng thái match participant nếu đây là payment tham gia.
+7. Cập nhật match participant nếu đây là payment của đại diện đối thủ; người ghép không đi qua IPN.
 8. Commit một lần; lỗi thì rollback.
 
 Không giữ transaction database mở trong lúc chờ HTTP call ra MoMo. Tạo bản ghi `PENDING`, commit, gọi MoMo, rồi xử lý kết quả trong transaction riêng.
 
-## 6.11. Transaction refund
+## 6.12. Transaction refund
 
 1. Service tính chính sách hoàn và tạo refund `PENDING` với request id duy nhất.
 2. Commit refund intent trước khi gọi MoMo.
@@ -151,23 +173,26 @@ Không giữ transaction database mở trong lúc chờ HTTP call ra MoMo. Tạo
 5. Chỉ chuyển booking `CANCELLED` khi mọi refund bắt buộc đã `SUCCESS`.
 6. Kết quả đang xử lý được query lại; retry phải idempotent.
 
-## 6.12. Xử lý thời hạn
+## 6.13. Xử lý thời hạn
 
 Tạo Flask CLI command hoặc worker định kỳ để:
 - Hết hạn `CONFIRMED` chưa có khoản thanh toán đầu tiên sau 15 phút.
-- Hết hạn yêu cầu tham gia chờ thanh toán quá 15 phút.
-- Xử lý booking chia tiền còn thiếu tại mốc 12 giờ.
+- Hết hạn yêu cầu đối thủ chờ thanh toán sau 15 phút hoặc tại matchmaking deadline.
+- Mở cửa sổ creator top-up 30 phút tại mốc trước trận 12 giờ.
+- Xử lý `FIND_OPPONENT` còn thiếu cọc sau funding deadline.
 - Chuyển `PAID` sang `COMPLETED` sau giờ sử dụng.
 - Query lại payment/refund chưa có kết quả cuối cùng.
 
 Availability service cũng phải bỏ qua dữ liệu đã quá hạn theo timestamp ngay cả khi job định kỳ chưa chạy.
 
-## 6.13. Nguyên tắc bảo mật và lỗi
+## 6.14. Nguyên tắc bảo mật và lỗi
 
 - Bật CSRF cho form người dùng.
 - IPN không dùng CSRF nhưng phải xác minh HMAC.
 - Secret, connection string và MoMo key chỉ nằm trong biến môi trường.
+- Google Maps browser key phải bị giới hạn theo referrer/API; server key không được đưa vào template hoặc Git.
 - Không log password, secret key hoặc toàn bộ payload nhạy cảm.
+- Không log/công khai số điện thoại participant; chỉ trả cho creator sau khi chấp nhận.
 - Backend luôn kiểm tra quyền và quyền sở hữu.
 - Rollback khi commit thất bại.
 - Hiển thị thông báo thân thiện cho user; ghi log kỹ thuật bằng correlation id.

@@ -11,6 +11,7 @@ from app.models import (
     FieldPriceSlot,
     FieldStatus,
     FieldType,
+    FieldTypeCode,
     PriceSlotStatus,
     User,
     UserRole,
@@ -86,6 +87,9 @@ def create_venue_for_owner(app, owner_id: int, **overrides) -> int:
             "description": "Có bãi giữ xe.",
             "opening_time": time(6, 0),
             "closing_time": time(23, 0),
+            "google_place_id": "test-place-minh-anh",
+            "latitude": Decimal("10.776900"),
+            "longitude": Decimal("106.700900"),
         }
         values.update(overrides)
         venue = create_venue(owner=owner, **values)
@@ -101,7 +105,7 @@ def create_searchable_venue(
     district: str | None,
     city: str,
     field_name: str,
-    field_type: FieldType,
+    field_type: FieldTypeCode,
     hourly_price: Decimal,
     venue_status: VenueStatus = VenueStatus.ACTIVE,
     field_status: FieldStatus = FieldStatus.ACTIVE,
@@ -123,7 +127,9 @@ def create_searchable_venue(
         field = Field(
             venue_id=venue.id,
             name=field_name,
-            field_type=field_type.value,
+            field_type_id=db.session.scalar(
+                db.select(FieldType.id).where(FieldType.code == field_type.value)
+            ),
             capacity=10,
             status=field_status.value,
         )
@@ -251,7 +257,7 @@ def test_public_venue_search_matches_name_and_area(app, client):
         district="Quận Thanh Khê",
         city="Đà Nẵng",
         field_name="Sân 5A",
-        field_type=FieldType.FIVE_A_SIDE,
+        field_type=FieldTypeCode.FOOTBALL_5,
         hourly_price=Decimal("220000"),
     )
     create_searchable_venue(
@@ -262,7 +268,7 @@ def test_public_venue_search_matches_name_and_area(app, client):
         district="Quận Liên Chiểu",
         city="Đà Nẵng",
         field_name="Sân 7A",
-        field_type=FieldType.SEVEN_A_SIDE,
+        field_type=FieldTypeCode.FOOTBALL_7,
         hourly_price=Decimal("350000"),
     )
 
@@ -294,7 +300,7 @@ def test_public_venue_filters_combine_field_type_and_matching_type_price(
         district="Quận 7",
         city="TP. Hồ Chí Minh",
         field_name="Sân 7 tiêu chuẩn",
-        field_type=FieldType.SEVEN_A_SIDE,
+        field_type=FieldTypeCode.FOOTBALL_7,
         hourly_price=Decimal("350000"),
     )
     create_searchable_venue(
@@ -305,7 +311,7 @@ def test_public_venue_filters_combine_field_type_and_matching_type_price(
         district="Quận 7",
         city="TP. Hồ Chí Minh",
         field_name="Sân 7 cao cấp",
-        field_type=FieldType.SEVEN_A_SIDE,
+        field_type=FieldTypeCode.FOOTBALL_7,
         hourly_price=Decimal("500000"),
     )
     create_searchable_venue(
@@ -316,7 +322,7 @@ def test_public_venue_filters_combine_field_type_and_matching_type_price(
         district="Quận 7",
         city="TP. Hồ Chí Minh",
         field_name="Sân 7 chưa mở",
-        field_type=FieldType.SEVEN_A_SIDE,
+        field_type=FieldTypeCode.FOOTBALL_7,
         hourly_price=Decimal("320000"),
         field_status=FieldStatus.INACTIVE,
     )
@@ -328,7 +334,7 @@ def test_public_venue_filters_combine_field_type_and_matching_type_price(
         district="Quận 7",
         city="TP. Hồ Chí Minh",
         field_name="Sân 7 bị ẩn",
-        field_type=FieldType.SEVEN_A_SIDE,
+        field_type=FieldTypeCode.FOOTBALL_7,
         hourly_price=Decimal("330000"),
         venue_status=VenueStatus.HIDDEN,
     )
@@ -336,7 +342,7 @@ def test_public_venue_filters_combine_field_type_and_matching_type_price(
     response = client.get(
         "/venues",
         query_string={
-            "field_type": FieldType.SEVEN_A_SIDE.value,
+            "field_type": FieldTypeCode.FOOTBALL_7.value,
             "min_price": "300000",
             "max_price": "400000",
         },
@@ -350,7 +356,7 @@ def test_public_venue_filters_combine_field_type_and_matching_type_price(
     assert "Cụm sân Bị Ẩn" not in page
     assert f'/venues/{target_id}' in page
     assert "350.000 đ/giờ" in page
-    assert 'aria-label="Bỏ lọc Sân bóng 7 người"' in page
+    assert "Sân bóng đá 7 người" in page
     assert "Xóa tất cả" in page
     assert "Xóa bộ lọc" not in page
 
@@ -369,14 +375,18 @@ def test_price_filter_uses_selected_field_type_price(app, client):
         district="Quận 3",
         city="TP. Hồ Chí Minh",
         field_name="Sân 5 giá tốt",
-        field_type=FieldType.FIVE_A_SIDE,
+        field_type=FieldTypeCode.FOOTBALL_5,
         hourly_price=Decimal("150000"),
     )
     with app.app_context():
         field = Field(
             venue_id=venue_id,
             name="Sân 7 buổi tối",
-            field_type=FieldType.SEVEN_A_SIDE.value,
+            field_type_id=db.session.scalar(
+                db.select(FieldType.id).where(
+                    FieldType.code == FieldTypeCode.FOOTBALL_7.value
+                )
+            ),
             capacity=14,
             status=FieldStatus.ACTIVE.value,
         )
@@ -397,7 +407,7 @@ def test_price_filter_uses_selected_field_type_price(app, client):
     response = client.get(
         "/venues",
         query_string={
-            "field_type": FieldType.SEVEN_A_SIDE.value,
+            "field_type": FieldTypeCode.FOOTBALL_7.value,
             "max_price": "200000",
         },
     )
@@ -436,7 +446,7 @@ def test_search_treats_sql_wildcards_as_literal_text(app, client):
         district="Quận 1",
         city="TP. Hồ Chí Minh",
         field_name="Sân 5 thường",
-        field_type=FieldType.FIVE_A_SIDE,
+        field_type=FieldTypeCode.FOOTBALL_5,
         hourly_price=Decimal("200000"),
     )
 
@@ -461,13 +471,13 @@ def test_venue_search_paginates_and_keeps_filters(app, client):
             district="Quận Hải Châu",
             city="Đà Nẵng",
             field_name=f"Sân 5 số {number:02d}",
-            field_type=FieldType.FIVE_A_SIDE,
+            field_type=FieldTypeCode.FOOTBALL_5,
             hourly_price=Decimal("200000"),
         )
 
     query = {
         "q": "Phân Trang",
-        "field_type": FieldType.FIVE_A_SIDE.value,
+        "field_type": FieldTypeCode.FOOTBALL_5.value,
         "min_price": "100000",
         "max_price": "300000",
         "page": "2",
@@ -481,7 +491,7 @@ def test_venue_search_paginates_and_keeps_filters(app, client):
     assert "Sân Phân Trang 10" in page
     assert "Sân Phân Trang 01" not in page
     assert 'value="Phân Trang"' in page
-    assert f'selected value="{FieldType.FIVE_A_SIDE.value}"' in page
+    assert f'selected value="{FieldTypeCode.FOOTBALL_5.value}"' in page
     assert 'value="100000"' in page
     assert 'value="300000"' in page
 

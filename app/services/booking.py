@@ -12,24 +12,30 @@ from app.extensions import db
 from app.models import (
     Booking,
     BookingContribution,
-    BookingPaymentMode,
+    BookingMode,
+    BookingPaymentPolicy,
     BookingPriceDetail,
     BookingStatus,
     ContributionStatus,
     Field,
+    FieldType,
     FieldMaintenance,
     FieldMaintenanceStatus,
     FieldStatus,
     Refund,
+    PlayFormat,
+    SportCode,
     User,
     UserRole,
     VenueStatus,
 )
 
 from .contribution import (
+    DEPOSIT_RATE,
     ContributionError,
     add_initial_contributions,
     build_contribution_plan,
+    calculate_deposit_amount,
 )
 from .locking import with_update_lock
 from .maintenance import current_vietnam_datetime
@@ -71,25 +77,34 @@ def create_booking(
     booking_date: date,
     start_time: time,
     end_time: time,
-    payment_mode: str,
-    required_players: int | None = None,
+    booking_mode: str,
+    play_format: str | None = None,
+    requested_players: int | None = None,
     note: str | None = None,
     now: datetime | None = None,
 ) -> Booking:
     _validate_booker(user)
-    normalized_mode = _validate_payment_mode(payment_mode)
+    normalized_mode = _validate_booking_mode(booking_mode)
     normalized_note = _normalize_optional_text(note, field_name="Ghi chú")
     current_local = _normalize_local_datetime(now)
     current_utc = _local_to_utc(current_local)
 
     field = _get_bookable_field(field_id=field_id, lock=True)
     _validate_field_is_active(field)
+    normalized_play_format, normalized_requested_players = (
+        _validate_booking_configuration(
+            field=field,
+            booking_mode=normalized_mode,
+            play_format=play_format,
+            requested_players=requested_players,
+        )
+    )
     _validate_booking_time(
         field=field,
         booking_date=booking_date,
         start_time=start_time,
         end_time=end_time,
-        payment_mode=normalized_mode,
+        booking_mode=normalized_mode,
         current_local=current_local,
     )
 
@@ -124,23 +139,23 @@ def create_booking(
     except PricingError as exc:
         raise BookingError(str(exc)) from exc
     try:
+        deposit_amount = calculate_deposit_amount(quote.total)
         contribution_plan = build_contribution_plan(
-            payment_mode=normalized_mode,
-            total_amount=quote.total,
-            total_players=(
-                field.capacity
-                if normalized_mode == BookingPaymentMode.SPLIT_PLAYERS.value
-                else None
-            ),
-            required_players=required_players,
+            booking_mode=normalized_mode,
+            deposit_amount=deposit_amount,
+            requested_players=normalized_requested_players,
         )
     except ContributionError as exc:
         raise BookingError(str(exc)) from exc
 
     start_at_local = datetime.combine(booking_date, start_time)
+    matchmaking_deadline = None
     funding_deadline = None
-    if normalized_mode != BookingPaymentMode.FULL_PAYMENT.value:
-        funding_deadline = _local_to_utc(start_at_local - timedelta(hours=12))
+    if normalized_mode == BookingMode.FIND_OPPONENT.value:
+        matchmaking_deadline = _local_to_utc(
+            start_at_local - timedelta(hours=12)
+        )
+        funding_deadline = matchmaking_deadline + timedelta(minutes=30)
 
     booking = Booking(
         booking_code=_generate_booking_code(current_utc),
@@ -149,14 +164,18 @@ def create_booking(
         booking_date=booking_date,
         start_time=start_time,
         end_time=end_time,
-        payment_mode=normalized_mode,
-        split_total_players=contribution_plan.total_players,
-        split_required_players=contribution_plan.required_players,
+        booking_mode=normalized_mode,
+        play_format=normalized_play_format,
+        requested_players=normalized_requested_players,
+        payment_policy=BookingPaymentPolicy.DEPOSIT_30.value,
         total_amount=quote.total,
+        deposit_rate=DEPOSIT_RATE,
+        deposit_amount=deposit_amount,
         paid_amount=Decimal("0.00"),
         cancellation_fee_amount=Decimal("0.00"),
         status=BookingStatus.CONFIRMED.value,
         initial_payment_due_at=current_utc + timedelta(minutes=15),
+        matchmaking_deadline=matchmaking_deadline,
         funding_deadline=funding_deadline,
         note=normalized_note,
     )
@@ -191,8 +210,9 @@ def quote_booking(
     booking_date: date,
     start_time: time,
     end_time: time,
-    payment_mode: str,
-    required_players: int | None = None,
+    booking_mode: str,
+    play_format: str | None = None,
+    requested_players: int | None = None,
     now: datetime | None = None,
 ) -> PriceQuote:
     """Validate a proposed interval and return a server-calculated quote.
@@ -201,17 +221,23 @@ def quote_booking(
     check while holding the field lock before it commits the reservation.
     """
     _validate_booker(user)
-    normalized_mode = _validate_payment_mode(payment_mode)
+    normalized_mode = _validate_booking_mode(booking_mode)
     current_local = _normalize_local_datetime(now)
     current_utc = _local_to_utc(current_local)
     field = _get_bookable_field(field_id=field_id)
     _validate_field_is_active(field)
+    _, normalized_requested_players = _validate_booking_configuration(
+        field=field,
+        booking_mode=normalized_mode,
+        play_format=play_format,
+        requested_players=requested_players,
+    )
     _validate_booking_time(
         field=field,
         booking_date=booking_date,
         start_time=start_time,
         end_time=end_time,
-        payment_mode=normalized_mode,
+        booking_mode=normalized_mode,
         current_local=current_local,
     )
     if _maintenance_overlap_exists(
@@ -244,14 +270,9 @@ def quote_booking(
         raise BookingError(str(exc)) from exc
     try:
         build_contribution_plan(
-            payment_mode=normalized_mode,
-            total_amount=quote.total,
-            total_players=(
-                field.capacity
-                if normalized_mode == BookingPaymentMode.SPLIT_PLAYERS.value
-                else None
-            ),
-            required_players=required_players,
+            booking_mode=normalized_mode,
+            deposit_amount=calculate_deposit_amount(quote.total),
+            requested_players=normalized_requested_players,
         )
     except ContributionError as exc:
         raise BookingError(str(exc)) from exc
@@ -361,6 +382,7 @@ def cancel_user_booking(
             status=ContributionStatus.WAIVED.value,
         )
     _commit_booking("Không thể hủy booking lúc này.")
+    _attempt_momo_refunds(booking.id)
     return booking
 
 
@@ -400,6 +422,7 @@ def cancel_owner_booking(
             status=ContributionStatus.WAIVED.value,
         )
     _commit_booking("Không thể hủy booking lúc này.")
+    _attempt_momo_refunds(booking.id)
     return booking
 
 
@@ -477,7 +500,10 @@ def _booking_with_details_statement():
 def _get_bookable_field(*, field_id: int, lock: bool = False) -> Field:
     statement = (
         db.select(Field)
-        .options(joinedload(Field.venue))
+        .options(
+            joinedload(Field.venue),
+            joinedload(Field.field_type).joinedload(FieldType.sport),
+        )
         .where(Field.id == field_id)
     )
     if lock:
@@ -501,7 +527,7 @@ def _validate_booking_time(
     booking_date: date,
     start_time: time,
     end_time: time,
-    payment_mode: str,
+    booking_mode: str,
     current_local: datetime,
 ) -> None:
     if not isinstance(booking_date, date):
@@ -534,11 +560,23 @@ def _validate_booking_time(
 
     minimum_lead = (
         timedelta(hours=1)
-        if payment_mode == BookingPaymentMode.FULL_PAYMENT.value
-        else timedelta(hours=13)
+        if booking_mode
+        in {
+            BookingMode.DIRECT_BOOKING.value,
+            BookingMode.FIND_PLAYERS.value,
+        }
+        else timedelta(hours=24)
     )
     if start_at - current_local < minimum_lead:
-        hours = 1 if payment_mode == BookingPaymentMode.FULL_PAYMENT.value else 13
+        hours = (
+            1
+            if booking_mode
+            in {
+                BookingMode.DIRECT_BOOKING.value,
+                BookingMode.FIND_PLAYERS.value,
+            }
+            else 24
+        )
         raise BookingError(
             f"Hình thức này phải được đặt trước ít nhất {hours} giờ."
         )
@@ -694,11 +732,58 @@ def _validate_owner(owner: User) -> None:
         raise BookingPermissionError("Chỉ chủ sân được xử lý booking.")
 
 
-def _validate_payment_mode(payment_mode: str) -> str:
-    valid_modes = {mode.value for mode in BookingPaymentMode}
-    if payment_mode not in valid_modes:
-        raise BookingError("Hình thức thanh toán không hợp lệ.")
-    return payment_mode
+def _validate_booking_mode(booking_mode: str) -> str:
+    valid_modes = {mode.value for mode in BookingMode}
+    if booking_mode not in valid_modes:
+        raise BookingError("Hình thức booking không hợp lệ.")
+    return booking_mode
+
+
+def _validate_booking_configuration(
+    *,
+    field: Field,
+    booking_mode: str,
+    play_format: str | None,
+    requested_players: int | None,
+) -> tuple[str | None, int | None]:
+    normalized_play_format = (play_format or "").strip().upper() or None
+    sport_code = field.field_type.sport.code
+
+    if sport_code == SportCode.FOOTBALL.value:
+        if normalized_play_format is not None:
+            raise BookingError("Booking bóng đá không chọn đánh đơn hoặc đánh đôi.")
+        maximum_players = max(field.capacity - 1, 0)
+    else:
+        if normalized_play_format not in {item.value for item in PlayFormat}:
+            raise BookingError("Vui lòng chọn đánh đơn hoặc đánh đôi.")
+        if (
+            normalized_play_format == PlayFormat.SINGLES.value
+            and booking_mode == BookingMode.FIND_PLAYERS.value
+        ):
+            raise BookingError("Đánh đơn chỉ hỗ trợ đặt trực tiếp hoặc tìm đối thủ.")
+        maximum_players = (
+            1
+            if normalized_play_format == PlayFormat.SINGLES.value
+            else 3
+        )
+
+    if booking_mode == BookingMode.FIND_PLAYERS.value:
+        if (
+            isinstance(requested_players, bool)
+            or not isinstance(requested_players, int)
+            or requested_players < 1
+        ):
+            raise BookingError("Số người muốn tìm phải từ 1 trở lên.")
+        if requested_players > maximum_players:
+            raise BookingError(
+                f"Số người muốn tìm không được vượt quá {maximum_players}."
+            )
+        return normalized_play_format, requested_players
+    if requested_players is not None:
+        raise BookingError(
+            "Số người muốn tìm chỉ dùng cho hình thức tìm thêm người."
+        )
+    return normalized_play_format, None
 
 
 def _normalize_optional_text(value: str | None, *, field_name: str) -> str | None:
@@ -755,3 +840,13 @@ def _commit_booking(message: str) -> None:
     except SQLAlchemyError as exc:
         db.session.rollback()
         raise BookingError(message) from exc
+
+
+def _attempt_momo_refunds(booking_id: int) -> None:
+    from .refund import RefundError, process_pending_momo_refunds
+
+    try:
+        process_pending_momo_refunds(booking_id=booking_id)
+    except RefundError:
+        # The durable PENDING record is retried by the refunds CLI command.
+        db.session.rollback()

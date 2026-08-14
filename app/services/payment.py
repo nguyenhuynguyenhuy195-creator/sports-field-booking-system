@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import uuid4
@@ -7,9 +8,12 @@ from uuid import uuid4
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.extensions import db
+from app.integrations import MomoAPIError, MomoClient
 from app.models import (
     Booking,
     BookingContribution,
+    BookingMode,
+    BookingPaymentPolicy,
     BookingStatus,
     ContributionStatus,
     ContributionType,
@@ -42,6 +46,12 @@ class InvalidPaymentStateError(PaymentError):
 
 class PaymentExpiredError(PaymentError):
     """Raised when the payment deadline has passed."""
+
+
+@dataclass(frozen=True)
+class MomoCheckout:
+    payment: Payment
+    pay_url: str
 
 
 def pay_contribution_with_mock(
@@ -91,10 +101,22 @@ def top_up_booking_with_mock(
         raise InvalidPaymentStateError(
             "Chỉ booking đã thanh toán một phần mới có thể trả phần còn thiếu."
         )
+    if booking.booking_mode != BookingMode.FIND_OPPONENT.value:
+        raise InvalidPaymentStateError(
+            "Chỉ booking tìm đối thủ mới có phần cọc cần trả bổ sung."
+        )
     if booking.funding_deadline is None or booking.funding_deadline <= current_utc:
         raise PaymentExpiredError("Đã hết hạn góp đủ tiền cho booking này.")
+    if (
+        booking.payment_policy == BookingPaymentPolicy.DEPOSIT_30.value
+        and booking.matchmaking_deadline is not None
+        and current_utc < booking.matchmaking_deadline
+    ):
+        raise InvalidPaymentStateError(
+            "Chỉ có thể trả phần cọc đối thủ còn thiếu trong cửa sổ 30 phút."
+        )
 
-    remaining = Decimal(booking.total_amount) - Decimal(booking.paid_amount)
+    remaining = Decimal(booking.deposit_amount) - Decimal(booking.paid_amount)
     if remaining <= 0:
         raise InvalidPaymentStateError("Booking đã được thanh toán đủ.")
 
@@ -141,6 +163,245 @@ def top_up_booking_with_mock(
     return payment
 
 
+def start_momo_payment(
+    *,
+    booking_code: str,
+    contribution_id: int,
+    payer: User,
+    redirect_url: str,
+    ipn_url: str,
+    client: MomoClient | None = None,
+    now: datetime | None = None,
+) -> MomoCheckout:
+    """Create or resume one MoMo Sandbox checkout for a contribution."""
+    _validate_payer(payer)
+    current_utc = _normalize_utc(now)
+    booking = _lock_booking(booking_code)
+    contribution = _lock_contribution(
+        booking_id=booking.id,
+        contribution_id=contribution_id,
+    )
+    _validate_payable_contribution(
+        booking=booking,
+        contribution=contribution,
+        payer=payer,
+        current_utc=current_utc,
+    )
+    return _start_momo_checkout(
+        booking=booking,
+        contribution=contribution,
+        payer=payer,
+        redirect_url=redirect_url,
+        ipn_url=ipn_url,
+        client=client,
+    )
+
+
+def start_momo_top_up(
+    *,
+    booking_code: str,
+    payer: User,
+    redirect_url: str,
+    ipn_url: str,
+    client: MomoClient | None = None,
+    now: datetime | None = None,
+) -> MomoCheckout:
+    """Create the creator's 30-minute opponent-deposit top-up checkout."""
+    _validate_payer(payer)
+    current_utc = _normalize_utc(now)
+    booking = _lock_booking(booking_code)
+    _validate_top_up(booking=booking, payer=payer, current_utc=current_utc)
+
+    top_up = db.session.scalar(
+        with_update_lock(
+            db.select(BookingContribution).where(
+                BookingContribution.booking_id == booking.id,
+                BookingContribution.user_id == payer.id,
+                BookingContribution.contribution_type == ContributionType.TOP_UP.value,
+                BookingContribution.status == ContributionStatus.PENDING.value,
+            ),
+            BookingContribution,
+        )
+    )
+    if top_up is None:
+        remaining = Decimal(booking.deposit_amount) - Decimal(booking.paid_amount)
+        pending_records = list(
+            db.session.scalars(
+                with_update_lock(
+                    db.select(BookingContribution).where(
+                        BookingContribution.booking_id == booking.id,
+                        BookingContribution.status == ContributionStatus.PENDING.value,
+                    ),
+                    BookingContribution,
+                )
+            )
+        )
+        for record in pending_records:
+            if record.contribution_type != ContributionType.CREATOR.value:
+                record.status = ContributionStatus.WAIVED.value
+        top_up = BookingContribution(
+            booking_id=booking.id,
+            user_id=payer.id,
+            contribution_type=ContributionType.TOP_UP.value,
+            slot_number=None,
+            amount_due=remaining,
+            amount_paid=Decimal("0.00"),
+            status=ContributionStatus.PENDING.value,
+            expires_at=booking.funding_deadline,
+        )
+        db.session.add(top_up)
+        db.session.flush()
+
+    return _start_momo_checkout(
+        booking=booking,
+        contribution=top_up,
+        payer=payer,
+        redirect_url=redirect_url,
+        ipn_url=ipn_url,
+        client=client,
+    )
+
+
+def process_momo_payment_notification(
+    payload: dict,
+    *,
+    client: MomoClient | None = None,
+    now: datetime | None = None,
+) -> Payment:
+    """Verify and apply an IPN/return idempotently using provider identifiers."""
+    momo = client or MomoClient.from_app_config()
+    try:
+        momo.verify_payment_notification(payload)
+    except MomoAPIError as exc:
+        raise PaymentError(str(exc)) from exc
+
+    order_id = str(payload.get("orderId", ""))
+    statement = with_update_lock(
+        db.select(Payment).where(
+            Payment.order_id == order_id,
+            Payment.provider == PaymentProvider.MOMO.value,
+        ),
+        Payment,
+    )
+    payment = db.session.scalar(statement)
+    if payment is None:
+        raise PaymentNotFoundError("Không tìm thấy giao dịch MoMo.")
+    if str(payload.get("requestId", "")) != payment.request_id:
+        raise PaymentError("Mã yêu cầu MoMo không khớp giao dịch.")
+    try:
+        callback_amount = Decimal(str(payload.get("amount", "")))
+    except Exception as exc:
+        raise PaymentError("Số tiền callback MoMo không hợp lệ.") from exc
+    if callback_amount != Decimal(payment.amount):
+        raise PaymentError("Số tiền callback MoMo không khớp giao dịch.")
+
+    result_code = str(payload.get("resultCode", ""))
+    provider_trans_id = str(payload.get("transId", "")) or None
+    if payment.status == PaymentStatus.SUCCESS.value:
+        if provider_trans_id != payment.provider_trans_id:
+            raise PaymentError("Mã giao dịch MoMo không khớp lần xử lý trước.")
+        return payment
+    if payment.status != PaymentStatus.PENDING.value:
+        return payment
+    payment.result_code = result_code
+    if result_code != "0":
+        payment.status = PaymentStatus.FAILED.value
+        _commit_payment()
+        return payment
+    if not provider_trans_id:
+        raise PaymentError("MoMo không trả mã giao dịch thành công.")
+
+    booking = _lock_booking_by_id(payment.booking_id)
+    contribution = _lock_contribution(
+        booking_id=booking.id,
+        contribution_id=payment.contribution_id,
+    )
+    if (
+        contribution.status != ContributionStatus.PENDING.value
+        or contribution.user_id != payment.payer_id
+    ):
+        raise InvalidPaymentStateError(
+            "Khoản cọc đã đổi trạng thái; giao dịch cần được đối soát thủ công."
+        )
+    _apply_success_to_payment(
+        payment=payment,
+        booking=booking,
+        contribution=contribution,
+        provider_trans_id=provider_trans_id,
+        paid_at=_normalize_utc(now),
+    )
+    _commit_payment()
+    return payment
+
+
+def _start_momo_checkout(
+    *,
+    booking: Booking,
+    contribution: BookingContribution,
+    payer: User,
+    redirect_url: str,
+    ipn_url: str,
+    client: MomoClient | None,
+) -> MomoCheckout:
+    momo = client or MomoClient.from_app_config()
+    existing = db.session.scalar(
+        db.select(Payment)
+        .where(
+            Payment.contribution_id == contribution.id,
+            Payment.provider == PaymentProvider.MOMO.value,
+            Payment.status == PaymentStatus.PENDING.value,
+        )
+        .order_by(Payment.id.desc())
+    )
+    if existing is not None:
+        if existing.checkout_url:
+            return MomoCheckout(payment=existing, pay_url=existing.checkout_url)
+        payment = existing
+    else:
+        payment = Payment(
+            booking_id=booking.id,
+            contribution_id=contribution.id,
+            payer_id=payer.id,
+            provider=PaymentProvider.MOMO.value,
+            payment_method=PaymentMethod.MOMO_WALLET.value,
+            amount=contribution.remaining_amount,
+            order_id=f"MOMO-PAY-{booking.id}-{uuid4().hex[:16].upper()}",
+            request_id=uuid4().hex,
+            provider_trans_id=None,
+            status=PaymentStatus.PENDING.value,
+            result_code=None,
+        )
+        db.session.add(payment)
+        _commit_payment()
+
+    try:
+        response = momo.create_payment(
+            order_id=payment.order_id,
+            request_id=payment.request_id,
+            amount=Decimal(payment.amount),
+            order_info=f"Cọc booking {booking.booking_code}",
+            redirect_url=redirect_url,
+            ipn_url=ipn_url,
+        )
+    except MomoAPIError as exc:
+        raise PaymentError(str(exc)) from exc
+    if (
+        str(response.get("orderId", "")) != payment.order_id
+        or str(response.get("requestId", "")) != payment.request_id
+    ):
+        raise PaymentError("MoMo trả về sai mã giao dịch.")
+    payment.result_code = str(response.get("resultCode", ""))
+    if payment.result_code != "0" or not response.get("payUrl"):
+        payment.status = PaymentStatus.FAILED.value
+        _commit_payment()
+        raise PaymentError(
+            str(response.get("message") or "MoMo từ chối tạo giao dịch.")
+        )
+    payment.checkout_url = str(response["payUrl"])
+    _commit_payment()
+    return MomoCheckout(payment=payment, pay_url=payment.checkout_url)
+
+
 def _record_mock_success(
     *,
     booking: Booking,
@@ -152,8 +413,8 @@ def _record_mock_success(
     if amount <= 0:
         raise InvalidPaymentStateError("Khoản đóng góp này không còn số tiền phải trả.")
     new_paid_amount = Decimal(booking.paid_amount) + amount
-    if new_paid_amount > Decimal(booking.total_amount):
-        raise InvalidPaymentStateError("Giao dịch sẽ làm tổng tiền vượt tiền sân.")
+    if new_paid_amount > Decimal(booking.deposit_amount):
+        raise InvalidPaymentStateError("Giao dịch sẽ làm tổng tiền vượt khoản cọc.")
 
     unique_token = uuid4().hex.upper()
     payment = Payment(
@@ -176,7 +437,7 @@ def _record_mock_success(
     booking.paid_amount = new_paid_amount
     booking.status = (
         BookingStatus.PAID.value
-        if new_paid_amount == Decimal(booking.total_amount)
+        if new_paid_amount == Decimal(booking.deposit_amount)
         else BookingStatus.PARTIALLY_PAID.value
     )
     from .matchmaking import mark_participant_joined_after_payment
@@ -186,6 +447,79 @@ def _record_mock_success(
         paid_at=current_utc,
     )
     return payment
+
+
+def _apply_success_to_payment(
+    *,
+    payment: Payment,
+    booking: Booking,
+    contribution: BookingContribution,
+    provider_trans_id: str,
+    paid_at: datetime,
+) -> None:
+    amount = Decimal(payment.amount)
+    if amount != contribution.remaining_amount:
+        raise InvalidPaymentStateError(
+            "Số tiền MoMo không còn khớp khoản cọc phải trả."
+        )
+    new_paid_amount = Decimal(booking.paid_amount) + amount
+    if new_paid_amount > Decimal(booking.deposit_amount):
+        raise InvalidPaymentStateError("Giao dịch sẽ làm tổng tiền vượt khoản cọc.")
+
+    payment.provider_trans_id = provider_trans_id
+    payment.status = PaymentStatus.SUCCESS.value
+    payment.paid_at = paid_at
+    contribution.amount_paid = Decimal(contribution.amount_due)
+    contribution.status = ContributionStatus.PAID.value
+    contribution.expires_at = None
+    booking.paid_amount = new_paid_amount
+    booking.status = (
+        BookingStatus.PAID.value
+        if new_paid_amount == Decimal(booking.deposit_amount)
+        else BookingStatus.PARTIALLY_PAID.value
+    )
+
+    from .matchmaking import (
+        join_waived_match_participants,
+        mark_participant_joined_after_payment,
+    )
+
+    mark_participant_joined_after_payment(contribution, paid_at=paid_at)
+    if contribution.contribution_type == ContributionType.TOP_UP.value:
+        join_waived_match_participants(
+            booking_id=booking.id,
+            joined_at=paid_at,
+        )
+
+
+def _validate_top_up(
+    *,
+    booking: Booking,
+    payer: User,
+    current_utc: datetime,
+) -> None:
+    if booking.user_id != payer.id:
+        raise PaymentPermissionError("Chỉ người tạo booking được trả phần còn thiếu.")
+    if booking.status != BookingStatus.PARTIALLY_PAID.value:
+        raise InvalidPaymentStateError(
+            "Chỉ booking đã thanh toán một phần mới có thể trả phần còn thiếu."
+        )
+    if booking.booking_mode != BookingMode.FIND_OPPONENT.value:
+        raise InvalidPaymentStateError(
+            "Chỉ booking tìm đối thủ mới có phần cọc cần trả bổ sung."
+        )
+    if booking.funding_deadline is None or booking.funding_deadline <= current_utc:
+        raise PaymentExpiredError("Đã hết hạn góp đủ tiền cho booking này.")
+    if (
+        booking.payment_policy == BookingPaymentPolicy.DEPOSIT_30.value
+        and booking.matchmaking_deadline is not None
+        and current_utc < booking.matchmaking_deadline
+    ):
+        raise InvalidPaymentStateError(
+            "Chỉ có thể trả phần cọc đối thủ còn thiếu trong cửa sổ 30 phút."
+        )
+    if Decimal(booking.deposit_amount) - Decimal(booking.paid_amount) <= 0:
+        raise InvalidPaymentStateError("Booking đã được thanh toán đủ.")
 
 
 def _validate_payable_contribution(
@@ -226,6 +560,17 @@ def _validate_payable_contribution(
 def _lock_booking(booking_code: str) -> Booking:
     statement = with_update_lock(
         db.select(Booking).where(Booking.booking_code == booking_code),
+        Booking,
+    )
+    booking = db.session.scalar(statement)
+    if booking is None:
+        raise PaymentNotFoundError("Không tìm thấy booking.")
+    return booking
+
+
+def _lock_booking_by_id(booking_id: int) -> Booking:
+    statement = with_update_lock(
+        db.select(Booking).where(Booking.id == booking_id),
         Booking,
     )
     booking = db.session.scalar(statement)

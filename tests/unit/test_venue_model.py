@@ -17,6 +17,9 @@ def test_venue_table_has_status_and_operating_hour_constraints():
 
     assert "ck_venues_status" in constraint_names
     assert "ck_venues_opening_before_closing" in constraint_names
+    assert "ck_venues_latitude_range" in constraint_names
+    assert "ck_venues_longitude_range" in constraint_names
+    assert "ck_venues_coordinate_pair" in constraint_names
 
 
 def test_venue_table_has_owner_and_public_listing_indexes():
