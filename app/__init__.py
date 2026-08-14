@@ -31,6 +31,20 @@ def create_app(config_name: str | None = None) -> Flask:
 def _validate_required_config(app: Flask) -> None:
     if not app.config.get("SECRET_KEY"):
         raise RuntimeError("SECRET_KEY must be configured in the environment.")
+    if app.config.get("MOMO_ENABLED"):
+        required = (
+            "MOMO_PARTNER_CODE",
+            "MOMO_ACCESS_KEY",
+            "MOMO_SECRET_KEY",
+            "MOMO_REDIRECT_URL",
+            "MOMO_IPN_URL",
+        )
+        missing = [name for name in required if not app.config.get(name)]
+        if missing:
+            raise RuntimeError(
+                "MoMo Sandbox is enabled but configuration is missing: "
+                + ", ".join(missing)
+            )
 
 
 def _initialize_extensions(app: Flask) -> None:

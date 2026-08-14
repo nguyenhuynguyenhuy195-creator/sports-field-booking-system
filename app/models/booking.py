@@ -20,10 +20,20 @@ if TYPE_CHECKING:
     from .refund import Refund
 
 
-class BookingPaymentMode(str, Enum):
-    FULL_PAYMENT = "FULL_PAYMENT"
-    SPLIT_OPPONENT = "SPLIT_OPPONENT"
-    SPLIT_PLAYERS = "SPLIT_PLAYERS"
+class BookingMode(str, Enum):
+    DIRECT_BOOKING = "DIRECT_BOOKING"
+    FIND_OPPONENT = "FIND_OPPONENT"
+    FIND_PLAYERS = "FIND_PLAYERS"
+
+
+class PlayFormat(str, Enum):
+    SINGLES = "SINGLES"
+    DOUBLES = "DOUBLES"
+
+
+class BookingPaymentPolicy(str, Enum):
+    LEGACY_FULL_ONLINE = "LEGACY_FULL_ONLINE"
+    DEPOSIT_30 = "DEPOSIT_30"
 
 
 class BookingStatus(str, Enum):
@@ -52,8 +62,16 @@ class Booking(db.Model):
     __tablename__ = "bookings"
     __table_args__ = (
         db.CheckConstraint(
-            "payment_mode IN ('FULL_PAYMENT', 'SPLIT_OPPONENT', 'SPLIT_PLAYERS')",
-            name="ck_bookings_payment_mode",
+            "booking_mode IN ('DIRECT_BOOKING', 'FIND_OPPONENT', 'FIND_PLAYERS')",
+            name="ck_bookings_booking_mode",
+        ),
+        db.CheckConstraint(
+            "play_format IS NULL OR play_format IN ('SINGLES', 'DOUBLES')",
+            name="ck_bookings_play_format",
+        ),
+        db.CheckConstraint(
+            "payment_policy IN ('LEGACY_FULL_ONLINE', 'DEPOSIT_30')",
+            name="ck_bookings_payment_policy",
         ),
         db.CheckConstraint(
             "status IN ('PENDING', 'CONFIRMED', 'PARTIALLY_PAID', 'PAID', "
@@ -69,7 +87,15 @@ class Booking(db.Model):
             name="ck_bookings_total_amount_positive",
         ),
         db.CheckConstraint(
-            "paid_amount >= 0 AND paid_amount <= total_amount",
+            "deposit_rate > 0 AND deposit_rate <= 1",
+            name="ck_bookings_deposit_rate",
+        ),
+        db.CheckConstraint(
+            "deposit_amount > 0 AND deposit_amount <= total_amount",
+            name="ck_bookings_deposit_amount_range",
+        ),
+        db.CheckConstraint(
+            "paid_amount >= 0 AND paid_amount <= deposit_amount",
             name="ck_bookings_paid_amount_range",
         ),
         db.CheckConstraint(
@@ -78,16 +104,10 @@ class Booking(db.Model):
             name="ck_bookings_cancellation_fee_range",
         ),
         db.CheckConstraint(
-            "((payment_mode = 'SPLIT_PLAYERS' "
-            "AND split_total_players IS NOT NULL "
-            "AND split_required_players IS NOT NULL "
-            "AND split_total_players > 1 "
-            "AND split_required_players > 0 "
-            "AND split_required_players < split_total_players) "
-            "OR (payment_mode <> 'SPLIT_PLAYERS' "
-            "AND split_total_players IS NULL "
-            "AND split_required_players IS NULL))",
-            name="ck_bookings_split_player_configuration",
+            "((booking_mode = 'FIND_PLAYERS' "
+            "AND requested_players IS NOT NULL AND requested_players > 0) "
+            "OR (booking_mode <> 'FIND_PLAYERS' AND requested_players IS NULL))",
+            name="ck_bookings_requested_players",
         ),
         db.Index(
             "ix_bookings_field_date_status_time",
@@ -108,6 +128,11 @@ class Booking(db.Model):
             "status",
             "funding_deadline",
         ),
+        db.Index(
+            "ix_bookings_status_matchmaking_deadline",
+            "status",
+            "matchmaking_deadline",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -127,16 +152,13 @@ class Booking(db.Model):
     booking_date: Mapped[date] = mapped_column(db.Date, nullable=False)
     start_time: Mapped[time] = mapped_column(time_type, nullable=False)
     end_time: Mapped[time] = mapped_column(time_type, nullable=False)
-    payment_mode: Mapped[str] = mapped_column(db.String(30), nullable=False)
-    split_total_players: Mapped[int | None] = mapped_column(
-        db.Integer,
-        nullable=True,
-    )
-    split_required_players: Mapped[int | None] = mapped_column(
-        db.Integer,
-        nullable=True,
-    )
+    booking_mode: Mapped[str] = mapped_column(db.String(30), nullable=False)
+    play_format: Mapped[str | None] = mapped_column(db.String(20), nullable=True)
+    requested_players: Mapped[int | None] = mapped_column(db.Integer, nullable=True)
+    payment_policy: Mapped[str] = mapped_column(db.String(30), nullable=False)
     total_amount: Mapped[Decimal] = mapped_column(db.Numeric(12, 2), nullable=False)
+    deposit_rate: Mapped[Decimal] = mapped_column(db.Numeric(5, 4), nullable=False)
+    deposit_amount: Mapped[Decimal] = mapped_column(db.Numeric(12, 2), nullable=False)
     paid_amount: Mapped[Decimal] = mapped_column(
         db.Numeric(12, 2),
         nullable=False,
@@ -160,6 +182,10 @@ class Booking(db.Model):
         nullable=True,
     )
     funding_deadline: Mapped[datetime | None] = mapped_column(
+        timestamp_type,
+        nullable=True,
+    )
+    matchmaking_deadline: Mapped[datetime | None] = mapped_column(
         timestamp_type,
         nullable=True,
     )
@@ -204,7 +230,15 @@ class Booking(db.Model):
 
     @property
     def remaining_amount(self) -> Decimal:
-        return Decimal(self.total_amount) - Decimal(self.paid_amount)
+        return Decimal(self.deposit_amount) - Decimal(self.paid_amount)
+
+    @property
+    def balance_due_at_venue(self) -> Decimal:
+        return Decimal(self.total_amount) - Decimal(self.deposit_amount)
+
+    @property
+    def uses_deposit_policy(self) -> bool:
+        return self.payment_policy == BookingPaymentPolicy.DEPOSIT_30.value
 
     def __repr__(self) -> str:
         return (

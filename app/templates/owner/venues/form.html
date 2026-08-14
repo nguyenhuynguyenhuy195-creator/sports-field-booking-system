@@ -32,7 +32,7 @@
             <a class="text-decoration-none" href="{{ url_for('venues.owner_index') }}">← Cơ sở của tôi</a>
             <span class="eyebrow d-block mt-4">KHU VỰC CHỦ SÂN</span>
             <h1 class="h2 fw-bold mt-2">{{ page_title }}</h1>
-            <p class="text-secondary">Chọn giờ mở cửa và đóng cửa thường ngày của cơ sở.</p>
+            <p class="text-secondary">Xác nhận vị trí, thông tin liên hệ và giờ hoạt động của cơ sở.</p>
 
             {% if venue and venue.status == 'ACTIVE' %}
                 <div class="alert alert-info">Cơ sở đang hoạt động. Việc chỉnh sửa không làm thay đổi trạng thái hiện tại.</div>
@@ -41,6 +41,33 @@
             <form method="post" novalidate>
                 {{ form.hidden_tag() }}
                 {{ render_field(form.name, placeholder="Ví dụ: Sân bóng Minh Anh") }}
+                {{ form.google_place_id() }}
+                {{ form.latitude() }}
+                {{ form.longitude() }}
+
+                <div class="venue-location-picker mb-3">
+                    <label class="form-label fw-semibold" for="venue-place-autocomplete">Tìm địa chỉ trên Google Maps</label>
+                    {% if google_maps_api_key %}
+                        <div id="venue-place-autocomplete" class="venue-place-autocomplete"></div>
+                        <p class="form-text mb-2">Chọn một gợi ý để lưu đúng vị trí và ghim bản đồ.</p>
+                        <div
+                            id="venue-location-map"
+                            class="venue-location-map"
+                            data-latitude="{{ form.latitude.data if form.latitude.data is not none else '' }}"
+                            data-longitude="{{ form.longitude.data if form.longitude.data is not none else '' }}"
+                        ></div>
+                        <p id="venue-location-status" class="small text-secondary mt-2 mb-0" role="status">
+                            {% if venue and venue.has_coordinates %}Vị trí hiện tại đã được lưu. Bạn có thể chọn lại nếu cần.{% else %}Chưa chọn vị trí Google.{% endif %}
+                        </p>
+                    {% else %}
+                        <div class="alert alert-warning mb-2">
+                            Chưa cấu hình Google Maps API key. Bạn vẫn có thể lưu địa chỉ dạng chữ, nhưng cơ sở chưa thể được duyệt công khai hoặc xuất hiện trong tìm kiếm gần tôi.
+                        </div>
+                    {% endif %}
+                    {% for error in form.google_place_id.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                    {% for error in form.latitude.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                    {% for error in form.longitude.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                </div>
                 {{ render_field(form.address, placeholder="Ví dụ: 123 Nguyễn Hữu Thọ") }}
                 <div class="row">
                     <div class="col-md-6">{{ render_field(form.district, placeholder="Ví dụ: Quận 7") }}</div>
@@ -57,4 +84,11 @@
         </div>
     </div>
 </section>
+{% endblock %}
+
+{% block scripts %}
+    {% if google_maps_api_key %}
+        <script src="{{ url_for('static', filename='js/venue-location-picker.js') }}"></script>
+        <script async src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key|urlencode }}&loading=async&libraries=places&callback=initVenueLocationPicker&language=vi&region=VN"></script>
+    {% endif %}
 {% endblock %}

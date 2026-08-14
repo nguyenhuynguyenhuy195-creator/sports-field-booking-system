@@ -26,6 +26,26 @@ erDiagram
         DATETIME2 created_at
     }
 
+    SPORTS {
+        INT id PK
+        VARCHAR code UK
+        NVARCHAR name UK
+        VARCHAR status
+        DATETIME2 created_at
+        DATETIME2 updated_at
+    }
+
+    FIELD_TYPES {
+        INT id PK
+        INT sport_id FK
+        VARCHAR code UK
+        NVARCHAR name
+        INT standard_players_per_side
+        VARCHAR status
+        DATETIME2 created_at
+        DATETIME2 updated_at
+    }
+
     VENUES {
         INT id PK
         INT owner_id FK
@@ -33,6 +53,9 @@ erDiagram
         NVARCHAR address
         NVARCHAR district
         NVARCHAR city
+        VARCHAR google_place_id
+        DECIMAL latitude
+        DECIMAL longitude
         VARCHAR phone
         NVARCHAR description
         TIME opening_time
@@ -48,8 +71,8 @@ erDiagram
     FIELDS {
         INT id PK
         INT venue_id FK
+        INT field_type_id FK
         NVARCHAR name
-        VARCHAR field_type
         NVARCHAR surface_type
         INT capacity
         VARCHAR status
@@ -89,14 +112,18 @@ erDiagram
         DATE booking_date
         TIME start_time
         TIME end_time
-        VARCHAR payment_mode
-        INT split_total_players
-        INT split_required_players
+        VARCHAR booking_mode
+        VARCHAR play_format
+        INT requested_players
+        VARCHAR payment_policy
         DECIMAL total_amount
+        DECIMAL deposit_rate
+        DECIMAL deposit_amount
         DECIMAL paid_amount
         DECIMAL cancellation_fee_amount
         VARCHAR status
         DATETIME2 initial_payment_due_at
+        DATETIME2 matchmaking_deadline
         DATETIME2 funding_deadline
         NVARCHAR note
         NVARCHAR cancellation_reason
@@ -186,6 +213,7 @@ erDiagram
         INT contribution_id FK
         VARCHAR participant_type
         NVARCHAR message
+        VARCHAR contact_phone
         VARCHAR status
         DATETIME2 payment_due_at
         DATETIME2 created_at
@@ -195,6 +223,8 @@ erDiagram
 
     USERS ||--o{ OWNER_APPLICATIONS : submits
     USERS o|--o{ OWNER_APPLICATIONS : reviews
+    SPORTS ||--o{ FIELD_TYPES : classifies
+    FIELD_TYPES ||--o{ FIELDS : types
     USERS ||--o{ VENUES : owns
     USERS o|--o{ VENUES : reviews
     VENUES ||--o{ FIELDS : contains
@@ -205,10 +235,10 @@ erDiagram
     FIELDS ||--o{ BOOKINGS : receives
     BOOKINGS ||--|{ BOOKING_PRICE_DETAILS : snapshots
     FIELD_PRICE_SLOTS ||--o{ BOOKING_PRICE_DETAILS : sources
-    BOOKINGS ||--o{ BOOKING_CONTRIBUTIONS : allocates
+    BOOKINGS ||--o{ BOOKING_CONTRIBUTIONS : allocates_deposit
     USERS o|--o{ BOOKING_CONTRIBUTIONS : owes
     BOOKING_CONTRIBUTIONS ||--o{ PAYMENTS : attempts
-    BOOKINGS ||--o{ PAYMENTS : collects
+    BOOKINGS ||--o{ PAYMENTS : collects_deposit
     USERS ||--o{ PAYMENTS : pays
     PAYMENTS ||--o{ REFUNDS : refunds
     BOOKINGS ||--o{ REFUNDS : returns
@@ -217,4 +247,4 @@ erDiagram
     USERS ||--o{ MATCHES : creates
     MATCHES ||--o{ MATCH_PARTICIPANTS : accepts
     USERS ||--o{ MATCH_PARTICIPANTS : joins
-    BOOKING_CONTRIBUTIONS o|--o{ MATCH_PARTICIPANTS : assigns
+    BOOKING_CONTRIBUTIONS o|--o{ MATCH_PARTICIPANTS : assigns_opponent_deposit

@@ -101,6 +101,10 @@ class Payment(db.Model):
     )
     status: Mapped[str] = mapped_column(db.String(20), nullable=False)
     result_code: Mapped[str | None] = mapped_column(db.String(20), nullable=True)
+    checkout_url: Mapped[str | None] = mapped_column(
+        db.Unicode(2000),
+        nullable=True,
+    )
     paid_at: Mapped[datetime | None] = mapped_column(timestamp_type, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         timestamp_type,

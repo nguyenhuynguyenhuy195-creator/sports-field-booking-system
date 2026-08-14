@@ -2,29 +2,29 @@
 
 ## 1. Giới thiệu
 
-Sports Field Booking System là website quản lý đặt sân bóng đá, thanh toán MoMo Sandbox và tìm kèo trực tuyến. Hệ thống kết nối người chơi, chủ sân và quản trị viên; hỗ trợ thanh toán đủ, chia 50/50 với đội đối thủ hoặc chia tiền theo đầu người.
+Sports Field Booking System là website quản lý đặt sân thể thao đa môn, tìm địa điểm theo vị trí, đặt sân và tìm kèo trực tuyến. MVP mục tiêu hỗ trợ bóng đá, cầu lông, pickleball và tennis; kết nối người chơi, chủ sân và quản trị viên.
 
 ## 2. Luồng nghiệp vụ chính
 
 ```text
 Đăng ký hoặc đăng nhập
-→ Tìm sân
+→ Tìm cơ sở theo từ khóa, bộ môn hoặc vị trí xung quanh
 → Xem chi tiết
-→ Chọn thời gian
+→ Chọn sân con, thời gian và hình thức thi đấu
 → Đặt sân
 → Hệ thống kiểm tra và giữ chỗ 15 phút
-→ Thanh toán 100% hoặc thanh toán phần đầu
+→ Thanh toán khoản cọc 30% qua MoMo Sandbox
 → Tạo kèo nếu cần
-→ Đối thủ/người ghép thanh toán
-→ Booking đủ tiền
+→ Đối thủ cọc phần cam kết hoặc người ghép để lại số Zalo
+→ Thanh toán 70% còn lại tại sân
 ```
 
-Ba hình thức thanh toán:
-- `FULL_PAYMENT`: người đặt trả 100%.
-- `SPLIT_OPPONENT`: hai đội chia 50/50.
-- `SPLIT_PLAYERS`: chia theo đầu người.
+Ba hình thức booking mục tiêu:
+- `DIRECT_BOOKING`: người đặt thanh toán toàn bộ khoản cọc 30%.
+- `FIND_OPPONENT`: hai bên chia đôi khoản cọc 30%; mỗi bên chịu 15% tổng tiền sân.
+- `FIND_PLAYERS`: người đặt thanh toán toàn bộ khoản cọc 30%; người ghép không thanh toán online và trả trực tiếp tại sân.
 
-Đích MVP dùng MoMo Sandbox và hỗ trợ hoàn tiền; MoMo Production không thuộc phạm vi đồ án ngành. Hiện repository đã có nền tảng phân bổ nghĩa vụ, module tìm kèo/ghép người, cùng provider `MOCK` cho cả thanh toán và hoàn tiền để kiểm thử chính sách 100%, 80/20 và rút khỏi kèo mà không chuyển tiền thật. Kết nối HMAC, redirect, IPN và Refund API MoMo Sandbox là bước tích hợp tiếp theo.
+Đích MVP dùng MoMo Sandbox và hỗ trợ hoàn tiền; MoMo Production, QR ngân hàng thật, ví admin và chức năng owner rút tiền không thuộc phạm vi đồ án ngành. Provider `MOCK` tiếp tục phục vụ phát triển và test tự động. Kết nối HMAC, redirect, IPN và Refund API MoMo Sandbox là bước tích hợp sau khi migration đa môn và chính sách cọc 30% hoàn tất.
 
 ## 3. Công nghệ
 
@@ -75,7 +75,9 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-Sao chép `.env.example` thành `.env` và cập nhật thông tin SQL Server. Không commit `.env` hoặc secret key. Credential MoMo chỉ bổ sung khi bắt đầu bước tích hợp Sandbox thật.
+Sao chép `.env.example` thành `.env` và cập nhật thông tin SQL Server. Không commit `.env` hoặc secret key. Nếu dùng bản đồ, điền `GOOGLE_MAPS_BROWSER_API_KEY` đã giới hạn theo HTTP referrer và Maps JavaScript/Places API.
+
+Mặc định `MOMO_ENABLED=false`, nên môi trường local tiếp tục dùng provider `MOCK` và không trừ tiền thật. Để kiểm thử MoMo Sandbox, cần bộ khóa M4B Sandbox và hai URL HTTPS công khai, sau đó cấu hình `MOMO_PARTNER_CODE`, `MOMO_ACCESS_KEY`, `MOMO_SECRET_KEY`, `MOMO_REDIRECT_URL`, `MOMO_IPN_URL` và đổi `MOMO_ENABLED=true`.
 
 Cấu hình development hiện dùng Windows Authentication với SQL Server mặc định trên `localhost`. Database khởi tạo là `sports_field_booking`.
 
@@ -87,7 +89,7 @@ Khởi tạo hoặc cập nhật cấu trúc database trước lần chạy đ�
 .\.venv\Scripts\python.exe -m flask --app run.py db upgrade
 ```
 
-Lệnh trên đọc các migration trong `migrations/` và áp dụng chúng theo đúng thứ tự. Các migration hiện tại tạo bảng `users`, `owner_applications`, `venues`, `fields`, `field_price_slots`, `field_maintenances`, `bookings`, `booking_price_details`, `booking_contributions`, `payments`, `refunds`, `matches` và `match_participants`; bảng `alembic_version` do Flask-Migrate dùng để ghi nhận phiên bản database.
+Lệnh trên đọc các migration trong `migrations/` và áp dụng chúng theo đúng thứ tự. Các migration hiện tại tạo thêm danh mục `sports`, `field_types`, vị trí Maps của venue, snapshot chính sách cọc trên booking và URL checkout MoMo trên payment. Bảng `alembic_version` do Flask-Migrate dùng để ghi nhận phiên bản database.
 
 Sau đó chạy website:
 
@@ -107,7 +109,11 @@ GET http://127.0.0.1:5000/venues
 
 `/health` kiểm tra tiến trình Flask. `/health/ready` chạy `SELECT 1` để xác nhận SQL Server sẵn sàng. Hai trang `/auth/register` và `/auth/login` cung cấp chức năng tài khoản đầu tiên của hệ thống.
 
-## 7. Chức năng đã triển khai
+## 7. Trạng thái triển khai
+
+Ba giai đoạn đã được triển khai vào model, migration, service, route, giao diện và test: danh mục đa môn + Google Maps; booking theo chính sách cọc 30%; MoMo Sandbox với HMAC, redirect, IPN, query và refund. Dữ liệu payment cũ được giữ nhãn `LEGACY_FULL_ONLINE`, không đổi nghĩa thành cọc 30%. Kết nối MoMo thật trên Sandbox chỉ hoạt động khi người triển khai cung cấp credential M4B và URL HTTPS công khai; nếu chưa có, hệ thống chủ động giữ `MOCK`.
+
+### 7.1. Chức năng hiện đã triển khai
 
 - Đăng ký tài khoản người chơi bằng họ tên, email, số điện thoại tùy chọn và mật khẩu.
 - Chuẩn hóa email, kiểm tra email không trùng và lưu mật khẩu ở dạng băm.
@@ -133,19 +139,29 @@ GET http://127.0.0.1:5000/venues
 - Booking lưu snapshot từng đoạn giá và tổng tiền từ database, không nhận giá từ frontend.
 - Người chơi xem báo giá trước khi xác nhận, theo dõi lịch sử/chi tiết và hủy booking hợp lệ; chủ sân theo dõi hoặc hủy booking khi có sự cố theo quyền sở hữu.
 - Lệnh `flask bookings expire` cập nhật idempotent các booking giữ chỗ đã quá hạn thanh toán đầu tiên.
-- Khi tạo booking, backend phân bổ tiền theo `FULL_PAYMENT`, `SPLIT_OPPONENT` hoặc `SPLIT_PLAYERS`; hình thức chia theo người dùng sức chứa field và số người còn thiếu, làm tròn đến từng đồng nhưng vẫn đúng tổng.
-- Trang chi tiết hiển thị từng nghĩa vụ, tiến độ đã thu/còn thiếu và lịch sử giao dịch.
-- Provider `MOCK` ghi nhận thanh toán thành công trong transaction để kiểm thử: trả 100%, trả phần đầu, chuyển `PARTIALLY_PAID`, và người tạo trả toàn bộ phần còn thiếu để chuyển `PAID`.
-- Các nghĩa vụ được trả thay chuyển `WAIVED` nhưng giữ nguyên số tiền gốc để phục vụ đối soát; hệ thống không thu vượt `total_amount` và từ chối thanh toán lặp.
-- Người tạo mở tối đa một kèo từ booking đủ điều kiện; loại kèo chia tiền được khóa theo `SPLIT_OPPONENT` hoặc `SPLIT_PLAYERS`.
-- Người chơi gửi và rút yêu cầu chưa thanh toán; người tạo kèo chấp nhận hoặc từ chối trên backend theo đúng quyền.
-- Người được chấp nhận giữ đúng một vị trí thanh toán trong 15 phút; quá hạn thì yêu cầu `EXPIRED` và vị trí được mở lại an toàn.
-- Thanh toán contribution của người tham gia tự chuyển yêu cầu sang `JOINED`; kèo đối thủ thành `CONFIRMED`, kèo tìm người chỉ thành `FULL` khi đủ số người đã tham gia.
+- Khi tạo booking, backend dùng `DIRECT_BOOKING`, `FIND_OPPONENT` hoặc `FIND_PLAYERS`, snapshot cọc 30% và phần 70% trả tại sân; booking lịch sử vẫn giữ chính sách cũ.
+- Với `FIND_OPPONENT`, người tạo và đại diện đối thủ mỗi bên thanh toán 15% tổng tiền sân. Với `FIND_PLAYERS`, người tạo thanh toán cả khoản cọc 30%, còn người ghép trả tại sân.
+- Provider `MOCK` và MoMo Sandbox cùng tuân theo giới hạn khoản cọc, chống thu lặp và chuyển `PARTIALLY_PAID`/`PAID`; trạng thái chỉ đổi sau kết quả hợp lệ.
+- Người tạo mở tối đa một kèo từ booking đủ điều kiện; bộ môn vợt bắt buộc chọn `SINGLES` hoặc `DOUBLES` và chỉ `DOUBLES` mới được tìm thêm người.
+- Người chơi ghép gửi số điện thoại dùng Zalo và xác nhận đồng ý chia sẻ; người tạo chỉ xem số này sau khi yêu cầu được chấp nhận.
+- Người được chấp nhận vào kèo đối thủ giữ vị trí thanh toán tối đa 15 phút và không vượt quá hạn tìm đối thủ; người ghép không có bước thanh toán online.
 - Lệnh `flask matches expire` xử lý idempotent các yêu cầu đã được duyệt nhưng quá hạn thanh toán.
-- Chủ sân hủy booking đã thu tiền sẽ hoàn 100%; người tạo hủy booking chưa góp đủ hoặc quá funding deadline được hoàn 80%, giữ 20% làm phí giữ sân và hoàn 100% cho người tham gia.
-- Người tham gia đã thanh toán rút trước trận trên 12 giờ được hoàn 100% và mở lại vị trí; rút trong vòng 12 giờ không hoàn tiền nhưng vẫn mở vị trí thay thế mà không thu thêm khi booking đã đủ.
-- Payment gốc tiếp tục giữ `SUCCESS`; mỗi lần hoàn được lưu riêng trong `refunds`, cập nhật số tiền ròng của contribution/booking và hiển thị trên trang chi tiết.
+- Chủ sân hủy booking đã thu cọc sẽ hoàn 100% khoản đã thu. Refund `MOCK` hoàn tất ngay; refund MoMo được lưu `PENDING` trước khi gọi API và chỉ hoàn tất booking khi các khoản bắt buộc thành công.
+- Payment gốc tiếp tục giữ `SUCCESS`; mỗi lần hoàn được lưu riêng trong `refunds`, cập nhật số tiền cọc ròng của contribution/booking và hiển thị trên trang chi tiết.
 - Lệnh `flask refunds funding-expire` xử lý idempotent booking chia tiền không góp đủ trước hạn 12 giờ.
+- Lệnh `flask refunds momo-pending` query/thử lại các refund MoMo còn chờ xử lý theo hướng idempotent.
+
+### 7.2. Phạm vi đã chốt và giới hạn môi trường
+
+- Danh mục `sports` và `field_types` hỗ trợ bóng đá, cầu lông, pickleball và tennis.
+- Mỗi field thuộc đúng một loại sân và qua đó thuộc đúng một bộ môn.
+- Cầu lông, pickleball và tennis chọn `SINGLES` hoặc `DOUBLES` khi booking.
+- Venue lưu Google Place ID và tọa độ để ghim bản đồ, mở chỉ đường và tìm sân trong bán kính 3/5/10 km.
+- Booking thu cọc 30% qua `MOCK` hoặc MoMo Sandbox; 70% còn lại thanh toán tại sân.
+- Kèo tìm đối thủ chia đôi khoản cọc; kèo tìm thêm người chỉ thu cọc từ người tạo.
+- Người ghép để lại số điện thoại dùng Zalo; số chỉ hiện cho người tạo sau khi yêu cầu được chấp nhận.
+- Chưa thể xác nhận giao dịch MoMo Sandbox đầu-cuối nếu chưa có credential M4B và URL HTTPS công khai.
+- Không triển khai chấm điểm, phạt no-show, MoMo Production, QR ngân hàng thật, ví admin hoặc payout trong MVP.
 
 Tạo tài khoản quản trị viên đầu tiên:
 

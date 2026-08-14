@@ -8,15 +8,16 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.extensions import db
 from app.models import (
     Booking,
-    BookingPaymentMode,
+    BookingMode,
     BookingPriceDetail,
     BookingStatus,
     Field,
+    FieldType,
     FieldMaintenance,
     FieldMaintenanceStatus,
     FieldPriceSlot,
     FieldStatus,
-    FieldType,
+    FieldTypeCode,
     PriceSlotStatus,
     User,
     UserRole,
@@ -101,7 +102,11 @@ def create_bookable_field(
         field = Field(
             venue_id=venue.id,
             name="Sân booking",
-            field_type=FieldType.FIVE_A_SIDE.value,
+            field_type_id=db.session.scalar(
+                db.select(FieldType.id).where(
+                    FieldType.code == FieldTypeCode.FOOTBALL_5.value
+                )
+            ),
             capacity=10,
             status=field_status.value,
         )
@@ -149,7 +154,7 @@ def booking_form_data(target_date: date, **overrides):
         "start_minute": "00",
         "end_hour": "20",
         "end_minute": "00",
-        "payment_mode": BookingPaymentMode.FULL_PAYMENT.value,
+        "booking_mode": BookingMode.DIRECT_BOOKING.value,
         "note": "Đặt sân giao hữu",
     }
     data.update(overrides)
@@ -164,7 +169,7 @@ def create_booking_record(
     target_date: date | None = None,
     start_time: time = time(18, 0),
     end_time: time = time(20, 0),
-    payment_mode: str = BookingPaymentMode.FULL_PAYMENT.value,
+    booking_mode: str = BookingMode.DIRECT_BOOKING.value,
     now: datetime | None = None,
 ) -> str:
     with app.app_context():
@@ -175,7 +180,7 @@ def create_booking_record(
             booking_date=target_date or booking_day(),
             start_time=start_time,
             end_time=end_time,
-            payment_mode=payment_mode,
+            booking_mode=booking_mode,
             note="Booking kiểm thử",
             now=now,
         )
@@ -397,13 +402,13 @@ def test_service_rejects_invalid_booking_time(
             booking_date=target_date,
             start_time=start_time,
             end_time=end_time,
-            payment_mode=BookingPaymentMode.FULL_PAYMENT.value,
+            booking_mode=BookingMode.DIRECT_BOOKING.value,
         )
 
     assert message in str(exc_info.value)
 
 
-def test_payment_mode_lead_times_and_maximum_advance_are_enforced(app):
+def test_booking_mode_lead_times_and_maximum_advance_are_enforced(app):
     owner = create_user(app, email="owner@example.com", role=UserRole.OWNER)
     player = create_user(app, email="player@example.com")
     now = datetime(2026, 8, 10, 10, 0)
@@ -423,17 +428,17 @@ def test_payment_mode_lead_times_and_maximum_advance_are_enforced(app):
                 booking_date=target_date,
                 start_time=time(10, 30),
                 end_time=time(11, 30),
-                payment_mode=BookingPaymentMode.FULL_PAYMENT.value,
+                booking_mode=BookingMode.DIRECT_BOOKING.value,
                 now=now,
             )
-        with pytest.raises(BookingError, match="ít nhất 13 giờ"):
+        with pytest.raises(BookingError, match="ít nhất 24 giờ"):
             create_booking(
                 user=player_model,
                 field_id=field_id,
                 booking_date=target_date,
                 start_time=time(22, 0),
                 end_time=time(23, 0),
-                payment_mode=BookingPaymentMode.SPLIT_OPPONENT.value,
+                booking_mode=BookingMode.FIND_OPPONENT.value,
                 now=now,
             )
         with pytest.raises(BookingError, match="tối đa 30 ngày"):
@@ -443,7 +448,7 @@ def test_payment_mode_lead_times_and_maximum_advance_are_enforced(app):
                 booking_date=date(2026, 9, 10),
                 start_time=time(18, 0),
                 end_time=time(20, 0),
-                payment_mode=BookingPaymentMode.FULL_PAYMENT.value,
+                booking_mode=BookingMode.DIRECT_BOOKING.value,
                 now=now,
             )
 
@@ -478,7 +483,7 @@ def test_booking_is_blocked_by_maintenance(app):
                 booking_date=target_date,
                 start_time=time(19, 0),
                 end_time=time(21, 0),
-                payment_mode=BookingPaymentMode.FULL_PAYMENT.value,
+                booking_mode=BookingMode.DIRECT_BOOKING.value,
             )
 
 
@@ -508,7 +513,7 @@ def test_overlapping_booking_is_blocked_but_adjacent_is_allowed(app):
                 booking_date=target_date,
                 start_time=time(19, 0),
                 end_time=time(21, 0),
-                payment_mode=BookingPaymentMode.FULL_PAYMENT.value,
+                booking_mode=BookingMode.DIRECT_BOOKING.value,
             )
 
         adjacent = create_booking(
@@ -517,7 +522,7 @@ def test_overlapping_booking_is_blocked_but_adjacent_is_allowed(app):
             booking_date=target_date,
             start_time=time(20, 0),
             end_time=time(21, 0),
-            payment_mode=BookingPaymentMode.FULL_PAYMENT.value,
+            booking_mode=BookingMode.DIRECT_BOOKING.value,
         )
         assert adjacent.status == BookingStatus.CONFIRMED.value
 
@@ -552,7 +557,7 @@ def test_expired_payment_hold_no_longer_blocks_time(app):
             booking_date=target_date,
             start_time=time(18, 0),
             end_time=time(20, 0),
-            payment_mode=BookingPaymentMode.FULL_PAYMENT.value,
+            booking_mode=BookingMode.DIRECT_BOOKING.value,
         )
         assert replacement.status == BookingStatus.CONFIRMED.value
         assert old_booking.status == BookingStatus.EXPIRED.value
@@ -753,9 +758,9 @@ def test_owner_booking_index_groups_bookings_by_user_facing_state(app, client):
             db.select(Booking).where(Booking.booking_code == cancelled_code)
         )
         upcoming.status = BookingStatus.PAID.value
-        upcoming.paid_amount = upcoming.total_amount
+        upcoming.paid_amount = upcoming.deposit_amount
         completed.status = BookingStatus.COMPLETED.value
-        completed.paid_amount = completed.total_amount
+        completed.paid_amount = completed.deposit_amount
         cancelled.status = BookingStatus.CANCELLED.value
         db.session.commit()
 
@@ -836,9 +841,9 @@ def test_booking_index_groups_bookings_by_user_facing_state(app, client):
             db.select(Booking).where(Booking.booking_code == cancelled_code)
         )
         upcoming.status = BookingStatus.PAID.value
-        upcoming.paid_amount = upcoming.total_amount
+        upcoming.paid_amount = upcoming.deposit_amount
         completed.status = BookingStatus.COMPLETED.value
-        completed.paid_amount = completed.total_amount
+        completed.paid_amount = completed.deposit_amount
         cancelled.status = BookingStatus.CANCELLED.value
         db.session.commit()
 
@@ -951,7 +956,7 @@ def test_create_booking_rolls_back_booking_and_details_on_commit_failure(
                 booking_date=target_date,
                 start_time=time(18, 0),
                 end_time=time(20, 0),
-                payment_mode=BookingPaymentMode.FULL_PAYMENT.value,
+                booking_mode=BookingMode.DIRECT_BOOKING.value,
             )
 
         assert rollback_called is True

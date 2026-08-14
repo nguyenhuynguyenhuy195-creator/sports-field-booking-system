@@ -23,6 +23,9 @@
                             <p class="mb-1"><strong>Email:</strong> {{ venue.owner.email }}</p>
                             <p class="mb-1"><strong>Địa chỉ:</strong> {{ venue.address }}{% if venue.district %}, {{ venue.district }}{% endif %}, {{ venue.city }}</p>
                             <p class="mb-1"><strong>Giờ:</strong> {{ venue.opening_time.strftime('%H:%M') }}–{{ venue.closing_time.strftime('%H:%M') }}</p>
+                            {% if not venue.has_coordinates %}
+                                <div class="alert alert-warning mt-3 mb-0">Chưa có Google Place ID và tọa độ. Không thể duyệt công khai cho đến khi chủ sân bổ sung vị trí.</div>
+                            {% endif %}
                             {% if venue.description %}<p class="text-secondary mt-3 mb-0">{{ venue.description }}</p>{% endif %}
                         </div>
                         <div class="col-lg-6">

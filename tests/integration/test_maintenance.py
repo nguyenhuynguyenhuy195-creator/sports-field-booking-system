@@ -7,10 +7,11 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.extensions import db
 from app.models import (
     Field,
+    FieldType,
     FieldMaintenance,
     FieldMaintenanceStatus,
     FieldStatus,
-    FieldType,
+    FieldTypeCode,
     User,
     UserRole,
     Venue,
@@ -82,7 +83,11 @@ def create_venue_and_field(
         field = Field(
             venue_id=venue.id,
             name=field_name,
-            field_type=FieldType.FIVE_A_SIDE.value,
+            field_type_id=db.session.scalar(
+                db.select(FieldType.id).where(
+                    FieldType.code == FieldTypeCode.FOOTBALL_5.value
+                )
+            ),
             capacity=10,
             status=FieldStatus.INACTIVE.value,
         )

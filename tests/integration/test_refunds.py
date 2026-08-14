@@ -5,7 +5,7 @@ from app.extensions import db
 from app.models import (
     Booking,
     BookingContribution,
-    BookingPaymentMode,
+    BookingMode,
     BookingStatus,
     ContributionStatus,
     Match,
@@ -41,7 +41,7 @@ def _prepare_joined_opponent(app):
         app,
         creator_id=creator.id,
         field_id=field_id,
-        payment_mode=BookingPaymentMode.SPLIT_OPPONENT.value,
+        booking_mode=BookingMode.FIND_OPPONENT.value,
     )
     match_id = _create_match(
         app,
@@ -75,7 +75,7 @@ def test_creator_cancels_partial_booking_with_80_20_policy(app):
         app,
         creator_id=creator.id,
         field_id=field_id,
-        payment_mode=BookingPaymentMode.SPLIT_OPPONENT.value,
+        booking_mode=BookingMode.FIND_OPPONENT.value,
     )
 
     with app.app_context():
@@ -92,12 +92,12 @@ def test_creator_cancels_partial_booking_with_80_20_policy(app):
         )
 
         assert booking.status == BookingStatus.CANCELLED.value
-        assert booking.paid_amount == Decimal("40000.00")
-        assert booking.cancellation_fee_amount == Decimal("40000.00")
-        assert refund.amount == Decimal("160000.00")
+        assert booking.paid_amount == Decimal("12000.00")
+        assert booking.cancellation_fee_amount == Decimal("12000.00")
+        assert refund.amount == Decimal("48000.00")
         assert refund.status == RefundStatus.SUCCESS.value
         assert payment.status == PaymentStatus.SUCCESS.value
-        assert creator_contribution.amount_paid == Decimal("40000.00")
+        assert creator_contribution.amount_paid == Decimal("12000.00")
         assert (
             creator_contribution.status
             == ContributionStatus.PARTIALLY_REFUNDED.value
@@ -121,7 +121,7 @@ def test_owner_cancels_paid_booking_and_refunds_every_payment(app):
         assert booking.cancellation_fee_amount == Decimal("0.00")
         assert booking.match.status == MatchStatus.CANCELLED.value
         assert len(refunds) == 2
-        assert sum(item.amount for item in refunds) == booking.total_amount
+        assert sum(item.amount for item in refunds) == booking.deposit_amount
         assert {item.status for item in refunds} == {RefundStatus.SUCCESS.value}
         assert {item.status for item in payments} == {PaymentStatus.SUCCESS.value}
 
@@ -134,7 +134,7 @@ def test_funding_deadline_refund_job_is_idempotent(app):
         app,
         creator_id=creator.id,
         field_id=field_id,
-        payment_mode=BookingPaymentMode.SPLIT_OPPONENT.value,
+        booking_mode=BookingMode.FIND_OPPONENT.value,
     )
     deadline = datetime(2026, 8, 10, 0, 0)
 
@@ -154,7 +154,7 @@ def test_funding_deadline_refund_job_is_idempotent(app):
         assert db.session.scalar(db.select(db.func.count(Refund.id))) == 1
         db.session.refresh(booking)
         assert booking.status == BookingStatus.CANCELLED.value
-        assert booking.cancellation_fee_amount == Decimal("40000.00")
+        assert booking.cancellation_fee_amount == Decimal("12000.00")
 
 
 def test_paid_participant_withdraws_over_12_hours_with_full_refund(app):
@@ -192,7 +192,7 @@ def test_paid_participant_withdraws_over_12_hours_with_full_refund(app):
         assert replacement.id != old_contribution.id
         assert replacement.amount_due == old_contribution.amount_due
         assert booking.status == BookingStatus.PARTIALLY_PAID.value
-        assert booking.paid_amount == Decimal("200000.00")
+        assert booking.paid_amount == Decimal("60000.00")
         assert db.session.scalar(db.select(db.func.count(Refund.id))) == 1
         assert db.session.get(Match, match_id).status == MatchStatus.OPEN.value
 
@@ -213,7 +213,7 @@ def test_paid_participant_withdraws_over_12_hours_with_full_refund(app):
             payer=db.session.get(User, replacement_user.id),
         )
         assert booking.status == BookingStatus.PAID.value
-        assert booking.paid_amount == booking.total_amount
+        assert booking.paid_amount == booking.deposit_amount
 
 
 def test_paid_participant_withdraws_inside_12_hours_without_refund(app):
@@ -243,7 +243,7 @@ def test_paid_participant_withdraws_inside_12_hours_without_refund(app):
         assert contribution.status == ContributionStatus.FORFEITED.value
         assert contribution.amount_paid == contribution.amount_due
         assert booking.status == BookingStatus.PAID.value
-        assert booking.paid_amount == booking.total_amount
+        assert booking.paid_amount == booking.deposit_amount
         assert db.session.scalar(db.select(db.func.count(Refund.id))) == 0
 
 
@@ -255,7 +255,7 @@ def test_creator_cancel_route_renders_refund_history(app, client):
         app,
         creator_id=creator.id,
         field_id=field_id,
-        payment_mode=BookingPaymentMode.SPLIT_OPPONENT.value,
+        booking_mode=BookingMode.FIND_OPPONENT.value,
     )
     login(client, email=creator.email)
 
@@ -268,7 +268,7 @@ def test_creator_cancel_route_renders_refund_history(app, client):
     assert response.status_code == 200
     assert "Lịch sử thanh toán" in page
     assert "Lịch sử hoàn tiền" in page
-    assert "160.000" in page
+    assert "48.000" in page
     assert "Phí giữ sân" in page
     assert "Còn thiếu:" not in page
     assert "Booking đã được hủy" in page

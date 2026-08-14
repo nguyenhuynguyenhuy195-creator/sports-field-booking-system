@@ -10,7 +10,9 @@ Có thể vẽ bằng Draw.io. Các sơ đồ là tài liệu tham khảo và ph
 
 ## ERD
 
-- `erd.mmd`: nguồn Mermaid có thể chỉnh sửa, gồm 13 bảng và các quan hệ chính.
+- `erd.mmd`: nguồn Mermaid có thể chỉnh sửa, gồm 15 bảng mục tiêu và các quan hệ chính.
 - `erd.png`: bản xuất độ phân giải cao dùng trong báo cáo và review thiết kế.
 - Ký hiệu `PK`: khóa chính; `FK`: khóa ngoại; `UK`: khóa duy nhất.
 - Check constraint, filtered unique index, trạng thái và hành vi xóa chi tiết được quy định tại `docs/05-database-design.md`; ERD không thay thế tài liệu này.
+
+Thiết kế ngày 12/08/2026 bổ sung `sports`, `field_types`, vị trí Google Maps trên venue, snapshot tiền cọc trên booking và số liên hệ riêng tư trên yêu cầu ghép. Chỉ xuất lại `erd.png` từ đúng nguồn `erd.mmd` hiện hành.

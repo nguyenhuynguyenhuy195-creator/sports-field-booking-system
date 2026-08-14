@@ -3,212 +3,289 @@
 ## 9.1. Authentication và authorization
 
 ### TC-AUTH-001: Đăng ký thành công
-Email chưa tồn tại → tạo user, hash password, role `USER`, status `ACTIVE`.
 
-### TC-AUTH-002: Email trùng
-Không tạo user và hiển thị lỗi.
+Tạo USER/ACTIVE, email chuẩn hóa và password hash.
 
-### TC-AUTH-003: Tài khoản bị khóa
-Không đăng nhập được.
+### TC-AUTH-002: Email trùng hoặc tài khoản khóa
 
-### TC-AUTHZ-001: USER truy cập owner dashboard
-Trả 403 hoặc chuyển về trang phù hợp.
+Không tạo user trùng; LOCKED không đăng nhập.
 
-### TC-AUTHZ-002: OWNER A sửa dữ liệu OWNER B
-Bị từ chối; venue, field, giá, bảo trì và booking không thay đổi.
+### TC-AUTHZ-001: Truy cập sai role/owner
 
-### TC-OWNER-001: Gửi yêu cầu owner trùng
-Không tạo yêu cầu `PENDING` thứ hai.
+USER không vào owner/admin; owner A không sửa venue/field/booking của owner B.
 
-### TC-OWNER-002: Admin duyệt owner
-Application `APPROVED` và role chuyển `OWNER` trong cùng transaction.
+### TC-OWNER-001: Owner application
 
-## 9.2. Venue, field, giá và bảo trì
+Không tạo hai PENDING; admin duyệt đổi role trong cùng transaction.
+
+## 9.2. Danh mục thể thao và migration
+
+### TC-SPORT-001: Seed danh mục
+
+Có đúng FOOTBALL, BADMINTON, PICKLEBALL, TENNIS và sáu field type MVP, code không trùng.
+
+### TC-SPORT-002: Quan hệ field type
+
+Mỗi field type thuộc một sport; không tạo field với type INACTIVE/không tồn tại.
+
+### TC-MIGRATION-001: Ánh xạ sân bóng đá cũ
+
+FIVE_A_SIDE/SEVEN_A_SIDE/ELEVEN_A_SIDE được map sang FOOTBALL_5/7/11; booking, giá và bảo trì giữ nguyên field_id.
+
+### TC-MIGRATION-002: Dữ liệu lịch sử payment
+
+Booking cũ được backfill LEGACY_FULL_ONLINE/rate 1/deposit bằng total; không tự diễn giải payment toàn bộ cũ thành tiền cọc 30%.
+
+## 9.3. Venue, Google Maps và tìm kiếm
 
 ### TC-VENUE-001: Venue mới
-Tạo với owner hiện tại, trạng thái `PENDING`, không xuất hiện công khai.
 
-### TC-VENUE-002: Admin duyệt venue
-Chuyển `ACTIVE`, lưu `reviewed_by`, `reviewed_at`, ghi chú nếu có và xuất hiện công khai.
+Owner hiện tại, PENDING và chưa công khai.
 
-### TC-VENUE-003: Tìm theo tên và khu vực
-Từ khóa khớp tên hoặc quận/huyện → trả đúng venue; venue khác không xuất hiện.
+### TC-MAP-001: Lưu place hợp lệ
 
-### TC-VENUE-004: Kết hợp loại sân và khoảng giá
-Chọn sân 7 người, giá từ 300.000 đến 400.000đ/giờ → chỉ venue có field sân 7 `ACTIVE` với “giá từ” trong khoảng xuất hiện; venue/field chưa hoạt động bị loại.
+Chọn Places prediction → lưu address/place_id/latitude/longitude, render đúng marker.
 
-### TC-VENUE-005: Giá theo đúng loại sân
-Venue có sân 5 giá 150.000đ và sân 7 giá 450.000đ; lọc sân 7 tối đa 200.000đ → venue không được trả về.
+### TC-MAP-002: Tọa độ sai
 
-### TC-VENUE-006: Bộ lọc không hợp lệ và wildcard
-Giá tối thiểu lớn hơn giá tối đa hiển thị lỗi và giữ input; từ khóa `%` được tìm như ký tự thường, không trả về toàn bộ venue.
+Từ chối latitude 91, longitude -181 hoặc chỉ có một tọa độ; rollback.
 
-### TC-VENUE-007: Phân trang và giữ bộ lọc
-Có 10 venue cùng khớp → trang đầu tối đa 9 kết quả, trang hai hiển thị phần còn lại, tổng kết quả đúng và điều kiện tìm/lọc vẫn được chọn.
+### TC-MAP-003: Venue cũ thiếu tọa độ
 
-### TC-FIELD-001: Field mới
-Trạng thái mặc định `INACTIVE`.
+Vẫn tìm theo tên/địa chỉ, không xuất hiện trong tìm bán kính và UI có cảnh báo owner.
 
-### TC-FIELD-002: Trùng tên field trong cùng venue
-Từ chối tạo field thứ hai cùng tên; venue khác vẫn được phép dùng tên đó.
+### TC-MAP-004: Tìm bán kính
 
-### TC-PRICE-001: Hai khung giá chồng nhau
-Đã có 17:00–19:00; từ chối tạo 18:00–21:00 trong cùng ngày áp dụng.
+Với user location xác định, 3/5/10 km trả đúng venue ACTIVE nội bộ và sắp theo khoảng cách tăng dần.
 
-### TC-PRICE-002: Booking qua hai khung giá
-17:00–18:00 giá 200.000đ/giờ, 18:00–21:00 giá 300.000đ/giờ; booking 17:30–19:00 có total 400.000đ và hai price detail.
+### TC-MAP-005: Từ chối Geolocation
 
-### TC-PRICE-003: Thiếu khung giá
-Booking 16:00–18:00 nhưng chỉ có giá 17:00–18:00 → không tạo booking và báo khoảng thiếu.
+Không gọi tìm gần, trang không lỗi và tìm văn bản vẫn hoạt động.
 
-### TC-MAINT-001: Bảo trì trùng booking
-Từ chối tạo bảo trì; booking không thay đổi.
+### TC-MAP-006: Không nhập venue ngoài hệ thống
 
-### TC-MAINT-002: Booking trùng bảo trì
-Từ chối tạo booking.
+Kết quả không chứa địa điểm chỉ tồn tại trên Google nhưng không có trong bảng venues.
 
-### TC-MAINT-003: Hai lịch bảo trì chồng nhau
-Đã có bảo trì `ACTIVE` 18:00–20:00; từ chối tạo bảo trì `ACTIVE` 19:00–21:00 cho cùng field và ngày.
+### TC-SEARCH-001: Kết hợp bộ lọc
 
-## 9.3. Booking
+Từ khóa + sport + field type + khoảng giá trả đúng venue có field ACTIVE phù hợp.
+
+### TC-SEARCH-002: Sport/type không khớp
+
+Chọn FOOTBALL cùng TENNIS_STANDARD hiển thị lỗi, không trả kết quả sai.
+
+### TC-SEARCH-003: Wildcard và phân trang
+
+%, _ và \ được hiểu như text; 10 kết quả chia 9/1 và giữ query.
+
+## 9.4. Field, giá và bảo trì
+
+### TC-FIELD-001: Field đa môn
+
+Tạo field với field_type_id hợp lệ, mặc định INACTIVE; tên trùng trong cùng venue bị từ chối.
+
+### TC-FIELD-002: Một field một sport
+
+Không thể gắn nhiều field type/sport cho cùng field; field đã có booking không được đổi type.
+
+### TC-PRICE-001: Khung giá chồng
+
+Từ chối price slot ACTIVE giao nhau cùng field/ngày.
+
+### TC-PRICE-002: Booking qua nhiều giá
+
+Tách đúng đoạn/subtotal và tổng.
+
+### TC-MAINT-001: Bảo trì trùng
+
+Từ chối bảo trì chồng booking hoặc bảo trì ACTIVE khác; booking không tạo trong bảo trì.
+
+## 9.5. Availability, booking và play format
 
 ### TC-BOOKING-001: Booking hợp lệ
-Field/venue `ACTIVE`, thời gian hợp lệ, đủ giá, không trùng → tạo `CONFIRMED`, hạn giữ chỗ 15 phút và price snapshot.
 
-### TC-BOOKING-002: Bước thời gian sai
-Từ chối 18:10–19:40.
+Tạo CONFIRMED, giữ 15 phút, snapshot giá/cọc và contribution đúng mode.
 
-### TC-BOOKING-003: Thời lượng dưới 60 phút
-Từ chối 18:00–18:30.
+### TC-BOOKING-002: Bước/thời lượng sai
+
+Từ chối 18:10–19:40 hoặc khoảng dưới 60 phút.
+
+### TC-BOOKING-003: Trùng lịch
+
+Booking 18:00–20:00 từ chối mọi khoảng giao nhau; chấp nhận kết thúc 18:00 hoặc bắt đầu 20:00.
 
 ### TC-BOOKING-004: Giới hạn đặt trước
-- `FULL_PAYMENT` trước dưới 60 phút → từ chối.
-- Booking chia tiền trước dưới 13 giờ → từ chối.
-- Ngày quá 30 ngày → từ chối.
 
-### TC-BOOKING-005: Trùng lịch
-Đã có booking chiếm chỗ 18:00–20:00. Từ chối 17:00–19:00, 18:00–20:00, 19:00–21:00, 18:30–19:30 và 17:00–21:00. Chấp nhận 16:00–18:00 và 20:00–22:00.
+DIRECT_BOOKING/FIND_PLAYERS dưới 60 phút bị từ chối; FIND_OPPONENT dưới 24 giờ bị từ chối; quá 30 ngày bị từ chối.
 
-### TC-BOOKING-006: Trạng thái không chiếm chỗ
-Booking `REJECTED`, `CANCELLED`, `EXPIRED` hoặc `COMPLETED` không làm khung giờ bận.
+### TC-BOOKING-005: Availability hết hạn
 
-### TC-BOOKING-007: Owner hủy booking sân khác
-Bị từ chối và dữ liệu không đổi.
+CONFIRMED quá initial_payment_due_at chưa có payment không tiếp tục chặn lưới; job chuyển EXPIRED idempotent.
 
-### TC-BOOKING-008: Báo giá trước khi giữ chỗ
-Trả đúng từng đoạn giá và tổng tiền nhưng không tạo booking hoặc chiếm chỗ.
+### TC-FORMAT-001: Bóng đá
 
-### TC-BOOKING-009: Giữ chỗ CONFIRMED hết hạn
-Không có khoản thanh toán đầu tiên sau 15 phút → `EXPIRED`; chạy job lần hai không tạo thay đổi mới.
+Từ chối SINGLES/DOUBLES trên field FOOTBALL; cho phép ba booking mode.
 
-### TC-BOOKING-010: Hai request đồng thời
-Chỉ một booking giao nhau được commit; request còn lại nhận lỗi hết chỗ.
+### TC-FORMAT-002: Môn dùng vợt
 
-### TC-BOOKING-011: Lưới giờ theo trạng thái
-Với giờ hoạt động 06:00–23:00, endpoint trả 34 đoạn 30 phút; đoạn có booking là `BOOKED`, có bảo trì là `MAINTENANCE`, thiếu giá là `NO_PRICE` và đoạn hợp lệ còn lại là `AVAILABLE`.
+Thiếu play_format bị từ chối; SINGLES + FIND_PLAYERS bị từ chối; DOUBLES cho phép cả ba mode.
 
-### TC-BOOKING-012: Giữ chỗ hết hạn trên lưới giờ
-Booking `CONFIRMED` chưa thanh toán có `initial_payment_due_at` đã qua không còn làm đoạn giờ là `BOOKED`, kể cả khi job hết hạn chưa kịp chạy.
+## 9.6. Cọc và contribution
 
-### TC-BOOKING-013: Chọn mốc bắt đầu và kết thúc
-Chọn 18:00 rồi 19:00 tạo khoảng 18:00–19:00, thời lượng 60 phút và bật nút tiếp tục; không cho chọn 18:00–18:30 hoặc khoảng đi qua đoạn không `AVAILABLE`.
+### TC-DEPOSIT-001: Tính 30%
 
-## 9.4. Payment MoMo
+Booking mới DEPOSIT_30, tổng 600.000đ → cọc 180.000đ và còn tại sân 420.000đ.
 
-### TC-PAYMENT-000: Provider MOCK nền tảng
-User đúng quyền thanh toán contribution còn hạn → tạo đúng một payment `MOCK/SUCCESS`, cập nhật contribution và booking trong cùng transaction; giao diện hiển thị lịch sử và không gọi tiền thật.
+### TC-DEPOSIT-002: Làm tròn
 
-### TC-PAYMENT-000B: Chống thanh toán mô phỏng sai quyền/lặp
-User khác bị từ chối; thanh toán lại contribution đã `PAID` không tăng `paid_amount` và không tạo payment thứ hai.
+Tổng không chia hết cho tỷ lệ → deposit/contribution là số nguyên VND, không thu dư và tổng contribution đúng deposit_amount.
 
-### TC-PAYMENT-001: Tạo payment
-Amount lấy từ contribution; order/request unique; signature đúng; trả payUrl sandbox.
+### TC-DEPOSIT-003: Không tin frontend
+
+Form sửa deposit_amount/amount → backend bỏ qua và tính lại từ total.
+
+### TC-CONTRIB-001: DIRECT_BOOKING
+
+Một CREATOR contribution bằng toàn bộ cọc.
+
+### TC-CONTRIB-002: FIND_PLAYERS
+
+Một CREATOR contribution bằng toàn bộ cọc; không tạo PLAYER contribution.
+
+### TC-CONTRIB-003: FIND_OPPONENT
+
+Creator/opponent mỗi bên một nửa cọc; tổng đúng deposit_amount.
+
+## 9.7. Payment MoMo
+
+### TC-PAYMENT-000: MOCK
+
+User đúng quyền thanh toán contribution còn hạn → một MOCK/SUCCESS, cập nhật contribution/paid_amount/status trong transaction và ghi rõ không trừ tiền.
+
+### TC-PAYMENT-001: Create Sandbox
+
+Amount từ contribution; order/request duy nhất; HMAC đúng; trả payUrl.
 
 ### TC-PAYMENT-002: Không tin redirect
-Redirect báo thành công nhưng chưa có IPN → payment chưa `SUCCESS`, booking chưa `PAID`.
 
-### TC-PAYMENT-003: IPN hợp lệ
-Chữ ký, amount, order và partner đúng → payment `SUCCESS`; cập nhật contribution/booking đúng transaction.
+Redirect thành công nhưng chưa IPN → payment chưa SUCCESS.
 
-### TC-PAYMENT-004: IPN sai chữ ký hoặc số tiền
-Không cập nhật tiền; ghi log lỗi phù hợp.
+### TC-PAYMENT-003: IPN hợp lệ/sai/lặp
 
-### TC-PAYMENT-005: IPN lặp lại
-Xử lý idempotent; paid amount không tăng lần hai.
+IPN hợp lệ cập nhật đúng một lần; sai chữ ký/amount không cập nhật; gửi lặp idempotent.
 
-### TC-PAYMENT-006: Thanh toán lại
-Attempt đầu `FAILED`; attempt sau trong hạn `SUCCESS`; chỉ cộng tiền một lần.
+### TC-PAYMENT-004: Thử lại và chống thu dư
 
-### TC-PAYMENT-007: Chống thu dư
-Từ chối payment làm tổng thành công vượt `total_amount`.
+FAILED có thể thử lại trong hạn; không payment nào làm paid_amount vượt deposit_amount.
 
-## 9.5. Chia tiền và tìm kèo
+## 9.8. FIND_PLAYERS
 
-### TC-SPLIT-001: Tìm đối thủ 50/50
-Người tạo trả 50% → `PARTIALLY_PAID`; đối thủ được chấp nhận trả 50% → booking `PAID`, match `CONFIRMED`.
+### TC-PLAYER-001: Mở kèo
 
-### TC-SPLIT-002: Yêu cầu đối thủ hết hạn
-Không thanh toán trong 15 phút → participant `EXPIRED`, contribution hết hiệu lực, kèo mở lại.
+Creator thanh toán đủ cọc → booking PAID và được tạo match FIND_PLAYERS.
 
-### TC-SPLIT-003: Tìm người theo đầu người
-Tổng 10 người, thiếu 3 → người tạo chịu 7 phần, tạo ba contribution bằng nhau và điều chỉnh phần cuối đúng tổng.
+### TC-PLAYER-002: Số vị trí
 
-### TC-SPLIT-004: Không yêu cầu tài khoản thành viên có sẵn
-Người tạo thanh toán phần nhóm hiện có mà không cần tạo 7 tài khoản thành viên.
+Creator chọn required_players hợp lệ; snapshot ở booking và copy sang match. Từ chối 0, âm hoặc vượt capacity/play format.
 
-### TC-SPLIT-005: Vị trí cuối bị cạnh tranh
-Hai user thanh toán vị trí cuối đồng thời → chỉ một người `JOINED`; không thu dư và không vượt sức chứa.
+### TC-PLAYER-003: Số Zalo bắt buộc
 
-### TC-SPLIT-006: Người tạo top-up
-Người tạo trả toàn bộ số còn thiếu → booking `PAID`; contribution chưa trả chuyển `WAIVED`, giữ nguyên `amount_due` gốc nhưng không được thu thêm. Match vẫn `OPEN` nếu chưa có đủ đối thủ/người; người được chấp nhận sau đó tham gia không phải thanh toán.
+Thiếu/sai định dạng hoặc chưa đồng ý chia sẻ → không tạo yêu cầu.
 
-### TC-SPLIT-007: Không đủ tiền tại deadline
-Booking chuyển `REFUND_PENDING`; creator refund 80%, người tham gia refund 100%, phí giữ sân bằng 20% khoản creator đã đóng.
+### TC-PLAYER-004: Bảo vệ số điện thoại
 
-## 9.6. Refund và rút kèo
+Trang công khai, user khác và creator trước khi chấp nhận không nhận số; sau chấp nhận chỉ creator thấy.
 
-### TC-REFUND-001: Owner hủy PARTIALLY_PAID
-Lưu lý do; tạo refund 100% cho mọi khoản đã thu; chỉ `CANCELLED` sau khi refund thành công.
+### TC-PLAYER-005: Chấp nhận không thanh toán
 
-### TC-REFUND-002: Owner hủy PAID
-Lưu lý do; tạo refund 100% cho mọi payment; chỉ `CANCELLED` sau khi refund thành công.
+Creator chấp nhận → JOINED ngay, contribution_id/payment_due_at NULL và không tạo payment.
 
-### TC-REFUND-003: Refund đang xử lý
-MoMo chưa có kết quả cuối → booking giữ `REFUND_PENDING`; query/retry không tạo refund trùng.
+### TC-PLAYER-006: Đủ người và cạnh tranh
 
-### TC-REFUND-004: Refund callback/query lặp
-Không cộng số tiền refund lần hai.
+Hai request cạnh tranh vị trí cuối → chỉ một JOINED; match FULL đúng required_players.
 
-### TC-WITHDRAW-001: Rút trước trên 12 giờ
-Refund 100%, participant `WITHDRAWN`, vị trí mở lại.
+### TC-PLAYER-007: Rút
 
-### TC-WITHDRAW-002: Rút trong 12 giờ
-Không tạo refund; contribution vẫn tính vào booking.
+JOINED rút → WITHDRAWN, mở vị trí, không tạo refund.
 
-### TC-NOSHOW-001: Đã trả nhưng không đến
-Không refund và không tự khóa tài khoản trong MVP.
+### TC-PLAYER-008: Booking kết thúc
 
-## 9.7. Kiểm tra rollback
+UI không tiếp tục hiển thị số liên hệ sau COMPLETED/CANCELLED.
+
+## 9.9. FIND_OPPONENT
+
+### TC-OPPONENT-001: Creator cọc
+
+Creator trả 50% deposit_amount trong 15 phút → PARTIALLY_PAID và mở match.
+
+### TC-OPPONENT-002: Đối thủ cọc
+
+Một đại diện được chấp nhận, trả phần còn lại → booking PAID/match CONFIRMED.
+
+### TC-OPPONENT-003: Hết 15 phút
+
+Không thanh toán → participant EXPIRED, contribution được giải phóng và kèo mở lại.
+
+### TC-OPPONENT-004: Không vượt deadline
+
+Thời hạn 15 phút được cắt tại matchmaking_deadline; sau deadline không bắt đầu payment đối thủ mới.
+
+### TC-OPPONENT-005: Creator top-up
+
+Trong 30 phút sau matchmaking_deadline, creator trả phần thiếu → PAID; OPPONENT WAIVED và không thu thêm.
+
+### TC-OPPONENT-006: Không top-up
+
+Quá funding_deadline → REFUND_PENDING; hoàn creator 80%, giữ 20% khoản creator đã cọc.
+
+## 9.10. Refund
+
+### TC-REFUND-001: Owner hủy
+
+PARTIALLY_PAID/PAID → refund 100% mọi khoản cọc; chỉ CANCELLED sau SUCCESS.
+
+### TC-REFUND-002: Refund 80/20
+
+Creator đóng 90.000đ → refund 72.000đ, cancellation fee 18.000đ; không lấy 20% của total.
+
+### TC-REFUND-003: Refund đang xử lý/lặp
+
+Giữ REFUND_PENDING; query/retry idempotent và không hoàn quá payment gốc.
+
+### TC-REFUND-004: FIND_PLAYERS rút
+
+Không có payment online nên không tạo refund.
+
+## 9.11. Transaction, constraint và bảo mật
 
 ### TC-TX-001: Commit booking thất bại
-Rollback booking và price details; không để dữ liệu dở dang.
+
+Rollback booking, price detail và contribution.
 
 ### TC-TX-002: IPN commit thất bại
-Rollback payment/contribution/booking; có thể xử lý lại IPN an toàn.
 
-### TC-TX-003: Một refund trong nhóm thất bại
-Booking giữ `REFUND_PENDING`; refund thành công không bị tạo lại, refund thất bại có thể retry/query.
+Rollback payment/contribution/booking; xử lý lại an toàn.
 
-## 9.8. Constraint và index SQL Server
+### TC-TX-003: Đồng thời
 
-### TC-DB-001: Nhiều payment chưa có provider transaction ID
-Cho phép nhiều payment `PENDING` có `provider_trans_id = NULL`; từ chối hai bản ghi có cùng mã khác `NULL`.
+Chỉ một booking giao nhau, một payment SUCCESS/contribution và một participant ở vị trí cuối được commit.
 
-### TC-DB-002: Hai payment SUCCESS cho cùng contribution
-Filtered unique index hoặc transaction chỉ cho phép một payment `SUCCESS` được commit.
+### TC-DB-001: Filtered index
 
-### TC-DB-003: Hai owner application PENDING
-Chỉ một application `PENDING` của cùng user được commit khi hai request chạy đồng thời.
+Cho nhiều provider_trans_id NULL nhưng không cho trùng mã khác NULL hoặc hai SUCCESS cùng contribution.
 
-### TC-DB-004: Không cascade delete lịch sử
-Từ chối xóa vật lý user, field hoặc booking đã có dữ liệu giao dịch; dữ liệu được chuyển trạng thái thay thế.
+### TC-SEC-001: Secret và API key
+
+Không có MoMo secret, server Maps key hoặc connection string trong Git/UI/log.
+
+### TC-SEC-002: Phạm vi số điện thoại
+
+Serialization/template/log không làm lộ contact_phone ngoài creator sau khi chấp nhận.
+
+## 9.12. Kiểm tra hồi quy
+
+- Booking/availability/price/maintenance hiện có vẫn hoạt động sau migration.
+- Venue bóng đá cũ vẫn xuất hiện đúng sport/type.
+- Provider MOCK vẫn dùng được cho test tự động.
+- Các trang lịch sử phân nhóm và owner booking không bị hỏng.
+- flask db upgrade/check chạy thành công trên SQL Server; git diff --check không có lỗi.

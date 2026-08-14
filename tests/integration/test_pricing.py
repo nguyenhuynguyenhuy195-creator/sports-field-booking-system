@@ -10,7 +10,7 @@ from app.models import (
     Field,
     FieldPriceSlot,
     FieldStatus,
-    FieldType,
+    FieldTypeCode,
     PriceSlotStatus,
     User,
     UserRole,
@@ -89,7 +89,7 @@ def create_venue_and_field(
             owner=owner,
             venue_id=venue.id,
             name=field_name,
-            field_type=FieldType.SEVEN_A_SIDE.value,
+            field_type=FieldTypeCode.FOOTBALL_7.value,
             surface_type="Cỏ nhân tạo",
             capacity=14,
         )

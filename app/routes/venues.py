@@ -1,6 +1,7 @@
 from flask import (
     Blueprint,
     abort,
+    current_app,
     flash,
     redirect,
     render_template,
@@ -11,16 +12,19 @@ from flask_login import current_user
 
 from app.decorators import roles_required
 from app.forms import ModerateVenueForm, VenueForm, VenueSearchForm
-from app.models import DAY_OF_WEEK_LABELS, FieldType, UserRole, VenueStatus
+from app.models import DAY_OF_WEEK_LABELS, UserRole, VenueStatus
 from app.services import (
     VenueError,
     VenueNotFoundError,
     VenuePermissionError,
+    build_google_maps_directions_url,
     create_venue,
     get_owner_venue,
     get_public_venue,
     list_admin_venues,
     list_owner_venues,
+    list_active_field_types,
+    list_active_sports,
     list_public_fields,
     moderate_venue,
     search_public_venues,
@@ -36,16 +40,10 @@ VENUE_STATUS_LABELS = {
     VenueStatus.HIDDEN.value: "Đã bị ẩn",
     VenueStatus.INACTIVE.value: "Ngừng hoạt động",
 }
-FIELD_TYPE_LABELS = {
-    FieldType.FIVE_A_SIDE.value: "Sân bóng 5 người",
-    FieldType.SEVEN_A_SIDE.value: "Sân bóng 7 người",
-    FieldType.ELEVEN_A_SIDE.value: "Sân bóng 11 người",
-}
-
-
 @venues_bp.get("/venues")
 def index():
     form = VenueSearchForm(request.args)
+    sports, field_types = _configure_catalog_choices(form)
     venue_results = []
     search_page = None
     search_is_valid = form.validate()
@@ -53,9 +51,13 @@ def index():
         try:
             search_page = search_public_venues(
                 query=form.q.data,
+                sport=form.sport.data,
                 field_type=form.field_type.data,
                 min_price=form.min_price.data,
                 max_price=form.max_price.data,
+                latitude=form.latitude.data,
+                longitude=form.longitude.data,
+                radius_km=int(form.radius_km.data) if form.radius_km.data else None,
                 page=request.args.get("page", 1, type=int) or 1,
             )
             venue_results = search_page.items
@@ -67,19 +69,46 @@ def index():
         "venues/index.html",
         form=form,
         venue_results=venue_results,
-        field_type_labels=FIELD_TYPE_LABELS,
+        sport_labels={item.code: item.name for item in sports},
+        field_type_labels={item.code: item.name for item in field_types},
         search_page=search_page,
         pagination_params={
             "q": form.q.data or None,
+            "sport": form.sport.data or None,
             "field_type": form.field_type.data or None,
             "min_price": form.min_price.data,
             "max_price": form.max_price.data,
+            "latitude": form.latitude.data,
+            "longitude": form.longitude.data,
+            "radius_km": form.radius_km.data or None,
         },
         has_active_filters=any(
             request.args.get(name, "").strip()
-            for name in ("q", "field_type", "min_price", "max_price")
+            for name in (
+                "q",
+                "sport",
+                "field_type",
+                "min_price",
+                "max_price",
+                "radius_km",
+            )
         ),
         search_is_valid=search_is_valid,
+        google_maps_api_key=current_app.config.get(
+            "GOOGLE_MAPS_BROWSER_API_KEY", ""
+        ),
+        map_markers=[
+            {
+                "name": result.venue.name,
+                "latitude": float(result.venue.latitude),
+                "longitude": float(result.venue.longitude),
+                "detail_url": url_for(
+                    "venues.detail", venue_id=result.venue.id
+                ),
+            }
+            for result in venue_results
+            if result.venue.has_coordinates
+        ],
     )
 
 
@@ -93,8 +122,11 @@ def detail(venue_id: int):
         "venues/detail.html",
         venue=venue,
         fields=list_public_fields(venue.id),
-        field_type_labels=FIELD_TYPE_LABELS,
         day_labels=DAY_OF_WEEK_LABELS,
+        directions_url=build_google_maps_directions_url(venue),
+        google_maps_api_key=current_app.config.get(
+            "GOOGLE_MAPS_BROWSER_API_KEY", ""
+        ),
     )
 
 
@@ -120,6 +152,9 @@ def owner_create():
                 address=form.address.data,
                 district=form.district.data,
                 city=form.city.data,
+                google_place_id=form.google_place_id.data,
+                latitude=form.latitude.data,
+                longitude=form.longitude.data,
                 phone=form.phone.data,
                 description=form.description.data,
                 opening_time=form.opening_time_value,
@@ -139,6 +174,9 @@ def owner_create():
         form=form,
         page_title="Thêm cơ sở",
         submit_label="Tạo cơ sở",
+        google_maps_api_key=current_app.config.get(
+            "GOOGLE_MAPS_BROWSER_API_KEY", ""
+        ),
     )
 
 
@@ -170,6 +208,9 @@ def owner_edit(venue_id: int):
                 address=form.address.data,
                 district=form.district.data,
                 city=form.city.data,
+                google_place_id=form.google_place_id.data,
+                latitude=form.latitude.data,
+                longitude=form.longitude.data,
                 phone=form.phone.data,
                 description=form.description.data,
                 opening_time=form.opening_time_value,
@@ -191,6 +232,9 @@ def owner_edit(venue_id: int):
         page_title="Chỉnh sửa cơ sở",
         submit_label="Lưu thay đổi",
         venue=venue,
+        google_maps_api_key=current_app.config.get(
+            "GOOGLE_MAPS_BROWSER_API_KEY", ""
+        ),
     )
 
 
@@ -251,3 +295,19 @@ def admin_moderate(venue_id: int):
         flash(first_error, "danger")
 
     return redirect(url_for("venues.admin_index"))
+
+
+def _configure_catalog_choices(form: VenueSearchForm):
+    sports = list_active_sports()
+    field_types = list_active_field_types()
+    form.sport.choices = [("", "Tất cả bộ môn")] + [
+        (sport.code, sport.name) for sport in sports
+    ]
+    form.field_type.choices = [("", "Tất cả loại sân")] + [
+        (
+            field_type.code,
+            f"{field_type.sport.name} — {field_type.name}",
+        )
+        for field_type in field_types
+    ]
+    return sports, field_types

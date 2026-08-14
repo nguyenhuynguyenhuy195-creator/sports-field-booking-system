@@ -6,6 +6,64 @@
     --app-border: #dce4e9;
 }
 
+/* Multisport catalog and Google Maps */
+.venue-location-picker {
+    padding: 1rem;
+    border: 1px solid #d8e2eb;
+    border-radius: 14px;
+    background: #f8fafc;
+}
+
+.venue-place-autocomplete gmp-place-autocomplete {
+    width: 100%;
+}
+
+.venue-location-map,
+.venue-public-map {
+    width: 100%;
+    min-height: 320px;
+    overflow: hidden;
+    border: 1px solid #d8e2eb;
+    border-radius: 14px;
+    background: #e9eef3;
+}
+
+.venue-map-panel {
+    padding: 1rem;
+    border: 1px solid #d8e2eb;
+    border-radius: 16px;
+    background: #fff;
+}
+
+.venue-map-panel summary {
+    color: var(--app-secondary, #0f2747);
+    cursor: pointer;
+}
+
+.venue-filter-grid-multisport {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.venue-radius-filter,
+.venue-price-filter {
+    min-width: 0;
+}
+
+@media (max-width: 767.98px) {
+    .venue-filter-grid-multisport {
+        grid-template-columns: 1fr;
+    }
+
+    .venue-location-map,
+    .venue-public-map {
+        min-height: 260px;
+    }
+
+    .venue-radius-filter .d-flex {
+        flex-direction: column;
+    }
+}
+
 html,
 body {
     min-height: 100%;

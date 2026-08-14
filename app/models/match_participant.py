@@ -83,6 +83,7 @@ class MatchParticipant(db.Model):
     )
     participant_type: Mapped[str] = mapped_column(db.String(30), nullable=False)
     message: Mapped[str | None] = mapped_column(db.Unicode(500), nullable=True)
+    contact_phone: Mapped[str | None] = mapped_column(db.String(20), nullable=True)
     status: Mapped[str] = mapped_column(
         db.String(30),
         nullable=False,

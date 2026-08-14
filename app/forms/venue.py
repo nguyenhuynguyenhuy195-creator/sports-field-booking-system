@@ -3,12 +3,14 @@ from datetime import time
 from flask_wtf import FlaskForm
 from wtforms import (
     DecimalField,
+    HiddenField,
     RadioField,
     SelectField,
     StringField,
     SubmitField,
     TextAreaField,
 )
+from wtforms.widgets import HiddenInput
 from wtforms.validators import (
     DataRequired,
     Length,
@@ -18,19 +20,11 @@ from wtforms.validators import (
     ValidationError,
 )
 
-from app.models import FieldType, VenueStatus
+from app.models import VenueStatus
 
 
 HOUR_CHOICES = [(f"{hour:02d}", f"{hour:02d}") for hour in range(24)]
 MINUTE_CHOICES = [(f"{minute:02d}", f"{minute:02d}") for minute in range(60)]
-FIELD_TYPE_FILTER_CHOICES = [
-    ("", "Tất cả loại sân"),
-    (FieldType.FIVE_A_SIDE.value, "Sân bóng 5 người"),
-    (FieldType.SEVEN_A_SIDE.value, "Sân bóng 7 người"),
-    (FieldType.ELEVEN_A_SIDE.value, "Sân bóng 11 người"),
-]
-
-
 class VenueSearchForm(FlaskForm):
     """Validate public venue filters submitted through the query string."""
 
@@ -44,9 +38,14 @@ class VenueSearchForm(FlaskForm):
             Length(max=150, message="Nội dung tìm kiếm tối đa 150 ký tự."),
         ],
     )
+    sport = SelectField(
+        "Bộ môn",
+        choices=[("", "Tất cả bộ môn")],
+        validators=[Optional()],
+    )
     field_type = SelectField(
         "Loại sân",
-        choices=FIELD_TYPE_FILTER_CHOICES,
+        choices=[("", "Tất cả loại sân")],
         validators=[Optional()],
     )
     min_price = DecimalField(
@@ -73,6 +72,34 @@ class VenueSearchForm(FlaskForm):
             ),
         ],
     )
+    latitude = DecimalField(
+        "Vĩ độ hiện tại",
+        places=6,
+        widget=HiddenInput(),
+        validators=[
+            Optional(),
+            NumberRange(min=-90, max=90, message="Vĩ độ không hợp lệ."),
+        ],
+    )
+    longitude = DecimalField(
+        "Kinh độ hiện tại",
+        places=6,
+        widget=HiddenInput(),
+        validators=[
+            Optional(),
+            NumberRange(min=-180, max=180, message="Kinh độ không hợp lệ."),
+        ],
+    )
+    radius_km = SelectField(
+        "Bán kính",
+        choices=[
+            ("", "Không giới hạn khoảng cách"),
+            ("3", "Trong 3 km"),
+            ("5", "Trong 5 km"),
+            ("10", "Trong 10 km"),
+        ],
+        validators=[Optional()],
+    )
 
     def validate_max_price(self, field) -> None:
         if (
@@ -82,6 +109,20 @@ class VenueSearchForm(FlaskForm):
         ):
             raise ValidationError(
                 "Giá tối thiểu không được lớn hơn giá tối đa."
+            )
+
+    def validate_radius_km(self, field) -> None:
+        has_coordinates = (
+            self.latitude.data is not None and self.longitude.data is not None
+        )
+        has_partial_coordinates = (
+            self.latitude.data is not None or self.longitude.data is not None
+        )
+        if has_partial_coordinates and not has_coordinates:
+            raise ValidationError("Vị trí hiện tại chưa đầy đủ.")
+        if field.data and not has_coordinates:
+            raise ValidationError(
+                "Hãy bấm “Dùng vị trí của tôi” trước khi tìm theo bán kính."
             )
 
 
@@ -112,6 +153,28 @@ class VenueForm(FlaskForm):
         validators=[
             DataRequired(message="Vui lòng nhập tỉnh hoặc thành phố."),
             Length(min=2, max=100, message="Tỉnh, thành phố tối đa 100 ký tự."),
+        ],
+    )
+    google_place_id = HiddenField(
+        "Google Place ID",
+        validators=[Optional(), Length(max=255)],
+    )
+    latitude = DecimalField(
+        "Vĩ độ",
+        places=6,
+        widget=HiddenInput(),
+        validators=[
+            Optional(),
+            NumberRange(min=-90, max=90, message="Vĩ độ không hợp lệ."),
+        ],
+    )
+    longitude = DecimalField(
+        "Kinh độ",
+        places=6,
+        widget=HiddenInput(),
+        validators=[
+            Optional(),
+            NumberRange(min=-180, max=180, message="Kinh độ không hợp lệ."),
         ],
     )
     phone = StringField(
@@ -191,6 +254,17 @@ class VenueForm(FlaskForm):
             return
         if opening_time >= closing_time:
             raise ValidationError("Giờ đóng cửa phải sau giờ mở cửa.")
+
+    def validate_google_place_id(self, field) -> None:
+        has_place_id = bool((field.data or "").strip())
+        has_latitude = self.latitude.data is not None
+        has_longitude = self.longitude.data is not None
+        if any((has_place_id, has_latitude, has_longitude)) and not all(
+            (has_place_id, has_latitude, has_longitude)
+        ):
+            raise ValidationError(
+                "Vị trí Google chưa đầy đủ. Hãy chọn lại một gợi ý địa chỉ."
+            )
 
 
 class ModerateVenueForm(FlaskForm):

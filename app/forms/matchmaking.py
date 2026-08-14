@@ -1,6 +1,13 @@
 from flask_wtf import FlaskForm
-from wtforms import IntegerField, SelectField, StringField, SubmitField, TextAreaField
-from wtforms.validators import DataRequired, Length, NumberRange, Optional
+from wtforms import (
+    BooleanField,
+    IntegerField,
+    SelectField,
+    StringField,
+    SubmitField,
+    TextAreaField,
+)
+from wtforms.validators import DataRequired, Length, NumberRange, Optional, Regexp
 
 from app.models import MatchType
 
@@ -51,6 +58,20 @@ class MatchForm(FlaskForm):
 
 
 class MatchJoinForm(FlaskForm):
+    contact_phone = StringField(
+        "Số điện thoại có Zalo",
+        validators=[
+            Optional(),
+            Length(max=20, message="Số điện thoại tối đa 20 ký tự."),
+            Regexp(
+                r"^\+?[0-9][0-9 .-]{8,18}$",
+                message="Số điện thoại không hợp lệ.",
+            ),
+        ],
+    )
+    share_contact = BooleanField(
+        "Tôi đồng ý chia sẻ số này cho người tạo kèo sau khi được chấp nhận."
+    )
     message = TextAreaField(
         "Lời nhắn cho người tạo",
         validators=[Length(max=500, message="Lời nhắn tối đa 500 ký tự.")],

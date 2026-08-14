@@ -11,6 +11,7 @@
                 <span class="status-badge status-active">Đang hoạt động</span>
                 <h1 class="display-6 fw-bold mt-3">{{ venue.name }}</h1>
                 <p class="lead text-secondary">{{ venue.address }}{% if venue.district %}, {{ venue.district }}{% endif %}, {{ venue.city }}</p>
+                <a class="btn btn-outline-primary mb-3" href="{{ directions_url }}" target="_blank" rel="noopener noreferrer">Mở chỉ đường trên Google Maps</a>
                 {% if venue.description %}
                     <p class="venue-description mb-0">{{ venue.description }}</p>
                 {% endif %}
@@ -29,6 +30,15 @@
                 </aside>
             </div>
         </div>
+        {% if venue.has_coordinates and google_maps_api_key %}
+            <div
+                id="venue-public-map"
+                class="venue-public-map mt-4"
+                data-markers='{{ [{"name": venue.name, "latitude": venue.latitude|float, "longitude": venue.longitude|float, "detail_url": directions_url}]|tojson }}'
+            ></div>
+        {% elif not venue.has_coordinates %}
+            <div class="alert alert-light border mt-4 mb-0">Cơ sở này chưa bổ sung tọa độ nên chưa hiển thị được bản đồ.</div>
+        {% endif %}
     </div>
 
     <div class="mt-5">
@@ -42,7 +52,7 @@
                     <article class="field-card">
                         <span class="status-badge status-active">Đang hoạt động</span>
                         <h3 class="h5 fw-bold mt-3 mb-2">{{ field.name }}</h3>
-                        <p class="text-secondary mb-2">{{ field_type_labels[field.field_type] }}</p>
+                        <p class="text-secondary mb-2">{{ field.field_type.sport.name }} · {{ field.field_type.name }}</p>
                         <dl class="field-meta mb-0">
                             <dt>Mặt sân</dt>
                             <dd>{{ field.surface_type or 'Chưa cung cấp' }}</dd>
@@ -75,4 +85,11 @@
         {% endif %}
     </div>
 </section>
+{% endblock %}
+
+{% block scripts %}
+    {% if venue.has_coordinates and google_maps_api_key %}
+        <script src="{{ url_for('static', filename='js/venue-public-map.js') }}"></script>
+        <script async src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key|urlencode }}&loading=async&callback=initVenuePublicMap&language=vi&region=VN"></script>
+    {% endif %}
 {% endblock %}

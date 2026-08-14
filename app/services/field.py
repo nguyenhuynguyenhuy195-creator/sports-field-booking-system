@@ -5,6 +5,7 @@ from sqlalchemy.orm import joinedload, selectinload
 
 from app.extensions import db
 from app.models import (
+    Booking,
     Field,
     FieldPriceSlot,
     FieldStatus,
@@ -15,6 +16,7 @@ from app.models import (
     Venue,
 )
 from app.services.auth import normalize_full_name
+from app.services.sport_catalog import SportCatalogError, get_active_field_type
 
 
 class FieldError(ValueError):
@@ -33,7 +35,8 @@ class DuplicateFieldNameError(FieldError):
     """Raised when a venue already has a field with the same name."""
 
 
-FIELD_TYPE_VALUES = {field_type.value for field_type in FieldType}
+class ImmutableFieldTypeError(FieldError):
+    """Raised when changing the catalog type would corrupt booking history."""
 
 
 def list_owner_fields(*, venue_id: int, owner_id: int) -> tuple[Venue, list[Field]]:
@@ -41,6 +44,7 @@ def list_owner_fields(*, venue_id: int, owner_id: int) -> tuple[Venue, list[Fiel
     fields = list(
         db.session.scalars(
             db.select(Field)
+            .options(joinedload(Field.field_type).joinedload(FieldType.sport))
             .where(Field.venue_id == venue_id)
             .order_by(Field.created_at.desc())
         )
@@ -53,6 +57,7 @@ def list_public_fields(venue_id: int) -> list[Field]:
         db.session.scalars(
             db.select(Field)
             .options(
+                joinedload(Field.field_type).joinedload(FieldType.sport),
                 selectinload(
                     Field.price_slots.and_(
                         FieldPriceSlot.status == PriceSlotStatus.ACTIVE.value
@@ -71,7 +76,10 @@ def list_public_fields(venue_id: int) -> list[Field]:
 def get_owner_field(*, field_id: int, owner_id: int) -> Field:
     field = db.session.scalar(
         db.select(Field)
-        .options(joinedload(Field.venue))
+        .options(
+            joinedload(Field.venue),
+            joinedload(Field.field_type).joinedload(FieldType.sport),
+        )
         .where(Field.id == field_id)
     )
     if field is None:
@@ -93,11 +101,11 @@ def create_field(
     _validate_owner(owner)
     normalized_name = normalize_full_name(name)
     normalized_surface = _normalize_optional_text(surface_type)
-    _validate_field_data(
-        name=normalized_name,
-        field_type=field_type,
-        capacity=capacity,
-    )
+    _validate_field_data(name=normalized_name, capacity=capacity)
+    try:
+        catalog_type = get_active_field_type(field_type)
+    except SportCatalogError as exc:
+        raise FieldError(str(exc)) from exc
 
     venue = _get_owned_venue(
         venue_id=venue_id,
@@ -112,7 +120,7 @@ def create_field(
     field = Field(
         venue_id=venue.id,
         name=normalized_name,
-        field_type=field_type,
+        field_type_id=catalog_type.id,
         surface_type=normalized_surface,
         capacity=capacity,
         status=FieldStatus.INACTIVE.value,
@@ -134,15 +142,18 @@ def update_field(
     _validate_owner(owner)
     normalized_name = normalize_full_name(name)
     normalized_surface = _normalize_optional_text(surface_type)
-    _validate_field_data(
-        name=normalized_name,
-        field_type=field_type,
-        capacity=capacity,
-    )
+    _validate_field_data(name=normalized_name, capacity=capacity)
+    try:
+        catalog_type = get_active_field_type(field_type)
+    except SportCatalogError as exc:
+        raise FieldError(str(exc)) from exc
 
     field = db.session.scalar(
         db.select(Field)
-        .options(joinedload(Field.venue))
+        .options(
+            joinedload(Field.venue),
+            joinedload(Field.field_type).joinedload(FieldType.sport),
+        )
         .where(Field.id == field_id)
         .with_for_update()
     )
@@ -159,8 +170,18 @@ def update_field(
             "Cơ sở này đã có một sân cùng tên."
         )
 
+    if field.field_type_id != catalog_type.id:
+        has_booking_history = db.session.scalar(
+            db.select(Booking.id).where(Booking.field_id == field.id).limit(1)
+        )
+        if has_booking_history is not None:
+            raise ImmutableFieldTypeError(
+                "Không thể đổi loại sân vì sân đã có lịch sử đặt. "
+                "Hãy ngừng sân cũ và tạo một sân mới."
+            )
+
     field.name = normalized_name
-    field.field_type = field_type
+    field.field_type_id = catalog_type.id
     field.surface_type = normalized_surface
     field.capacity = capacity
     _commit_field("Không thể cập nhật sân lúc này. Vui lòng thử lại.")
@@ -204,11 +225,9 @@ def _validate_owner(owner: User) -> None:
         raise FieldPermissionError("Chỉ chủ sân được quản lý sân con.")
 
 
-def _validate_field_data(*, name: str, field_type: str, capacity: int) -> None:
+def _validate_field_data(*, name: str, capacity: int) -> None:
     if not name:
         raise FieldError("Vui lòng nhập tên sân.")
-    if field_type not in FIELD_TYPE_VALUES:
-        raise FieldError("Loại sân không hợp lệ.")
     if capacity < 1:
         raise FieldError("Sức chứa phải lớn hơn 0.")
 

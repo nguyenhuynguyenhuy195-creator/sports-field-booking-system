@@ -22,7 +22,7 @@
                         <div>
                             <span class="status-badge status-{{ field.status|lower }}">{{ field_status_labels[field.status] }}</span>
                             <h2 class="h5 fw-bold mt-3 mb-1">{{ field.name }}</h2>
-                            <p class="text-secondary mb-0">{{ field_type_labels[field.field_type] }}</p>
+                            <p class="text-secondary mb-0">{{ field.field_type.sport.name }} · {{ field.field_type.name }}</p>
                         </div>
                         <span class="field-capacity">{{ field.capacity }} người</span>
                     </div>

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, time
+from decimal import Decimal
 from enum import Enum
 
 from sqlalchemy.dialects.mssql import TIME
@@ -32,6 +33,19 @@ class Venue(db.Model):
             "opening_time < closing_time",
             name="ck_venues_opening_before_closing",
         ),
+        db.CheckConstraint(
+            "latitude IS NULL OR (latitude >= -90 AND latitude <= 90)",
+            name="ck_venues_latitude_range",
+        ),
+        db.CheckConstraint(
+            "longitude IS NULL OR (longitude >= -180 AND longitude <= 180)",
+            name="ck_venues_longitude_range",
+        ),
+        db.CheckConstraint(
+            "(latitude IS NULL AND longitude IS NULL) "
+            "OR (latitude IS NOT NULL AND longitude IS NOT NULL)",
+            name="ck_venues_coordinate_pair",
+        ),
         db.Index("ix_venues_owner_created", "owner_id", "created_at"),
         db.Index("ix_venues_status_city", "status", "city"),
     )
@@ -45,6 +59,18 @@ class Venue(db.Model):
     address: Mapped[str] = mapped_column(db.Unicode(255), nullable=False)
     district: Mapped[str | None] = mapped_column(db.Unicode(100), nullable=True)
     city: Mapped[str] = mapped_column(db.Unicode(100), nullable=False)
+    google_place_id: Mapped[str | None] = mapped_column(
+        db.String(255),
+        nullable=True,
+    )
+    latitude: Mapped[Decimal | None] = mapped_column(
+        db.Numeric(9, 6),
+        nullable=True,
+    )
+    longitude: Mapped[Decimal | None] = mapped_column(
+        db.Numeric(9, 6),
+        nullable=True,
+    )
     phone: Mapped[str | None] = mapped_column(db.String(20), nullable=True)
     description: Mapped[str | None] = mapped_column(db.UnicodeText, nullable=True)
     opening_time: Mapped[time] = mapped_column(time_type, nullable=False)
@@ -84,6 +110,10 @@ class Venue(db.Model):
     @property
     def is_active(self) -> bool:
         return self.status == VenueStatus.ACTIVE.value
+
+    @property
+    def has_coordinates(self) -> bool:
+        return self.latitude is not None and self.longitude is not None
 
     def __repr__(self) -> str:
         return (

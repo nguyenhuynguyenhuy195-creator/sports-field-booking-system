@@ -7,14 +7,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import db
 
+from .field_type import FieldType
 from .user import timestamp_type, utc_now
 from .venue import Venue
-
-
-class FieldType(str, Enum):
-    FIVE_A_SIDE = "FIVE_A_SIDE"
-    SEVEN_A_SIDE = "SEVEN_A_SIDE"
-    ELEVEN_A_SIDE = "ELEVEN_A_SIDE"
 
 
 class FieldStatus(str, Enum):
@@ -25,10 +20,6 @@ class FieldStatus(str, Enum):
 class Field(db.Model):
     __tablename__ = "fields"
     __table_args__ = (
-        db.CheckConstraint(
-            "field_type IN ('FIVE_A_SIDE', 'SEVEN_A_SIDE', 'ELEVEN_A_SIDE')",
-            name="ck_fields_type",
-        ),
         db.CheckConstraint(
             "capacity > 0",
             name="ck_fields_capacity_positive",
@@ -43,6 +34,7 @@ class Field(db.Model):
             name="uq_fields_venue_name",
         ),
         db.Index("ix_fields_venue_status", "venue_id", "status"),
+        db.Index("ix_fields_field_type_status", "field_type_id", "status"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -51,7 +43,10 @@ class Field(db.Model):
         nullable=False,
     )
     name: Mapped[str] = mapped_column(db.Unicode(100), nullable=False)
-    field_type: Mapped[str] = mapped_column(db.String(50), nullable=False)
+    field_type_id: Mapped[int] = mapped_column(
+        db.ForeignKey("field_types.id"),
+        nullable=False,
+    )
     surface_type: Mapped[str | None] = mapped_column(
         db.Unicode(50),
         nullable=True,
@@ -75,6 +70,7 @@ class Field(db.Model):
     )
 
     venue: Mapped[Venue] = relationship()
+    field_type: Mapped[FieldType] = relationship(back_populates="fields")
     price_slots: Mapped[list["FieldPriceSlot"]] = relationship(
         back_populates="field",
         order_by="FieldPriceSlot.day_of_week, FieldPriceSlot.start_time",

@@ -81,7 +81,7 @@
             loadAvailability();
             return;
         }
-        if (event.target.name === "payment_mode") syncPlayerSplitFields();
+        if (event.target.name === "booking_mode") syncPlayerSplitFields();
         const summaryTotal = document.querySelector("[data-summary-total]");
         if (summaryTotal) summaryTotal.textContent = "Cần kiểm tra lại giá";
     });
@@ -476,7 +476,7 @@
         const bookingDate = form.elements.booking_date.value;
         const start = `${form.elements.start_hour.value}:${form.elements.start_minute.value}`;
         const end = `${form.elements.end_hour.value}:${form.elements.end_minute.value}`;
-        const selectedMode = form.querySelector("input[name='payment_mode']:checked");
+        const selectedMode = form.querySelector("input[name='booking_mode']:checked");
         const selectedModeLabel = selectedMode
             ?.closest("label")
             ?.querySelector("strong")
@@ -494,6 +494,10 @@
         setText(
             "[data-review-external-amount]",
             moneyFormatter.format(Number(quote.contribution_plan.external_amount)),
+        );
+        setText(
+            "[data-review-venue-balance]",
+            moneyFormatter.format(Number(quote.venue_balance)),
         );
         setText(
             "[data-review-contribution-note]",
@@ -519,11 +523,11 @@
 
     function syncPlayerSplitFields() {
         const wrapper = form.querySelector("[data-player-split-fields]");
-        const input = form.elements.required_players;
+        const input = form.elements.requested_players;
         if (!wrapper || !input) return;
         const isPlayerSplit = form.querySelector(
-            "input[name='payment_mode']:checked",
-        )?.value === "SPLIT_PLAYERS";
+            "input[name='booking_mode']:checked",
+        )?.value === "FIND_PLAYERS";
         wrapper.hidden = !isPlayerSplit;
         input.required = isPlayerSplit;
         input.disabled = !isPlayerSplit;
@@ -532,13 +536,11 @@
 
     function contributionNote(plan) {
         if (Number(plan.external_amount) === 0) {
-            return "Bạn thanh toán toàn bộ tiền sân trong một lần.";
+            return plan.requested_players
+                ? `${plan.requested_players} người ghép không cần cọc và thanh toán tại sân.`
+                : "Bạn thanh toán toàn bộ khoản cọc 30%.";
         }
-        if (plan.total_players) {
-            return `Nhóm hiện có ${plan.existing_players}/${plan.total_players} người; `
-                + `${plan.required_players} người ghép thanh toán từng phần riêng.`;
-        }
-        return "Đội bạn trả phần đầu tiên; đội đối thủ thanh toán phần còn lại.";
+        return "Bạn trả 15% tiền sân; đội đối thủ trả 15% còn lại của khoản cọc.";
     }
 
     function setText(selector, value) {

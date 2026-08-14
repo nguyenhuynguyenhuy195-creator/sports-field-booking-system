@@ -73,7 +73,11 @@
                     <div><dt>Giờ</dt><dd>{{ booking.start_time.strftime('%H:%M') }}–{{ booking.end_time.strftime('%H:%M') }}</dd></div>
                 </dl>
                 <div class="alert alert-light border mt-3 mb-0 small">
-                    Người tham gia chỉ được tính là đã vào kèo sau khi người tạo duyệt và hoàn thành phần tiền bắt buộc.
+                    {% if locked_type == 'FIND_PLAYERS' %}
+                        Người ghép được tính là đã vào đội ngay sau khi bạn duyệt; họ không cọc online và sẽ trả tại sân.
+                    {% else %}
+                        Đội đối thủ chỉ được xác nhận sau khi bạn duyệt và họ hoàn thành phần cọc cam kết.
+                    {% endif %}
                 </div>
             </aside>
         </div>

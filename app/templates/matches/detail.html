@@ -50,7 +50,13 @@
                     <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
                         <div>
                             <h2 class="h5 fw-bold mb-1">Yêu cầu tham gia</h2>
-                            <p class="small text-secondary mb-0">Chỉ duyệt người phù hợp; vị trí được giữ 15 phút trong lúc họ thanh toán.</p>
+                            <p class="small text-secondary mb-0">
+                                {% if match.match_type == 'FIND_OPPONENT' %}
+                                    Đội được duyệt có tối đa 15 phút để thanh toán phần cọc cam kết.
+                                {% else %}
+                                    Người được duyệt vào đội ngay, không cần cọc và thanh toán trực tiếp tại sân.
+                                {% endif %}
+                            </p>
                         </div>
                         <span class="payment-progress-badge">{{ joined_count }}/{{ match.required_players }} đã tham gia</span>
                     </div>
@@ -63,6 +69,9 @@
                                         <span class="participant-status participant-status-{{ participant.status|lower|replace('_', '-') }}">{{ participant_status_labels[participant.status] }}</span>
                                     </div>
                                     {% if participant.message %}<p class="small text-secondary mt-2 mb-0">{{ participant.message }}</p>{% endif %}
+                                    {% if contact_visible and participant.status == 'JOINED' and participant.contact_phone %}
+                                        <div class="small mt-2">Zalo liên hệ: <strong>{{ participant.contact_phone }}</strong></div>
+                                    {% endif %}
                                     {% if participant.status == 'ACCEPTED_AWAITING_PAYMENT' %}
                                         <div class="small mt-2">Hạn thanh toán: <strong>{{ participant.payment_due_at|local_datetime }}</strong></div>
                                     {% endif %}
@@ -102,11 +111,13 @@
                         <span>Phần tiền sân của bạn</span>
                         <strong>{{ current_request.contribution.remaining_amount|vnd_currency }}</strong>
                     </div>
-                    <form method="post" action="{{ url_for('payments.pay_mock', booking_code=match.booking.booking_code, contribution_id=current_request.contribution_id, return_to_match=match.id) }}">
+                    <form method="post" action="{{ url_for('payments.pay_momo' if momo_enabled else 'payments.pay_mock', booking_code=match.booking.booking_code, contribution_id=current_request.contribution_id, return_to_match=match.id) }}">
                         {{ payment_form.hidden_tag() }}
-                        <button class="btn btn-primary w-100" type="submit" data-payment-submit>Thanh toán mô phỏng</button>
+                        <button class="btn btn-primary w-100" type="submit" data-payment-submit>{{ 'Thanh toán cọc qua MoMo Sandbox' if momo_enabled else 'Thanh toán mô phỏng' }}</button>
                     </form>
-                    <p class="small text-secondary mt-2">Không trừ tiền thật; đây là provider MOCK trước khi nối MoMo Sandbox.</p>
+                    <p class="small text-secondary mt-2">
+                        {{ 'Bạn sẽ được chuyển sang môi trường thử nghiệm của MoMo.' if momo_enabled else 'MoMo Sandbox chưa cấu hình; đây là provider MOCK không trừ tiền thật.' }}
+                    </p>
                     <form class="mt-3" method="post" action="{{ url_for('matches.withdraw', match_id=match.id) }}">
                         {{ action_form.hidden_tag() }}
                         <button class="btn btn-outline-danger w-100" type="submit">Rút trước khi thanh toán</button>
@@ -114,10 +125,16 @@
                 {% elif current_request and current_request.status == 'JOINED' %}
                     <div class="alert alert-success">
                         <strong>Bạn đã tham gia kèo.</strong><br>
-                        Phần tiền bắt buộc đã được xử lý thành công.
+                        {% if match.match_type == 'FIND_PLAYERS' %}
+                            Bạn không cần cọc online; hãy thanh toán phần được thống nhất tại sân.
+                        {% else %}
+                            Phần cọc cam kết của đội bạn đã được xử lý thành công.
+                        {% endif %}
                     </div>
                     <div class="small text-secondary mb-3">
-                        {% if withdrawal_gets_refund %}
+                        {% if match.match_type == 'FIND_PLAYERS' %}
+                            Nếu không thể tham gia, hãy báo rút sớm và liên hệ người tạo qua Zalo.
+                        {% elif withdrawal_gets_refund %}
                             Rút lúc này được hoàn 100% phần tiền bạn đã đóng vì còn trên 12 giờ trước trận.
                         {% else %}
                             Rút trong vòng 12 giờ trước trận sẽ không được hoàn tiền.
@@ -144,6 +161,14 @@
                     {% if match.status == 'OPEN' %}
                         <form class="mt-3" method="post" action="{{ url_for('matches.join', match_id=match.id) }}">
                             {{ join_form.hidden_tag() }}
+                            {% if match.match_type == 'FIND_PLAYERS' %}
+                                {{ join_form.contact_phone.label(class="form-label") }}
+                                {{ join_form.contact_phone(class="form-control", placeholder="Ví dụ: 0912345678") }}
+                                <div class="form-check mt-2">
+                                    {{ join_form.share_contact(class="form-check-input") }}
+                                    {{ join_form.share_contact.label(class="form-check-label") }}
+                                </div>
+                            {% endif %}
                             {{ join_form.message.label(class="form-label") }}
                             {{ join_form.message(class="form-control", rows="3", placeholder="Giới thiệu lại nếu bạn muốn tham gia") }}
                             <button class="btn btn-primary w-100 mt-3" type="submit">Gửi lại yêu cầu tham gia</button>
@@ -164,11 +189,28 @@
                         {% endif %}
                         <form method="post" action="{{ url_for('matches.join', match_id=match.id) }}">
                             {{ join_form.hidden_tag() }}
+                            {% if match.match_type == 'FIND_PLAYERS' %}
+                                <div class="mb-3">
+                                    {{ join_form.contact_phone.label(class="form-label") }}
+                                    {{ join_form.contact_phone(class="form-control", placeholder="Ví dụ: 0912345678") }}
+                                    {% for error in join_form.contact_phone.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                                </div>
+                                <div class="form-check mb-3">
+                                    {{ join_form.share_contact(class="form-check-input") }}
+                                    {{ join_form.share_contact.label(class="form-check-label") }}
+                                </div>
+                            {% endif %}
                             {{ join_form.message.label(class="form-label") }}
                             {{ join_form.message(class="form-control", rows="4", placeholder="Giới thiệu ngắn về đội hoặc vị trí của bạn") }}
                             <button class="btn btn-primary w-100 mt-3" type="submit">Gửi yêu cầu tham gia</button>
                         </form>
-                        <p class="small text-secondary mt-2 mb-0">Chỉ phải thanh toán sau khi người tạo chấp nhận.</p>
+                        <p class="small text-secondary mt-2 mb-0">
+                            {% if match.match_type == 'FIND_PLAYERS' %}
+                                Không cần cọc. Số Zalo chỉ hiện cho người tạo sau khi họ chấp nhận bạn.
+                            {% else %}
+                                Chỉ thanh toán phần cọc cam kết sau khi người tạo chấp nhận.
+                            {% endif %}
+                        </p>
                     {% else %}
                         <p class="text-secondary">Đăng nhập để gửi yêu cầu và theo dõi trạng thái.</p>
                         <a class="btn btn-primary w-100" href="{{ url_for('auth.login', next=request.path) }}">Đăng nhập để tham gia</a>

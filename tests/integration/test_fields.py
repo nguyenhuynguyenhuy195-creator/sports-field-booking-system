@@ -8,7 +8,7 @@ from app.extensions import db
 from app.models import (
     Field,
     FieldStatus,
-    FieldType,
+    FieldTypeCode,
     User,
     UserRole,
     Venue,
@@ -80,7 +80,7 @@ def create_venue_for_owner(
 def field_form_data(**overrides):
     data = {
         "name": "  Sân số 1  ",
-        "field_type": FieldType.SEVEN_A_SIDE.value,
+        "field_type": FieldTypeCode.FOOTBALL_7.value,
         "surface_type": "  Cỏ nhân tạo  ",
         "capacity": "14",
         "venue_id": "999999",
@@ -103,7 +103,7 @@ def create_field_for_owner(
             owner=owner,
             venue_id=venue_id,
             name=name,
-            field_type=FieldType.SEVEN_A_SIDE.value,
+            field_type=FieldTypeCode.FOOTBALL_7.value,
             surface_type="Cỏ nhân tạo",
             capacity=14,
         )
@@ -150,7 +150,7 @@ def test_owner_creates_normalized_inactive_field(app, client):
         assert field is not None
         assert field.venue_id == venue_id
         assert field.name == "Sân số 1"
-        assert field.field_type == FieldType.SEVEN_A_SIDE.value
+        assert field.field_type.code == FieldTypeCode.FOOTBALL_7.value
         assert field.surface_type == "Cỏ nhân tạo"
         assert field.capacity == 14
         assert field.status == FieldStatus.INACTIVE.value
@@ -249,7 +249,7 @@ def test_owner_updates_own_field_without_changing_status(app, client):
         f"/owner/venues/{venue_id}/fields/{field_id}/edit",
         data=field_form_data(
             name="Sân trung tâm",
-            field_type=FieldType.FIVE_A_SIDE.value,
+            field_type=FieldTypeCode.FOOTBALL_5.value,
             capacity="10",
         ),
     )
@@ -258,7 +258,7 @@ def test_owner_updates_own_field_without_changing_status(app, client):
     with app.app_context():
         field = db.session.get(Field, field_id)
         assert field.name == "Sân trung tâm"
-        assert field.field_type == FieldType.FIVE_A_SIDE.value
+        assert field.field_type.code == FieldTypeCode.FOOTBALL_5.value
         assert field.capacity == 10
         assert field.status == FieldStatus.INACTIVE.value
 
@@ -322,7 +322,7 @@ def test_public_venue_detail_only_lists_active_fields(app, client):
     active_response = client.get(f"/venues/{venue_id}")
     assert active_response.status_code == 200
     assert "Sân chưa có giá" in active_response.get_data(as_text=True)
-    assert "Sân bóng 7 người" in active_response.get_data(as_text=True)
+    assert "Sân bóng đá 7 người" in active_response.get_data(as_text=True)
 
 
 def test_create_field_rolls_back_when_commit_fails(app, monkeypatch):
@@ -354,7 +354,7 @@ def test_create_field_rolls_back_when_commit_fails(app, monkeypatch):
                 owner=owner_model,
                 venue_id=venue_id,
                 name="Sân lỗi",
-                field_type=FieldType.FIVE_A_SIDE.value,
+            field_type=FieldTypeCode.FOOTBALL_5.value,
                 surface_type=None,
                 capacity=10,
             )

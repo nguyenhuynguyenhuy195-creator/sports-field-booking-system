@@ -3,7 +3,7 @@ from flask_login import current_user
 
 from app.decorators import roles_required
 from app.forms import FieldForm
-from app.models import FieldStatus, FieldType, UserRole
+from app.models import FieldStatus, UserRole
 from app.services import (
     FieldError,
     FieldNotFoundError,
@@ -11,17 +11,12 @@ from app.services import (
     create_field,
     get_owner_field,
     list_owner_fields,
+    list_active_field_types,
     update_field,
 )
 
 
 fields_bp = Blueprint("fields", __name__)
-
-FIELD_TYPE_LABELS = {
-    FieldType.FIVE_A_SIDE.value: "Sân bóng 5 người",
-    FieldType.SEVEN_A_SIDE.value: "Sân bóng 7 người",
-    FieldType.ELEVEN_A_SIDE.value: "Sân bóng 11 người",
-}
 
 FIELD_STATUS_LABELS = {
     FieldStatus.ACTIVE.value: "Đang hoạt động",
@@ -46,7 +41,6 @@ def owner_index(venue_id: int):
         "owner/fields/index.html",
         venue=venue,
         fields=fields,
-        field_type_labels=FIELD_TYPE_LABELS,
         field_status_labels=FIELD_STATUS_LABELS,
     )
 
@@ -68,6 +62,7 @@ def owner_create(venue_id: int):
         abort(403)
 
     form = FieldForm()
+    _configure_field_type_choices(form)
     if form.validate_on_submit():
         try:
             create_field(
@@ -116,6 +111,9 @@ def owner_edit(venue_id: int, field_id: int):
         abort(404)
 
     form = FieldForm(obj=field)
+    _configure_field_type_choices(form)
+    if not form.is_submitted():
+        form.field_type.data = field.field_type.code
     if form.validate_on_submit():
         try:
             update_field(
@@ -144,3 +142,13 @@ def owner_edit(venue_id: int, field_id: int):
         page_title="Chỉnh sửa sân",
         submit_label="Lưu thay đổi",
     )
+
+
+def _configure_field_type_choices(form: FieldForm) -> None:
+    form.field_type.choices = [
+        (
+            field_type.code,
+            f"{field_type.sport.name} — {field_type.name}",
+        )
+        for field_type in list_active_field_types()
+    ]

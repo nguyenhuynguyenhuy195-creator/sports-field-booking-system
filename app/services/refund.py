@@ -8,9 +8,11 @@ from uuid import uuid4
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.extensions import db
+from app.integrations import MomoAPIError, MomoClient
 from app.models import (
     Booking,
     BookingContribution,
+    BookingMode,
     BookingStatus,
     ContributionStatus,
     ContributionType,
@@ -18,6 +20,7 @@ from app.models import (
     MatchParticipant,
     MatchParticipantStatus,
     Payment,
+    PaymentProvider,
     PaymentStatus,
     Refund,
     RefundStatus,
@@ -62,7 +65,8 @@ def apply_owner_cancellation_refunds(
         reason=f"Chủ sân hủy do sự cố: {reason}",
         creator_rate=Decimal("1.00"),
     )
-    _finish_cancelled_booking(booking, current_utc=current_utc)
+    if all(refund.status == RefundStatus.SUCCESS.value for refund in refunds):
+        _finish_cancelled_booking(booking, current_utc=current_utc)
     return refunds
 
 
@@ -73,11 +77,12 @@ def apply_funding_shortfall_refunds(
     now: datetime | None = None,
 ) -> list[Refund]:
     """Refund creator 80%, other payers 100%, and retain the creator's 20%."""
-    if booking.payment_mode == "FULL_PAYMENT":
+    if booking.booking_mode != BookingMode.FIND_OPPONENT.value:
         raise InvalidRefundStateError(
             "Chính sách thiếu tiền chỉ áp dụng cho booking chia tiền."
         )
     current_utc = normalize_utc(now)
+    paid_before_refunds = Decimal(booking.paid_amount)
     booking.status = BookingStatus.REFUND_PENDING.value
     booking.cancellation_reason = reason
     refunds = _refund_collected_payments(
@@ -87,8 +92,14 @@ def apply_funding_shortfall_refunds(
         reason=reason,
         creator_rate=CREATOR_REFUND_RATE,
     )
-    booking.cancellation_fee_amount = _creator_retained_amount(booking.id)
-    _finish_cancelled_booking(booking, current_utc=current_utc)
+    booking.cancellation_fee_amount = (
+        paid_before_refunds - sum(
+            (Decimal(refund.amount) for refund in refunds),
+            Decimal("0.00"),
+        )
+    ).quantize(MONEY_QUANTUM)
+    if all(refund.status == RefundStatus.SUCCESS.value for refund in refunds):
+        _finish_cancelled_booking(booking, current_utc=current_utc)
     return refunds
 
 
@@ -120,7 +131,7 @@ def refund_joined_participant(
     if refund_amount != Decimal(contribution.amount_paid):
         raise InvalidRefundStateError("Số tiền có thể hoàn không khớp khoản đã đóng.")
 
-    refund, created = _record_mock_refund(
+    refund, created = _record_refund(
         booking=booking,
         contribution=contribution,
         payment=payment,
@@ -134,7 +145,7 @@ def refund_joined_participant(
 
     booking.status = (
         BookingStatus.PAID.value
-        if Decimal(booking.paid_amount) == Decimal(booking.total_amount)
+        if Decimal(booking.paid_amount) == Decimal(booking.deposit_amount)
         else BookingStatus.PARTIALLY_PAID.value
     )
     contribution.expires_at = None
@@ -164,7 +175,7 @@ def process_overdue_funding_refunds(*, now: datetime | None = None) -> int:
             Booking.status == BookingStatus.PARTIALLY_PAID.value,
             Booking.funding_deadline.is_not(None),
             Booking.funding_deadline <= current_utc,
-            Booking.paid_amount < Booking.total_amount,
+            Booking.paid_amount < Booking.deposit_amount,
         ),
         Booking,
     )
@@ -177,7 +188,123 @@ def process_overdue_funding_refunds(*, now: datetime | None = None) -> int:
         )
     if bookings:
         commit_refunds("Không thể xử lý các booking thiếu tiền đúng hạn.")
+        try:
+            process_pending_momo_refunds(now=current_utc)
+        except RefundError:
+            db.session.rollback()
     return len(bookings)
+
+
+def process_pending_momo_refunds(
+    *,
+    booking_id: int | None = None,
+    client: MomoClient | None = None,
+    now: datetime | None = None,
+) -> int:
+    """Submit/query pending MoMo refunds and finalize successful records."""
+    statement = (
+        db.select(Refund)
+        .join(Refund.payment)
+        .where(
+            Payment.provider == PaymentProvider.MOMO.value,
+            Refund.status.in_(
+                (RefundStatus.PENDING.value, RefundStatus.PROCESSING.value)
+            ),
+        )
+        .order_by(Refund.id)
+    )
+    if booking_id is not None:
+        statement = statement.where(Refund.booking_id == booking_id)
+    refunds = list(db.session.scalars(with_update_lock(statement, Refund)))
+    if not refunds:
+        return 0
+
+    try:
+        momo = client or MomoClient.from_app_config()
+    except MomoAPIError as exc:
+        raise RefundError(str(exc)) from exc
+    current_utc = normalize_utc(now)
+    succeeded = 0
+    touched_booking_ids: set[int] = set()
+    for refund in refunds:
+        payment = refund.payment
+        if not payment.provider_trans_id:
+            refund.status = RefundStatus.FAILED.value
+            refund.result_code = "MISSING_TRANS_ID"
+            continue
+        try:
+            if refund.status == RefundStatus.PENDING.value:
+                response = momo.refund_payment(
+                    order_id=refund.order_id,
+                    request_id=refund.request_id,
+                    amount=Decimal(refund.amount),
+                    trans_id=payment.provider_trans_id,
+                    description=refund.reason,
+                )
+                result_code = str(response.get("resultCode", ""))
+                provider_trans_id = str(response.get("transId", "")) or None
+            else:
+                response = momo.query_refund(
+                    order_id=refund.order_id,
+                    request_id=uuid4().hex,
+                )
+                result_code, provider_trans_id = _parse_refund_query(
+                    refund.order_id,
+                    response,
+                )
+        except MomoAPIError as exc:
+            raise RefundError(str(exc)) from exc
+
+        refund.result_code = result_code
+        if result_code == "0" and provider_trans_id:
+            contribution = refund.payment.contribution
+            booking = refund.booking
+            _apply_refund_success(
+                refund=refund,
+                booking=booking,
+                contribution=contribution,
+                provider_trans_id=provider_trans_id,
+                current_utc=current_utc,
+            )
+            touched_booking_ids.add(booking.id)
+            succeeded += 1
+        elif result_code == "7002":
+            refund.status = RefundStatus.PROCESSING.value
+        else:
+            refund.status = RefundStatus.FAILED.value
+
+    for current_booking_id in touched_booking_ids:
+        booking = db.session.get(Booking, current_booking_id)
+        if (
+            booking is not None
+            and booking.status == BookingStatus.REFUND_PENDING.value
+            and _all_booking_refunds_succeeded(booking.id)
+        ):
+            _finish_cancelled_booking(booking, current_utc=current_utc)
+    commit_refunds("Không thể cập nhật kết quả hoàn tiền MoMo.")
+    return succeeded
+
+
+def _parse_refund_query(order_id: str, response: dict) -> tuple[str, str | None]:
+    if str(response.get("resultCode", "")) != "0":
+        return str(response.get("resultCode", "")), None
+    for item in response.get("refundTrans") or []:
+        if str(item.get("orderId", "")) == order_id:
+            return (
+                str(item.get("resultCode", "")),
+                str(item.get("transId", "")) or None,
+            )
+    return "7002", None
+
+
+def _all_booking_refunds_succeeded(booking_id: int) -> bool:
+    incomplete = db.session.scalar(
+        db.select(db.func.count(Refund.id)).where(
+            Refund.booking_id == booking_id,
+            Refund.status != RefundStatus.SUCCESS.value,
+        )
+    )
+    return int(incomplete or 0) == 0
 
 
 def _refund_collected_payments(
@@ -219,7 +346,7 @@ def _refund_collected_payments(
         if amount <= 0:
             continue
         contribution.status = ContributionStatus.REFUND_PENDING.value
-        refund, _ = _record_mock_refund(
+        refund, _ = _record_refund(
             booking=booking,
             contribution=contribution,
             payment=payment,
@@ -232,7 +359,7 @@ def _refund_collected_payments(
     return refunds
 
 
-def _record_mock_refund(
+def _record_refund(
     *,
     booking: Booking,
     contribution: BookingContribution,
@@ -242,7 +369,7 @@ def _record_mock_refund(
     operation_key: str,
     current_utc: datetime,
 ) -> tuple[Refund, bool]:
-    order_id = f"MOCK-REFUND-{operation_key}"
+    order_id = f"{payment.provider}-REFUND-{operation_key}"
     existing = db.session.scalar(db.select(Refund).where(Refund.order_id == order_id))
     if existing is not None:
         return existing, False
@@ -255,6 +382,7 @@ def _record_mock_refund(
     if amount > Decimal(booking.paid_amount):
         raise InvalidRefundStateError("Số tiền hoàn vượt số tiền booking đang ghi nhận.")
 
+    is_mock = payment.provider == PaymentProvider.MOCK.value
     refund = Refund(
         booking_id=booking.id,
         payment_id=payment.id,
@@ -262,13 +390,38 @@ def _record_mock_refund(
         amount=amount,
         reason=reason,
         order_id=order_id,
-        request_id=f"MOCK-REFUND-REQUEST-{uuid4().hex.upper()}",
-        provider_refund_trans_id=f"MOCK-REFUND-TRANS-{uuid4().hex.upper()}",
-        status=RefundStatus.SUCCESS.value,
-        result_code="0",
-        refunded_at=current_utc,
+        request_id=uuid4().hex,
+        provider_refund_trans_id=(
+            f"MOCK-REFUND-TRANS-{uuid4().hex.upper()}" if is_mock else None
+        ),
+        status=(
+            RefundStatus.SUCCESS.value if is_mock else RefundStatus.PENDING.value
+        ),
+        result_code="0" if is_mock else None,
+        refunded_at=current_utc if is_mock else None,
     )
     db.session.add(refund)
+    if not is_mock:
+        return refund, True
+    _apply_refund_success(
+        refund=refund,
+        booking=booking,
+        contribution=contribution,
+        provider_trans_id=refund.provider_refund_trans_id,
+        current_utc=current_utc,
+    )
+    return refund, True
+
+
+def _apply_refund_success(
+    *,
+    refund: Refund,
+    booking: Booking,
+    contribution: BookingContribution,
+    provider_trans_id: str | None,
+    current_utc: datetime,
+) -> None:
+    amount = Decimal(refund.amount)
     contribution.amount_paid = (
         Decimal(contribution.amount_paid) - amount
     ).quantize(MONEY_QUANTUM)
@@ -280,7 +433,10 @@ def _record_mock_refund(
     booking.paid_amount = (Decimal(booking.paid_amount) - amount).quantize(
         MONEY_QUANTUM
     )
-    return refund, True
+    refund.provider_refund_trans_id = provider_trans_id
+    refund.status = RefundStatus.SUCCESS.value
+    refund.result_code = "0"
+    refund.refunded_at = current_utc
 
 
 def _remaining_refundable_amount(payment: Payment) -> Decimal:
@@ -309,19 +465,6 @@ def _lock_successful_payment(contribution_id: int) -> Payment | None:
             Payment,
         )
     )
-
-
-def _creator_retained_amount(booking_id: int) -> Decimal:
-    amount = db.session.scalar(
-        db.select(db.func.coalesce(db.func.sum(BookingContribution.amount_paid), 0))
-        .where(
-            BookingContribution.booking_id == booking_id,
-            BookingContribution.contribution_type.in_(
-                (ContributionType.CREATOR.value, ContributionType.TOP_UP.value)
-            ),
-        )
-    )
-    return Decimal(amount or 0).quantize(MONEY_QUANTUM)
 
 
 def _finish_cancelled_booking(
