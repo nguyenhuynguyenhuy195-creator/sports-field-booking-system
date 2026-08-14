@@ -45,7 +45,7 @@ class VenueSearchForm(FlaskForm):
     )
     field_type = SelectField(
         "Loại sân",
-        choices=[("", "Tất cả loại sân")],
+        choices=[("", "Không giới hạn loại sân")],
         validators=[Optional()],
     )
     min_price = DecimalField(

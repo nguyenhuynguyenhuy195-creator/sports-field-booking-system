@@ -303,10 +303,13 @@ def _configure_catalog_choices(form: VenueSearchForm):
     form.sport.choices = [("", "Tất cả bộ môn")] + [
         (sport.code, sport.name) for sport in sports
     ]
-    form.field_type.choices = [("", "Tất cả loại sân")] + [
+    form.field_type.choices = [
+        ("", "Không giới hạn loại sân", {"data-sport": ""})
+    ] + [
         (
             field_type.code,
             f"{field_type.sport.name} — {field_type.name}",
+            {"data-sport": field_type.sport.code},
         )
         for field_type in field_types
     ]
