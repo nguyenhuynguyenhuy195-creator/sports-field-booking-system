@@ -25,6 +25,17 @@ SKILL_LEVEL_CHOICES = [
 ]
 
 
+def _contact_phone_validators():
+    return [
+        DataRequired(message="Vui lòng nhập số điện thoại có Zalo."),
+        Length(max=20, message="Số điện thoại tối đa 20 ký tự."),
+        Regexp(
+            r"^\+?[0-9][0-9 .-]{8,18}$",
+            message="Số điện thoại không hợp lệ.",
+        ),
+    ]
+
+
 class MatchForm(FlaskForm):
     match_type = SelectField(
         "Loại kèo",
@@ -54,23 +65,29 @@ class MatchForm(FlaskForm):
             NumberRange(min=1, message="Số người cần tìm phải từ 1 trở lên."),
         ],
     )
+    contact_phone = StringField(
+        "Số điện thoại có Zalo của người đăng kèo",
+        validators=_contact_phone_validators(),
+    )
+    share_contact = BooleanField(
+        "Tôi đồng ý chia sẻ số này cho người đã chính thức tham gia kèo.",
+        validators=[
+            DataRequired(message="Bạn cần đồng ý chia sẻ số liên hệ cho người tham gia.")
+        ],
+    )
     submit = SubmitField("Đăng kèo")
 
 
 class MatchJoinForm(FlaskForm):
     contact_phone = StringField(
         "Số điện thoại có Zalo",
-        validators=[
-            Optional(),
-            Length(max=20, message="Số điện thoại tối đa 20 ký tự."),
-            Regexp(
-                r"^\+?[0-9][0-9 .-]{8,18}$",
-                message="Số điện thoại không hợp lệ.",
-            ),
-        ],
+        validators=_contact_phone_validators(),
     )
     share_contact = BooleanField(
-        "Tôi đồng ý chia sẻ số này cho người tạo kèo sau khi được chấp nhận."
+        "Tôi đồng ý chia sẻ số này cho người tạo kèo sau khi chính thức tham gia.",
+        validators=[
+            DataRequired(message="Bạn cần đồng ý chia sẻ số liên hệ cho người tạo kèo.")
+        ],
     )
     message = TextAreaField(
         "Lời nhắn cho người tạo",
@@ -81,3 +98,17 @@ class MatchJoinForm(FlaskForm):
 
 class MatchActionForm(FlaskForm):
     submit = SubmitField("Xác nhận")
+
+
+class MatchContactForm(FlaskForm):
+    contact_phone = StringField(
+        "Số điện thoại có Zalo",
+        validators=_contact_phone_validators(),
+    )
+    share_contact = BooleanField(
+        "Tôi đồng ý chia sẻ số này cho bên còn lại của kèo.",
+        validators=[
+            DataRequired(message="Bạn cần đồng ý chia sẻ số liên hệ.")
+        ],
+    )
+    submit = SubmitField("Lưu số liên hệ")

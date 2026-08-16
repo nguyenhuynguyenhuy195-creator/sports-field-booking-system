@@ -234,7 +234,7 @@ class Booking(db.Model):
 
     @property
     def balance_due_at_venue(self) -> Decimal:
-        return Decimal(self.total_amount) - Decimal(self.deposit_amount)
+        return Decimal(self.total_amount) - Decimal(self.paid_amount)
 
     @property
     def uses_deposit_policy(self) -> bool:

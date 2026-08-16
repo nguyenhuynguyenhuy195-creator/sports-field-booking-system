@@ -9,7 +9,7 @@
 - Card bo góc 12–16px; button cao 42–48px.
 - Button thanh toán/hủy có disabled/loading để tránh gửi lặp.
 - Lỗi nghiệp vụ, deadline, vị trí và trạng thái MoMo được diễn đạt rõ bằng tiếng Việt.
-- Giao diện phân biệt rõ “Tổng tiền sân”, “Cọc online 30%” và “Còn lại trả tại sân”.
+- Giao diện phân biệt rõ “Tổng tiền sân”, “Mức cọc online dự kiến”, “Đã cọc” và “Còn lại trả tại sân”. FIND_OPPONENT phải giải thích rõ creator cọc 15% là đủ giữ sân.
 
 ## 7.2. Trang chủ và danh sách venue
 
@@ -65,8 +65,9 @@ Yêu cầu:
 - SINGLES không hiển thị FIND_PLAYERS.
 - FIND_PLAYERS hiển thị ô số vị trí muốn tìm và giải thích người ghép trả tại sân.
 - Số vị trí FIND_PLAYERS được lưu cùng booking trước khi creator thanh toán cọc/mở match.
-- FIND_OPPONENT ghi rõ phải đặt trước 24 giờ, tìm xong trước 12 giờ và hai phía chia đôi tiền cọc.
-- Trước submit hiển thị các đoạn giá, total, cọc 30%, creator cần trả ngay và 70% trả tại sân.
+- FIND_OPPONENT ghi rõ phải đặt trước 24 giờ; creator cọc 15% để giữ sân, bài tìm đối thủ mở đến giờ bắt đầu và đối thủ cọc thêm 15% nếu tham gia.
+- Trước submit hiển thị các đoạn giá, total, mức cọc mục tiêu, creator cần trả ngay và số dự kiến trả tại sân. FIND_OPPONENT chưa có đối thủ phải hiển thị 85%, không mặc định 70%.
+- Trước nút thanh toán có thông báo/checkbox: người chủ động hủy, rút hoặc no-show không được hoàn phần cọc của mình; owner hủy hoặc lỗi hệ thống được hoàn 100%.
 - Nêu rõ booking giữ chỗ 15 phút và không chờ owner duyệt.
 - Backend tính lại khi submit.
 
@@ -77,12 +78,12 @@ Hiển thị:
 - Mã booking, venue/field, sport, field type, play format và ngày giờ.
 - Booking mode.
 - Snapshot giá và total_amount.
-- Deposit rate/amount, đã cọc, còn thiếu cọc và balance trả tại sân.
+- Deposit rate/amount mục tiêu, đã cọc thực tế và balance trả tại sân bằng total trừ paid_amount.
 - Badge phải dùng “Đã thanh toán cọc”, không gây hiểu nhầm đã thanh toán toàn bộ.
 - Booking `LEGACY_FULL_ONLINE` phải có nhãn “Thanh toán online theo chính sách cũ”, không dùng nhãn cọc 30%.
-- Timeline và deadline 15 phút/12 giờ/30 phút khi áp dụng.
+- Timeline 15 phút cho khoản thanh toán đầu tiên/đối thủ và giờ bắt đầu là mốc đóng bài tìm đối thủ. Deadline 12 giờ/30 phút chỉ hiển thị trên booking legacy nếu có.
 - Contribution/payment/refund mà user được phép xem.
-- Nút thanh toán lại, top-up hoặc hủy theo quyền/trạng thái.
+- Nút thanh toán lại hoặc hủy theo quyền/trạng thái; không hiển thị creator top-up cho booking ADR-027.
 - Owner không có nút duyệt booking thông thường.
 - Provider MOCK phải ghi “Thanh toán mô phỏng, không trừ tiền thật”.
 
@@ -102,12 +103,16 @@ Hiển thị:
 - Phân biệt Tìm đối thủ và Tìm thêm người.
 - Hiển thị sport, play format, field, ngày giờ, trình độ và số vị trí.
 - Không công khai số điện thoại participant.
+- Form đăng kèo bắt buộc số Zalo của creator và checkbox đồng ý chia sẻ có điều kiện.
 
 ### Creator – FIND_OPPONENT
 
-- Xem/chấp nhận/từ chối yêu cầu.
-- Xem countdown 15 phút và deadline trước trận 12 giờ.
-- Xem phần cọc đối thủ còn thiếu và nút creator top-up trong cửa sổ 30 phút.
+- Không có nút chấp nhận/từ chối đối thủ của booking mới; creator chỉ theo dõi đội đang giữ suất, countdown và trạng thái payment.
+- Thấy rõ bài mở đến giờ trận bắt đầu và booking vẫn được giữ nếu không có đối thủ.
+- Xem countdown tối đa 15 phút của đối thủ tự nhận kèo; countdown dừng tại giờ bắt đầu.
+- Xem cọc creator 15%, cọc đối thủ 15% nếu có và số còn lại tại sân tương ứng 85%/70%.
+- Chỉ sau khi đối thủ `JOINED` mới thấy số Zalo của đối thủ và nút liên hệ; bản ghi cũ thiếu số có form bổ sung.
+- Có nút đóng bài sớm nhưng đóng bài không hủy booking.
 
 ### Creator – FIND_PLAYERS
 
@@ -118,17 +123,21 @@ Hiển thị:
 
 ### Người tham gia
 
+- FIND_OPPONENT bắt buộc nhập số Zalo và đồng ý chia sẻ, sau đó hiển thị nút “Nhận kèo và thanh toán cọc”; khi bấm, giao diện chuyển ngay sang countdown/payment, không hiện trạng thái chờ creator duyệt.
 - Form FIND_PLAYERS bắt buộc số điện thoại dùng Zalo và checkbox đồng ý chia sẻ với creator nếu được chấp nhận.
 - Trước khi được chấp nhận, hiển thị trạng thái chờ duyệt nhưng không hiển thị số cho bên khác.
 - Sau khi được chấp nhận, hiển thị “Đã tham gia – thanh toán tại sân”, không có nút MoMo/countdown.
 - Cho phép rút; vị trí mở lại và không có refund vì chưa thanh toán online.
+- Khi FIND_OPPONENT thanh toán thành công, hiển thị thông tin liên hệ creator và đưa kèo vào “Lịch & kèo của tôi”; không hiển thị nút quản lý/hủy booking của creator.
+
+Đại diện đối thủ đã thanh toán mà chủ động rút phải thấy cảnh báo mất cọc trước khi xác nhận. Sau khi rút, bài mở lại nhưng giao diện không yêu cầu người thay thế thanh toán lại phần cọc đã bị giữ.
 
 ## 7.9. Dashboard owner
 
 - Venue chờ duyệt/đang hoạt động/bị ẩn và cảnh báo thiếu tọa độ.
 - Field nhóm theo sport, khung giá và bảo trì.
 - Booking hôm nay, đang giữ chỗ/chờ cọc/chờ đối thủ.
-- Tiền cọc, phần dự kiến trả tại sân, refund và lý do hủy.
+- Tiền cọc thực thu, phần dự kiến trả tại sân, khoản bị giữ, refund ngoại lệ và lý do hủy.
 - Owner không được sửa snapshot booking.
 
 ## 7.10. Dashboard admin
@@ -159,6 +168,7 @@ Hiển thị:
 - Khung giờ bận, bảo trì, thiếu giá hoặc quá hạn.
 - Payment đang xác minh, thất bại hoặc đã xử lý.
 - Refund đang xử lý/thất bại.
+- Bài tìm đối thủ đã đến giờ bắt đầu hoặc creator đã đóng nhưng booking vẫn còn hiệu lực.
 - Kèo đủ người/đã có đối thủ.
 - Yêu cầu FIND_PLAYERS thiếu số Zalo.
 - User không có quyền xem số liên hệ.

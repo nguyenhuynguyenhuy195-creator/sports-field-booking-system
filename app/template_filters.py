@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
+import re
 
 from flask import Flask
 
@@ -27,6 +28,12 @@ def vnd_currency(value) -> str:
     return f"{formatted} đ"
 
 
+def phone_digits(value: str | None) -> str:
+    """Return digits only for tel/Zalo links without changing displayed text."""
+    return re.sub(r"\D", "", value or "")
+
+
 def register_template_filters(app: Flask) -> None:
     app.add_template_filter(local_datetime, "local_datetime")
     app.add_template_filter(vnd_currency, "vnd_currency")
+    app.add_template_filter(phone_digits, "phone_digits")

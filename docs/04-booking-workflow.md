@@ -10,7 +10,7 @@
 6. User chọn DIRECT_BOOKING, FIND_OPPONENT hoặc FIND_PLAYERS.
 7. Với FIND_PLAYERS, user nhập số vị trí cần tìm; backend snapshot vào `bookings.requested_players`.
 8. Backend kiểm tra thời gian đặt trước, giờ hoạt động, bảo trì, trùng lịch và độ phủ giá.
-9. Backend tính total_amount, deposit_amount bằng 30% và balance_due_at_venue bằng 70%.
+9. Backend tính total_amount và deposit_amount mục tiêu bằng 30%. Số trả tại sân được hiển thị từ số cọc thực thu: 70% với DIRECT_BOOKING/FIND_PLAYERS, còn FIND_OPPONENT có thể là 85% hoặc 70%.
 10. Backend lưu booking, snapshot giá, khoản cọc và contribution trong một transaction.
 11. Booking ở CONFIRMED và giữ chỗ 15 phút để creator thanh toán phần cọc đầu tiên.
 
@@ -45,36 +45,31 @@ Ví dụ total_amount 600.000đ:
 - deposit_amount: 180.000đ.
 - Creator contribution: 90.000đ.
 - Opponent contribution: 90.000đ.
-- Số còn lại tại sân: 420.000đ; hai phía tự chia 210.000đ mỗi bên nếu thỏa thuận 50/50.
+- Chưa có đối thủ: creator đã giữ sân bằng 90.000đ và còn 510.000đ tại sân.
+- Có đối thủ đã cọc: tổng cọc online 180.000đ, còn 420.000đ tại sân; hai phía tự chia phần còn lại theo thỏa thuận.
 
 Quy trình:
 
 1. Booking phải được tạo trước giờ bắt đầu ít nhất 24 giờ.
 2. Trong 15 phút giữ chỗ, creator thanh toán 50% deposit_amount.
 3. IPN hợp lệ chuyển booking PARTIALLY_PAID và cho phép mở match FIND_OPPONENT.
-4. Đại diện phía đối thủ gửi yêu cầu.
-5. Creator chấp nhận một yêu cầu.
-6. Đối thủ có 15 phút thanh toán contribution, nhưng không được vượt matchmaking_deadline.
-7. IPN hợp lệ làm đủ deposit_amount, booking chuyển PAID và match chuyển CONFIRMED.
-8. Phần 70% còn lại được thanh toán tại sân.
+4. Đại diện phía đối thủ nhập số Zalo, đồng ý chia sẻ rồi bấm “Nhận kèo”.
+5. Trong transaction, service khóa match và contribution OPPONENT; nếu còn trống thì participant chuyển thẳng `ACCEPTED_AWAITING_PAYMENT` và giữ suất tối đa 15 phút, không cần creator duyệt.
+6. Đối thủ thanh toán contribution trước payment_due_at và trước giờ booking bắt đầu.
+7. IPN hợp lệ làm đủ deposit_amount, participant chuyển JOINED, booking chuyển PAID và match chuyển CONFIRMED.
+8. Nếu hết hạn chưa trả, participant chuyển EXPIRED, contribution được giải phóng và bài mở lại. Nếu không có đối thủ, booking vẫn PARTIALLY_PAID hợp lệ và creator trả 85% tại sân; nếu có đối thủ, phần còn lại tại sân là 70%.
+9. Sau khi JOINED, kèo xuất hiện trong “Lịch & kèo của tôi” của đại diện đối thủ; trang chi tiết cho hai bên xem số Zalo của nhau. Trước đó và sau khi booking kết thúc/hủy, số liên hệ không được hiển thị.
 
 FIND_OPPONENT áp dụng cho bóng đá, đánh đơn và đánh đôi. Với đánh đôi, đại diện đối thủ chịu trách nhiệm cho cặp của mình.
 
-## 4.5. Hạn tìm đối thủ và creator top-up
+## 4.5. Thời gian tồn tại của bài tìm đối thủ
 
-- matchmaking_deadline = thời điểm bắt đầu trừ 12 giờ.
-- Đến hạn mà chưa có payment đối thủ, hệ thống đóng nghĩa vụ nhận cọc từ đối thủ.
-- Creator có thêm 30 phút để thanh toán phần cọc còn thiếu.
-- funding_deadline = matchmaking_deadline cộng 30 phút.
-- Top-up thành công chuyển booking PAID; match có thể tiếp tục phục vụ liên hệ nhưng đối thủ không còn nghĩa vụ online.
-- Không top-up đúng hạn chuyển booking REFUND_PENDING.
-
-Chính sách refund khi creator không top-up:
-
-1. Hoàn 80% khoản creator đã đóng.
-2. Giữ 20% khoản creator đã đóng làm phí giữ sân.
-3. Hoàn 100% cho payment đối thủ nếu có trường hợp cần khôi phục lỗi.
-4. Sau khi refund thành công, booking chuyển CANCELLED và giải phóng lịch.
+- Bài FIND_OPPONENT tồn tại từ khi creator cọc thành công đến giờ booking bắt đầu.
+- Bài đóng sớm khi creator chủ động đóng hoặc một đối thủ đã thanh toán thành công.
+- Đội bấm nhận kèo có tối đa 15 phút thanh toán; nếu nhận sát giờ thì hạn được cắt đúng tại giờ booking bắt đầu.
+- Đến giờ bắt đầu, các suất ACCEPTED_AWAITING_PAYMENT chưa trả chuyển hết hiệu lực và bài không còn hiển thị trong danh sách kèo đang mở.
+- Không tìm được đối thủ không hủy booking, không tạo refund và không yêu cầu creator top-up.
+- Creator tiếp tục sử dụng sân, tự tìm đối thủ bên ngoài nếu muốn và thanh toán 85% còn lại tại sân.
 
 ## 4.6. Hình thức thi đấu theo bộ môn
 
@@ -94,15 +89,21 @@ Chính sách refund khi creator không top-up:
 
 ## 4.7. Hủy và hoàn tiền
 
-### User hủy khi chưa thu cọc
+### User chủ động hủy
 
-- User được hủy CONFIRMED của mình trước giờ bắt đầu ít nhất 2 giờ.
-- Không có payment nên chuyển thẳng CANCELLED.
+- User được hủy booking của mình trước giờ bắt đầu.
+- CONFIRMED chưa có payment chuyển thẳng CANCELLED.
+- Creator đã cọc không được hoàn phần cọc của mình; contribution/payment giữ lịch sử và phần đã đóng chuyển FORFEITED khi phù hợp.
+- DIRECT_BOOKING/FIND_PLAYERS chuyển thẳng CANCELLED vì không có bên thứ ba cần hoàn.
+- FIND_OPPONENT chưa có payment đối thủ chuyển thẳng CANCELLED và creator mất 15% đã cọc.
+- FIND_OPPONENT đã có payment đối thủ chuyển REFUND_PENDING để hoàn 100% cho đối thủ; creator vẫn mất phần cọc của mình.
 
-### Creator hủy FIND_OPPONENT đang PARTIALLY_PAID
+### Đối thủ chủ động rút hoặc no-show
 
-- Áp dụng hoàn 80% và giữ 20% khoản creator đã cọc.
-- Chuyển REFUND_PENDING cho đến khi refund xong.
+- Đối thủ đã cọc không được hoàn 15% đã đóng.
+- Participant chuyển WITHDRAWN, contribution chuyển FORFEITED và vị trí đối thủ mở lại.
+- Khoản cọc bị mất vẫn tính vào booking; người thay thế không bị thu cọc lần hai.
+- Booking không bị hủy và số còn lại tại sân tiếp tục bằng total_amount trừ paid_amount.
 
 ### Owner hủy do sự cố
 
@@ -111,6 +112,8 @@ Chính sách refund khi creator không top-up:
 3. PARTIALLY_PAID hoặc PAID chuyển REFUND_PENDING.
 4. Backend hoàn 100% mọi khoản cọc đã thu qua provider.
 5. Chỉ sau khi tất cả refund thành công mới chuyển CANCELLED.
+
+Thanh toán trùng/sai do hệ thống cũng phải hoàn 100% khoản bị ảnh hưởng. Refund không dùng cho người chủ động hủy/rút hoặc no-show.
 
 ### Participant FIND_PLAYERS rút
 
@@ -121,7 +124,7 @@ Chính sách refund khi creator không top-up:
 
 - PENDING: lịch sử của luồng cũ, service mới không tạo.
 - CONFIRMED: đang giữ chỗ 15 phút, chờ khoản cọc đầu tiên.
-- PARTIALLY_PAID: đã thu một phần deposit_amount, chỉ dùng chủ yếu cho FIND_OPPONENT.
+- PARTIALLY_PAID: creator FIND_OPPONENT đã cọc 15% và booking đã giữ sân hợp lệ; có thể giữ trạng thái này đến khi COMPLETED nếu không có đối thủ.
 - PAID: đã thu đủ deposit_amount; giao diện phải ghi “Đã thanh toán cọc”.
 - REFUND_PENDING: đang xử lý hoàn cọc và vẫn chiếm chỗ.
 - COMPLETED: thời gian sử dụng đã kết thúc.
@@ -133,9 +136,9 @@ Chính sách refund khi creator không top-up:
 
 > CONFIRMED → PAID | PARTIALLY_PAID | CANCELLED | EXPIRED
 
-> PARTIALLY_PAID → PAID | REFUND_PENDING
+> PARTIALLY_PAID → PAID | CANCELLED | REFUND_PENDING | COMPLETED
 
-> PAID → REFUND_PENDING | COMPLETED
+> PAID → CANCELLED | REFUND_PENDING | COMPLETED
 
 > REFUND_PENDING → CANCELLED
 
@@ -193,7 +196,8 @@ Luồng MoMo Sandbox mục tiêu:
 - User từ chối Geolocation hoặc venue cũ chưa có tọa độ.
 - Thời gian ngoài giờ, trùng bảo trì/booking hoặc thiếu giá.
 - Creator/đối thủ thanh toán sai nghĩa vụ, quá hạn hoặc IPN lặp.
-- Opponent payment window vượt matchmaking_deadline.
+- Đối thủ nhận kèo sát giờ và thời hạn giữ suất 15 phút bị cắt tại giờ booking bắt đầu.
+- Bài tìm đối thủ hoặc yêu cầu thanh toán vẫn còn trạng thái lưu nhưng giờ booking đã bắt đầu; backend phải xử lý theo effective state và từ chối thao tác mới.
 - Người ghép thiếu số điện thoại hoặc creator cố xem số trước khi chấp nhận.
 - Match đã đủ người/đã có đối thủ.
 - Refund thất bại hoặc đang xử lý.

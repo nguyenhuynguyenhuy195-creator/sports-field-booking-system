@@ -30,7 +30,7 @@ Trách nhiệm:
 - Nhận input và hiển thị validation.
 - Gửi request đến backend.
 - Render lưới mốc giờ từ dữ liệu availability và gửi khoảng đã chọn sang endpoint quote.
-- Hiển thị countdown, tiền cọc 30% và phần 70% trả tại sân từ dữ liệu backend.
+- Hiển thị countdown thanh toán đầu tiên, mức cọc mục tiêu 30%, số đã cọc và số còn lại tại sân từ dữ liệu backend. FIND_OPPONENT có thể còn 85% hoặc 70% tại sân tùy cọc thực thu.
 - Hiển thị Places Autocomplete, bản đồ/marker và xin quyền Geolocation khi user chủ động yêu cầu.
 
 Frontend không quyết định quyền, trạng thái availability cuối cùng, giá, tiền cọc, khoảng cách tin cậy, trạng thái payment hoặc refund.
@@ -47,7 +47,7 @@ Thiết kế đích của các blueprint thanh toán:
 - `bookings`: trả lịch trống theo ngày, báo giá, tạo giữ chỗ tự động, xem và hủy booking.
 - `payments`: bắt đầu thanh toán, redirect và IPN MoMo.
 - `refunds`: yêu cầu/query refund theo quyền.
-- `matches`: tạo kèo, gửi/duyệt/rút yêu cầu.
+- `matches`: tạo kèo, tự giữ suất đối thủ, gửi/duyệt yêu cầu ghép người và xử lý rút.
 - `admin`: tài khoản, venue, booking, payment, refund và match.
 
 Route chỉ nhận request, kiểm tra authentication/authorization, validate form, gọi service và trả response.
@@ -64,13 +64,13 @@ Các service chính:
 - `availability_service`: sinh các đoạn 30 phút theo giờ hoạt động và phân loại từ booking, bảo trì, độ phủ giá, thời điểm hiện tại.
 - `sport_catalog_service`: đọc danh mục sport/field type và validate quan hệ.
 - `location_service`: validate tọa độ, tạo bounding box/tính khoảng cách và sắp xếp venue nội bộ.
-- `booking_service`: validate play format, tính cọc 30%, tạo booking và chuyển trạng thái.
+- `booking_service`: validate play format, tính mức cọc mục tiêu 30%, tạo booking, xử lý hủy/mất cọc và chuyển trạng thái.
 - `contribution_service`: phân bổ tiền cọc creator/opponent; không tạo nghĩa vụ online cho người ghép.
 - `payment_service`: tạo payment attempt, xử lý IPN và tổng tiền đã thu.
-- `refund_service`: tính số tiền hoàn, gọi/query MoMo và hoàn tất hủy.
-- `match_service`: tạo kèo, duyệt yêu cầu, bảo vệ số Zalo, mở lại vị trí và chỉ gắn contribution cho đối thủ.
+- `refund_service`: chỉ hoàn các khoản bắt buộc do owner/hệ thống hoặc trả lại cho bên không chủ động gây hủy; gọi/query MoMo và hoàn tất hủy.
+- `match_service`: tạo kèo, khóa match/contribution để tự giữ duy nhất một suất đối thủ trong 15 phút, duyệt yêu cầu FIND_PLAYERS, bảo vệ số Zalo, đóng bài theo giờ bắt đầu và mở lại vị trí khi hết hạn/rút.
 - `owner_application_service`: xử lý yêu cầu chuyển role.
-- `expiration_service`: hết hạn booking, yêu cầu thanh toán và hạn góp tiền.
+- `expiration_service`: hết hạn giữ chỗ đầu tiên, yêu cầu thanh toán đối thủ, bài tìm kèo và booking hoàn thành; funding deadline chỉ còn cho dữ liệu legacy.
 
 Service chịu trách nhiệm kiểm tra quyền sở hữu, khóa dữ liệu cần thiết, quản lý transaction và rollback khi lỗi.
 
@@ -145,8 +145,8 @@ Availability và quote không khóa chỗ. Transaction tạo booking bên dướ
 3. Kiểm tra field, venue, giờ hoạt động và bảo trì.
 4. Truy vấn booking chiếm chỗ giao nhau.
 5. Truy vấn toàn bộ khung giá và kiểm tra độ phủ.
-6. Validate sport/play format/booking mode, tính total và snapshot cọc 30%.
-7. Tạo booking `CONFIRMED`, deadline, price details và contribution tiền cọc.
+6. Validate sport/play format/booking mode, tính total và snapshot mức cọc mục tiêu 30%.
+7. Tạo booking `CONFIRMED`, initial_payment_due_at, price details và contribution tiền cọc. FIND_OPPONENT theo ADR-027 không tạo matchmaking/funding deadline.
 8. Commit một lần; lỗi thì rollback.
 
 Mục tiêu là tránh hai request đồng thời cùng vượt qua bước kiểm tra trùng.
@@ -158,7 +158,7 @@ Mục tiêu là tránh hai request đồng thời cùng vượt qua bước ki�
 3. Nếu payment đã có kết quả cuối cùng, trả response idempotent.
 4. Cập nhật payment và contribution.
 5. Tính lại tổng tiền cọc thành công của booking.
-6. Chuyển `PARTIALLY_PAID` hoặc `PAID` khi đúng điều kiện.
+6. Chuyển `PARTIALLY_PAID` hoặc `PAID` khi đúng điều kiện. `PARTIALLY_PAID` sau cọc creator FIND_OPPONENT đã là booking giữ sân hợp lệ.
 7. Cập nhật match participant nếu đây là payment của đại diện đối thủ; người ghép không đi qua IPN.
 8. Commit một lần; lỗi thì rollback.
 
@@ -166,7 +166,7 @@ Không giữ transaction database mở trong lúc chờ HTTP call ra MoMo. Tạo
 
 ## 6.12. Transaction refund
 
-1. Service tính chính sách hoàn và tạo refund `PENDING` với request id duy nhất.
+1. Service xác định đây là trường hợp được hoàn (owner hủy, lỗi/thu trùng hệ thống hoặc trả lại bên không chủ động gây hủy) rồi tạo refund `PENDING` với request id duy nhất.
 2. Commit refund intent trước khi gọi MoMo.
 3. Gọi refund API ngoài transaction database dài.
 4. Trong transaction mới, cập nhật refund và contribution.
@@ -177,10 +177,10 @@ Không giữ transaction database mở trong lúc chờ HTTP call ra MoMo. Tạo
 
 Tạo Flask CLI command hoặc worker định kỳ để:
 - Hết hạn `CONFIRMED` chưa có khoản thanh toán đầu tiên sau 15 phút.
-- Hết hạn yêu cầu đối thủ chờ thanh toán sau 15 phút hoặc tại matchmaking deadline.
-- Mở cửa sổ creator top-up 30 phút tại mốc trước trận 12 giờ.
-- Xử lý `FIND_OPPONENT` còn thiếu cọc sau funding deadline.
-- Chuyển `PAID` sang `COMPLETED` sau giờ sử dụng.
+- Hết hạn suất đối thủ tự giữ nhưng chưa thanh toán sau 15 phút hoặc tại giờ booking bắt đầu, tùy mốc nào đến trước.
+- Tại giờ bắt đầu, đóng hiệu lực bài FIND_OPPONENT và hết hạn các yêu cầu chưa hoàn tất nhưng không hủy booking.
+- Không mở creator top-up và không xử lý thiếu cọc đối thủ cho booking ADR-027; job funding-expire chỉ xử lý booking legacy còn deadline.
+- Chuyển `PAID` và FIND_OPPONENT `PARTIALLY_PAID` hợp lệ sang `COMPLETED` sau giờ sử dụng.
 - Query lại payment/refund chưa có kết quả cuối cùng.
 
 Availability service cũng phải bỏ qua dữ liệu đã quá hạn theo timestamp ngay cả khi job định kỳ chưa chạy.
@@ -192,7 +192,8 @@ Availability service cũng phải bỏ qua dữ liệu đã quá hạn theo time
 - Secret, connection string và MoMo key chỉ nằm trong biến môi trường.
 - Google Maps browser key phải bị giới hạn theo referrer/API; server key không được đưa vào template hoặc Git.
 - Không log password, secret key hoặc toàn bộ payload nhạy cảm.
-- Không log/công khai số điện thoại participant; chỉ trả cho creator sau khi chấp nhận.
+- Không log/công khai số điện thoại của hai bên. Service lưu snapshot có sự đồng ý và template chỉ trả số khi participant `JOINED`, booking còn hiệu lực và user hiện tại là creator hoặc chính participant đó.
+- Trang lịch cá nhân hợp nhất booking do user tạo với match user đã `JOINED`; match tham gia là liên kết chỉ xem, không làm thay đổi kiểm tra quyền sở hữu booking ở service.
 - Backend luôn kiểm tra quyền và quyền sở hữu.
 - Rollback khi commit thất bại.
 - Hiển thị thông báo thân thiện cho user; ghi log kỹ thuật bằng correlation id.

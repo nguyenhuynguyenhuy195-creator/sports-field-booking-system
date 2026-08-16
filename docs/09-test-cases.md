@@ -136,6 +136,8 @@ Thiếu play_format bị từ chối; SINGLES + FIND_PLAYERS bị từ chối; D
 
 Booking mới DEPOSIT_30, tổng 600.000đ → cọc 180.000đ và còn tại sân 420.000đ.
 
+Riêng FIND_OPPONENT, creator trả 90.000đ đã giữ sân và giao diện còn 510.000đ tại sân; khi đối thủ trả thêm 90.000đ thì còn 420.000đ.
+
 ### TC-DEPOSIT-002: Làm tròn
 
 Tổng không chia hết cho tỷ lệ → deposit/contribution là số nguyên VND, không thu dư và tổng contribution đúng deposit_amount.
@@ -220,23 +222,39 @@ Creator trả 50% deposit_amount trong 15 phút → PARTIALLY_PAID và mở matc
 
 ### TC-OPPONENT-002: Đối thủ cọc
 
-Một đại diện được chấp nhận, trả phần còn lại → booking PAID/match CONFIRMED.
+Một đại diện bấm nhận kèo → tự chuyển ACCEPTED_AWAITING_PAYMENT, không cần creator duyệt; trả phần còn lại → participant JOINED, booking PAID/match CONFIRMED.
 
 ### TC-OPPONENT-003: Hết 15 phút
 
 Không thanh toán → participant EXPIRED, contribution được giải phóng và kèo mở lại.
 
-### TC-OPPONENT-004: Không vượt deadline
+### TC-OPPONENT-004: Không vượt giờ bắt đầu
 
-Thời hạn 15 phút được cắt tại matchmaking_deadline; sau deadline không bắt đầu payment đối thủ mới.
+Thời hạn 15 phút được cắt tại giờ booking bắt đầu; sau giờ này không nhận suất hoặc bắt đầu payment đối thủ mới.
 
-### TC-OPPONENT-005: Creator top-up
+### TC-OPPONENT-005: Không tìm được đối thủ
 
-Trong 30 phút sau matchmaking_deadline, creator trả phần thiếu → PAID; OPPONENT WAIVED và không thu thêm.
+Đến giờ bắt đầu chưa có đối thủ → bài không còn mở, yêu cầu chưa hoàn tất hết hiệu lực, booking vẫn PARTIALLY_PAID/chiếm chỗ và không tạo top-up/refund. Số còn lại tại sân bằng 85% total.
 
-### TC-OPPONENT-006: Không top-up
+### TC-OPPONENT-006: Đối thủ đã cọc chủ động rút
 
-Quá funding_deadline → REFUND_PENDING; hoàn creator 80%, giữ 20% khoản creator đã cọc.
+Participant chuyển WITHDRAWN, contribution chuyển FORFEITED, không refund, kèo mở lại và paid_amount không giảm. Người thay thế được chấp nhận mà không bị thu lại cùng phần cọc.
+
+### TC-OPPONENT-007: Tranh chấp một suất
+
+Hai đội bấm nhận gần đồng thời → khóa match/contribution chỉ cho một participant ở ACCEPTED_AWAITING_PAYMENT; đội còn lại nhận thông báo suất đang được giữ và không tạo payment/contribution dư.
+
+### TC-OPPONENT-008: Yêu cầu PENDING trước ADR-028
+
+Đại diện có yêu cầu PENDING cũ tự bấm tiếp tục → chính participant đó chuyển ACCEPTED_AWAITING_PAYMENT và giữ suất; không cần creator duyệt lại.
+
+### TC-OPPONENT-009: Lịch cá nhân và liên hệ sau cọc
+
+Trước payment SUCCESS, participant không thấy số creator. Sau payment SUCCESS, participant `JOINED`, kèo xuất hiện trong “Lịch & kèo của tôi”; creator và participant thấy đúng số Zalo của nhau, còn khách/user không liên quan không thấy số.
+
+### TC-OPPONENT-010: Kèo lịch sử thiếu snapshot liên hệ
+
+Match đã JOINED nhưng snapshot liên hệ NULL hiển thị form bổ sung cho đúng bên; sau khi nhập số và đồng ý chia sẻ, hai snapshot được lưu và chỉ hai bên xem được. Participant vẫn không truy cập được route sửa/hủy booking của creator.
 
 ## 9.10. Refund
 
@@ -244,15 +262,23 @@ Quá funding_deadline → REFUND_PENDING; hoàn creator 80%, giữ 20% khoản c
 
 PARTIALLY_PAID/PAID → refund 100% mọi khoản cọc; chỉ CANCELLED sau SUCCESS.
 
-### TC-REFUND-002: Refund 80/20
+### TC-REFUND-002: Creator chủ động hủy
 
-Creator đóng 90.000đ → refund 72.000đ, cancellation fee 18.000đ; không lấy 20% của total.
+DIRECT_BOOKING/FIND_PLAYERS hoặc FIND_OPPONENT chưa có payment đối thủ: creator không được refund, payment giữ SUCCESS, khoản đã đóng được ghi nhận là bị giữ và booking chuyển CANCELLED.
 
-### TC-REFUND-003: Refund đang xử lý/lặp
+### TC-REFUND-003: Creator hủy sau khi đối thủ đã cọc
+
+Creator mất phần cọc của mình; chỉ tạo refund 100% payment đối thủ. Booking giữ REFUND_PENDING và chỉ CANCELLED sau khi refund SUCCESS.
+
+### TC-REFUND-004: Refund đang xử lý/lặp
 
 Giữ REFUND_PENDING; query/retry idempotent và không hoàn quá payment gốc.
 
-### TC-REFUND-004: FIND_PLAYERS rút
+### TC-REFUND-005: Thu trùng/sai do hệ thống
+
+Hoàn 100% khoản bị ảnh hưởng, không sửa payment SUCCESS gốc và không tạo refund trùng khi retry callback/job.
+
+### TC-REFUND-006: FIND_PLAYERS rút
 
 Không có payment online nên không tạo refund.
 

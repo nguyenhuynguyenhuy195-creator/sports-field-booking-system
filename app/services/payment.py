@@ -268,32 +268,13 @@ def process_momo_payment_notification(
     client: MomoClient | None = None,
     now: datetime | None = None,
 ) -> Payment:
-    """Verify and apply an IPN/return idempotently using provider identifiers."""
+    """Verify and apply a server-to-server IPN idempotently."""
     momo = client or MomoClient.from_app_config()
-    try:
-        momo.verify_payment_notification(payload)
-    except MomoAPIError as exc:
-        raise PaymentError(str(exc)) from exc
-
-    order_id = str(payload.get("orderId", ""))
-    statement = with_update_lock(
-        db.select(Payment).where(
-            Payment.order_id == order_id,
-            Payment.provider == PaymentProvider.MOMO.value,
-        ),
-        Payment,
+    payment = _verified_momo_payment(
+        payload=payload,
+        momo=momo,
+        lock_for_update=True,
     )
-    payment = db.session.scalar(statement)
-    if payment is None:
-        raise PaymentNotFoundError("Không tìm thấy giao dịch MoMo.")
-    if str(payload.get("requestId", "")) != payment.request_id:
-        raise PaymentError("Mã yêu cầu MoMo không khớp giao dịch.")
-    try:
-        callback_amount = Decimal(str(payload.get("amount", "")))
-    except Exception as exc:
-        raise PaymentError("Số tiền callback MoMo không hợp lệ.") from exc
-    if callback_amount != Decimal(payment.amount):
-        raise PaymentError("Số tiền callback MoMo không khớp giao dịch.")
 
     result_code = str(payload.get("resultCode", ""))
     provider_trans_id = str(payload.get("transId", "")) or None
@@ -331,6 +312,52 @@ def process_momo_payment_notification(
         paid_at=_normalize_utc(now),
     )
     _commit_payment()
+    return payment
+
+
+def inspect_momo_return(
+    payload: dict,
+    *,
+    client: MomoClient | None = None,
+) -> Payment:
+    """Verify a browser return and read its payment without changing state."""
+    momo = client or MomoClient.from_app_config()
+    return _verified_momo_payment(
+        payload=payload,
+        momo=momo,
+        lock_for_update=False,
+    )
+
+
+def _verified_momo_payment(
+    *,
+    payload: dict,
+    momo: MomoClient,
+    lock_for_update: bool,
+) -> Payment:
+    try:
+        momo.verify_payment_notification(payload)
+    except MomoAPIError as exc:
+        raise PaymentError(str(exc)) from exc
+
+    order_id = str(payload.get("orderId", ""))
+    statement = db.select(Payment).where(
+        Payment.order_id == order_id,
+        Payment.provider == PaymentProvider.MOMO.value,
+    )
+    if lock_for_update:
+        statement = with_update_lock(statement, Payment)
+    payment = db.session.scalar(statement)
+    if payment is None:
+        raise PaymentNotFoundError("Không tìm thấy giao dịch MoMo.")
+    if str(payload.get("requestId", "")) != payment.request_id:
+        raise PaymentError("Mã yêu cầu MoMo không khớp giao dịch.")
+    try:
+        callback_amount = Decimal(str(payload.get("amount", "")))
+    except Exception as exc:
+        raise PaymentError("Số tiền callback MoMo không hợp lệ.") from exc
+    if callback_amount != Decimal(payment.amount):
+        raise PaymentError("Số tiền callback MoMo không khớp giao dịch.")
     return payment
 
 

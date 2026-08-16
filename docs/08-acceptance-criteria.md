@@ -74,7 +74,8 @@
 - deposit_rate snapshot bằng 0.3000.
 - deposit_amount được tính server-side từ total_amount và làm tròn đến đồng.
 - Booking mới là DEPOSIT_30; booking cũ là LEGACY_FULL_ONLINE với rate 1 để bảo toàn payment/contribution.
-- balance tại sân bằng total_amount trừ deposit_amount.
+- balance tại sân bằng total_amount trừ paid_amount thực thu ròng.
+- FIND_OPPONENT chỉ có cọc creator hiển thị còn 85%; khi đối thủ đã cọc hiển thị còn 70%.
 - paid_amount không vượt deposit_amount.
 - Giao diện không gọi trạng thái PAID là đã thanh toán toàn bộ tiền sân.
 
@@ -115,27 +116,30 @@
 ## AC-014: FIND_OPPONENT
 
 - Creator thanh toán 50% deposit_amount trong 15 phút.
-- Payment thành công chuyển booking PARTIALLY_PAID và cho mở match.
-- Chỉ một đại diện đối thủ được chấp nhận.
-- Đối thủ có tối đa 15 phút thanh toán và không vượt matchmaking_deadline.
+- Payment thành công chuyển booking PARTIALLY_PAID, giữ sân hợp lệ và cho mở match.
+- Đại diện bấm nhận kèo chuyển thẳng ACCEPTED_AWAITING_PAYMENT, không cần creator duyệt.
+- Khóa transaction bảo đảm chỉ một đại diện giữ contribution đối thủ tại một thời điểm.
+- Đối thủ có tối đa 15 phút thanh toán và không vượt giờ booking bắt đầu.
 - Đối thủ thanh toán đủ làm booking PAID/match CONFIRMED.
-- Creator top-up đủ trước funding_deadline làm booking PAID và nghĩa vụ đối thủ WAIVED.
+- Creator và đối thủ đều phải cung cấp số Zalo cùng sự đồng ý; trước payment thành công hai bên chưa xem số của nhau.
+- Sau payment thành công, participant thấy match trong lịch cá nhân và hai bên thấy nút Zalo; user khác không thấy số, participant không có quyền quản lý booking.
+- Không có đối thủ thì booking vẫn PARTIALLY_PAID hợp lệ, không yêu cầu creator top-up và không tạo refund.
 
-## AC-015: Deadline tìm đối thủ
+## AC-015: Thời gian tồn tại của bài tìm đối thủ
 
-- matchmaking_deadline bằng giờ bắt đầu trừ 12 giờ.
-- funding_deadline bằng matchmaking_deadline cộng 30 phút.
 - Không cho tạo FIND_OPPONENT nếu còn dưới 24 giờ.
-- Sau matchmaking_deadline không nhận payment đối thủ mới.
-- Quá funding_deadline chưa đủ cọc chuyển REFUND_PENDING.
+- Bài mở đến giờ booking bắt đầu, trừ khi creator đóng sớm hoặc đối thủ thanh toán thành công.
+- Tại giờ bắt đầu, không nhận suất/payment mới và các suất chưa hoàn tất hết hiệu lực.
+- Đóng bài không hủy booking, không giải phóng sân và không làm mất cọc creator.
+- Booking mới để matchmaking_deadline/funding_deadline NULL; deadline cũ chỉ còn cho dữ liệu legacy.
 
-## AC-016: Refund 80/20
+## AC-016: Người chơi chủ động hủy/rút hoặc no-show
 
-- Không đủ cọc FIND_OPPONENT: creator được hoàn 80% khoản đã đóng.
-- 20% khoản đã đóng được lưu ở cancellation_fee_amount.
-- Không tính phí trên total_amount.
-- Payment đối thủ cần hoàn do lỗi không thuộc họ được hoàn 100%.
-- Chỉ chuyển CANCELLED sau khi refund bắt buộc thành công.
+- Creator chủ động hủy hoặc no-show không được hoàn phần cọc của mình.
+- Đối thủ đã cọc mà chủ động rút/no-show chuyển WITHDRAWN/FORFEITED, không refund và vị trí mở lại.
+- Khoản đối thủ bị giữ tiếp tục tính vào paid_amount; người thay thế không bị thu cọc lần hai.
+- Creator hủy FIND_OPPONENT sau khi đối thủ đã cọc: creator mất phần của mình, đối thủ được hoàn 100%.
+- Payment gốc vẫn SUCCESS; cancellation_fee_amount/contribution FORFEITED lưu đúng lịch sử khoản bị giữ.
 
 ## AC-017: Owner hủy
 
@@ -144,6 +148,7 @@
 - PARTIALLY_PAID/PAID chuyển REFUND_PENDING.
 - Hoàn 100% mọi khoản cọc đã thu.
 - Payment gốc giữ SUCCESS, refund lưu riêng và idempotent.
+- Thanh toán trùng/sai do hệ thống cũng hoàn 100% khoản bị ảnh hưởng.
 
 ## AC-018: Số điện thoại và riêng tư
 
@@ -163,7 +168,7 @@
 
 - Hai request đồng thời không tạo booking giao nhau.
 - Payment/IPN đồng thời không làm paid_amount vượt deposit_amount.
-- Hai yêu cầu đối thủ không cùng chiếm contribution cuối.
+- Hai thao tác nhận kèo đồng thời không cùng chiếm contribution đối thủ; chỉ một đội nhận được payment_due_at.
 - Hai yêu cầu người ghép không làm match vượt required_players.
 - Commit lỗi rollback toàn bộ thay đổi.
 - Filtered unique index hoạt động đúng trên SQL Server.

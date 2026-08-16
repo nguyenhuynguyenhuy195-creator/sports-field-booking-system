@@ -242,9 +242,13 @@ Status: `PENDING`, `CONFIRMED`, `PARTIALLY_PAID`, `PAID`, `REFUND_PENDING`, `COM
 
 Luồng tự động mới tạo booking trực tiếp ở `CONFIRMED` và bắt buộc có `initial_payment_due_at` bằng thời điểm tạo cộng 15 phút. `PENDING` và `REJECTED` chỉ còn trong CHECK constraint để tương thích dữ liệu/migration của luồng duyệt cũ, không được service mới tạo ra.
 
-Với `DEPOSIT_30`, `deposit_rate` được snapshot ở `0.3000`; `deposit_amount` là 30% `total_amount` sau khi làm tròn đến đồng. `paid_amount` là tiền cọc online thành công ròng sau refund. Số còn lại tại sân được suy ra bằng `total_amount - deposit_amount` và không lưu trạng thái thanh toán riêng trong MVP. `PAID` nghĩa là đã đủ cọc. Booking `LEGACY_FULL_ONLINE` dùng rate 1 và được gắn nhãn lịch sử riêng trên UI.
+Với `DEPOSIT_30`, `deposit_rate` được snapshot ở `0.3000`; `deposit_amount` là mức cọc online mục tiêu tối đa bằng 30% `total_amount` sau khi làm tròn đến đồng. `paid_amount` là tiền cọc online thành công ròng sau refund và vẫn bao gồm khoản đã thu hợp lệ nhưng bị người nộp từ bỏ. Số còn lại tại sân được suy ra bằng `total_amount - paid_amount`, không phải luôn bằng `total_amount - deposit_amount`, và không lưu trạng thái thanh toán riêng trong MVP.
 
-`matchmaking_deadline` chỉ dùng cho `FIND_OPPONENT` và bằng giờ bắt đầu trừ 12 giờ. `funding_deadline` bằng `matchmaking_deadline + 30 phút`, là hạn creator top-up. Hai cột để `NULL` cho mode khác.
+DIRECT_BOOKING/FIND_PLAYERS đạt `PAID` sau khi creator trả đủ 30%. FIND_OPPONENT đạt `PARTIALLY_PAID` sau khi creator trả 15% và trạng thái này đã giữ sân hợp lệ; nếu đối thủ trả thêm 15% thì chuyển `PAID`. FIND_OPPONENT không có đối thủ có thể chuyển từ `PARTIALLY_PAID` sang `COMPLETED` sau giờ sử dụng. Booking `LEGACY_FULL_ONLINE` dùng rate 1 và được gắn nhãn lịch sử riêng trên UI.
+
+`matchmaking_deadline` và `funding_deadline` chỉ giữ để diễn giải booking FIND_OPPONENT theo chính sách cũ. Booking tạo theo ADR-027 để cả hai cột `NULL`; giờ booking bắt đầu là thời điểm đóng bài tìm đối thủ. Service phải nhận biết bản ghi legacy có deadline để không đổi hồi tố lịch sử đang diễn ra.
+
+`cancellation_fee_amount` lưu tổng tiền creator bị giữ khi chính creator hủy booking. Dữ liệu cũ có thể chứa phí 20% theo chính sách 80/20; booking mới có thể bằng toàn bộ phần creator đã đóng. Khoản đối thủ bị giữ khi họ rút nhưng booking vẫn tiếp tục được thể hiện bằng contribution `FORFEITED`, không cộng vào cancellation_fee_amount của booking.
 
 Check constraint tối thiểu:
 - `start_time < end_time`.
@@ -255,12 +259,13 @@ Check constraint tối thiểu:
 - `paid_amount >= 0 AND paid_amount <= deposit_amount`.
 - `cancellation_fee_amount >= 0 AND cancellation_fee_amount <= paid_amount`.
 - `FIND_PLAYERS` bắt buộc `requested_players > 0`; mode khác bắt buộc `requested_players IS NULL`.
-- `FIND_OPPONENT` bắt buộc có hai deadline và `matchmaking_deadline < funding_deadline`; mode khác bắt buộc hai cột này `NULL`.
+
+Ở tầng service, booking mới theo ADR-027 luôn để cả `matchmaking_deadline` và `funding_deadline` là `NULL`. Hai cột nullable không có check constraint mới vì cần giữ nguyên các snapshot legacy đã tồn tại.
 
 Index tối thiểu:
 - `(field_id, booking_date, status, start_time, end_time)` cho kiểm tra trùng.
 - `(user_id, created_at)` cho lịch sử user.
-- `(status, initial_payment_due_at)`, `(status, matchmaking_deadline)` và `(status, funding_deadline)` cho job deadline.
+- `(status, initial_payment_due_at)` cho giữ chỗ 15 phút. Hai index deadline cũ có thể được giữ tạm để xử lý booking legacy nhưng không còn phục vụ booking ADR-027.
 
 ## 5.11. Bảng `booking_price_details`
 
@@ -301,11 +306,13 @@ Status: `PENDING`, `PAID`, `EXPIRED`, `WAIVED`, `REFUND_PENDING`, `PARTIALLY_REF
 
 Tổng `amount_due` của các contribution còn hiệu lực phải đúng bằng `deposit_amount`; service phải khóa booking khi phân bổ hoặc cập nhật nghĩa vụ.
 
-`DIRECT_BOOKING` và `FIND_PLAYERS` mới chỉ tạo một contribution `CREATOR` bằng toàn bộ tiền cọc. `FIND_OPPONENT` tạo `CREATOR` và `OPPONENT`, mỗi bên chịu một nửa tiền cọc; phần cuối điều chỉnh sai số làm tròn. `user_id` của `OPPONENT` để `NULL` cho đến khi creator chấp nhận đại diện đối thủ.
+`DIRECT_BOOKING` và `FIND_PLAYERS` mới chỉ tạo một contribution `CREATOR` bằng toàn bộ tiền cọc. `FIND_OPPONENT` tạo `CREATOR` và `OPPONENT`, mỗi bên chịu một nửa tiền cọc; phần cuối điều chỉnh sai số làm tròn. `user_id` của `OPPONENT` để `NULL` cho đến khi một đại diện bấm nhận kèo và service khóa được suất thanh toán.
 
 `PLAYER` chỉ được giữ để bảo toàn lịch sử booking cũ trong migration; service mới không tạo contribution/payment cho người ghép. `slot_number` là `NULL` với `CREATOR`/`TOP_UP` và bắt buộc dương với `OPPONENT` hoặc dữ liệu `PLAYER` lịch sử. Filtered unique index `(booking_id, contribution_type, slot_number) WHERE slot_number IS NOT NULL AND status <> 'REFUNDED'` tiếp tục bảo vệ nghĩa vụ còn hiệu lực.
 
-`amount_paid` không được vượt `amount_due`. Khi creator top-up phần cọc đối thủ, nghĩa vụ `OPPONENT` chuyển `WAIVED` và contribution `TOP_UP` được tạo để bảo toàn lịch sử; chỉ nghĩa vụ còn hiệu lực dùng khi tính số tiền cần thu.
+`amount_paid` không được vượt `amount_due`. `TOP_UP` và việc chuyển `OPPONENT` sang `WAIVED` chỉ còn dùng để bảo toàn lịch sử chính sách cũ; service ADR-027 không tạo creator top-up bắt buộc.
+
+Với FIND_OPPONENT mới, contribution CREATOR `PAID` bằng 15% đã đủ làm booking hợp lệ. Contribution OPPONENT chưa có người có thể giữ `PENDING` đến giờ bắt đầu rồi chuyển `EXPIRED` mà không hủy booking. Nếu đối thủ đã thanh toán rồi chủ động rút/no-show, contribution chuyển `FORFEITED`, payment vẫn `SUCCESS`, khoản đó tiếp tục nằm trong `bookings.paid_amount` và người thay thế không được tạo thêm payment cho cùng nghĩa vụ.
 
 ## 5.13. Bảng `payments`
 
@@ -361,6 +368,8 @@ Status: `PENDING`, `PROCESSING`, `SUCCESS`, `FAILED`.
 
 Không sửa payment `SUCCESS` thành thất bại khi hoàn tiền; refund là bản ghi lịch sử riêng.
 
+Booking mới không tạo refund cho creator/đối thủ chủ động hủy, rút hoặc no-show. Refund được dùng khi owner hủy, hệ thống thu trùng/sai hoặc creator hủy khiến payment của đối thủ vô can phải được hoàn 100%.
+
 Filtered unique index cần có: `provider_refund_trans_id WHERE provider_refund_trans_id IS NOT NULL`. Service phải khóa payment và kiểm tra tổng refund `SUCCESS`/đang xử lý không vượt số tiền payment thành công.
 
 ## 5.15. Bảng `matches`
@@ -374,6 +383,7 @@ Filtered unique index cần có: `provider_refund_trans_id WHERE provider_refund
 | title | NVARCHAR(200) | NOT NULL |
 | description | NVARCHAR(MAX) | NULL |
 | skill_level | VARCHAR(30) | NULL |
+| creator_contact_phone | VARCHAR(20) | NULL |
 | total_players | INT | NULL, CHECK > 0 |
 | required_players | INT | NOT NULL, CHECK > 0 |
 | status | VARCHAR(20) | NOT NULL |
@@ -391,6 +401,10 @@ Validation có điều kiện:
 - `FIND_PLAYERS`: `required_players` do creator chọn nhưng không vượt capacity/play format.
 - Booking `SINGLES` không được tạo `FIND_PLAYERS`; booking `DOUBLES` tối đa 4 người.
 
+FIND_OPPONENT có effective state “đã đóng” từ giờ booking bắt đầu dù job chưa kịp cập nhật status lưu trữ. Query danh sách mở và service nhận kèo/thanh toán phải luôn đối chiếu ngày giờ booking, không chỉ dựa vào `matches.status`.
+
+`creator_contact_phone` là snapshot có sự đồng ý cho từng kèo. Migration để cột nullable nhằm giữ tương thích dữ liệu cũ; hệ thống không tự sao chép số hồ sơ vào match lịch sử. Creator của bản ghi cũ phải chủ động bổ sung và đồng ý chia sẻ.
+
 ## 5.16. Bảng `match_participants`
 
 | Cột | Kiểu dữ liệu | Ràng buộc |
@@ -401,7 +415,7 @@ Validation có điều kiện:
 | contribution_id | INT | FK → booking_contributions.id, NULL |
 | participant_type | VARCHAR(20) | NOT NULL |
 | message | NVARCHAR(500) | NULL |
-| contact_phone | VARCHAR(20) | NULL |
+| contact_phone | VARCHAR(20) | NULL; snapshot Zalo có sự đồng ý |
 | status | VARCHAR(30) | NOT NULL |
 | payment_due_at | DATETIME2 | NULL |
 | created_at | DATETIME2 | NOT NULL |
@@ -416,7 +430,11 @@ Service phải ngăn một user có hai yêu cầu đang hoạt động cho cùn
 
 `contact_phone` bắt buộc với yêu cầu `PLAYER`; đây là snapshot số dùng Zalo tại thời điểm gửi. Backend chỉ trả số này cho creator sau khi participant được chấp nhận và giao diện ẩn lại khi booking hoàn thành/hủy.
 
-`contribution_id` chỉ được gắn cho đại diện đối thủ cần thanh toán cọc. Participant `PLAYER` không có contribution/payment; khi được chấp nhận chuyển thẳng `JOINED` và `payment_due_at = NULL`.
+`contribution_id` chỉ được gắn cho đại diện đối thủ cần thanh toán cọc. Với booking mới, thao tác nhận kèo gắn contribution và chuyển participant thẳng sang `ACCEPTED_AWAITING_PAYMENT`; `decided_at` được dùng như thời điểm hệ thống tự xác nhận giữ suất. Participant `PLAYER` không có contribution/payment; khi creator chấp nhận thì chuyển thẳng `JOINED` và `payment_due_at = NULL`.
+
+`PENDING` tiếp tục dùng cho FIND_PLAYERS và yêu cầu đối thủ cũ tạo trước ADR-028. Booking FIND_OPPONENT mới không tạo `PENDING`; booking legacy có deadline vẫn có thể dùng bước duyệt cũ.
+
+Đại diện đối thủ đã cọc rồi chủ động rút chuyển `WITHDRAWN`; contribution cũ giữ lịch sử ở `FORFEITED`. Nếu bài mở lại, người thay thế được tham gia mà không bị thu lại phần cọc đã nằm trong booking.
 
 Filtered unique index hoặc cơ chế khóa tương đương cần áp dụng cho `(match_id, user_id)` ở các trạng thái `PENDING`, `ACCEPTED_AWAITING_PAYMENT` và `JOINED`.
 
@@ -442,35 +460,29 @@ Filtered unique index hoặc cơ chế khóa tương đương cần áp dụng c
 - Không tạo hai lịch bảo trì `ACTIVE` chồng nhau cho cùng field.
 - Không chồng khung giá và phải phủ đủ thời gian booking.
 - Không thu tiền cọc vượt `deposit_amount`.
+- Số còn lại tại sân luôn lấy `total_amount - paid_amount` ròng; không mặc định 70% khi FIND_OPPONENT chưa có đối thủ.
 - Không có hai payment `SUCCESS` cho cùng một contribution.
 - Không refund vượt số tiền payment đã thành công.
+- Không tạo refund cho bên chủ động hủy/rút/no-show; hoàn 100% cho bên không có lỗi khi owner/creator phía kia/hệ thống gây hủy hoặc thu sai.
 - Không nhận quá số vị trí còn thiếu hoặc quá capacity/play format.
 - Không tạo hai match cho cùng một booking.
 - Không xử lý IPN/refund callback lặp lại hai lần.
 - `payments` và `refunds` là lịch sử tiền gốc; `booking_contributions.amount_paid` và `bookings.paid_amount` là số tổng hợp phải cập nhật cùng transaction.
 - Không cascade delete dữ liệu lịch sử; dữ liệu đã được tham chiếu phải chuyển trạng thái.
-- Không trả `match_participants.contact_phone` cho người không phải creator hoặc trước khi yêu cầu được chấp nhận.
+- Không trả `matches.creator_contact_phone` hoặc `match_participants.contact_phone` cho user không liên quan, trước khi participant `JOINED`, hoặc sau khi booking kết thúc/hủy.
+- Việc participant xuất hiện trong lịch cá nhân được suy ra từ `match_participants.user_id/status`; không tạo booking thứ hai và không thay đổi `bookings.user_id`.
 - Tìm theo bán kính chỉ dùng venue `ACTIVE` có cặp tọa độ hợp lệ.
 
-## 5.19. Kế hoạch migration và tài liệu còn phải tạo
+## 5.19. Tương thích dữ liệu khi triển khai ADR-027
 
-Migration chưa được tạo ở giai đoạn cập nhật tài liệu. Khi ERD được duyệt, migration phải thực hiện theo thứ tự an toàn:
+Rà soát model và chuỗi migration hiện có cho thấy `matchmaking_deadline` và `funding_deadline` đều đã nullable, đồng thời không có check constraint bắt buộc FIND_OPPONENT phải có deadline. Vì vậy ADR-027 không cần migration schema mới:
 
-1. Tạo `sports` và `field_types`, seed 4 sport và 6 field type.
-2. Thêm `fields.field_type_id` nullable; ánh xạ `FIVE_A_SIDE`, `SEVEN_A_SIDE`, `ELEVEN_A_SIDE` sang ba field type bóng đá.
-3. Kiểm tra không còn bản ghi chưa ánh xạ, chuyển `field_type_id` thành NOT NULL rồi mới bỏ cột/check constraint `field_type` cũ.
-4. Thêm `google_place_id`, `latitude`, `longitude` nullable cho venue; không tự bịa tọa độ dữ liệu cũ.
-5. Thêm các cột booking mới (`booking_mode`, `play_format`, `requested_players`, `payment_policy`, snapshot cọc và deadline) ở trạng thái nullable, backfill:
-   - `FULL_PAYMENT` → `DIRECT_BOOKING`.
-   - `SPLIT_OPPONENT` → `FIND_OPPONENT`.
-   - `SPLIT_PLAYERS` → `FIND_PLAYERS`.
-6. Ánh xạ `split_required_players` cũ sang `requested_players` cho FIND_PLAYERS trước khi bỏ hai cột split cũ.
-7. Backfill booking cũ thành `payment_policy = LEGACY_FULL_ONLINE`, `deposit_rate = 1.0000`, `deposit_amount = total_amount` để giữ nguyên payment/contribution lịch sử. Booking tạo sau migration dùng `DEPOSIT_30` và rate 0.3000.
-8. Thêm `match_participants.contact_phone` nullable; chỉ bắt buộc ở service cho yêu cầu PLAYER mới.
-9. Thay check constraint/index sau khi backfill và kiểm tra trực tiếp trên SQL Server.
+1. Service tạo booking mới để cả hai deadline là `NULL`.
+2. Giữ hai cột và index deadline để xử lý booking legacy; chưa drop cột hoặc xóa migration cũ.
+3. Giữ `cancellation_fee_amount`, `TOP_UP`, `WAIVED` và refund 80/20 cũ để đọc đúng lịch sử; service mới không tạo top-up/refund 80/20.
+4. Booking đã có deadline tiếp tục theo chính sách snapshot cũ; booking tạo mới dùng ADR-027.
+5. Job funding-expire chỉ xử lý bản ghi legacy có deadline; bài ADR-027 hết hiệu lực theo giờ booking bắt đầu.
 
-Migration phải kiểm kê booking tương lai đang `CONFIRMED`/`PARTIALLY_PAID`/`PAID`. Không tự chuyển luồng nghiệp vụ của booking đang diễn ra; cần hoàn tất/hủy chúng hoặc có kế hoạch tương thích rõ trước khi bật service mới.
+Không reset database, không chạy DROP và không sửa migration cũ. Vẫn phải chạy `flask db upgrade`, `flask db check`, test SQL Server và test hồi quy để xác nhận model đang khớp migration head.
 
-Không xóa migration cũ, không reset database và không chạy DROP. Cần backup trước khi upgrade dữ liệu thật.
-
-Nguồn ERD nằm tại `docs/diagrams/erd.mmd`; `erd.png` được xuất từ đúng nguồn hiện hành và phải xuất lại nếu thiết kế tiếp tục thay đổi.
+Nguồn ERD `docs/diagrams/erd.mmd` chưa cần đổi cấu trúc vì hai cột deadline vẫn được giữ để tương thích; ý nghĩa mới được mô tả trong tài liệu này.

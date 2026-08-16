@@ -52,12 +52,8 @@ def _prepare_joined_opponent(app):
         participant = request_to_join_match(
             match_id=match_id,
             user=db.session.get(User, opponent.id),
-        )
-        decide_match_request(
-            match_id=match_id,
-            participant_id=participant.id,
-            creator=db.session.get(User, creator.id),
-            accept=True,
+            contact_phone="0901000002",
+            share_contact=True,
         )
         pay_contribution_with_mock(
             booking_code=booking_code,
@@ -67,7 +63,7 @@ def _prepare_joined_opponent(app):
         return owner, creator, opponent, booking_code, match_id, participant.id
 
 
-def test_creator_cancels_partial_booking_with_80_20_policy(app):
+def test_creator_cancels_partial_booking_and_loses_own_deposit(app):
     owner = create_user(app, email="owner@example.com", role=UserRole.OWNER)
     creator = create_user(app, email="creator@example.com")
     _, field_id = create_bookable_field(app, owner_id=owner.id)
@@ -83,7 +79,6 @@ def test_creator_cancels_partial_booking_with_80_20_policy(app):
             booking_code=booking_code,
             user=db.session.get(User, creator.id),
         )
-        refund = db.session.scalar(db.select(Refund))
         payment = db.session.scalar(db.select(Payment))
         creator_contribution = db.session.scalar(
             db.select(BookingContribution).where(
@@ -92,16 +87,39 @@ def test_creator_cancels_partial_booking_with_80_20_policy(app):
         )
 
         assert booking.status == BookingStatus.CANCELLED.value
-        assert booking.paid_amount == Decimal("12000.00")
-        assert booking.cancellation_fee_amount == Decimal("12000.00")
-        assert refund.amount == Decimal("48000.00")
-        assert refund.status == RefundStatus.SUCCESS.value
+        assert booking.paid_amount == Decimal("60000.00")
+        assert booking.cancellation_fee_amount == Decimal("60000.00")
+        assert db.session.scalar(db.select(db.func.count(Refund.id))) == 0
         assert payment.status == PaymentStatus.SUCCESS.value
-        assert creator_contribution.amount_paid == Decimal("12000.00")
-        assert (
-            creator_contribution.status
-            == ContributionStatus.PARTIALLY_REFUNDED.value
+        assert creator_contribution.amount_paid == Decimal("60000.00")
+        assert creator_contribution.status == ContributionStatus.FORFEITED.value
+
+
+def test_creator_cancel_refunds_opponent_but_forfeits_creator_deposit(app):
+    _, creator, opponent, booking_code, match_id, _ = _prepare_joined_opponent(app)
+
+    with app.app_context():
+        booking = cancel_user_booking(
+            booking_code=booking_code,
+            user=db.session.get(User, creator.id),
         )
+        refunds = list(db.session.scalars(db.select(Refund)))
+        contributions = list(
+            db.session.scalars(
+                db.select(BookingContribution).order_by(BookingContribution.id)
+            )
+        )
+
+        assert booking.status == BookingStatus.CANCELLED.value
+        assert booking.paid_amount == Decimal("60000.00")
+        assert booking.cancellation_fee_amount == Decimal("60000.00")
+        assert len(refunds) == 1
+        assert refunds[0].recipient_id == opponent.id
+        assert refunds[0].amount == Decimal("60000.00")
+        assert refunds[0].status == RefundStatus.SUCCESS.value
+        assert contributions[0].status == ContributionStatus.FORFEITED.value
+        assert contributions[1].status == ContributionStatus.REFUNDED.value
+        assert db.session.get(Match, match_id).status == MatchStatus.CANCELLED.value
 
 
 def test_owner_cancels_paid_booking_and_refunds_every_payment(app):
@@ -157,7 +175,7 @@ def test_funding_deadline_refund_job_is_idempotent(app):
         assert booking.cancellation_fee_amount == Decimal("12000.00")
 
 
-def test_paid_participant_withdraws_over_12_hours_with_full_refund(app):
+def test_legacy_paid_participant_withdraws_over_12_hours_with_full_refund(app):
     _, _, opponent, booking_code, match_id, participant_id = (
         _prepare_joined_opponent(app)
     )
@@ -167,12 +185,20 @@ def test_paid_participant_withdraws_over_12_hours_with_full_refund(app):
         booking = db.session.scalar(
             db.select(Booking).where(Booking.booking_code == booking_code)
         )
+        booking_start_utc = datetime.combine(
+            booking.booking_date,
+            booking.start_time,
+        ) - timedelta(hours=7)
+        booking.matchmaking_deadline = booking_start_utc - timedelta(hours=12)
+        booking.funding_deadline = booking.matchmaking_deadline + timedelta(minutes=30)
+        db.session.commit()
         old_contribution_id = db.session.get(
             MatchParticipant, participant_id
         ).contribution_id
         participant = withdraw_match_request(
             match_id=match_id,
             user=db.session.get(User, opponent.id),
+            now=booking_start_utc - timedelta(hours=13),
         )
         old_contribution = db.session.get(
             BookingContribution, old_contribution_id
@@ -199,6 +225,8 @@ def test_paid_participant_withdraws_over_12_hours_with_full_refund(app):
         replacement_request = request_to_join_match(
             match_id=match_id,
             user=db.session.get(User, replacement_user.id),
+            contact_phone="0901000003",
+            share_contact=True,
         )
         decide_match_request(
             match_id=match_id,
@@ -216,10 +244,11 @@ def test_paid_participant_withdraws_over_12_hours_with_full_refund(app):
         assert booking.paid_amount == booking.deposit_amount
 
 
-def test_paid_participant_withdraws_inside_12_hours_without_refund(app):
+def test_current_paid_opponent_withdraws_without_refund_and_replacement_pays_nothing(app):
     _, _, opponent, booking_code, match_id, participant_id = (
         _prepare_joined_opponent(app)
     )
+    replacement_user = create_user(app, email="replacement-current@example.com")
 
     with app.app_context():
         booking = db.session.scalar(
@@ -232,7 +261,7 @@ def test_paid_participant_withdraws_inside_12_hours_without_refund(app):
         participant = withdraw_match_request(
             match_id=match_id,
             user=db.session.get(User, opponent.id),
-            now=booking_start_utc - timedelta(hours=10),
+            now=booking_start_utc - timedelta(hours=20),
         )
         contribution = db.session.get(
             BookingContribution,
@@ -246,8 +275,37 @@ def test_paid_participant_withdraws_inside_12_hours_without_refund(app):
         assert booking.paid_amount == booking.deposit_amount
         assert db.session.scalar(db.select(db.func.count(Refund.id))) == 0
 
+        replacement_request = request_to_join_match(
+            match_id=match_id,
+            user=db.session.get(User, replacement_user.id),
+            contact_phone="0901000003",
+            share_contact=True,
+        )
+        assert replacement_request.status == MatchParticipantStatus.JOINED.value
+        assert replacement_request.contribution_id is None
+        assert booking.status == BookingStatus.PAID.value
 
-def test_creator_cancel_route_renders_refund_history(app, client):
+
+def test_creator_cancel_does_not_refund_a_previously_forfeited_opponent(app):
+    _, creator, opponent, booking_code, match_id, _ = _prepare_joined_opponent(app)
+
+    with app.app_context():
+        withdraw_match_request(
+            match_id=match_id,
+            user=db.session.get(User, opponent.id),
+        )
+        booking = cancel_user_booking(
+            booking_code=booking_code,
+            user=db.session.get(User, creator.id),
+        )
+
+        assert booking.status == BookingStatus.CANCELLED.value
+        assert booking.paid_amount == Decimal("120000.00")
+        assert booking.cancellation_fee_amount == Decimal("60000.00")
+        assert db.session.scalar(db.select(db.func.count(Refund.id))) == 0
+
+
+def test_creator_cancel_route_renders_forfeited_deposit(app, client):
     owner = create_user(app, email="owner@example.com", role=UserRole.OWNER)
     creator = create_user(app, email="creator@example.com")
     _, field_id = create_bookable_field(app, owner_id=owner.id)
@@ -259,6 +317,12 @@ def test_creator_cancel_route_renders_refund_history(app, client):
     )
     login(client, email=creator.email)
 
+    detail_response = client.get(f"/bookings/{booking_code}")
+    detail_page = detail_response.get_data(as_text=True)
+    assert detail_response.status_code == 200
+    assert "Xác nhận hủy và mất cọc?" in detail_page
+    assert "Hủy và chấp nhận mất cọc" in detail_page
+
     response = client.post(
         f"/bookings/{booking_code}/cancel",
         follow_redirects=True,
@@ -267,8 +331,9 @@ def test_creator_cancel_route_renders_refund_history(app, client):
     page = response.get_data(as_text=True)
     assert response.status_code == 200
     assert "Lịch sử thanh toán" in page
-    assert "Lịch sử hoàn tiền" in page
-    assert "48.000" in page
+    assert "Lịch sử hoàn tiền" not in page
+    assert "60.000" in page
     assert "Phí giữ sân" in page
     assert "Còn thiếu:" not in page
     assert "Booking đã được hủy" in page
+    assert "tiền cọc không được hoàn" in page

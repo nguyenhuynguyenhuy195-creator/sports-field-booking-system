@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from app.models import (
     Booking,
     BookingMode,
@@ -52,3 +54,13 @@ def test_booking_tables_have_required_constraints_and_indexes():
     assert "ix_bookings_user_created" in booking_indexes
     assert "ix_bookings_status_initial_payment_due" in booking_indexes
     assert "ix_bookings_status_matchmaking_deadline" in booking_indexes
+
+
+def test_balance_due_at_venue_uses_actual_net_payment():
+    booking = Booking(
+        total_amount=Decimal("400000.00"),
+        deposit_amount=Decimal("120000.00"),
+        paid_amount=Decimal("60000.00"),
+    )
+
+    assert booking.balance_due_at_venue == Decimal("340000.00")

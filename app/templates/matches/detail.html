@@ -52,9 +52,9 @@
                             <h2 class="h5 fw-bold mb-1">Yêu cầu tham gia</h2>
                             <p class="small text-secondary mb-0">
                                 {% if match.match_type == 'FIND_OPPONENT' %}
-                                    Đội được duyệt có tối đa 15 phút để thanh toán phần cọc cam kết.
+                                    Đội bấm nhận kèo sẽ tự giữ suất tối đa 15 phút để thanh toán cọc; bạn không cần duyệt.
                                 {% else %}
-                                    Người được duyệt vào đội ngay, không cần cọc và thanh toán trực tiếp tại sân.
+                                    Người được xác nhận vào đội không cần cọc và thanh toán trực tiếp tại sân.
                                 {% endif %}
                             </p>
                         </div>
@@ -70,13 +70,16 @@
                                     </div>
                                     {% if participant.message %}<p class="small text-secondary mt-2 mb-0">{{ participant.message }}</p>{% endif %}
                                     {% if contact_visible and participant.status == 'JOINED' and participant.contact_phone %}
-                                        <div class="small mt-2">Zalo liên hệ: <strong>{{ participant.contact_phone }}</strong></div>
+                                        <div class="small mt-2">
+                                            Zalo liên hệ: <strong>{{ participant.contact_phone }}</strong>
+                                            <a class="ms-2" href="https://zalo.me/{{ participant.contact_phone|phone_digits }}" target="_blank" rel="noopener">Mở Zalo</a>
+                                        </div>
                                     {% endif %}
                                     {% if participant.status == 'ACCEPTED_AWAITING_PAYMENT' %}
                                         <div class="small mt-2">Hạn thanh toán: <strong>{{ participant.payment_due_at|local_datetime }}</strong></div>
                                     {% endif %}
                                 </div>
-                                {% if participant.status == 'PENDING' and match.status == 'OPEN' %}
+                                {% if participant.status == 'PENDING' and match.status == 'OPEN' and not opponent_auto_join %}
                                     <div class="d-flex gap-2">
                                         <form method="post" action="{{ url_for('matches.reject', match_id=match.id, participant_id=participant.id) }}">
                                             {{ action_form.hidden_tag() }}
@@ -101,14 +104,41 @@
             <aside class="booking-detail-card booking-action-card">
                 {% if current_user.is_authenticated and current_user.id == match.creator_id %}
                     <h2 class="h5 fw-bold">Bạn là người tạo kèo</h2>
-                    <p class="text-secondary">Theo dõi và duyệt yêu cầu ở danh sách bên trái. Tiền sân còn thiếu được quản lý tại booking.</p>
+                    <p class="text-secondary">
+                        {% if opponent_auto_join %}
+                            Đối thủ tự giữ suất và được xác nhận ngay sau khi thanh toán cọc. Bạn không cần duyệt yêu cầu.
+                        {% else %}
+                            Theo dõi và xác nhận yêu cầu ở danh sách bên trái. Tiền sân còn thiếu được quản lý tại booking.
+                        {% endif %}
+                    </p>
+                    <div class="match-contact-card mb-3">
+                        <span class="small text-secondary">Số Zalo bạn chia sẻ</span>
+                        {% if match.creator_contact_phone %}
+                            <strong class="d-block">{{ match.creator_contact_phone }}</strong>
+                        {% else %}
+                            <strong class="d-block text-warning">Chưa cung cấp</strong>
+                        {% endif %}
+                        <details class="mt-2"{% if not match.creator_contact_phone %} open{% endif %}>
+                            <summary class="small">{{ 'Cập nhật số liên hệ' if match.creator_contact_phone else 'Bổ sung số liên hệ' }}</summary>
+                            <form class="mt-3" method="post" action="{{ url_for('matches.update_contact', match_id=match.id) }}">
+                                {{ contact_form.hidden_tag() }}
+                                {{ contact_form.contact_phone.label(class="form-label") }}
+                                {{ contact_form.contact_phone(class="form-control", type="tel", placeholder="Ví dụ: 0912345678", required=true) }}
+                                <div class="form-check mt-2">
+                                    {{ contact_form.share_contact(class="form-check-input", required=true) }}
+                                    {{ contact_form.share_contact.label(class="form-check-label") }}
+                                </div>
+                                <button class="btn btn-sm btn-outline-primary w-100 mt-3" type="submit">Lưu số Zalo</button>
+                            </form>
+                        </details>
+                    </div>
                     <a class="btn btn-primary w-100" href="{{ url_for('bookings.detail', booking_code=match.booking.booking_code) }}">Mở chi tiết booking</a>
                 {% elif current_request and current_request.status == 'ACCEPTED_AWAITING_PAYMENT' %}
                     <h2 class="h5 fw-bold">Hoàn tất phần tiền của bạn</h2>
-                    <p class="text-secondary">Bạn đã được chấp nhận. Thanh toán trong 15 phút để chính thức vào kèo.</p>
+                    <p class="text-secondary">Bạn đang giữ suất đối thủ. Thanh toán trong 15 phút để chính thức vào kèo, không cần chờ người tạo duyệt.</p>
                     <div class="booking-countdown mb-3" data-booking-countdown data-deadline="{{ current_request.payment_due_at.isoformat() }}Z">Đang tính thời gian còn lại…</div>
                     <div class="payment-due-box mb-3">
-                        <span>Phần tiền sân của bạn</span>
+                        <span>Tiền cọc đội bạn (15%)</span>
                         <strong>{{ current_request.contribution.remaining_amount|vnd_currency }}</strong>
                     </div>
                     <form method="post" action="{{ url_for('payments.pay_momo' if momo_enabled else 'payments.pay_mock', booking_code=match.booking.booking_code, contribution_id=current_request.contribution_id, return_to_match=match.id) }}">
@@ -134,13 +164,54 @@
                     <div class="small text-secondary mb-3">
                         {% if match.match_type == 'FIND_PLAYERS' %}
                             Nếu không thể tham gia, hãy báo rút sớm và liên hệ người tạo qua Zalo.
+                        {% elif match.booking.matchmaking_deadline is none and match.booking.funding_deadline is none %}
+                            Nếu đội bạn rút, phần cọc đã đóng không được hoàn và bài tìm đối thủ sẽ mở lại.
                         {% elif withdrawal_gets_refund %}
                             Rút lúc này được hoàn 100% phần tiền bạn đã đóng vì còn trên 12 giờ trước trận.
                         {% else %}
                             Rút trong vòng 12 giờ trước trận sẽ không được hoàn tiền.
                         {% endif %}
                     </div>
-                    <form method="post" action="{{ url_for('matches.withdraw', match_id=match.id) }}">
+                    <div class="match-contact-card mb-3">
+                        <span class="small text-secondary">Liên hệ người đăng kèo</span>
+                        <strong class="d-block">{{ match.creator.full_name }}</strong>
+                        {% if contact_visible and match.creator_contact_phone %}
+                            <div class="mt-2">
+                                <strong>{{ match.creator_contact_phone }}</strong>
+                                <a class="btn btn-sm btn-outline-primary ms-2" href="https://zalo.me/{{ match.creator_contact_phone|phone_digits }}" target="_blank" rel="noopener">Liên hệ qua Zalo</a>
+                            </div>
+                        {% else %}
+                            <p class="small text-warning mt-2 mb-0">Người đăng chưa bổ sung số Zalo cho kèo này.</p>
+                        {% endif %}
+                    </div>
+                    <div class="match-contact-card mb-3">
+                        <span class="small text-secondary">Số Zalo bạn chia sẻ</span>
+                        {% if current_request.contact_phone %}
+                            <strong class="d-block">{{ current_request.contact_phone }}</strong>
+                        {% else %}
+                            <strong class="d-block text-warning">Chưa cung cấp</strong>
+                        {% endif %}
+                        <details class="mt-2"{% if not current_request.contact_phone %} open{% endif %}>
+                            <summary class="small">{{ 'Cập nhật số liên hệ' if current_request.contact_phone else 'Bổ sung số liên hệ' }}</summary>
+                            <form class="mt-3" method="post" action="{{ url_for('matches.update_contact', match_id=match.id) }}">
+                                {{ contact_form.hidden_tag() }}
+                                {{ contact_form.contact_phone.label(class="form-label") }}
+                                {{ contact_form.contact_phone(class="form-control", type="tel", placeholder="Ví dụ: 0912345678", required=true) }}
+                                <div class="form-check mt-2">
+                                    {{ contact_form.share_contact(class="form-check-input", required=true) }}
+                                    {{ contact_form.share_contact.label(class="form-check-label") }}
+                                </div>
+                                <button class="btn btn-sm btn-outline-primary w-100 mt-3" type="submit">Lưu số Zalo</button>
+                            </form>
+                        </details>
+                    </div>
+                    <form method="post"
+                          action="{{ url_for('matches.withdraw', match_id=match.id) }}"
+                          {% if match.match_type == 'FIND_OPPONENT' and current_request.contribution and current_request.contribution.amount_paid > 0 and ((match.booking.matchmaking_deadline is none and match.booking.funding_deadline is none) or not withdrawal_gets_refund) %}
+                          data-confirm-title="Xác nhận rút và mất cọc?"
+                          data-confirm-message="Phần cọc đội bạn đã đóng sẽ không được hoàn. Bài tìm đối thủ sẽ mở lại để nhận đội khác. Bạn vẫn muốn rút?"
+                          data-confirm-button="Rút và chấp nhận mất cọc"
+                          {% endif %}>
                         {{ action_form.hidden_tag() }}
                         <button class="btn btn-outline-danger w-100" type="submit">Báo rút khỏi kèo</button>
                     </form>
@@ -153,7 +224,7 @@
                     {% elif current_request.contribution and current_request.contribution.status == 'FORFEITED' %}
                         <div class="alert alert-warning mb-0">
                             <strong>Đã ghi nhận rút khỏi kèo.</strong><br>
-                            Khoản đã đóng không được hoàn vì bạn rút trong vòng 12 giờ trước trận.
+                            Khoản đã đóng không được hoàn theo chính sách rút khỏi kèo.
                         </div>
                     {% else %}
                         <div class="alert alert-light border mb-0">Bạn đã rút yêu cầu tham gia.</div>
@@ -161,52 +232,68 @@
                     {% if match.status == 'OPEN' %}
                         <form class="mt-3" method="post" action="{{ url_for('matches.join', match_id=match.id) }}">
                             {{ join_form.hidden_tag() }}
-                            {% if match.match_type == 'FIND_PLAYERS' %}
-                                {{ join_form.contact_phone.label(class="form-label") }}
-                                {{ join_form.contact_phone(class="form-control", placeholder="Ví dụ: 0912345678") }}
-                                <div class="form-check mt-2">
-                                    {{ join_form.share_contact(class="form-check-input") }}
-                                    {{ join_form.share_contact.label(class="form-check-label") }}
-                                </div>
-                            {% endif %}
+                            {{ join_form.contact_phone.label(class="form-label") }}
+                            {{ join_form.contact_phone(class="form-control", type="tel", placeholder="Ví dụ: 0912345678", required=true) }}
+                            <div class="form-check mt-2">
+                                {{ join_form.share_contact(class="form-check-input", required=true) }}
+                                {{ join_form.share_contact.label(class="form-check-label") }}
+                            </div>
                             {{ join_form.message.label(class="form-label") }}
                             {{ join_form.message(class="form-control", rows="3", placeholder="Giới thiệu lại nếu bạn muốn tham gia") }}
                             <button class="btn btn-primary w-100 mt-3" type="submit">Gửi lại yêu cầu tham gia</button>
                         </form>
                     {% endif %}
                 {% elif current_request and current_request.status == 'PENDING' %}
-                    <h2 class="h5 fw-bold">Đang chờ duyệt</h2>
-                    <p class="text-secondary">Người tạo kèo chưa xử lý yêu cầu của bạn.</p>
-                    <form method="post" action="{{ url_for('matches.withdraw', match_id=match.id) }}">
-                        {{ action_form.hidden_tag() }}
-                        <button class="btn btn-outline-danger w-100" type="submit">Rút yêu cầu</button>
-                    </form>
+                    {% if opponent_auto_join %}
+                        <h2 class="h5 fw-bold">Tiếp tục nhận kèo</h2>
+                        <p class="text-secondary">Đây là yêu cầu được tạo trước khi áp dụng quy trình tự động. Bấm tiếp tục để giữ suất thanh toán mà không cần người tạo kèo duyệt.</p>
+                        <form method="post" action="{{ url_for('matches.join', match_id=match.id) }}">
+                            {{ join_form.hidden_tag() }}
+                            <div class="mb-3">
+                                {{ join_form.contact_phone.label(class="form-label") }}
+                                {{ join_form.contact_phone(class="form-control", type="tel", placeholder="Ví dụ: 0912345678", required=true) }}
+                            </div>
+                            <div class="form-check mb-3">
+                                {{ join_form.share_contact(class="form-check-input", required=true) }}
+                                {{ join_form.share_contact.label(class="form-check-label") }}
+                            </div>
+                            <button class="btn btn-primary w-100" type="submit">Giữ suất và thanh toán cọc</button>
+                        </form>
+                    {% else %}
+                        <h2 class="h5 fw-bold">Chờ xác nhận vào đội</h2>
+                        <p class="text-secondary">Luồng này chỉ áp dụng khi tìm thêm người chơi; người tạo đội chưa xử lý yêu cầu của bạn.</p>
+                        <form method="post" action="{{ url_for('matches.withdraw', match_id=match.id) }}">
+                            {{ action_form.hidden_tag() }}
+                            <button class="btn btn-outline-danger w-100" type="submit">Rút yêu cầu</button>
+                        </form>
+                    {% endif %}
                 {% elif match.status == 'OPEN' %}
-                    <h2 class="h5 fw-bold">Gửi yêu cầu tham gia</h2>
+                    <h2 class="h5 fw-bold">{{ 'Nhận kèo' if opponent_auto_join else 'Gửi yêu cầu tham gia' }}</h2>
                     {% if current_user.is_authenticated and current_user.role in ['USER', 'OWNER'] %}
                         {% if current_request %}
                             <div class="alert alert-light border small">Yêu cầu trước của bạn: <strong>{{ participant_status_labels[current_request.status] }}</strong>. Bạn có thể gửi lại khi kèo vẫn còn mở.</div>
                         {% endif %}
                         <form method="post" action="{{ url_for('matches.join', match_id=match.id) }}">
                             {{ join_form.hidden_tag() }}
-                            {% if match.match_type == 'FIND_PLAYERS' %}
-                                <div class="mb-3">
-                                    {{ join_form.contact_phone.label(class="form-label") }}
-                                    {{ join_form.contact_phone(class="form-control", placeholder="Ví dụ: 0912345678") }}
-                                    {% for error in join_form.contact_phone.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
-                                </div>
-                                <div class="form-check mb-3">
-                                    {{ join_form.share_contact(class="form-check-input") }}
-                                    {{ join_form.share_contact.label(class="form-check-label") }}
-                                </div>
-                            {% endif %}
+                            <div class="mb-3">
+                                {{ join_form.contact_phone.label(class="form-label") }}
+                                {{ join_form.contact_phone(class="form-control", type="tel", placeholder="Ví dụ: 0912345678", required=true) }}
+                                {% for error in join_form.contact_phone.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                            </div>
+                            <div class="form-check mb-3">
+                                {{ join_form.share_contact(class="form-check-input", required=true) }}
+                                {{ join_form.share_contact.label(class="form-check-label") }}
+                                {% for error in join_form.share_contact.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                            </div>
                             {{ join_form.message.label(class="form-label") }}
                             {{ join_form.message(class="form-control", rows="4", placeholder="Giới thiệu ngắn về đội hoặc vị trí của bạn") }}
-                            <button class="btn btn-primary w-100 mt-3" type="submit">Gửi yêu cầu tham gia</button>
+                            <button class="btn btn-primary w-100 mt-3" type="submit">{{ 'Nhận kèo và thanh toán cọc' if opponent_auto_join else 'Gửi yêu cầu tham gia' }}</button>
                         </form>
                         <p class="small text-secondary mt-2 mb-0">
                             {% if match.match_type == 'FIND_PLAYERS' %}
                                 Không cần cọc. Số Zalo chỉ hiện cho người tạo sau khi họ chấp nhận bạn.
+                            {% elif opponent_auto_join %}
+                                Bấm nhận kèo sẽ giữ suất cho đội bạn trong 15 phút. Thanh toán cọc thành công là tự động tham gia, không cần người tạo kèo duyệt.
                             {% else %}
                                 Chỉ thanh toán phần cọc cam kết sau khi người tạo chấp nhận.
                             {% endif %}

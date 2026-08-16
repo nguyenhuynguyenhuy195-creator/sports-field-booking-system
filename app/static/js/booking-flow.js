@@ -540,7 +540,7 @@
                 ? `${plan.requested_players} người ghép không cần cọc và thanh toán tại sân.`
                 : "Bạn thanh toán toàn bộ khoản cọc 30%.";
         }
-        return "Bạn trả 15% tiền sân; đội đối thủ trả 15% còn lại của khoản cọc.";
+        return "Bạn trả 15% để giữ sân; đội nhận kèo trả 15% và tham gia ngay sau khi thanh toán. Không có đối thủ, booking vẫn còn hiệu lực.";
     }
 
     function setText(selector, value) {

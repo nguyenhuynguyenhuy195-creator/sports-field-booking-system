@@ -26,6 +26,7 @@ from app.models import (
     PaymentStatus,
     PlayFormat,
     RefundStatus,
+    MatchParticipantStatus,
     UserRole,
 )
 from app.services import (
@@ -46,6 +47,7 @@ from app.services import (
     get_owner_booking,
     get_user_booking,
     list_owner_bookings,
+    list_user_match_requests,
     list_user_bookings,
     quote_booking,
 )
@@ -56,8 +58,8 @@ bookings_bp = Blueprint("bookings", __name__)
 BOOKING_STATUS_LABELS = {
     BookingStatus.PENDING.value: "Đang xử lý",
     BookingStatus.CONFIRMED.value: "Đang giữ chỗ, chờ thanh toán",
-    BookingStatus.PARTIALLY_PAID.value: "Đã thanh toán một phần",
-    BookingStatus.PAID.value: "Đã thanh toán đủ",
+    BookingStatus.PARTIALLY_PAID.value: "Đã cọc giữ sân, chờ đối thủ",
+    BookingStatus.PAID.value: "Đã đủ tiền cọc",
     BookingStatus.REFUND_PENDING.value: "Đang hoàn tiền",
     BookingStatus.COMPLETED.value: "Đã hoàn thành",
     BookingStatus.REJECTED.value: "Đã từ chối",
@@ -313,9 +315,15 @@ def availability(venue_id: int, field_id: int):
 @roles_required(UserRole.USER, UserRole.OWNER)
 def index():
     bookings = list_user_bookings(current_user.id)
+    joined_matches = [
+        participant
+        for participant in list_user_match_requests(current_user.id)
+        if participant.status == MatchParticipantStatus.JOINED.value
+    ]
     return render_template(
         "bookings/index.html",
         bookings=bookings,
+        joined_matches=joined_matches,
         booking_groups=_group_bookings_for_display(bookings),
         status_labels=BOOKING_STATUS_LABELS,
         booking_mode_labels=BOOKING_MODE_LABELS,
@@ -376,7 +384,7 @@ def cancel(booking_code: str):
     except BookingError as exc:
         flash(str(exc), "warning")
     else:
-        flash("Đã hủy booking và hoàn tiền theo chính sách áp dụng.", "success")
+        flash("Đã ghi nhận hủy booking và áp dụng chính sách tiền cọc.", "success")
     return redirect(url_for("bookings.detail", booking_code=booking_code))
 
 
