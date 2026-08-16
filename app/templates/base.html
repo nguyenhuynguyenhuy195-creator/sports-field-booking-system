@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="Hệ thống đặt sân thể thao đa môn, tìm đối thủ và ghép người chơi.">
+    <meta name="theme-color" content="#0f2747">
     <title>{% block title %}Sports Field Booking{% endblock %}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,10 +14,18 @@
     {% block head %}{% endblock %}
 </head>
 <body>
-    <nav class="navbar navbar-expand-xl navbar-dark app-navbar">
+    <nav class="navbar navbar-expand-xl navbar-dark app-navbar" data-app-navbar>
         <div class="container">
             <a class="navbar-brand fw-bold" href="{{ url_for('main.home') }}">
-                Sân Thể Thao Online
+                <span class="app-brand-mark" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false">
+                        <path d="M5 5.5h14v13H5zM8.5 5.5v13M15.5 5.5v13M5 9.5h14M5 14.5h14" />
+                    </svg>
+                </span>
+                <span class="app-brand-copy">
+                    <strong>Sân Thể Thao</strong>
+                    <small>Đặt sân trực tuyến</small>
+                </span>
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Mở menu">
                 <span class="navbar-toggler-icon"></span>
@@ -24,17 +33,17 @@
             <div class="collapse navbar-collapse" id="mainNavbar">
                 <ul class="navbar-nav me-xl-auto mb-2 mb-xl-0">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('main.home') }}">Trang chủ</a>
+                        <a class="nav-link{% if request.endpoint == 'main.home' %} active{% endif %}" href="{{ url_for('main.home') }}"{% if request.endpoint == 'main.home' %} aria-current="page"{% endif %}>Trang chủ</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('venues.index') }}">Tìm sân</a>
+                        <a class="nav-link{% if request.endpoint == 'venues.index' %} active{% endif %}" href="{{ url_for('venues.index') }}"{% if request.endpoint == 'venues.index' %} aria-current="page"{% endif %}>Tìm sân</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('matches.index') }}">Tìm kèo</a>
+                        <a class="nav-link{% if request.endpoint == 'matches.index' %} active{% endif %}" href="{{ url_for('matches.index') }}"{% if request.endpoint == 'matches.index' %} aria-current="page"{% endif %}>Tìm kèo</a>
                     </li>
                     {% if current_user.is_authenticated and current_user.role in ['USER', 'OWNER'] %}
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('bookings.index') }}">Lịch &amp; kèo của tôi</a>
+                            <a class="nav-link{% if request.endpoint == 'bookings.index' %} active{% endif %}" href="{{ url_for('bookings.index') }}"{% if request.endpoint == 'bookings.index' %} aria-current="page"{% endif %}>Lịch &amp; kèo của tôi</a>
                         </li>
                     {% endif %}
                 </ul>
@@ -80,24 +89,48 @@
         </div>
     </nav>
 
-    <main>
-        <div class="container flash-container" aria-live="polite">
-            {% with messages = get_flashed_messages(with_categories=true) %}
+    <main class="app-main">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="container flash-container" aria-live="polite">
                 {% for category, message in messages %}
                     <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
                         {{ message }}
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Đóng"></button>
                     </div>
                 {% endfor %}
-            {% endwith %}
-        </div>
+            </div>
+            {% endif %}
+        {% endwith %}
         {% block content %}{% endblock %}
     </main>
 
-    <footer class="app-footer py-4 mt-auto">
-        <div class="container d-flex flex-column flex-md-row justify-content-between gap-2">
-            <span class="fw-semibold">Sân Thể Thao Online</span>
-            <span>Đặt sân, tìm kèo và theo dõi tiền cọc rõ ràng.</span>
+    <footer class="app-footer mt-auto">
+        <div class="container app-footer-layout">
+            <div class="app-footer-brand">
+                <a class="app-footer-logo" href="{{ url_for('main.home') }}">
+                    <span class="app-brand-mark" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" focusable="false">
+                            <path d="M5 5.5h14v13H5zM8.5 5.5v13M15.5 5.5v13M5 9.5h14M5 14.5h14" />
+                        </svg>
+                    </span>
+                    <span>Sân Thể Thao Online</span>
+                </a>
+                <p>Đặt sân đa môn, tìm kèo phù hợp và theo dõi tiền cọc trên một quy trình rõ ràng.</p>
+            </div>
+            <div class="app-footer-links" aria-label="Liên kết nhanh">
+                <a href="{{ url_for('venues.index') }}">Tìm sân</a>
+                <a href="{{ url_for('matches.index') }}">Tìm kèo</a>
+                {% if current_user.is_authenticated and current_user.role in ['USER', 'OWNER'] %}
+                    <a href="{{ url_for('bookings.index') }}">Lịch của tôi</a>
+                {% else %}
+                    <a href="{{ url_for('auth.register') }}">Tạo tài khoản</a>
+                {% endif %}
+            </div>
+        </div>
+        <div class="container app-footer-bottom">
+            <span>Đặt sân và kết nối cộng đồng thể thao dễ dàng hơn</span>
+            <span class="app-footer-badge"><i aria-hidden="true"></i> Hệ thống đang hoạt động</span>
         </div>
     </footer>
 
@@ -118,6 +151,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <script src="{{ url_for('static', filename='js/ui-motion.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/confirm-actions.js') }}" defer></script>
     {% block scripts %}{% endblock %}
 </body>

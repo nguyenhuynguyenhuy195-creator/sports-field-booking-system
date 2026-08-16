@@ -61,7 +61,7 @@
                     {% if booking.play_format %}<div><dt>Hình thức thi đấu</dt><dd>{{ play_format_labels[booking.play_format] }}</dd></div>{% endif %}
                     <div><dt>Mục đích đặt sân</dt><dd>{{ booking_mode_labels[booking.booking_mode] }}</dd></div>
                     {% if booking.payment_policy == 'LEGACY_FULL_ONLINE' %}
-                        <div class="booking-detail-full"><dt>Chính sách thanh toán</dt><dd>Thanh toán online theo chính sách cũ</dd></div>
+                        <div class="booking-detail-full"><dt>Hình thức thanh toán</dt><dd>Thanh toán toàn bộ trực tuyến</dd></div>
                     {% endif %}
                     {% if booking.booking_mode == 'FIND_PLAYERS' %}
                         <div><dt>Đang tìm thêm</dt><dd>{{ booking.requested_players }} người</dd></div>
@@ -174,7 +174,7 @@
                                 <div class="d-flex flex-wrap justify-content-between gap-2 mb-3">
                                     <div>
                                         <h3 class="h6 fw-bold mb-1">Lịch sử hoàn tiền</h3>
-                                        <p class="small text-secondary mb-0">Provider MOCK không chuyển tiền thật.</p>
+                                        <p class="small text-secondary mb-0">Đây là giao dịch thử nghiệm, không chuyển tiền thật.</p>
                                     </div>
                                     <span class="payment-progress-badge">{{ booking.refunds|length }} giao dịch</span>
                                 </div>
@@ -242,7 +242,7 @@
                                 <form method="post" action="{{ url_for('payments.pay_momo' if momo_enabled else 'payments.pay_mock', booking_code=booking.booking_code, contribution_id=contribution.id) }}">
                                     {{ payment_form.hidden_tag() }}
                                     <button class="btn btn-primary w-100" type="submit" data-payment-submit>
-                                        {{ 'Thanh toán cọc qua MoMo Sandbox' if momo_enabled else 'Thanh toán mô phỏng' }}
+                                        {{ 'Thanh toán cọc qua MoMo thử nghiệm' if momo_enabled else 'Thử thanh toán cọc' }}
                                     </button>
                                 </form>
                             {% endif %}
@@ -250,7 +250,7 @@
                         {% if momo_enabled %}
                             <p class="small text-secondary mt-2">Bạn sẽ được chuyển sang trang thanh toán thử nghiệm của MoMo.</p>
                         {% else %}
-                            <p class="small text-secondary mt-2">MoMo Sandbox chưa được cấu hình; nút hiện tại chỉ ghi nhận giao dịch mô phỏng.</p>
+                            <p class="small text-secondary mt-2">MoMo thử nghiệm chưa được kết nối; nút hiện tại chỉ dùng để kiểm tra quy trình và không trừ tiền thật.</p>
                         {% endif %}
                     {% endif %}
                 {% elif effective_status == 'PARTIALLY_PAID' %}
@@ -262,7 +262,7 @@
                         {% if booking.matchmaking_deadline is none and booking.funding_deadline is none %}
                             <p class="small text-secondary mb-0">Booking đã được giữ bằng phần cọc của bạn. Bài tìm đối thủ nhận yêu cầu đến giờ bắt đầu; nếu chưa có đối thủ, bạn thanh toán 85% còn lại tại sân.</p>
                         {% else %}
-                            <p class="small text-secondary">Hạn nhận đối thủ: {{ booking.matchmaking_deadline|local_datetime }}. Đây là booking theo chính sách cũ.</p>
+                            <p class="small text-secondary">Hạn nhận đối thủ của lịch đặt này: {{ booking.matchmaking_deadline|local_datetime }}.</p>
                             {% if top_up_window_open %}
                                 <form method="post" action="{{ url_for('payments.top_up_momo' if momo_enabled else 'payments.top_up_mock', booking_code=booking.booking_code) }}">
                                     {{ top_up_form.hidden_tag() }}
@@ -351,7 +351,7 @@
                         {{ cancel_form.hidden_tag() }}
                         <button class="btn btn-outline-danger w-100" type="submit">Hủy booking</button>
                     </form>
-                    <p class="small text-secondary mt-2 mb-0">Booking theo chính sách cũ chỉ hủy được trước giờ bắt đầu ít nhất 2 giờ.</p>
+                    <p class="small text-secondary mt-2 mb-0">Lịch đặt này chỉ có thể hủy trước giờ bắt đầu ít nhất 2 giờ.</p>
                 {% elif not owner_view and effective_status == 'PARTIALLY_PAID' %}
                     <form method="post"
                           action="{{ url_for('bookings.cancel', booking_code=booking.booking_code) }}"

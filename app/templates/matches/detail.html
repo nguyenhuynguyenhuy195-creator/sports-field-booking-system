@@ -143,10 +143,10 @@
                     </div>
                     <form method="post" action="{{ url_for('payments.pay_momo' if momo_enabled else 'payments.pay_mock', booking_code=match.booking.booking_code, contribution_id=current_request.contribution_id, return_to_match=match.id) }}">
                         {{ payment_form.hidden_tag() }}
-                        <button class="btn btn-primary w-100" type="submit" data-payment-submit>{{ 'Thanh toán cọc qua MoMo Sandbox' if momo_enabled else 'Thanh toán mô phỏng' }}</button>
+                        <button class="btn btn-primary w-100" type="submit" data-payment-submit>{{ 'Thanh toán cọc qua MoMo thử nghiệm' if momo_enabled else 'Thử thanh toán cọc' }}</button>
                     </form>
                     <p class="small text-secondary mt-2">
-                        {{ 'Bạn sẽ được chuyển sang môi trường thử nghiệm của MoMo.' if momo_enabled else 'MoMo Sandbox chưa cấu hình; đây là provider MOCK không trừ tiền thật.' }}
+                        {{ 'Bạn sẽ được chuyển sang trang thanh toán thử nghiệm của MoMo.' if momo_enabled else 'MoMo thử nghiệm chưa được kết nối; thao tác này chỉ kiểm tra quy trình và không trừ tiền thật.' }}
                     </p>
                     <form class="mt-3" method="post" action="{{ url_for('matches.withdraw', match_id=match.id) }}">
                         {{ action_form.hidden_tag() }}
