@@ -53,32 +53,43 @@
 ### Thanh toán cọc MoMo Sandbox
 
 - Khoản cọc bằng 30% tổng tiền sân, làm tròn đến đồng và lưu snapshot.
-- 70% còn lại được hiển thị là thanh toán tại sân; hệ thống không thu hoặc xác nhận phần này trong MVP.
+- Số còn lại tại sân bằng tổng tiền trừ cọc online thực thu; hệ thống không thu hoặc xác nhận phần này trong MVP.
 - DIRECT_BOOKING: creator thanh toán toàn bộ khoản cọc.
 - FIND_PLAYERS: creator thanh toán toàn bộ khoản cọc; người ghép không có payment/contribution online.
-- FIND_OPPONENT: creator và phía đối thủ mỗi bên thanh toán 50% khoản cọc.
+- FIND_OPPONENT: creator thanh toán 50% khoản cọc dự kiến, tương đương 15% tổng tiền sân, và khoản này đã đủ giữ booking; phía đối thủ bấm nhận kèo và thanh toán 15% còn lại để tự động tham gia.
 - Backend tạo chữ ký, chuyển user đến MoMo Sandbox và nhận IPN.
 - Chỉ IPN hợp lệ mới cập nhật payment thành công; redirect không phải bằng chứng.
-- Hỗ trợ refund toàn bộ hoặc một phần khoản cọc qua MoMo Sandbox.
+- Hỗ trợ refund qua MoMo Sandbox cho trường hợp chủ sân hủy, lỗi/thu trùng phía hệ thống hoặc hoàn lại cho bên không chủ động gây hủy.
 - Provider MOCK dùng cho phát triển/test và phải ghi rõ không trừ tiền thật.
 
 ### Tìm đối thủ
 
 - Áp dụng cho bóng đá và các booking đánh đơn/đôi của môn dùng vợt.
-- Một đại diện gửi yêu cầu; chỉ một phía đối thủ được chấp nhận.
-- Đối thủ được chấp nhận có 15 phút để thanh toán phần cọc nhưng không được vượt quá hạn tìm đối thủ.
-- Phải tìm được và nhận đủ phần cọc đối thủ trước giờ bắt đầu 12 giờ.
-- Nếu không có đối thủ, creator có thêm 30 phút để top-up phần cọc còn thiếu.
-- Không top-up đúng hạn: hoàn 80% khoản creator đã cọc, giữ 20% khoản đó làm phí giữ sân.
+- Một đại diện bấm nhận kèo; hệ thống khóa để chỉ một phía đối thủ được giữ suất thanh toán tại một thời điểm.
+- Bài tìm đối thủ tồn tại đến giờ trận bắt đầu, trừ khi creator chủ động đóng hoặc đã có đối thủ thanh toán thành công.
+- Đối thủ tự chuyển `ACCEPTED_AWAITING_PAYMENT`, có tối đa 15 phút thanh toán nhưng payment_due_at không được vượt giờ trận bắt đầu; không có bước creator duyệt.
+- Đến giờ bắt đầu, các suất `ACCEPTED_AWAITING_PAYMENT` chưa trả hết hiệu lực và bài không còn xuất hiện trong danh sách đang mở.
+- Không tìm được đối thủ không làm hủy booking; creator vẫn giữ sân và trả 85% còn lại tại sân.
+- Không có top-up bắt buộc và không có refund 80/20 do thiếu đối thủ.
+- Đại diện đối thủ chủ động rút/no-show mất phần cọc đã đóng; khoản này tiếp tục được tính vào booking và người thay thế không bị thu cọc lần hai.
+- Người đăng và đại diện đối thủ bắt buộc cung cấp số Zalo, đồng ý chia sẻ; hai bên chỉ thấy số của nhau sau khi tiền cọc đối thủ thành công và participant chuyển `JOINED`.
+- Kèo đã nhận thành công xuất hiện trong lịch cá nhân của đại diện đối thủ ở chế độ chỉ xem; quyền sửa/hủy booking vẫn thuộc người đặt sân.
 
 ### Tìm thêm người
 
 - Creator tự chọn số vị trí muốn tìm trong giới hạn hợp lệ của field/hình thức thi đấu.
-- Người xin ghép bắt buộc đăng nhập và cung cấp số điện thoại dùng Zalo.
+- Người đăng và người xin ghép bắt buộc đăng nhập, cung cấp số điện thoại dùng Zalo và đồng ý chia sẻ trong phạm vi kèo.
 - Creator chấp nhận hoặc từ chối; người được chấp nhận chuyển JOINED ngay, không chờ payment.
 - Số điện thoại chỉ hiện cho creator sau khi chấp nhận và không công khai trên danh sách kèo.
 - Người ghép thanh toán trực tiếp cho creator tại sân; website chỉ hiển thị phần tiền dự kiến nếu cần.
 - MVP không chấm điểm, tự động phạt hoặc khóa vì no-show.
+
+### Hủy booking và hoàn tiền
+
+- Người đặt chủ động hủy hoặc no-show mất toàn bộ phần cọc của mình.
+- Nếu creator hủy sau khi đối thủ đã cọc, creator mất cọc nhưng đối thủ được hoàn 100% vì không phải bên chủ động hủy.
+- Chủ sân hủy hoặc hệ thống thu trùng/sai phải hoàn 100% khoản bị ảnh hưởng.
+- Người ghép FIND_PLAYERS không cọc online nên rút không phát sinh refund.
 
 ### Admin
 
@@ -116,4 +127,4 @@
 
 ## 2.5. Ranh giới triển khai hiện tại
 
-Phạm vi trên đã được triển khai bằng migration, code và test: danh mục đa môn, tọa độ Google Maps, cọc 30%, người ghép trả tại sân và nền tảng MoMo Sandbox. Việc gọi Sandbox thật chỉ được xem là đã xác nhận sau khi cấu hình credential M4B, URL HTTPS công khai và chạy một giao dịch thanh toán/hoàn tiền đầu-cuối; trước đó provider `MOCK` vẫn là mặc định.
+Danh mục đa môn, tọa độ Google Maps, cọc 30%, người ghép trả tại sân và nền tảng MoMo Sandbox đã có migration/code/test. ADR-027 và ADR-028 đã được triển khai ở service/UI/test; deadline, top-up, refund 80/20 và bước duyệt đối thủ chỉ còn phục vụ dữ liệu legacy có deadline. Việc gọi Sandbox thật chỉ được xem là đã xác nhận sau khi cấu hình credential M4B, URL HTTPS công khai và chạy một giao dịch thanh toán/hoàn tiền đầu-cuối; trước đó provider `MOCK` vẫn là mặc định.

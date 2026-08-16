@@ -12,7 +12,13 @@ from flask import (
 from flask_login import current_user
 
 from app.decorators import roles_required
-from app.forms import BookingActionForm, MatchActionForm, MatchForm, MatchJoinForm
+from app.forms import (
+    BookingActionForm,
+    MatchActionForm,
+    MatchContactForm,
+    MatchForm,
+    MatchJoinForm,
+)
 from app.models import (
     BookingMode,
     BookingStatus,
@@ -37,8 +43,10 @@ from app.services import (
     list_created_matches,
     list_open_matches,
     list_user_match_requests,
+    opponent_join_is_automatic,
     participant_withdrawal_gets_refund,
     request_to_join_match,
+    update_match_contact,
     validate_match_creation,
     withdraw_match_request,
 )
@@ -58,8 +66,8 @@ MATCH_STATUS_LABELS = {
     MatchStatus.COMPLETED.value: "Đã hoàn thành",
 }
 PARTICIPANT_STATUS_LABELS = {
-    MatchParticipantStatus.PENDING.value: "Chờ người tạo duyệt",
-    MatchParticipantStatus.ACCEPTED_AWAITING_PAYMENT.value: "Đã duyệt, chờ thanh toán",
+    MatchParticipantStatus.PENDING.value: "Chờ người tạo xác nhận",
+    MatchParticipantStatus.ACCEPTED_AWAITING_PAYMENT.value: "Đang giữ suất, chờ thanh toán",
     MatchParticipantStatus.JOINED.value: "Đã tham gia",
     MatchParticipantStatus.REJECTED.value: "Đã từ chối",
     MatchParticipantStatus.EXPIRED.value: "Đã hết hạn thanh toán",
@@ -133,7 +141,7 @@ def create(booking_code: str):
         if booking.booking_mode == BookingMode.FIND_PLAYERS.value
         else None
     )
-    form = MatchForm()
+    form = MatchForm(contact_phone=current_user.phone)
     if not form.is_submitted():
         form.match_type.data = locked_type or MatchType.FIND_OPPONENT.value
         form.required_players.data = locked_required_players
@@ -155,6 +163,8 @@ def create(booking_code: str):
                 skill_level=form.skill_level.data,
                 match_type=requested_type,
                 required_players=requested_players,
+                contact_phone=form.contact_phone.data,
+                share_contact=form.share_contact.data,
             )
         except MatchPermissionError:
             abort(403)
@@ -163,7 +173,7 @@ def create(booking_code: str):
         except MatchmakingError as exc:
             flash(str(exc), "warning")
         else:
-            flash("Đã đăng kèo. Người chơi khác có thể gửi yêu cầu tham gia.", "success")
+            flash("Đã đăng kèo. Người chơi khác có thể nhận kèo hoặc xin ghép.", "success")
             return redirect(url_for("matches.detail", match_id=match.id))
 
     return render_template(
@@ -197,6 +207,11 @@ def detail(match_id: int):
         participant.status == MatchParticipantStatus.JOINED.value
         for participant in match.participants
     )
+    current_contact_phone = current_user.phone if current_user.is_authenticated else None
+    if current_user.is_authenticated and current_user.id == match.creator_id:
+        current_contact_phone = match.creator_contact_phone
+    elif current_request is not None:
+        current_contact_phone = current_request.contact_phone
     return render_template(
         "matches/detail.html",
         match=match,
@@ -206,13 +221,13 @@ def detail(match_id: int):
         match_status_labels=MATCH_STATUS_LABELS,
         participant_status_labels=PARTICIPANT_STATUS_LABELS,
         skill_level_labels=SKILL_LEVEL_LABELS,
-        join_form=MatchJoinForm(
-            contact_phone=(
-                current_user.phone if current_user.is_authenticated else None
-            )
-        ),
+        join_form=MatchJoinForm(contact_phone=current_contact_phone),
         action_form=MatchActionForm(),
         payment_form=BookingActionForm(prefix="payment"),
+        contact_form=MatchContactForm(
+            prefix="contact",
+            contact_phone=current_contact_phone,
+        ),
         withdrawal_gets_refund=(
             participant_withdrawal_gets_refund(match.booking)
             if current_request
@@ -220,6 +235,7 @@ def detail(match_id: int):
             else False
         ),
         contact_visible=_contact_visible(match.booking),
+        opponent_auto_join=opponent_join_is_automatic(match),
         momo_enabled=current_app.config.get("MOMO_ENABLED", False),
     )
 
@@ -232,7 +248,7 @@ def join(match_id: int):
         flash("Thông tin tham gia không hợp lệ.", "danger")
         return redirect(url_for("matches.detail", match_id=match_id))
     try:
-        request_to_join_match(
+        participant = request_to_join_match(
             match_id=match_id,
             user=current_user,
             message=form.message.data,
@@ -246,7 +262,40 @@ def join(match_id: int):
     except (DuplicateMatchRequestError, MatchmakingError) as exc:
         flash(str(exc), "warning")
     else:
-        flash("Đã gửi yêu cầu. Hãy chờ người tạo kèo duyệt.", "success")
+        if participant.status == MatchParticipantStatus.ACCEPTED_AWAITING_PAYMENT.value:
+            flash(
+                "Đã giữ suất đối thủ trong 15 phút. Hãy hoàn tất tiền cọc để tham gia kèo.",
+                "success",
+            )
+        elif participant.status == MatchParticipantStatus.JOINED.value:
+            flash("Bạn đã tham gia kèo; không cần thanh toán lại khoản cọc này.", "success")
+        else:
+            flash("Đã gửi yêu cầu. Hãy chờ người tạo kèo xác nhận.", "success")
+    return redirect(url_for("matches.detail", match_id=match_id))
+
+
+@matches_bp.post("/matches/<int:match_id>/contact")
+@roles_required(UserRole.USER, UserRole.OWNER)
+def update_contact(match_id: int):
+    form = MatchContactForm(prefix="contact")
+    if not form.validate_on_submit():
+        flash("Số liên hệ không hợp lệ hoặc chưa được đồng ý chia sẻ.", "danger")
+        return redirect(url_for("matches.detail", match_id=match_id))
+    try:
+        update_match_contact(
+            match_id=match_id,
+            user=current_user,
+            contact_phone=form.contact_phone.data,
+            share_contact=form.share_contact.data,
+        )
+    except MatchNotFoundError:
+        abort(404)
+    except MatchPermissionError:
+        abort(403)
+    except MatchmakingError as exc:
+        flash(str(exc), "warning")
+    else:
+        flash("Đã lưu số Zalo. Số chỉ hiển thị cho bên còn lại của kèo.", "success")
     return redirect(url_for("matches.detail", match_id=match_id))
 
 

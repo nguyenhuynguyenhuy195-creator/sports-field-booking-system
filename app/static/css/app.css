@@ -2158,6 +2158,19 @@ a:hover {
     padding: 1rem;
 }
 
+.match-contact-card {
+    background: #f4faf7;
+    border: 1px solid #d9e9e1;
+    border-radius: 12px;
+    padding: 1rem;
+}
+
+.match-contact-card summary {
+    color: var(--app-primary);
+    cursor: pointer;
+    font-weight: 600;
+}
+
 .match-booking-cta {
     background: #f4faf7;
     display: flex;

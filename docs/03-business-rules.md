@@ -115,7 +115,7 @@ User phải đăng nhập trước khi tạo booking, tạo kèo, gửi yêu c�
 
 - DIRECT_BOOKING và FIND_PLAYERS phải tạo trước giờ bắt đầu ít nhất 60 phút.
 - FIND_OPPONENT phải tạo trước giờ bắt đầu ít nhất 24 giờ.
-- Đối thủ phải được chấp nhận và thanh toán xong phần cọc trước giờ bắt đầu 12 giờ.
+- Bài FIND_OPPONENT được nhận yêu cầu đến giờ booking bắt đầu; không có deadline riêng trước 12 giờ.
 
 ### BR-017: Hình thức thi đấu
 
@@ -153,7 +153,9 @@ Kiểm tra và tạo booking phải nằm trong cùng transaction.
 - deposit_amount được backend tính, làm tròn đến đồng và lưu snapshot khi tạo booking.
 - Booking mới dùng payment_policy DEPOSIT_30. Booking cũ được gắn LEGACY_FULL_ONLINE để lịch sử thanh toán toàn bộ không bị diễn giải thành cọc.
 - paid_amount chỉ theo dõi khoản cọc online ròng sau refund và không vượt deposit_amount.
-- Số còn lại tại sân bằng total_amount trừ deposit_amount; hệ thống chỉ hiển thị, không thu hoặc xác nhận phần này.
+- Số còn lại tại sân bằng total_amount trừ paid_amount thực thu ròng; hệ thống chỉ hiển thị, không thu hoặc xác nhận phần này.
+- DIRECT_BOOKING/FIND_PLAYERS đủ cọc 30% nên còn 70% tại sân.
+- FIND_OPPONENT chỉ có cọc creator 15% vẫn là booking hợp lệ và còn 85% tại sân; nếu đối thủ trả thêm 15% thì còn 70% tại sân.
 
 ### BR-021: Tạo và giữ chỗ tự động
 
@@ -167,36 +169,39 @@ Kiểm tra và tạo booking phải nằm trong cùng transaction.
 - DIRECT_BOOKING và FIND_PLAYERS: creator phải thanh toán đủ deposit_amount trong 15 phút.
 - FIND_OPPONENT: creator thanh toán 50% deposit_amount trong 15 phút.
 - CONFIRMED chưa có khoản cọc đầu tiên sau 15 phút chuyển EXPIRED.
-- Khi đã thu một phần cọc, booking chuyển PARTIALLY_PAID; khi đủ deposit_amount, booking chuyển PAID.
+- FIND_OPPONENT chuyển PARTIALLY_PAID ngay khi creator trả 15%; đây là trạng thái đã giữ sân hợp lệ, không phải trạng thái sắp bị hủy vì thiếu cọc.
+- Khi đối thủ trả phần còn lại, booking chuyển PAID.
 - Trạng thái PAID trong MVP nghĩa là đã hoàn thành nghĩa vụ cọc online, không có nghĩa 70% tại sân đã được ghi nhận.
 
-### BR-023: Hạn tìm đối thủ và top-up
+### BR-023: Thời gian tồn tại của bài tìm đối thủ
 
-- matchmaking_deadline bằng giờ bắt đầu trừ 12 giờ.
-- Đối thủ được chấp nhận có 15 phút thanh toán nhưng payment_due_at không được vượt matchmaking_deadline.
-- Đến matchmaking_deadline chưa nhận đủ phần cọc đối thủ, creator có thêm 30 phút để top-up.
-- funding_deadline bằng matchmaking_deadline cộng 30 phút.
-- Creator top-up đủ thì booking chuyển PAID và kèo không còn yêu cầu đối thủ thanh toán online.
+- Match FIND_OPPONENT mở sau khi creator thanh toán thành công 15% tổng tiền sân.
+- Bài tồn tại đến giờ booking bắt đầu, trừ khi creator chủ động đóng hoặc đã có đối thủ thanh toán thành công.
+- Đối thủ bấm nhận kèo được tự động giữ suất thanh toán tối đa 15 phút; payment_due_at bằng thời điểm sớm hơn giữa `claimed_at + 15 phút` và giờ booking bắt đầu, không cần creator duyệt.
+- Đến giờ booking bắt đầu, service từ chối nhận suất/payment mới, làm hết hạn suất ACCEPTED_AWAITING_PAYMENT chưa trả và không còn trả bài trong danh sách kèo đang mở.
+- Không có matchmaking_deadline trước 12 giờ, funding_deadline hoặc cửa sổ creator top-up đối với booking mới.
 
-### BR-024: Không đủ cọc tìm đối thủ
+### BR-024: Không tìm được đối thủ
 
-- Quá funding_deadline mà creator không top-up, booking chuyển REFUND_PENDING.
-- Hoàn 80% khoản creator đã đóng.
-- Giữ 20% khoản creator đã đóng làm phí giữ sân; đây không phải 20% total_amount.
-- Nếu phía đối thủ đã có payment hợp lệ nhưng booking không hoàn thành do lỗi không thuộc về họ, hoàn 100%.
-- Booking chỉ chuyển CANCELLED khi mọi refund bắt buộc thành công.
+- Không tìm được đối thủ không làm hủy booking và không tạo refund.
+- Khoản creator đã cọc 15% tiếp tục giữ sân; booking có thể giữ PARTIALLY_PAID cho đến khi COMPLETED.
+- Creator có thể dùng sân cho đội mình, tự tìm đối thủ bên ngoài và thanh toán 85% còn lại tại sân.
+- Việc bài hết hiệu lực lúc trận bắt đầu không thay đổi trạng thái chiếm chỗ của booking.
 
 ### BR-025: Hủy booking
 
-- User được hủy CONFIRMED chưa thu tiền của mình trước giờ bắt đầu ít nhất 2 giờ.
-- Creator hủy FIND_OPPONENT đang PARTIALLY_PAID áp dụng chính sách 80/20 tại BR-024.
-- User không tự hủy booking PAID qua hệ thống trong MVP.
+- User được chủ động hủy booking của mình trước giờ bắt đầu; CONFIRMED chưa thu tiền chuyển thẳng CANCELLED.
+- Người chủ động hủy/rút hoặc no-show không được hoàn phần cọc của chính mình. Payment gốc vẫn SUCCESS và contribution đã đóng chuyển FORFEITED khi phù hợp.
+- DIRECT_BOOKING/FIND_PLAYERS đã cọc mà creator hủy: toàn bộ khoản creator đã đóng được giữ lại và booking chuyển CANCELLED, không tạo refund.
+- FIND_OPPONENT mà creator hủy: creator mất 15% đã cọc. Nếu đối thủ đã cọc thì đối thủ được hoàn 100%; booking giữ REFUND_PENDING đến khi refund này thành công rồi mới CANCELLED.
+- Đại diện đối thủ đã cọc mà chủ động rút/no-show: mất phần cọc 15%; vị trí đối thủ mở lại nhưng khoản đã thu tiếp tục tính vào booking và người thay thế không bị thu cọc lần hai.
 - Owner được hủy CONFIRMED, PARTIALLY_PAID hoặc PAID khi có sự cố và bắt buộc nhập lý do.
 - Owner hủy booking đã thu cọc phải hoàn 100% mọi khoản đã thu.
+- Thanh toán trùng/sai do hệ thống phải hoàn 100% khoản bị ảnh hưởng.
 
 ### BR-026: Hoàn thành
 
-Booking PAID được chuyển COMPLETED sau khi thời gian sử dụng kết thúc. MVP không yêu cầu owner xác nhận 70% thanh toán tại sân.
+Booking PAID hoặc FIND_OPPONENT PARTIALLY_PAID hợp lệ được chuyển COMPLETED sau khi thời gian sử dụng kết thúc. MVP không yêu cầu owner xác nhận số còn lại thanh toán tại sân.
 
 ## 3.5. MoMo Sandbox, contribution và refund
 
@@ -208,7 +213,7 @@ Booking PAID được chuyển COMPLETED sau khi thời gian sử dụng kết t
 
 ### BR-028: Phân bổ contribution
 
-- Tổng amount_due của contribution còn hiệu lực phải bằng deposit_amount, không phải total_amount.
+- Tổng amount_due mục tiêu của contribution phải bằng deposit_amount, không phải total_amount; paid_amount có thể thấp hơn deposit_amount đối với FIND_OPPONENT không có đối thủ.
 - DIRECT_BOOKING/FIND_PLAYERS tạo một contribution CREATOR bằng toàn bộ deposit_amount.
 - FIND_OPPONENT tạo CREATOR và OPPONENT, mỗi contribution bằng 50% deposit_amount; phần cuối được điều chỉnh nếu làm tròn.
 - FIND_PLAYERS không tạo contribution PLAYER cho người ghép.
@@ -226,7 +231,10 @@ Booking PAID được chuyển COMPLETED sau khi thời gian sử dụng kết t
 
 - Refund không ghi đè payment SUCCESS; mỗi lần hoàn là bản ghi riêng.
 - Không hoàn vượt số tiền payment gốc.
+- Không tạo refund cho bên chủ động hủy/rút hoặc no-show.
 - Owner hủy: hoàn 100% khoản cọc đã thu.
+- Creator hủy FIND_OPPONENT sau khi đối thủ đã cọc: chỉ hoàn 100% payment của đối thủ; creator mất phần của mình.
+- Thanh toán trùng/sai do hệ thống: hoàn 100% khoản bị ảnh hưởng.
 - Refund chưa xong giữ booking ở REFUND_PENDING.
 - Chỉ chuyển CANCELLED sau khi các refund bắt buộc SUCCESS.
 
@@ -239,14 +247,22 @@ Booking PAID được chuyển COMPLETED sau khi thời gian sử dụng kết t
 - booking_mode FIND_PLAYERS chỉ tạo match FIND_PLAYERS.
 - Match chỉ mở sau khi khoản cọc creator tương ứng đã thành công.
 - Không tạo match cho booking đã hủy, hết hạn, chờ refund hoặc hoàn thành.
+- Match FIND_OPPONENT không còn được nhận yêu cầu từ thời điểm booking bắt đầu, kể cả khi job hết hạn chưa chạy.
+- Creator phải nhập số Zalo hợp lệ và đồng ý chia sẻ; hệ thống lưu snapshot riêng trên match thay vì tự động công khai số hồ sơ.
 
 ### BR-032: Tìm đối thủ
 
-- Một đại diện gửi yêu cầu thay cho phía đối thủ.
+- Một đại diện bấm nhận kèo thay cho phía đối thủ.
 - Creator không được tham gia match của chính mình.
-- Chỉ creator chấp nhận/từ chối và chỉ một đối thủ được chấp nhận.
-- Đối thủ chỉ chính thức JOINED/CONFIRMED sau khi payment cọc SUCCESS, trừ khi creator đã top-up.
+- Service khóa match/contribution và chỉ cho một đối thủ giữ suất thanh toán tại một thời điểm; creator không chấp nhận hoặc từ chối đối thủ của booking mới.
+- Participant chuyển thẳng `ACCEPTED_AWAITING_PAYMENT` với thời hạn tối đa 15 phút; payment thành công chuyển `JOINED` và match `CONFIRMED`.
+- Đối thủ chỉ chính thức JOINED/CONFIRMED sau khi payment cọc SUCCESS, trừ khi phần đối thủ đã được một người rút trước đó để lại và booking không còn nghĩa vụ cọc chưa thanh toán.
+- Booking legacy có deadline tiếp tục dùng bước creator duyệt để không đổi hồi tố dữ liệu đang diễn ra.
+- Đối thủ đã cọc mà chủ động rút chuyển WITHDRAWN/FORFEITED, bài mở lại và người thay thế không thanh toán lại cùng phần cọc.
 - FIND_OPPONENT dùng được cho bóng đá, SINGLES và DOUBLES của môn dùng vợt.
+- Đại diện đối thủ phải nhập số Zalo và đồng ý chia sẻ trước khi giữ suất thanh toán; số được lưu snapshot trên participant.
+- Chỉ khi participant `JOINED` và booking chưa kết thúc/hủy, creator và participant mới xem được số của nhau; khách và user không liên quan không được nhận dữ liệu này.
+- Participant `JOINED` thấy kèo trong lịch cá nhân nhưng không trở thành chủ booking và không có quyền sửa/hủy booking.
 
 ### BR-033: Tìm thêm người
 
@@ -265,7 +281,9 @@ Booking PAID được chuyển COMPLETED sau khi thời gian sử dụng kết t
 
 ### BR-035: No-show
 
-- MVP không thu cọc người ghép, không chấm điểm uy tín và không tự động khóa vì no-show.
+- Creator hoặc đối thủ đã cọc nhưng no-show không được hoàn phần cọc của mình.
+- MVP không tự chấm điểm uy tín, tự động khóa tài khoản hoặc tự xác minh no-show.
+- Người ghép FIND_PLAYERS không cọc online nên no-show không phát sinh thu/hoàn tiền tự động.
 - Website không bảo đảm participant sẽ đến; creator dùng số Zalo được chia sẻ sau khi chấp nhận để liên hệ.
 
 ## 3.7. Quy tắc Google Maps và bảo mật

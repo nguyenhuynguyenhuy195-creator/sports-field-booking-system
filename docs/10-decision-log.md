@@ -48,7 +48,7 @@ Thành viên có sẵn không bắt buộc tạo tài khoản. Người tạo c�
 
 ## ADR-008: Thời hạn booking và góp tiền
 
-**Trạng thái:** Được thay thế một phần bởi ADR-023.
+**Trạng thái:** Quy tắc 12/13 giờ được thay thế bởi ADR-027; giữ 15 phút cho khoản thanh toán đầu tiên/đối thủ và giới hạn đặt trước của từng booking mode.
 
 - Booking thường đặt trước tối thiểu 60 phút; booking chia tiền tối thiểu 13 giờ; tối đa 30 ngày.
 - Booking hợp lệ được giữ chỗ tự động; khoản thanh toán đầu tiên và payment của người được chấp nhận có hạn 15 phút.
@@ -56,7 +56,7 @@ Thành viên có sẵn không bắt buộc tạo tài khoản. Người tạo c�
 
 ## ADR-009: Chính sách không góp đủ và hoàn tiền
 
-**Trạng thái:** Chỉ còn áp dụng cho tiền cọc FIND_OPPONENT theo ADR-023; người ghép mới không thanh toán online.
+**Trạng thái:** Được thay thế bởi ADR-027 cho booking mới; giữ để giải thích refund 80/20 của dữ liệu/code lịch sử.
 
 - Không góp đủ đúng hạn: creator được hoàn 80%, 20% khoản creator đã đóng là phí giữ sân cho owner.
 - Đối thủ/người ghép đã thanh toán đúng hạn được hoàn 100%.
@@ -66,7 +66,7 @@ Thành viên có sẵn không bắt buộc tạo tài khoản. Người tạo c�
 
 ## ADR-010: Chính sách rút khỏi kèo và no-show
 
-**Trạng thái:** Được thay thế một phần bởi ADR-024 đối với FIND_PLAYERS.
+**Trạng thái:** Được thay thế bởi ADR-024 đối với FIND_PLAYERS và ADR-027 đối với FIND_OPPONENT.
 
 - Rút trước giờ bắt đầu trên 12 giờ: hoàn 100% và mở lại vị trí.
 - Rút trong vòng 12 giờ hoặc no-show: không hoàn tiền.
@@ -116,7 +116,7 @@ AI lọc spam, phân tích cảm xúc, recommendation, chat thời gian thực, 
 
 ## ADR-017: Nền tảng contribution và provider thanh toán mô phỏng
 
-**Trạng thái:** Phân bổ SPLIT_PLAYERS được thay thế bởi ADR-023/024; provider MOCK và nguyên tắc lịch sử vẫn còn hiệu lực.
+**Trạng thái:** Phân bổ SPLIT_PLAYERS được thay thế bởi ADR-023/024; top-up bắt buộc được thay thế bởi ADR-027; provider MOCK và nguyên tắc lịch sử vẫn còn hiệu lực.
 
 **Ngày quyết định:** 08/08/2026
 
@@ -139,13 +139,13 @@ AI lọc spam, phân tích cảm xúc, recommendation, chat thời gian thực, 
 
 ## ADR-019: Gắn yêu cầu tham gia kèo với contribution
 
-**Trạng thái:** Chỉ còn áp dụng cho đại diện đối thủ theo ADR-024; người ghép mới không gắn contribution.
+**Trạng thái:** Cách gắn contribution còn hiệu lực, nhưng bước creator duyệt đối thủ được thay thế bởi ADR-028; top-up và refund khi rút được thay thế bởi ADR-027; người ghép mới không gắn contribution.
 
 **Ngày quyết định:** 10/08/2026
 
 - Mỗi booking có tối đa một match; payment mode chia tiền quyết định loại `FIND_OPPONENT` hoặc `FIND_PLAYERS` để không tạo kèo sai nghĩa vụ.
-- Người xin tham gia bắt đầu ở `PENDING`; chỉ người tạo kèo được chấp nhận hoặc từ chối.
-- Khi chấp nhận yêu cầu cần trả tiền, hệ thống khóa và gắn một `booking_contribution` còn trống, đặt hạn 15 phút và chuyển sang `ACCEPTED_AWAITING_PAYMENT`.
+- Quy trình lịch sử bắt đầu ở `PENDING` và creator chấp nhận/từ chối; ADR-028 thay thế bước này cho FIND_OPPONENT mới nhưng giữ nguyên cho FIND_PLAYERS/booking legacy.
+- Khi một suất cần trả tiền được nhận, hệ thống khóa và gắn một `booking_contribution` còn trống, đặt hạn 15 phút và chuyển sang `ACCEPTED_AWAITING_PAYMENT`.
 - Payment thành công cập nhật contribution, booking, match participant và match trong cùng transaction; kèo tìm người chỉ `FULL` theo số người `JOINED`, độc lập với việc booking đã đủ tiền.
 - Nếu hết 15 phút, yêu cầu thành `EXPIRED`, tài khoản được tháo khỏi contribution chưa trả và vị trí được mở lại; CLI `matches expire` xử lý idempotent.
 - Nếu creator top-up đủ tiền, participant đang được duyệt và participant được duyệt sau đó vào kèo không cần trả thêm; contribution gốc giữ `WAIVED` để đối soát.
@@ -189,6 +189,8 @@ AI lọc spam, phân tích cảm xúc, recommendation, chat thời gian thực, 
 - Dữ liệu `field_type` bóng đá cũ phải được backfill trước khi bỏ cột/check constraint cũ.
 
 ## ADR-023: Cọc 30% qua MoMo Sandbox
+
+**Trạng thái:** Mức cọc và ba booking mode còn hiệu lực; deadline 12 giờ, top-up 30 phút và refund 80/20 được thay thế bởi ADR-027.
 
 **Ngày quyết định:** 12/08/2026
 
@@ -248,3 +250,56 @@ Tài liệu tham chiếu:
 - Mỗi migration phải backfill an toàn, review constraint/index trên SQL Server, chạy test hồi quy và không xóa migration cũ.
 
 **Cập nhật triển khai 13/08/2026:** Chuỗi thay đổi đã được thực hiện bằng các migration `b2e91c4a7d10`, `c4f8d2a6e901` và `d7a1b9e4c320`. SQL Server giữ nguyên dữ liệu booking cũ dưới chính sách `LEGACY_FULL_ONLINE`. Tích hợp MoMo đã có create payment, HMAC, redirect, IPN, query và refund; kiểm thử gọi Sandbox thật còn phụ thuộc credential M4B và URL HTTPS công khai, không dùng secret giả hoặc commit secret vào Git.
+
+## ADR-027: Cọc giữ sân, vòng đời bài tìm đối thủ và hủy không hoàn cọc
+
+**Ngày quyết định:** 14/08/2026
+
+- DIRECT_BOOKING và FIND_PLAYERS giữ chính sách creator cọc 30% tổng tiền sân.
+- FIND_OPPONENT giữ mức cọc online mục tiêu 30% nhưng creator chỉ cần đóng 15% tổng tiền sân để booking được giữ hợp lệ; đối thủ đóng thêm 15% khi nhận kèo.
+- Không tìm được đối thủ không phải hành động hủy của creator, không làm hủy booking và không tạo refund. Creator vẫn dùng sân và trả 85% còn lại tại sân.
+- Khi đối thủ đã cọc, paid_amount đạt 30% và số còn lại tại sân là 70%.
+- Bài FIND_OPPONENT tồn tại đến giờ booking bắt đầu, trừ khi creator đóng sớm hoặc đối thủ thanh toán thành công.
+- Đối thủ nhận kèo có tối đa 15 phút thanh toán nhưng không vượt giờ booking bắt đầu. Tại giờ bắt đầu, suất chưa thanh toán hết hiệu lực và bài không còn được xem là OPEN.
+- Bỏ matchmaking deadline trước 12 giờ, funding deadline và creator top-up bắt buộc cho booking mới.
+- Người chủ động hủy/rút hoặc no-show không được hoàn phần cọc của chính mình.
+- Đối thủ đã cọc rồi chủ động rút: contribution chuyển FORFEITED, vị trí mở lại, khoản đã thu tiếp tục tính vào booking và người thay thế không bị thu cọc lần hai.
+- Creator hủy sau khi đối thủ đã cọc: creator mất phần của mình, đối thủ được hoàn 100% vì không phải bên chủ động hủy.
+- Owner hủy hoặc hệ thống thu trùng/sai: hoàn 100% khoản bị ảnh hưởng.
+- Refund vẫn là bản ghi riêng và idempotent; payment SUCCESS không bị xóa/ghi đè.
+- Số còn lại tại sân luôn bằng total_amount trừ paid_amount thực thu ròng, không mặc định bằng 70%.
+- Booking FIND_OPPONENT PARTIALLY_PAID có thể chuyển COMPLETED nếu đến giờ sử dụng mà không có đối thủ.
+- `matchmaking_deadline`, `funding_deadline`, TOP_UP, WAIVED và refund 80/20 được giữ để đọc đúng lịch sử; booking mới không tạo dữ liệu theo luồng cũ.
+
+**Ghi chú schema:** Không cần migration mới vì hai cột deadline hiện đã nullable và schema không có constraint bắt buộc FIND_OPPONENT phải có deadline. Giữ nguyên cột/index cho dữ liệu legacy; thay đổi nằm ở service, route, UI và test.
+
+**Trạng thái triển khai:** README và docs/01–docs/10 đã được đồng bộ; code và test được triển khai trên nhánh riêng và chỉ được xem là hoàn tất sau khi vượt qua toàn bộ kiểm thử, Alembic check và smoke test.
+
+## ADR-028: Đối thủ tự nhận kèo bằng thanh toán cọc
+
+**Ngày quyết định:** 14/08/2026
+
+- FIND_OPPONENT mới bỏ bước gửi yêu cầu chờ creator chấp nhận/từ chối.
+- Đại diện đối thủ bấm “Nhận kèo”; service khóa match và contribution để chỉ một đội giữ suất thanh toán tại một thời điểm.
+- Participant chuyển thẳng `ACCEPTED_AWAITING_PAYMENT`; payment_due_at là thời điểm sớm hơn giữa lúc nhận cộng 15 phút và giờ booking bắt đầu.
+- Payment cọc thành công chuyển participant `JOINED`, booking `PAID` và match `CONFIRMED`.
+- Hết hạn chưa thanh toán chuyển participant `EXPIRED`, gỡ user khỏi contribution và mở lại kèo.
+- Nếu contribution đối thủ đã được thanh toán/forfeit từ người trước, người thay thế được `JOINED` ngay và không bị thu trùng khoản cọc.
+- Yêu cầu `PENDING` tạo trước quyết định có thể được chính người đó bấm tiếp tục để chuyển sang giữ suất; không bắt creator duyệt lại.
+- FIND_PLAYERS vẫn giữ creator chấp nhận/từ chối vì người ghép không cọc online và cần phù hợp đội hình/thông tin Zalo.
+- Booking legacy có deadline tiếp tục dùng luồng duyệt cũ để không đổi hồi tố dữ liệu đang diễn ra.
+
+**Ghi chú schema:** Không cần migration mới; tận dụng `ACCEPTED_AWAITING_PAYMENT`, `payment_due_at`, khóa match/contribution và các filtered unique index hiện có.
+
+## ADR-029: Liên hệ riêng sau khi tham gia và lịch kèo của participant
+
+**Ngày quyết định:** 14/08/2026
+
+- Creator và người xin tham gia đều phải nhập số điện thoại dùng Zalo, đồng thời xác nhận đồng ý chia sẻ trong phạm vi kèo.
+- Số creator được snapshot ở `matches.creator_contact_phone`; số participant tiếp tục snapshot ở `match_participants.contact_phone`. Không tự động công khai số từ hồ sơ người dùng cho match lịch sử.
+- Chỉ participant `JOINED` và creator được xem số của nhau khi booking còn hiệu lực. Khách, user không liên quan, participant còn chờ cọc/chờ duyệt và booking đã kết thúc/hủy không được xem.
+- Sau khi đối thủ thanh toán cọc và chuyển `JOINED`, kèo xuất hiện trong “Lịch & kèo của tôi” của đối thủ để mở trang chi tiết và liên hệ.
+- Việc hiển thị này không tạo booking mới, không đổi `bookings.user_id` và không cấp cho participant quyền sửa/hủy booking của creator.
+- Dữ liệu lịch sử thiếu snapshot hiển thị form để đúng bên chủ động bổ sung số và xác nhận chia sẻ.
+
+**Ghi chú schema:** Migration `e8c4a2d9f701` thêm cột nullable `matches.creator_contact_phone`; nullable để không suy diễn sự đồng ý của dữ liệu cũ.

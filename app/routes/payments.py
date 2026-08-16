@@ -18,6 +18,7 @@ from app.services import (
     PaymentError,
     PaymentNotFoundError,
     PaymentPermissionError,
+    inspect_momo_return,
     pay_contribution_with_mock,
     process_momo_payment_notification,
     start_momo_payment,
@@ -142,12 +143,17 @@ def top_up_momo(booking_code: str):
 @payments_bp.get("/payments/momo/return")
 def momo_return():
     try:
-        payment = process_momo_payment_notification(request.args.to_dict())
+        payment = inspect_momo_return(request.args.to_dict())
     except PaymentError as exc:
         flash(f"MoMo chưa xác nhận thanh toán: {exc}", "warning")
         return redirect(url_for("bookings.index"))
     if payment.status == "SUCCESS":
         flash("MoMo Sandbox đã xác nhận khoản cọc thành công.", "success")
+    elif payment.status == "PENDING":
+        flash(
+            "Đang chờ MoMo xác nhận qua IPN. Vui lòng tải lại trang sau ít phút.",
+            "info",
+        )
     else:
         flash("Giao dịch MoMo chưa thành công hoặc đã bị hủy.", "warning")
     return _booking_redirect(payment.booking.booking_code)

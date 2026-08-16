@@ -53,6 +53,19 @@
                         </div>
                     {% endif %}
 
+                    <div class="mb-3">
+                        {{ form.contact_phone.label(class="form-label") }}
+                        {{ form.contact_phone(class="form-control", type="tel", placeholder="Ví dụ: 0912345678", required=true) }}
+                        <div class="form-text">Chỉ người đã chính thức tham gia kèo mới nhìn thấy số này.</div>
+                        {% for error in form.contact_phone.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                    </div>
+
+                    <div class="form-check mb-4">
+                        {{ form.share_contact(class="form-check-input", required=true) }}
+                        {{ form.share_contact.label(class="form-check-label") }}
+                        {% for error in form.share_contact.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                    </div>
+
                     <div class="mb-4">
                         {{ form.description.label(class="form-label") }}
                         {{ form.description(class="form-control", rows="5", placeholder="Giới thiệu phong cách chơi, yêu cầu có mặt và thông tin cần biết...") }}
@@ -76,7 +89,7 @@
                     {% if locked_type == 'FIND_PLAYERS' %}
                         Người ghép được tính là đã vào đội ngay sau khi bạn duyệt; họ không cọc online và sẽ trả tại sân.
                     {% else %}
-                        Đội đối thủ chỉ được xác nhận sau khi bạn duyệt và họ hoàn thành phần cọc cam kết.
+                        Đội đối thủ tự giữ suất 15 phút khi bấm nhận kèo và được xác nhận ngay sau khi thanh toán cọc; bạn không cần duyệt.
                     {% endif %}
                 </div>
             </aside>

@@ -22,6 +22,9 @@ from app.models import (
     FieldMaintenance,
     FieldMaintenanceStatus,
     FieldStatus,
+    MatchParticipant,
+    MatchParticipantStatus,
+    MatchStatus,
     Refund,
     PlayFormat,
     SportCode,
@@ -148,15 +151,6 @@ def create_booking(
     except ContributionError as exc:
         raise BookingError(str(exc)) from exc
 
-    start_at_local = datetime.combine(booking_date, start_time)
-    matchmaking_deadline = None
-    funding_deadline = None
-    if normalized_mode == BookingMode.FIND_OPPONENT.value:
-        matchmaking_deadline = _local_to_utc(
-            start_at_local - timedelta(hours=12)
-        )
-        funding_deadline = matchmaking_deadline + timedelta(minutes=30)
-
     booking = Booking(
         booking_code=_generate_booking_code(current_utc),
         user_id=user.id,
@@ -175,8 +169,10 @@ def create_booking(
         cancellation_fee_amount=Decimal("0.00"),
         status=BookingStatus.CONFIRMED.value,
         initial_payment_due_at=current_utc + timedelta(minutes=15),
-        matchmaking_deadline=matchmaking_deadline,
-        funding_deadline=funding_deadline,
+        # ADR-027: new match posts stay open until kick-off. These nullable
+        # columns remain available only to interpret legacy bookings.
+        matchmaking_deadline=None,
+        funding_deadline=None,
         note=normalized_note,
     )
     db.session.add(booking)
@@ -348,22 +344,37 @@ def cancel_user_booking(
         booking.status = BookingStatus.EXPIRED.value
         _commit_booking("Không thể cập nhật booking đã hết hạn.")
         raise InvalidBookingStateError("Booking đã hết hạn.")
-    if booking.status not in {
-        BookingStatus.PENDING.value,
-        BookingStatus.CONFIRMED.value,
-        BookingStatus.PARTIALLY_PAID.value,
-    }:
-        raise InvalidBookingStateError(
-            "Bạn chỉ có thể tự hủy booking chưa thanh toán đủ."
-        )
-
     start_at = datetime.combine(booking.booking_date, booking.start_time)
-    if start_at - current_local < timedelta(hours=2):
+    if start_at <= current_local:
         raise InvalidBookingStateError(
-            "Bạn chỉ có thể hủy trước giờ bắt đầu ít nhất 2 giờ."
+            "Booking đã bắt đầu nên không thể hủy trên hệ thống."
         )
 
-    if booking.status == BookingStatus.PARTIALLY_PAID.value:
+    if _uses_non_refundable_deposit_cancellation(booking):
+        if booking.status not in {
+            BookingStatus.PENDING.value,
+            BookingStatus.CONFIRMED.value,
+            BookingStatus.PARTIALLY_PAID.value,
+            BookingStatus.PAID.value,
+        }:
+            raise InvalidBookingStateError(
+                "Booking này không còn ở trạng thái có thể tự hủy."
+            )
+        from .refund import RefundError, apply_creator_cancellation_policy
+
+        try:
+            apply_creator_cancellation_policy(
+                booking=booking,
+                reason="Người đặt sân chủ động hủy booking.",
+                now=_local_to_utc(current_local),
+            )
+        except RefundError as exc:
+            raise InvalidBookingStateError(str(exc)) from exc
+    elif booking.status == BookingStatus.PARTIALLY_PAID.value:
+        if start_at - current_local < timedelta(hours=2):
+            raise InvalidBookingStateError(
+                "Booking cũ chỉ có thể hủy trước giờ bắt đầu ít nhất 2 giờ."
+            )
         from .refund import RefundError, apply_funding_shortfall_refunds
 
         try:
@@ -374,12 +385,23 @@ def cancel_user_booking(
             )
         except RefundError as exc:
             raise InvalidBookingStateError(str(exc)) from exc
-    else:
+    elif booking.status in {
+        BookingStatus.PENDING.value,
+        BookingStatus.CONFIRMED.value,
+    }:
+        if start_at - current_local < timedelta(hours=2):
+            raise InvalidBookingStateError(
+                "Booking cũ chỉ có thể hủy trước giờ bắt đầu ít nhất 2 giờ."
+            )
         booking.status = BookingStatus.CANCELLED.value
         booking.cancellation_reason = "Người đặt sân chủ động hủy booking."
         _set_pending_contributions_status(
             booking_ids=[booking.id],
             status=ContributionStatus.WAIVED.value,
+        )
+    else:
+        raise InvalidBookingStateError(
+            "Booking này không còn ở trạng thái có thể tự hủy."
         )
     _commit_booking("Không thể hủy booking lúc này.")
     _attempt_momo_refunds(booking.id)
@@ -450,7 +472,8 @@ def get_effective_booking_status(
     *,
     now: datetime | None = None,
 ) -> str:
-    current_utc = _normalize_utc_datetime_from_local(now)
+    current_local = _normalize_local_datetime(now)
+    current_utc = _local_to_utc(current_local)
     if (
         booking.status == BookingStatus.CONFIRMED.value
         and booking.initial_payment_due_at is not None
@@ -458,6 +481,11 @@ def get_effective_booking_status(
         and Decimal(booking.paid_amount) == Decimal("0.00")
     ):
         return BookingStatus.EXPIRED.value
+    if (
+        _booking_can_complete(booking)
+        and datetime.combine(booking.booking_date, booking.end_time) <= current_local
+    ):
+        return BookingStatus.COMPLETED.value
     return booking.status
 
 
@@ -481,6 +509,72 @@ def expire_stale_bookings(*, now: datetime | None = None) -> int:
         )
         _commit_booking("Không thể cập nhật các booking đã hết hạn.")
     return len(stale_bookings)
+
+
+def complete_finished_bookings(*, now: datetime | None = None) -> int:
+    """Persist completion for paid and valid partially-paid bookings."""
+    current_local = _normalize_local_datetime(now)
+    candidates = list(
+        db.session.scalars(
+            db.select(Booking).where(
+                Booking.status.in_(
+                    (
+                        BookingStatus.PARTIALLY_PAID.value,
+                        BookingStatus.PAID.value,
+                    )
+                )
+            )
+        )
+    )
+    completed: list[Booking] = []
+    for booking in candidates:
+        if not _booking_can_complete(booking):
+            continue
+        if datetime.combine(booking.booking_date, booking.end_time) > current_local:
+            continue
+        booking.status = BookingStatus.COMPLETED.value
+        completed.append(booking)
+
+    if not completed:
+        return 0
+    booking_ids = [booking.id for booking in completed]
+    _set_pending_contributions_status(
+        booking_ids=booking_ids,
+        status=ContributionStatus.EXPIRED.value,
+    )
+    match_ids = [booking.match.id for booking in completed if booking.match is not None]
+    if match_ids:
+        unresolved_participants = db.session.scalars(
+            db.select(MatchParticipant).where(
+                MatchParticipant.match_id.in_(match_ids),
+                MatchParticipant.status.in_(
+                    (
+                        MatchParticipantStatus.PENDING.value,
+                        MatchParticipantStatus.ACCEPTED_AWAITING_PAYMENT.value,
+                    )
+                ),
+            )
+        )
+        for participant in unresolved_participants:
+            contribution = participant.contribution
+            if (
+                contribution is not None
+                and Decimal(contribution.amount_paid) == Decimal("0.00")
+                and contribution.status
+                in {
+                    ContributionStatus.PENDING.value,
+                    ContributionStatus.EXPIRED.value,
+                }
+            ):
+                contribution.user_id = None
+                contribution.expires_at = None
+            participant.status = MatchParticipantStatus.EXPIRED.value
+            participant.payment_due_at = None
+        for booking in completed:
+            if booking.match is not None:
+                booking.match.status = MatchStatus.COMPLETED.value
+    _commit_booking("Không thể hoàn tất các booking đã qua giờ sử dụng.")
+    return len(completed)
 
 
 def _booking_with_details_statement():
@@ -671,6 +765,28 @@ def _set_pending_contributions_status(*, booking_ids: list[int], status: str) ->
     )
     for contribution in contributions:
         contribution.status = status
+
+
+def _uses_non_refundable_deposit_cancellation(booking: Booking) -> bool:
+    if booking.payment_policy != BookingPaymentPolicy.DEPOSIT_30.value:
+        return False
+    if booking.booking_mode != BookingMode.FIND_OPPONENT.value:
+        return True
+    return (
+        booking.matchmaking_deadline is None
+        and booking.funding_deadline is None
+    )
+
+
+def _booking_can_complete(booking: Booking) -> bool:
+    if booking.status == BookingStatus.PAID.value:
+        return True
+    return bool(
+        booking.status == BookingStatus.PARTIALLY_PAID.value
+        and _uses_non_refundable_deposit_cancellation(booking)
+        and booking.booking_mode == BookingMode.FIND_OPPONENT.value
+        and Decimal(booking.paid_amount) > 0
+    )
 
 
 def _lock_owner_booking(*, booking_code: str, owner_id: int) -> Booking:

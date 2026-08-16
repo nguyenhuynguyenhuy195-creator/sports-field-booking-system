@@ -69,6 +69,10 @@ class Match(db.Model):
     title: Mapped[str] = mapped_column(db.Unicode(200), nullable=False)
     description: Mapped[str | None] = mapped_column(db.UnicodeText, nullable=True)
     skill_level: Mapped[str | None] = mapped_column(db.String(30), nullable=True)
+    creator_contact_phone: Mapped[str | None] = mapped_column(
+        db.String(20),
+        nullable=True,
+    )
     total_players: Mapped[int | None] = mapped_column(db.Integer, nullable=True)
     required_players: Mapped[int] = mapped_column(db.Integer, nullable=False)
     status: Mapped[str] = mapped_column(

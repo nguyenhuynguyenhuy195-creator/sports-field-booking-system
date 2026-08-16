@@ -11,6 +11,7 @@ from app.models import (
     BookingContribution,
     BookingMode,
     BookingStatus,
+    ContributionStatus,
     Payment,
     PaymentStatus,
     Refund,
@@ -30,6 +31,7 @@ from tests.integration.test_bookings import (
     booking_day,
     create_bookable_field,
     create_user,
+    login,
 )
 
 
@@ -164,6 +166,83 @@ def test_momo_ipn_is_idempotent_and_owner_refund_completes(app):
         assert refund.status == RefundStatus.SUCCESS.value
         assert booking.status == BookingStatus.CANCELLED.value
         assert booking.paid_amount == 0
+
+
+def test_momo_browser_return_stays_pending_until_verified_ipn(
+    app,
+    client,
+    monkeypatch,
+):
+    owner = create_user(app, email="return-owner@example.com", role=UserRole.OWNER)
+    player = create_user(app, email="return-player@example.com")
+    _, field_id = create_bookable_field(app, owner_id=owner.id)
+    momo = build_client()
+
+    with app.app_context():
+        booking = create_booking(
+            user=db.session.get(User, player.id),
+            field_id=field_id,
+            booking_date=booking_day(),
+            start_time=time(18, 0),
+            end_time=time(20, 0),
+            booking_mode=BookingMode.DIRECT_BOOKING.value,
+        )
+        contribution = db.session.scalar(
+            db.select(BookingContribution).where(
+                BookingContribution.booking_id == booking.id
+            )
+        )
+        checkout = start_momo_payment(
+            booking_code=booking.booking_code,
+            contribution_id=contribution.id,
+            payer=db.session.get(User, player.id),
+            redirect_url="https://example.test/payments/momo/return",
+            ipn_url="https://example.test/payments/momo/ipn",
+            client=momo,
+        )
+        payload = payment_notification(checkout.payment)
+        booking_code = booking.booking_code
+        payment_id = checkout.payment.id
+        contribution_id = contribution.id
+
+    monkeypatch.setattr(
+        MomoClient,
+        "from_app_config",
+        classmethod(lambda cls: momo),
+    )
+    login(client, email=player.email)
+
+    response = client.get(
+        "/payments/momo/return",
+        query_string=payload,
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    assert "Đang chờ MoMo xác nhận qua IPN" in response.get_data(as_text=True)
+
+    with app.app_context():
+        payment = db.session.get(Payment, payment_id)
+        booking = db.session.scalar(
+            db.select(Booking).where(Booking.booking_code == booking_code)
+        )
+        contribution = db.session.get(BookingContribution, contribution_id)
+        assert payment.status == PaymentStatus.PENDING.value
+        assert booking.status == BookingStatus.CONFIRMED.value
+        assert contribution.status == ContributionStatus.PENDING.value
+
+    ipn_response = client.post("/payments/momo/ipn", json=payload)
+    assert ipn_response.status_code == 200
+
+    with app.app_context():
+        assert db.session.get(Payment, payment_id).status == PaymentStatus.SUCCESS.value
+        booking = db.session.scalar(
+            db.select(Booking).where(Booking.booking_code == booking_code)
+        )
+        assert booking.status == BookingStatus.PAID.value
+        assert (
+            db.session.get(BookingContribution, contribution_id).status
+            == ContributionStatus.PAID.value
+        )
 
 
 def test_momo_checkout_retries_same_request_after_network_error(app):

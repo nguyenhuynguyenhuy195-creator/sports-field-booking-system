@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+import re
 
 from sqlalchemy import and_, or_
 from sqlalchemy.exc import SQLAlchemyError
@@ -84,6 +85,8 @@ def create_match(
     skill_level: str | None = None,
     match_type: str | None = None,
     required_players: int | None = None,
+    contact_phone: str | None = None,
+    share_contact: bool = False,
     now: datetime | None = None,
 ) -> Match:
     """Create the single MVP match attached to an eligible booking."""
@@ -104,6 +107,10 @@ def create_match(
         match_type=normalized_type,
         required_players=required_players,
     )
+    shared_phone = _required_shared_contact_phone(
+        contact_phone,
+        share_contact=share_contact,
+    )
     record = Match(
         creator_id=creator.id,
         booking_id=booking.id,
@@ -119,10 +126,12 @@ def create_match(
             field_name="Trình độ",
             maximum=30,
         ),
+        creator_contact_phone=shared_phone,
         total_players=total_players,
         required_players=normalized_required,
         status=MatchStatus.OPEN.value,
     )
+    creator.phone = shared_phone
     db.session.add(record)
     _commit_matchmaking("Không thể tạo kèo lúc này.")
     return record
@@ -140,7 +149,7 @@ def list_open_matches(*, now: datetime | None = None) -> list[Match]:
                 Booking.booking_date > _utc_to_vietnam_date(current_utc),
                 and_(
                     Booking.booking_date == _utc_to_vietnam_date(current_utc),
-                    Booking.end_time > _utc_to_vietnam_time(current_utc),
+                    Booking.start_time > _utc_to_vietnam_time(current_utc),
                 ),
             ),
         )
@@ -169,6 +178,7 @@ def list_user_match_requests(user_id: int) -> list[MatchParticipant]:
             .joinedload(Match.booking)
             .joinedload(Booking.field)
             .joinedload(Field.venue),
+            joinedload(MatchParticipant.match).joinedload(Match.creator),
         )
         .where(MatchParticipant.user_id == user_id)
         .order_by(MatchParticipant.created_at.desc())
@@ -203,28 +213,43 @@ def request_to_join_match(
         raise MatchPermissionError("Bạn không thể tham gia kèo do chính mình tạo.")
 
     active_request = db.session.scalar(
-        db.select(MatchParticipant.id).where(
-            MatchParticipant.match_id == match.id,
-            MatchParticipant.user_id == user.id,
-            MatchParticipant.status.in_(ACTIVE_PARTICIPANT_STATUSES),
+        with_update_lock(
+            db.select(MatchParticipant).where(
+                MatchParticipant.match_id == match.id,
+                MatchParticipant.user_id == user.id,
+                MatchParticipant.status.in_(ACTIVE_PARTICIPANT_STATUSES),
+            ),
+            MatchParticipant,
         )
     )
     if active_request is not None:
+        if (
+            opponent_join_is_automatic(match)
+            and active_request.status == MatchParticipantStatus.PENDING.value
+        ):
+            shared_phone = _required_shared_contact_phone(
+                contact_phone,
+                share_contact=share_contact,
+            )
+            _ensure_match_has_capacity(match)
+            active_request.contact_phone = shared_phone
+            user.phone = shared_phone
+            _reserve_or_join_participant(
+                match=match,
+                participant=active_request,
+                current_utc=current_utc,
+            )
+            _commit_matchmaking("Không thể giữ suất thanh toán lúc này.")
+            return active_request
         raise DuplicateMatchRequestError(
             "Bạn đã có một yêu cầu đang hoạt động trong kèo này."
         )
     _ensure_match_has_capacity(match)
 
-    normalized_phone = normalize_phone(contact_phone)
-    if match.match_type == MatchType.FIND_PLAYERS.value:
-        if not normalized_phone:
-            raise MatchmakingError(
-                "Vui lòng nhập số điện thoại có Zalo để người tạo kèo liên hệ."
-            )
-        if not share_contact:
-            raise MatchmakingError(
-                "Bạn cần đồng ý chia sẻ số điện thoại sau khi được chấp nhận."
-            )
+    shared_phone = _required_shared_contact_phone(
+        contact_phone,
+        share_contact=share_contact,
+    )
 
     participant = MatchParticipant(
         match_id=match.id,
@@ -235,16 +260,78 @@ def request_to_join_match(
             else MatchParticipantType.PLAYER.value
         ),
         message=_optional_text(message, field_name="Lời nhắn", maximum=500),
-        contact_phone=(
-            normalized_phone
-            if match.match_type == MatchType.FIND_PLAYERS.value
-            else None
-        ),
+        contact_phone=shared_phone,
         status=MatchParticipantStatus.PENDING.value,
     )
+    user.phone = shared_phone
+    if opponent_join_is_automatic(match):
+        _reserve_or_join_participant(
+            match=match,
+            participant=participant,
+            current_utc=current_utc,
+        )
     db.session.add(participant)
-    _commit_matchmaking("Không thể gửi yêu cầu tham gia lúc này.")
+    _commit_matchmaking(
+        "Không thể giữ suất thanh toán lúc này."
+        if opponent_join_is_automatic(match)
+        else "Không thể gửi yêu cầu tham gia lúc này."
+    )
     return participant
+
+
+def update_match_contact(
+    *,
+    match_id: int,
+    user: User,
+    contact_phone: str | None,
+    share_contact: bool,
+    now: datetime | None = None,
+) -> MatchParticipant | None:
+    """Save a private contact snapshot for one side of an active match."""
+    _validate_actor(user)
+    current_utc = _normalize_utc(now)
+    match = _lock_match(match_id)
+    if (
+        match.status in {MatchStatus.CANCELLED.value, MatchStatus.COMPLETED.value}
+        or _booking_has_ended(match.booking, current_utc=current_utc)
+    ):
+        raise InvalidMatchStateError("Kèo đã kết thúc nên không thể đổi số liên hệ.")
+
+    shared_phone = _required_shared_contact_phone(
+        contact_phone,
+        share_contact=share_contact,
+    )
+    participant = None
+    if match.creator_id == user.id:
+        match.creator_contact_phone = shared_phone
+    else:
+        participant = db.session.scalar(
+            with_update_lock(
+                db.select(MatchParticipant).where(
+                    MatchParticipant.match_id == match.id,
+                    MatchParticipant.user_id == user.id,
+                    MatchParticipant.status.in_(ACTIVE_PARTICIPANT_STATUSES),
+                ),
+                MatchParticipant,
+            )
+        )
+        if participant is None:
+            raise MatchPermissionError(
+                "Chỉ người tạo hoặc người đang tham gia kèo được cập nhật liên hệ."
+            )
+        participant.contact_phone = shared_phone
+
+    user.phone = shared_phone
+    _commit_matchmaking("Không thể lưu số liên hệ lúc này.")
+    return participant
+
+
+def opponent_join_is_automatic(match: Match) -> bool:
+    """Return whether an opponent can reserve the payment slot directly."""
+    return bool(
+        match.match_type == MatchType.FIND_OPPONENT.value
+        and _uses_current_match_policy(match.booking)
+    )
 
 
 def decide_match_request(
@@ -260,6 +347,11 @@ def decide_match_request(
     match = _lock_match(match_id)
     if match.creator_id != creator.id:
         raise MatchPermissionError("Chỉ người tạo kèo được duyệt yêu cầu.")
+    if opponent_join_is_automatic(match):
+        raise InvalidMatchStateError(
+            "Kèo tìm đối thủ này tự động giữ suất thanh toán và không cần "
+            "người tạo duyệt."
+        )
     _expire_stale_participants_for_match(match, current_utc=current_utc)
     participant = _lock_participant(match_id=match.id, participant_id=participant_id)
     if participant.status != MatchParticipantStatus.PENDING.value:
@@ -273,37 +365,11 @@ def decide_match_request(
 
     _validate_match_is_open(match, current_utc=current_utc)
     _ensure_match_has_capacity(match)
-    contribution = _lock_available_contribution(match)
-    participant.decided_at = current_utc
-    participant.contribution_id = contribution.id if contribution else None
-
-    if contribution is not None and contribution.status == ContributionStatus.PENDING.value:
-        payment_due_at = current_utc + timedelta(
-            minutes=PARTICIPANT_PAYMENT_MINUTES
-        )
-        payment_cutoff = (
-            match.booking.matchmaking_deadline
-            if match.booking.uses_deposit_policy
-            else match.booking.funding_deadline
-        )
-        if payment_cutoff is not None and current_utc >= payment_cutoff:
-            raise InvalidMatchStateError(
-                "Đã hết hạn tìm đối thủ cho booking này."
-            )
-        if payment_cutoff is not None and payment_due_at > payment_cutoff:
-            payment_due_at = payment_cutoff
-        contribution.user_id = participant.user_id
-        contribution.expires_at = payment_due_at
-        participant.payment_due_at = payment_due_at
-        participant.status = (
-            MatchParticipantStatus.ACCEPTED_AWAITING_PAYMENT.value
-        )
-    else:
-        if contribution is not None:
-            contribution.user_id = participant.user_id
-        participant.payment_due_at = None
-        participant.status = MatchParticipantStatus.JOINED.value
-        _refresh_match_status(match)
+    _reserve_or_join_participant(
+        match=match,
+        participant=participant,
+        current_utc=current_utc,
+    )
 
     _commit_matchmaking("Không thể chấp nhận yêu cầu lúc này.")
     return participant
@@ -344,8 +410,8 @@ def withdraw_match_request(
         and match.booking.payment_policy == BookingPaymentPolicy.DEPOSIT_30.value
     )
     if participant.status == MatchParticipantStatus.JOINED.value and not free_player_join:
-        if _booking_has_ended(match.booking, current_utc=current_utc):
-            raise InvalidMatchStateError("Kèo đã kết thúc nên không thể báo rút.")
+        if _booking_has_started(match.booking, current_utc=current_utc):
+            raise InvalidMatchStateError("Kèo đã bắt đầu nên không thể báo rút.")
         contribution = participant.contribution
         if participant_withdrawal_gets_refund(
             match.booking,
@@ -400,7 +466,9 @@ def participant_withdrawal_gets_refund(
     *,
     now: datetime | None = None,
 ) -> bool:
-    """Return whether a joined participant is still outside the 12-hour cutoff."""
+    """Return the legacy 12-hour refund result for old matchmaking records."""
+    if _uses_current_match_policy(booking):
+        return False
     current_utc = _normalize_utc(now)
     return _booking_start_utc(booking) - current_utc > timedelta(hours=12)
 
@@ -410,13 +478,19 @@ def expire_stale_match_participants(
     now: datetime | None = None,
     match_id: int | None = None,
 ) -> int:
-    """Release accepted requests whose 15-minute payment window has passed."""
+    """Expire unpaid requests at their payment due time or at kick-off."""
     current_utc = _normalize_utc(now)
-    statement = db.select(MatchParticipant).where(
-        MatchParticipant.status
-        == MatchParticipantStatus.ACCEPTED_AWAITING_PAYMENT.value,
-        MatchParticipant.payment_due_at.is_not(None),
-        MatchParticipant.payment_due_at <= current_utc,
+    statement = (
+        db.select(MatchParticipant)
+        .options(joinedload(MatchParticipant.match).joinedload(Match.booking))
+        .where(
+            MatchParticipant.status.in_(
+                (
+                    MatchParticipantStatus.PENDING.value,
+                    MatchParticipantStatus.ACCEPTED_AWAITING_PAYMENT.value,
+                )
+            )
+        )
     )
     if match_id is not None:
         statement = statement.where(MatchParticipant.match_id == match_id)
@@ -424,16 +498,33 @@ def expire_stale_match_participants(
         db.session.scalars(with_update_lock(statement, MatchParticipant))
     )
     match_ids: set[int] = set()
+    expired_count = 0
     for participant in records:
+        payment_expired = (
+            participant.status
+            == MatchParticipantStatus.ACCEPTED_AWAITING_PAYMENT.value
+            and participant.payment_due_at is not None
+            and participant.payment_due_at <= current_utc
+        )
+        match_started = _booking_has_started(
+            participant.match.booking,
+            current_utc=current_utc,
+        )
+        if not payment_expired and not match_started:
+            continue
         _expire_participant(participant, current_utc=current_utc)
         match_ids.add(participant.match_id)
+        expired_count += 1
     for current_match_id in match_ids:
         match = db.session.get(Match, current_match_id)
-        if match is not None:
+        if match is not None and not _booking_has_started(
+            match.booking,
+            current_utc=current_utc,
+        ):
             match.status = MatchStatus.OPEN.value
-    if records:
+    if expired_count:
         _commit_matchmaking("Không thể cập nhật yêu cầu tham gia đã hết hạn.")
-    return len(records)
+    return expired_count
 
 
 def expire_participant_for_contribution(
@@ -573,6 +664,42 @@ def _lock_participant(*, match_id: int, participant_id: int) -> MatchParticipant
     return participant
 
 
+def _reserve_or_join_participant(
+    *,
+    match: Match,
+    participant: MatchParticipant,
+    current_utc: datetime,
+) -> None:
+    contribution = _lock_available_contribution(match)
+    participant.decided_at = current_utc
+    participant.contribution_id = contribution.id if contribution else None
+
+    if contribution is not None and contribution.status == ContributionStatus.PENDING.value:
+        payment_due_at = current_utc + timedelta(
+            minutes=PARTICIPANT_PAYMENT_MINUTES
+        )
+        payment_cutoff = _match_request_cutoff(match.booking)
+        if current_utc >= payment_cutoff:
+            raise InvalidMatchStateError(
+                "Đã hết hạn nhận đối thủ cho booking này."
+            )
+        if payment_due_at > payment_cutoff:
+            payment_due_at = payment_cutoff
+        contribution.user_id = participant.user_id
+        contribution.expires_at = payment_due_at
+        participant.payment_due_at = payment_due_at
+        participant.status = (
+            MatchParticipantStatus.ACCEPTED_AWAITING_PAYMENT.value
+        )
+        return
+
+    if contribution is not None:
+        contribution.user_id = participant.user_id
+    participant.payment_due_at = None
+    participant.status = MatchParticipantStatus.JOINED.value
+    _refresh_match_status(match)
+
+
 def _lock_available_contribution(match: Match) -> BookingContribution | None:
     if (
         match.match_type == MatchType.FIND_PLAYERS.value
@@ -622,10 +749,7 @@ def _validate_booking_can_open_match(
             )
         if booking.booking_mode == BookingMode.FIND_OPPONENT.value:
             allowed = booking.status == BookingStatus.PARTIALLY_PAID.value
-            if (
-                booking.matchmaking_deadline is not None
-                and current_utc >= booking.matchmaking_deadline
-            ):
+            if current_utc >= _match_request_cutoff(booking):
                 raise InvalidMatchStateError("Đã hết hạn tìm đối thủ cho booking này.")
         else:
             allowed = booking.status == BookingStatus.PAID.value
@@ -637,8 +761,8 @@ def _validate_booking_can_open_match(
         raise InvalidMatchStateError(
             "Hãy hoàn thành khoản thanh toán bắt buộc trước khi mở kèo."
         )
-    if _booking_has_ended(booking, current_utc=current_utc):
-        raise InvalidMatchStateError("Không thể mở kèo cho lịch sân đã kết thúc.")
+    if _booking_has_started(booking, current_utc=current_utc):
+        raise InvalidMatchStateError("Không thể mở kèo khi lịch sân đã bắt đầu.")
 
 
 def _resolve_match_type(booking: Booking, requested_type: str | None) -> str:
@@ -687,8 +811,8 @@ def _validate_match_is_open(match: Match, *, current_utc: datetime) -> None:
         raise InvalidMatchStateError("Kèo này không còn nhận yêu cầu mới.")
     if match.booking.status not in MATCHABLE_BOOKING_STATUSES:
         raise InvalidMatchStateError("Booking của kèo không còn hiệu lực.")
-    if _booking_has_ended(match.booking, current_utc=current_utc):
-        raise InvalidMatchStateError("Kèo đã qua thời gian thi đấu.")
+    if _booking_has_started(match.booking, current_utc=current_utc):
+        raise InvalidMatchStateError("Kèo đã đến giờ bắt đầu.")
     if (
         match.match_type == MatchType.FIND_OPPONENT.value
         and match.booking.uses_deposit_policy
@@ -719,15 +843,26 @@ def _expire_stale_participants_for_match(
     *,
     current_utc: datetime,
 ) -> None:
+    match_started = _booking_has_started(match.booking, current_utc=current_utc)
     for participant in match.participants:
-        if (
+        payment_expired = (
             participant.status
             == MatchParticipantStatus.ACCEPTED_AWAITING_PAYMENT.value
             and participant.payment_due_at is not None
             and participant.payment_due_at <= current_utc
-        ):
+        )
+        unresolved_at_start = (
+            match_started
+            and participant.status
+            in {
+                MatchParticipantStatus.PENDING.value,
+                MatchParticipantStatus.ACCEPTED_AWAITING_PAYMENT.value,
+            }
+        )
+        if payment_expired or unresolved_at_start:
             _expire_participant(participant, current_utc=current_utc)
-            match.status = MatchStatus.OPEN.value
+            if not match_started:
+                match.status = MatchStatus.OPEN.value
 
 
 def _expire_participant(
@@ -784,6 +919,30 @@ def _booking_has_ended(booking: Booking, *, current_utc: datetime) -> bool:
     return end_at <= local_now.replace(tzinfo=None)
 
 
+def _booking_has_started(booking: Booking, *, current_utc: datetime) -> bool:
+    return _booking_start_utc(booking) <= current_utc
+
+
+def _uses_current_match_policy(booking: Booking) -> bool:
+    return bool(
+        booking.payment_policy == BookingPaymentPolicy.DEPOSIT_30.value
+        and booking.booking_mode == BookingMode.FIND_OPPONENT.value
+        and booking.matchmaking_deadline is None
+        and booking.funding_deadline is None
+    )
+
+
+def _match_request_cutoff(booking: Booking) -> datetime:
+    if not booking.uses_deposit_policy and booking.funding_deadline is not None:
+        return booking.funding_deadline
+    if (
+        booking.booking_mode == BookingMode.FIND_OPPONENT.value
+        and booking.matchmaking_deadline is not None
+    ):
+        return booking.matchmaking_deadline
+    return _booking_start_utc(booking)
+
+
 def _booking_start_utc(booking: Booking) -> datetime:
     local_start = datetime.combine(booking.booking_date, booking.start_time)
     return local_start - timedelta(hours=7)
@@ -815,6 +974,21 @@ def _required_text(value: str | None, *, field_name: str, maximum: int) -> str:
         raise MatchmakingError(f"{field_name} không được để trống.")
     if len(normalized) > maximum:
         raise MatchmakingError(f"{field_name} tối đa {maximum} ký tự.")
+    return normalized
+
+
+def _required_shared_contact_phone(
+    value: str | None,
+    *,
+    share_contact: bool,
+) -> str:
+    normalized = normalize_phone(value)
+    if not normalized:
+        raise MatchmakingError("Vui lòng nhập số điện thoại có Zalo.")
+    if len(normalized) > 20 or re.fullmatch(r"\+?[0-9][0-9 .-]{8,18}", normalized) is None:
+        raise MatchmakingError("Số điện thoại không hợp lệ.")
+    if not share_contact:
+        raise MatchmakingError("Bạn cần đồng ý chia sẻ số liên hệ cho bên còn lại.")
     return normalized
 
 

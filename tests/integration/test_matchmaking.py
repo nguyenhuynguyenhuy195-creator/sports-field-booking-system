@@ -22,8 +22,10 @@ from app.services import (
     MatchmakingError,
     create_booking,
     create_match,
+    complete_finished_bookings,
     decide_match_request,
     expire_stale_match_participants,
+    list_open_matches,
     pay_contribution_with_mock,
     request_to_join_match,
 )
@@ -79,6 +81,8 @@ def _create_match(
             title="Kèo giao hữu cuối tuần",
             description="Chơi vui, đúng giờ.",
             skill_level="INTERMEDIATE",
+            contact_phone="0901000001",
+            share_contact=True,
         )
         return match.id
 
@@ -114,14 +118,9 @@ def test_opponent_request_payment_confirms_match_and_booking(app):
             match_id=match_id,
             user=db.session.get(User, opponent.id),
             message="Đội mình nhận kèo này.",
+            contact_phone="0901000002",
+            share_contact=True,
         )
-        decide_match_request(
-            match_id=match_id,
-            participant_id=participant.id,
-            creator=db.session.get(User, creator.id),
-            accept=True,
-        )
-        db.session.refresh(participant)
         assert participant.status == MatchParticipantStatus.ACCEPTED_AWAITING_PAYMENT.value
         assert participant.payment_due_at is not None
         assert participant.contribution.user_id == opponent.id
@@ -141,7 +140,7 @@ def test_opponent_request_payment_confirms_match_and_booking(app):
         assert booking.paid_amount == booking.deposit_amount
 
 
-def test_opponent_payment_window_is_capped_at_matchmaking_deadline(app):
+def test_opponent_payment_window_is_capped_at_booking_start(app):
     owner = create_user(app, email="owner@example.com", role=UserRole.OWNER)
     creator = create_user(app, email="creator@example.com")
     opponent = create_user(app, email="opponent@example.com")
@@ -158,20 +157,100 @@ def test_opponent_payment_window_is_capped_at_matchmaking_deadline(app):
         booking = db.session.scalar(
             db.select(Booking).where(Booking.booking_code == booking_code)
         )
-        accepted_at = booking.matchmaking_deadline - timedelta(minutes=5)
+        assert booking.matchmaking_deadline is None
+        assert booking.funding_deadline is None
+        booking_start_utc = datetime.combine(
+            booking.booking_date,
+            booking.start_time,
+        ) - timedelta(hours=7)
+        accepted_at = booking_start_utc - timedelta(minutes=5)
         participant = request_to_join_match(
             match_id=match_id,
             user=db.session.get(User, opponent.id),
+            contact_phone="0901000002",
+            share_contact=True,
             now=accepted_at,
         )
-        decide_match_request(
+        assert participant.payment_due_at == booking_start_utc
+
+
+def test_open_match_disappears_and_pending_request_expires_at_booking_start(app):
+    owner = create_user(app, email="owner@example.com", role=UserRole.OWNER)
+    creator = create_user(app, email="creator@example.com")
+    opponent = create_user(app, email="opponent@example.com")
+    _, field_id = create_bookable_field(app, owner_id=owner.id)
+    booking_code = _create_split_booking(
+        app,
+        creator_id=creator.id,
+        field_id=field_id,
+        booking_mode=BookingMode.FIND_OPPONENT.value,
+    )
+    match_id = _create_match(app, booking_code=booking_code, creator_id=creator.id)
+
+    with app.app_context():
+        booking = db.session.scalar(
+            db.select(Booking).where(Booking.booking_code == booking_code)
+        )
+        booking_start_utc = datetime.combine(
+            booking.booking_date,
+            booking.start_time,
+        ) - timedelta(hours=7)
+        participant = request_to_join_match(
             match_id=match_id,
-            participant_id=participant.id,
-            creator=db.session.get(User, creator.id),
-            accept=True,
-            now=accepted_at,
+            user=db.session.get(User, opponent.id),
+            contact_phone="0901000002",
+            share_contact=True,
+            now=booking_start_utc - timedelta(minutes=1),
         )
-        assert participant.payment_due_at == booking.matchmaking_deadline
+
+        assert match_id in {
+            match.id
+            for match in list_open_matches(now=booking_start_utc - timedelta(seconds=1))
+        }
+        assert list_open_matches(now=booking_start_utc) == []
+        assert expire_stale_match_participants(now=booking_start_utc) == 1
+        assert participant.status == MatchParticipantStatus.EXPIRED.value
+
+
+def test_partial_booking_without_opponent_completes_after_field_time(app):
+    owner = create_user(app, email="owner@example.com", role=UserRole.OWNER)
+    creator = create_user(app, email="creator@example.com")
+    opponent = create_user(app, email="opponent@example.com")
+    _, field_id = create_bookable_field(app, owner_id=owner.id)
+    booking_code = _create_split_booking(
+        app,
+        creator_id=creator.id,
+        field_id=field_id,
+        booking_mode=BookingMode.FIND_OPPONENT.value,
+    )
+    match_id = _create_match(app, booking_code=booking_code, creator_id=creator.id)
+
+    with app.app_context():
+        booking = db.session.scalar(
+            db.select(Booking).where(Booking.booking_code == booking_code)
+        )
+        participant = request_to_join_match(
+            match_id=match_id,
+            user=db.session.get(User, opponent.id),
+            contact_phone="0901000002",
+            share_contact=True,
+        )
+        after_field_time = datetime.combine(
+            booking.booking_date,
+            booking.end_time,
+        ) + timedelta(minutes=1)
+
+        assert complete_finished_bookings(now=after_field_time) == 1
+        assert booking.status == BookingStatus.COMPLETED.value
+        assert participant.status == MatchParticipantStatus.EXPIRED.value
+        assert db.session.get(Match, match_id).status == MatchStatus.COMPLETED.value
+        opponent_contribution = db.session.scalar(
+            db.select(BookingContribution).where(
+                BookingContribution.booking_id == booking.id,
+                BookingContribution.user_id.is_(None),
+            )
+        )
+        assert opponent_contribution.status == ContributionStatus.EXPIRED.value
 
 
 def test_expired_opponent_request_reopens_same_contribution(app):
@@ -193,13 +272,8 @@ def test_expired_opponent_request_reopens_same_contribution(app):
         first_request = request_to_join_match(
             match_id=match_id,
             user=db.session.get(User, first.id),
-            now=accepted_at,
-        )
-        decide_match_request(
-            match_id=match_id,
-            participant_id=first_request.id,
-            creator=db.session.get(User, creator.id),
-            accept=True,
+            contact_phone="0901000002",
+            share_contact=True,
             now=accepted_at,
         )
         contribution_id = first_request.contribution_id
@@ -214,14 +288,89 @@ def test_expired_opponent_request_reopens_same_contribution(app):
         second_request = request_to_join_match(
             match_id=match_id,
             user=db.session.get(User, second.id),
-        )
-        decide_match_request(
-            match_id=match_id,
-            participant_id=second_request.id,
-            creator=db.session.get(User, creator.id),
-            accept=True,
+            contact_phone="0901000003",
+            share_contact=True,
         )
         assert second_request.contribution_id == contribution_id
+
+
+def test_only_one_opponent_can_hold_the_payment_slot(app):
+    owner = create_user(app, email="owner@example.com", role=UserRole.OWNER)
+    creator = create_user(app, email="creator@example.com")
+    first = create_user(app, email="first@example.com")
+    second = create_user(app, email="second@example.com")
+    _, field_id = create_bookable_field(app, owner_id=owner.id)
+    booking_code = _create_split_booking(
+        app,
+        creator_id=creator.id,
+        field_id=field_id,
+        booking_mode=BookingMode.FIND_OPPONENT.value,
+    )
+    match_id = _create_match(app, booking_code=booking_code, creator_id=creator.id)
+
+    with app.app_context():
+        first_request = request_to_join_match(
+            match_id=match_id,
+            user=db.session.get(User, first.id),
+            contact_phone="0901000002",
+            share_contact=True,
+        )
+        with pytest.raises(InvalidMatchStateError, match="đang được giữ chỗ"):
+            request_to_join_match(
+                match_id=match_id,
+                user=db.session.get(User, second.id),
+                contact_phone="0901000003",
+                share_contact=True,
+            )
+        assert (
+            first_request.status
+            == MatchParticipantStatus.ACCEPTED_AWAITING_PAYMENT.value
+        )
+
+
+def test_old_pending_opponent_can_continue_without_creator_approval(app):
+    owner = create_user(app, email="owner@example.com", role=UserRole.OWNER)
+    creator = create_user(app, email="creator@example.com")
+    opponent = create_user(app, email="opponent@example.com")
+    _, field_id = create_bookable_field(app, owner_id=owner.id)
+    booking_code = _create_split_booking(
+        app,
+        creator_id=creator.id,
+        field_id=field_id,
+        booking_mode=BookingMode.FIND_OPPONENT.value,
+    )
+    match_id = _create_match(app, booking_code=booking_code, creator_id=creator.id)
+
+    with app.app_context():
+        participant = MatchParticipant(
+            match_id=match_id,
+            user_id=opponent.id,
+            participant_type="OPPONENT_REPRESENTATIVE",
+            status=MatchParticipantStatus.PENDING.value,
+        )
+        db.session.add(participant)
+        db.session.commit()
+
+        with pytest.raises(InvalidMatchStateError, match="không cần người tạo duyệt"):
+            decide_match_request(
+                match_id=match_id,
+                participant_id=participant.id,
+                creator=db.session.get(User, creator.id),
+                accept=True,
+            )
+
+        continued = request_to_join_match(
+            match_id=match_id,
+            user=db.session.get(User, opponent.id),
+            contact_phone="0901000002",
+            share_contact=True,
+        )
+        assert continued.id == participant.id
+        assert (
+            continued.status
+            == MatchParticipantStatus.ACCEPTED_AWAITING_PAYMENT.value
+        )
+        assert continued.contribution_id is not None
 
 
 def test_find_players_join_with_zalo_has_no_online_payment(app):
@@ -319,6 +468,8 @@ def test_cannot_create_match_before_creator_deposit(app):
                 booking_code=booking.booking_code,
                 creator=db.session.get(User, creator.id),
                 title="Kèo chưa trả cọc",
+                contact_phone="0901000001",
+                share_contact=True,
             )
 
 
@@ -342,10 +493,142 @@ def test_match_pages_show_open_match_and_request_state(app, client):
     login(client, email=player.email)
     response = client.post(
         f"/matches/{match_id}/requests",
-        data={"message": "Đội mình muốn tham gia."},
+        data={
+            "message": "Đội mình muốn tham gia.",
+            "contact_phone": "0901000002",
+            "share_contact": "y",
+        },
         follow_redirects=True,
     )
     page = response.get_data(as_text=True)
     assert response.status_code == 200
-    assert "Đang chờ duyệt" in page
+    assert "Đã giữ suất đối thủ trong 15 phút" in page
+    assert "không cần chờ người tạo duyệt" in page
     assert "Đội mình muốn tham gia." not in page
+
+
+def test_paid_opponent_appears_in_schedule_and_contacts_stay_private(app, client):
+    owner = create_user(app, email="owner@example.com", role=UserRole.OWNER)
+    creator = create_user(app, email="creator@example.com")
+    opponent = create_user(app, email="opponent@example.com")
+    _, field_id = create_bookable_field(app, owner_id=owner.id)
+    booking_code = _create_split_booking(
+        app,
+        creator_id=creator.id,
+        field_id=field_id,
+        booking_mode=BookingMode.FIND_OPPONENT.value,
+    )
+    match_id = _create_match(app, booking_code=booking_code, creator_id=creator.id)
+
+    with app.app_context():
+        participant = request_to_join_match(
+            match_id=match_id,
+            user=db.session.get(User, opponent.id),
+            contact_phone="0901000002",
+            share_contact=True,
+        )
+        contribution_id = participant.contribution_id
+
+    login(client, email=opponent.email)
+    before_payment = client.get(f"/matches/{match_id}").get_data(as_text=True)
+    assert "0901000001" not in before_payment
+
+    with app.app_context():
+        pay_contribution_with_mock(
+            booking_code=booking_code,
+            contribution_id=contribution_id,
+            payer=db.session.get(User, opponent.id),
+        )
+
+    schedule_page = client.get("/bookings").get_data(as_text=True)
+    assert "Kèo tôi đã tham gia" in schedule_page
+    assert "Kèo giao hữu cuối tuần" in schedule_page
+    assert "Xem và liên hệ" in schedule_page
+
+    opponent_page = client.get(f"/matches/{match_id}").get_data(as_text=True)
+    assert "Liên hệ người đăng kèo" in opponent_page
+    assert "0901000001" in opponent_page
+    assert "https://zalo.me/0901000001" in opponent_page
+    assert "Xác nhận rút và mất cọc?" in opponent_page
+    assert "Phần cọc đội bạn đã đóng sẽ không được hoàn" in opponent_page
+
+    client.post("/auth/logout")
+    login(client, email=creator.email)
+    creator_page = client.get(f"/matches/{match_id}").get_data(as_text=True)
+    assert "0901000002" in creator_page
+    assert "https://zalo.me/0901000002" in creator_page
+
+    client.post("/auth/logout")
+    public_page = client.get(f"/matches/{match_id}").get_data(as_text=True)
+    assert "0901000001" not in public_page
+    assert "0901000002" not in public_page
+
+
+def test_existing_joined_match_can_add_missing_contacts(app, client):
+    owner = create_user(app, email="owner@example.com", role=UserRole.OWNER)
+    creator = create_user(app, email="creator@example.com")
+    opponent = create_user(app, email="opponent@example.com")
+    _, field_id = create_bookable_field(app, owner_id=owner.id)
+    booking_code = _create_split_booking(
+        app,
+        creator_id=creator.id,
+        field_id=field_id,
+        booking_mode=BookingMode.FIND_OPPONENT.value,
+    )
+    match_id = _create_match(app, booking_code=booking_code, creator_id=creator.id)
+
+    with app.app_context():
+        participant = request_to_join_match(
+            match_id=match_id,
+            user=db.session.get(User, opponent.id),
+            contact_phone="0901000002",
+            share_contact=True,
+        )
+        pay_contribution_with_mock(
+            booking_code=booking_code,
+            contribution_id=participant.contribution_id,
+            payer=db.session.get(User, opponent.id),
+        )
+        match = db.session.get(Match, match_id)
+        match.creator_contact_phone = None
+        participant.contact_phone = None
+        db.session.commit()
+
+    login(client, email=creator.email)
+    response = client.post(
+        f"/matches/{match_id}/contact",
+        data={
+            "contact-contact_phone": "0911111111",
+            "contact-share_contact": "y",
+        },
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    assert "Đã lưu số Zalo" in response.get_data(as_text=True)
+
+    client.post("/auth/logout")
+    login(client, email=opponent.email)
+    response = client.post(
+        f"/matches/{match_id}/contact",
+        data={
+            "contact-contact_phone": "0922222222",
+            "contact-share_contact": "y",
+        },
+        follow_redirects=True,
+    )
+    page = response.get_data(as_text=True)
+    assert response.status_code == 200
+    assert "0911111111" in page
+    assert "0922222222" in page
+
+    with app.app_context():
+        match = db.session.get(Match, match_id)
+        participant = db.session.scalar(
+            db.select(MatchParticipant).where(
+                MatchParticipant.match_id == match_id,
+                MatchParticipant.user_id == opponent.id,
+                MatchParticipant.status == MatchParticipantStatus.JOINED.value,
+            )
+        )
+        assert match.creator_contact_phone == "0911111111"
+        assert participant.contact_phone == "0922222222"

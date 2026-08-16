@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 
-{% block title %}Lịch đặt của tôi · Sports Field Booking{% endblock %}
+{% block title %}Lịch và kèo của tôi · Sports Field Booking{% endblock %}
 
 {% block content %}
 <section class="container py-5">
     <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
         <div>
-            <span class="eyebrow">BOOKING CỦA TÔI</span>
-            <h1 class="h2 fw-bold mt-2 mb-1">Lịch sử đặt sân</h1>
-            <p class="text-secondary mb-0">Theo dõi lịch sắp tới và xem lại các booking trước đây.</p>
+            <span class="eyebrow">LỊCH CỦA TÔI</span>
+            <h1 class="h2 fw-bold mt-2 mb-1">Lịch đặt sân và kèo đã tham gia</h1>
+            <p class="text-secondary mb-0">Theo dõi sân bạn tự đặt và những kèo bạn đã chính thức tham gia.</p>
         </div>
         <a class="btn btn-primary" href="{{ url_for('venues.index') }}">Tìm sân mới</a>
     </div>
@@ -84,10 +84,52 @@
     {% else %}
         <div class="empty-state text-center">
             <div class="empty-state-icon" aria-hidden="true">📅</div>
-            <h2 class="h5 fw-bold">Bạn chưa có booking</h2>
-            <p class="text-secondary">Hãy chọn một sân đang hoạt động để bắt đầu đặt lịch.</p>
+            <h2 class="h5 fw-bold">Bạn chưa tự đặt sân</h2>
+            <p class="text-secondary">Bạn vẫn có thể nhận kèo của người khác ở mục bên dưới.</p>
             <a class="btn btn-primary" href="{{ url_for('venues.index') }}">Tìm sân</a>
         </div>
     {% endif %}
+
+    <div class="booking-detail-card mt-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
+            <div>
+                <h2 class="h5 fw-bold mb-1">Kèo tôi đã tham gia</h2>
+                <p class="small text-secondary mb-0">Kèo chỉ xuất hiện tại đây sau khi bạn đã được xác nhận hoặc thanh toán cọc thành công.</p>
+            </div>
+            <a class="btn btn-sm btn-outline-primary" href="{{ url_for('matches.mine') }}">Xem trung tâm kèo</a>
+        </div>
+        {% if joined_matches %}
+            <div class="booking-list">
+                {% for participation in joined_matches %}
+                    {% set match = participation.match %}
+                    {% set booking = match.booking %}
+                    <article class="booking-list-card">
+                        <div>
+                            <span class="participant-status participant-status-joined">Đã tham gia</span>
+                            <h3 class="h5 fw-bold mt-3 mb-1">{{ match.title }}</h3>
+                            <p class="text-secondary mb-0">{{ booking.field.venue.name }} · {{ booking.field.name }}</p>
+                        </div>
+                        <div class="booking-list-time">
+                            <strong>{{ booking.booking_date.strftime('%d/%m/%Y') }}</strong>
+                            <span>{{ booking.start_time.strftime('%H:%M') }}–{{ booking.end_time.strftime('%H:%M') }}</span>
+                        </div>
+                        <div class="booking-list-price">
+                            <strong>{{ match.creator.full_name }}</strong>
+                            <span>Người đăng kèo</span>
+                        </div>
+                        <a class="btn btn-outline-primary" href="{{ url_for('matches.detail', match_id=match.id) }}">Xem và liên hệ</a>
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="booking-panel-empty">
+                <div class="booking-panel-empty-icon" aria-hidden="true">⚽</div>
+                <div>
+                    <h3 class="h6 fw-bold mb-1">Bạn chưa tham gia kèo nào</h3>
+                    <p class="text-secondary mb-0">Sau khi nhận kèo hoặc được nhận vào đội, lịch thi đấu sẽ xuất hiện tại đây.</p>
+                </div>
+            </div>
+        {% endif %}
+    </div>
 </section>
 {% endblock %}

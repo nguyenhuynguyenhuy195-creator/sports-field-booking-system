@@ -70,6 +70,67 @@ def apply_owner_cancellation_refunds(
     return refunds
 
 
+def apply_creator_cancellation_policy(
+    *,
+    booking: Booking,
+    reason: str,
+    now: datetime | None = None,
+) -> list[Refund]:
+    """Forfeit creator money and refund active opponent money in full."""
+    current_utc = normalize_utc(now)
+    booking.status = BookingStatus.REFUND_PENDING.value
+    booking.cancellation_reason = reason
+    payments = list(
+        db.session.scalars(
+            with_update_lock(
+                db.select(Payment)
+                .where(
+                    Payment.booking_id == booking.id,
+                    Payment.status == PaymentStatus.SUCCESS.value,
+                )
+                .order_by(Payment.id),
+                Payment,
+            )
+        )
+    )
+    refunds: list[Refund] = []
+    forfeited_total = Decimal("0.00")
+    for payment in payments:
+        contribution = db.session.get(BookingContribution, payment.contribution_id)
+        if contribution is None:
+            raise InvalidRefundStateError("Giao dịch không còn khoản đóng góp gốc.")
+        refundable = _remaining_refundable_amount(payment)
+        if refundable <= 0:
+            continue
+        creator_payment = contribution.contribution_type in {
+            ContributionType.CREATOR.value,
+            ContributionType.TOP_UP.value,
+        }
+        already_forfeited = contribution.status == ContributionStatus.FORFEITED.value
+        if creator_payment or already_forfeited:
+            contribution.status = ContributionStatus.FORFEITED.value
+            contribution.expires_at = None
+            if creator_payment:
+                forfeited_total += refundable
+            continue
+        contribution.status = ContributionStatus.REFUND_PENDING.value
+        refund, _ = _record_refund(
+            booking=booking,
+            contribution=contribution,
+            payment=payment,
+            amount=refundable,
+            reason="Người tạo booking hủy; hoàn 100% tiền cọc của đối thủ.",
+            operation_key=f"CREATOR-CANCEL-{payment.id}",
+            current_utc=current_utc,
+        )
+        refunds.append(refund)
+
+    booking.cancellation_fee_amount = forfeited_total.quantize(MONEY_QUANTUM)
+    if all(refund.status == RefundStatus.SUCCESS.value for refund in refunds):
+        _finish_cancelled_booking(booking, current_utc=current_utc)
+    return refunds
+
+
 def apply_funding_shortfall_refunds(
     *,
     booking: Booking,

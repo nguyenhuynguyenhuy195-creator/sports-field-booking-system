@@ -1,4 +1,4 @@
-from datetime import datetime, time, timedelta
+from datetime import datetime, time, timedelta, timezone
 from decimal import Decimal
 
 import pytest
@@ -34,6 +34,18 @@ from tests.integration.test_bookings import (
 )
 
 
+def test_home_page_explains_current_deposit_policy(client):
+    response = client.get("/")
+    page = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "Đặt sân: cọc 30%, phần còn lại trả tại sân" in page
+    assert "Tìm đối thủ: mỗi đội cọc 15%" in page
+    assert "Tìm thêm người: người ghép trả tại sân" in page
+    assert "Hai đội chia 50/50" not in page
+    assert "Chia theo từng người tham gia" not in page
+
+
 def _create_booking(app, *, player_id: int, field_id: int, mode: str):
     with app.app_context():
         booking = create_booking(
@@ -48,7 +60,7 @@ def _create_booking(app, *, player_id: int, field_id: int, mode: str):
         return booking.booking_code
 
 
-def test_opponent_deposit_and_creator_top_up_are_auditable(app):
+def test_legacy_opponent_deposit_and_creator_top_up_are_auditable(app):
     owner = create_user(app, email="owner@example.com")
     player = create_user(app, email="player@example.com")
     _, field_id = create_bookable_field(
@@ -92,10 +104,16 @@ def test_opponent_deposit_and_creator_top_up_are_auditable(app):
         assert booking.status == BookingStatus.PARTIALLY_PAID.value
         assert booking.paid_amount == Decimal("60000.00")
 
+        legacy_matchmaking_deadline = datetime.now(timezone.utc).replace(
+            tzinfo=None
+        ) - timedelta(minutes=1)
+        booking.matchmaking_deadline = legacy_matchmaking_deadline
+        booking.funding_deadline = legacy_matchmaking_deadline + timedelta(minutes=30)
+        db.session.commit()
         top_up = top_up_booking_with_mock(
             booking_code=booking_code,
             payer=db.session.get(User, player.id),
-            now=booking.matchmaking_deadline + timedelta(minutes=1),
+            now=legacy_matchmaking_deadline + timedelta(minutes=1),
         )
         db.session.refresh(booking)
         db.session.refresh(contributions[1])
