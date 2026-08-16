@@ -105,7 +105,7 @@ PAYMENT_STATUS_LABELS = {
 }
 
 PAYMENT_PROVIDER_LABELS = {
-    PaymentProvider.MOCK.value: "Mô phỏng nội bộ",
+    PaymentProvider.MOCK.value: "Thanh toán thử nghiệm",
     PaymentProvider.MOMO.value: "MoMo",
 }
 
@@ -370,7 +370,7 @@ def detail(booking_code: str):
 def cancel(booking_code: str):
     form = BookingActionForm()
     if not form.validate_on_submit():
-        flash("Yêu cầu hủy booking không hợp lệ.", "danger")
+        flash("Yêu cầu hủy lịch đặt sân không hợp lệ.", "danger")
         return redirect(url_for("bookings.detail", booking_code=booking_code))
     try:
         cancel_user_booking(
@@ -384,7 +384,7 @@ def cancel(booking_code: str):
     except BookingError as exc:
         flash(str(exc), "warning")
     else:
-        flash("Đã ghi nhận hủy booking và áp dụng chính sách tiền cọc.", "success")
+        flash("Đã ghi nhận hủy lịch đặt sân và áp dụng chính sách tiền cọc.", "success")
     return redirect(url_for("bookings.detail", booking_code=booking_code))
 
 
@@ -445,7 +445,7 @@ def owner_cancel(booking_code: str):
             flash(str(exc), "warning")
         else:
             flash(
-                "Đã hủy booking; các khoản đã thu (nếu có) đã được hoàn 100%.",
+                "Đã hủy lịch đặt sân; các khoản đã thu (nếu có) đã được hoàn 100%.",
                 "success",
             )
     else:

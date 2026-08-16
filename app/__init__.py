@@ -72,6 +72,7 @@ def _configure_login_manager() -> None:
 
 
 def _register_blueprints(app: Flask) -> None:
+    from .routes.admin import admin_bp
     from .routes.auth import auth_bp
     from .routes.bookings import bookings_bp
     from .routes.fields import fields_bp
@@ -79,7 +80,7 @@ def _register_blueprints(app: Flask) -> None:
     from .routes.main import main_bp
     from .routes.maintenance import maintenance_bp
     from .routes.matches import matches_bp
-    from .routes.owner_applications import admin_bp, owner_applications_bp
+    from .routes.owner_applications import owner_applications_bp
     from .routes.payments import payments_bp
     from .routes.pricing import pricing_bp
     from .routes.venues import venues_bp

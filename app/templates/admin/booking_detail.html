@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+
+{% block title %}Chi tiết {{ booking.booking_code }} · Sân Thể Thao{% endblock %}
+
+{% block content %}
+{% set deposit_percent = ((booking.paid_amount / booking.deposit_amount) * 100)|round(0, 'floor')|int %}
+<section class="admin-page admin-booking-detail-page">
+    <div class="container py-5">
+        <a class="admin-detail-back" href="{{ url_for('admin.monitoring', section='bookings') }}">← Quay lại danh sách đặt sân</a>
+
+        <div class="admin-detail-hero">
+            <div>
+                <span class="admin-booking-code">{{ booking.booking_code }}</span>
+                <h1>{{ booking.field.venue.name }} · {{ booking.field.name }}</h1>
+                <p>{{ booking.field.field_type.sport.name }} · {{ booking.field.field_type.name }} · {{ booking_mode_labels[booking.booking_mode] }}</p>
+            </div>
+            <span class="status-badge status-{{ booking.status|lower }}">{{ booking_status_labels[booking.status] }}</span>
+        </div>
+
+        <div class="admin-detail-layout">
+            <main class="admin-detail-main">
+                <section class="admin-detail-card" aria-labelledby="booking-overview-title">
+                    <div class="admin-detail-card-heading">
+                        <div>
+                            <span class="admin-section-kicker">THÔNG TIN CHÍNH</span>
+                            <h2 id="booking-overview-title">Lịch đặt sân này dành cho ai và khi nào?</h2>
+                        </div>
+                    </div>
+                    <div class="admin-detail-info-grid">
+                        <div><span>Người đặt</span><strong>{{ booking.user.full_name }}</strong><small>{{ booking.user.email }}</small></div>
+                        <div><span>Chủ sân</span><strong>{{ booking.field.venue.owner.full_name }}</strong><small>{{ booking.field.venue.name }}</small></div>
+                        <div><span>Ngày thi đấu</span><strong>{{ booking.booking_date.strftime('%d/%m/%Y') }}</strong><small>{{ booking.start_time.strftime('%H:%M') }}–{{ booking.end_time.strftime('%H:%M') }}</small></div>
+                        <div><span>Ngày tạo</span><strong>{{ booking.created_at.strftime('%d/%m/%Y') }}</strong><small>{{ booking.created_at.strftime('%H:%M') }}</small></div>
+                    </div>
+                    {% if booking.note %}<div class="admin-detail-note"><strong>Ghi chú của người đặt</strong><p>{{ booking.note }}</p></div>{% endif %}
+                    {% if booking.cancellation_reason %}<div class="admin-detail-note tone-danger"><strong>Lý do hủy</strong><p>{{ booking.cancellation_reason }}</p></div>{% endif %}
+                </section>
+
+                <section class="admin-detail-card" aria-labelledby="booking-money-title">
+                    <div class="admin-detail-card-heading">
+                        <div>
+                            <span class="admin-section-kicker">TIỀN SÂN VÀ TIỀN CỌC</span>
+                            <h2 id="booking-money-title">Tiến độ thanh toán</h2>
+                        </div>
+                    </div>
+                    <div class="admin-money-grid">
+                        <div><span>Tổng tiền sân</span><strong>{{ booking.total_amount|vnd_currency }}</strong></div>
+                        <div><span>Cần đặt cọc</span><strong>{{ booking.deposit_amount|vnd_currency }}</strong></div>
+                        <div><span>Đã ghi nhận</span><strong>{{ booking.paid_amount|vnd_currency }}</strong></div>
+                        <div><span>Trả tại sân</span><strong>{{ booking.balance_due_at_venue|vnd_currency }}</strong></div>
+                    </div>
+                    <div class="admin-deposit-progress admin-deposit-progress-large">
+                        <div class="admin-deposit-progress-label"><span>Tiền cọc đã hoàn thành</span><strong>{{ deposit_percent }}%</strong></div>
+                        <progress max="100" value="{{ deposit_percent }}">{{ deposit_percent }}%</progress>
+                        <small>Còn thiếu {{ booking.remaining_amount|vnd_currency }} tiền cọc.</small>
+                    </div>
+                </section>
+
+                <section class="admin-detail-card" aria-labelledby="booking-contribution-title">
+                    <div class="admin-detail-card-heading">
+                        <div>
+                            <span class="admin-section-kicker">AI CẦN ĐÓNG TIỀN?</span>
+                            <h2 id="booking-contribution-title">Các khoản tiền cọc</h2>
+                        </div>
+                        <span class="admin-detail-count">{{ booking.contributions|length }} khoản</span>
+                    </div>
+                    {% if booking.contributions %}
+                        <div class="table-responsive">
+                            <table class="table admin-table align-middle mb-0">
+                                <thead><tr><th>Vai trò</th><th>Người đóng</th><th>Đã đóng / cần đóng</th><th>Trạng thái</th></tr></thead>
+                                <tbody>
+                                    {% for contribution in booking.contributions %}
+                                        <tr>
+                                            <td><strong>{{ contribution_type_labels[contribution.contribution_type] }}</strong>{% if contribution.slot_number %}<small class="d-block text-secondary">Vị trí {{ contribution.slot_number }}</small>{% endif %}</td>
+                                            <td>{{ contribution.user.full_name if contribution.user else 'Chưa có người nhận' }}</td>
+                                            <td><strong>{{ contribution.amount_paid|vnd_currency }}</strong> / {{ contribution.amount_due|vnd_currency }}</td>
+                                            <td><span class="status-badge status-{{ contribution.status|lower }}">{{ contribution_status_labels[contribution.status] }}</span></td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-secondary mb-0">Lịch đặt sân này chưa có khoản tiền cọc nào.</p>
+                    {% endif %}
+                </section>
+
+                <section class="admin-detail-card" aria-labelledby="booking-payment-title">
+                    <div class="admin-detail-card-heading">
+                        <div>
+                            <span class="admin-section-kicker">GIAO DỊCH THỰC TẾ</span>
+                            <h2 id="booking-payment-title">Lịch sử thanh toán</h2>
+                        </div>
+                        <span class="admin-detail-count">{{ booking.payments|length }} giao dịch</span>
+                    </div>
+                    {% if booking.payments %}
+                        <div class="admin-transaction-list">
+                            {% for payment in booking.payments %}
+                                <article class="admin-transaction-item">
+                                    <div><strong>{{ payment.amount|vnd_currency }}</strong><span>{{ payment.payer.full_name }} · {{ payment_provider_labels[payment.provider] }}</span></div>
+                                    <div><span class="status-badge status-{{ payment.status|lower }}">{{ payment_status_labels[payment.status] }}</span><small>{{ payment.created_at.strftime('%d/%m/%Y %H:%M') }}</small></div>
+                                    <details>
+                                        <summary>Xem mã giao dịch</summary>
+                                        <dl><dt>Mã đơn</dt><dd>{{ payment.order_id }}</dd><dt>Mã nhà cung cấp</dt><dd>{{ payment.provider_trans_id or 'Chưa có' }}</dd></dl>
+                                    </details>
+                                </article>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-secondary mb-0">Chưa phát sinh giao dịch thanh toán.</p>
+                    {% endif %}
+                </section>
+
+                {% if booking.refunds %}
+                    <section class="admin-detail-card" aria-labelledby="booking-refund-title">
+                        <div class="admin-detail-card-heading">
+                            <div><span class="admin-section-kicker">HOÀN TIỀN</span><h2 id="booking-refund-title">Lịch sử hoàn tiền</h2></div>
+                        </div>
+                        <div class="admin-transaction-list">
+                            {% for refund in booking.refunds %}
+                                <article class="admin-transaction-item">
+                                    <div><strong>{{ refund.amount|vnd_currency }}</strong><span>{{ refund.recipient.full_name }} · {{ refund.reason }}</span></div>
+                                    <div><span class="status-badge status-{{ refund.status|lower }}">{{ refund_status_labels[refund.status] }}</span><small>{{ refund.created_at.strftime('%d/%m/%Y %H:%M') }}</small></div>
+                                </article>
+                            {% endfor %}
+                        </div>
+                    </section>
+                {% endif %}
+
+                {% if booking.match %}
+                    <section class="admin-detail-card" aria-labelledby="booking-match-title">
+                        <div class="admin-detail-card-heading">
+                            <div><span class="admin-section-kicker">KÈO LIÊN QUAN</span><h2 id="booking-match-title">{{ booking.match.title }}</h2></div>
+                            <span class="status-badge status-{{ booking.match.status|lower }}">{{ match_status_labels[booking.match.status] }}</span>
+                        </div>
+                        <p class="text-secondary">{{ match_type_labels[booking.match.match_type] }} · Tạo bởi {{ booking.match.creator.full_name }}</p>
+                        {% if booking.match.participants %}
+                            <div class="admin-participant-grid">
+                                {% for participant in booking.match.participants %}
+                                    <div>
+                                        <span>{{ participant_type_labels[participant.participant_type] }}</span>
+                                        <strong>{{ participant.user.full_name }}</strong>
+                                        <small>{{ participant_status_labels[participant.status] }}</small>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="text-secondary mb-0">Chưa có người tham gia kèo này.</p>
+                        {% endif %}
+                    </section>
+                {% endif %}
+            </main>
+
+            <aside class="admin-detail-sidebar">
+                <section class="admin-detail-card admin-timeline-card">
+                    <span class="admin-section-kicker">TIẾN TRÌNH</span>
+                    <h2>Lịch đặt sân đang ở bước nào?</h2>
+                    <ol class="admin-booking-timeline">
+                        <li class="complete"><span>✓</span><div><strong>Đã tạo lịch đặt sân</strong><small>{{ booking.created_at.strftime('%d/%m/%Y %H:%M') }}</small></div></li>
+                        <li class="{{ 'complete' if booking.paid_amount >= booking.deposit_amount else 'current' }}"><span>{{ '✓' if booking.paid_amount >= booking.deposit_amount else '2' }}</span><div><strong>{{ 'Đã đủ tiền cọc' if booking.paid_amount >= booking.deposit_amount else 'Đang thu tiền cọc' }}</strong><small>{{ booking.paid_amount|vnd_currency }} / {{ booking.deposit_amount|vnd_currency }}</small></div></li>
+                        {% if booking.match %}
+                            <li class="{{ 'complete' if booking.match.status in ['FULL', 'CONFIRMED', 'COMPLETED'] else ('stopped' if booking.match.status == 'CANCELLED' else 'current') }}"><span>{{ '✓' if booking.match.status in ['FULL', 'CONFIRMED', 'COMPLETED'] else '3' }}</span><div><strong>{{ match_type_labels[booking.match.match_type] }}</strong><small>{{ match_status_labels[booking.match.status] }}</small></div></li>
+                        {% endif %}
+                        <li class="{{ 'complete' if booking.status == 'COMPLETED' else ('stopped' if booking.status in ['CANCELLED', 'REJECTED', 'EXPIRED'] else 'waiting') }}"><span>{{ '✓' if booking.status == 'COMPLETED' else '•' }}</span><div><strong>{{ 'Đã hoàn thành trận đấu' if booking.status == 'COMPLETED' else ('Lịch đặt sân đã dừng' if booking.status in ['CANCELLED', 'REJECTED', 'EXPIRED'] else 'Chờ ngày ra sân') }}</strong><small>{{ booking.booking_date.strftime('%d/%m/%Y') }} · {{ booking.start_time.strftime('%H:%M') }}</small></div></li>
+                    </ol>
+                </section>
+
+                <section class="admin-detail-card admin-detail-help">
+                    <span class="admin-section-kicker">CÁCH KIỂM TRA</span>
+                    <h2>Khi người dùng báo lỗi</h2>
+                    <ol><li>Đối chiếu số tiền cọc.</li><li>Kiểm tra trạng thái giao dịch.</li><li>Xem lịch đặt sân đã chuyển bước chưa.</li></ol>
+                    <p>Trang này chỉ dùng để kiểm tra, không sửa lịch sử tài chính.</p>
+                </section>
+            </aside>
+        </div>
+    </div>
+</section>
+{% endblock %}

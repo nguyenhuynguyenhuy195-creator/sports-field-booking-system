@@ -127,4 +127,4 @@
 
 ## 2.5. Ranh giới triển khai hiện tại
 
-Danh mục đa môn, tọa độ Google Maps, cọc 30%, người ghép trả tại sân và nền tảng MoMo Sandbox đã có migration/code/test. ADR-027 và ADR-028 đã được triển khai ở service/UI/test; deadline, top-up, refund 80/20 và bước duyệt đối thủ chỉ còn phục vụ dữ liệu legacy có deadline. Việc gọi Sandbox thật chỉ được xem là đã xác nhận sau khi cấu hình credential M4B, URL HTTPS công khai và chạy một giao dịch thanh toán/hoàn tiền đầu-cuối; trước đó provider `MOCK` vẫn là mặc định.
+Danh mục đa môn, tọa độ Google Maps, cọc 30%, người ghép trả tại sân, nền tảng MoMo Sandbox và khu quản trị Admin đã có code/test. Admin có dashboard, khóa/mở tài khoản và màn hình chỉ xem để giám sát danh mục, booking, contribution, payment, refund và match; lịch sử giao dịch không có thao tác xóa. ADR-027 và ADR-028 đã được triển khai ở service/UI/test; deadline, top-up, refund 80/20 và bước duyệt đối thủ chỉ còn phục vụ dữ liệu legacy có deadline. Việc gọi Sandbox thật chỉ được xem là đã xác nhận sau khi cấu hình credential M4B, URL HTTPS công khai và chạy một giao dịch thanh toán/hoàn tiền đầu-cuối; trước đó provider `MOCK` vẫn là mặc định.

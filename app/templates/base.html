@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="Hệ thống đặt sân thể thao đa môn, tìm đối thủ và ghép người chơi.">
     <meta name="theme-color" content="#0f2747">
-    <title>{% block title %}Sports Field Booking{% endblock %}</title>
+    <title>{% block title %}Sân Thể Thao{% endblock %}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -66,8 +66,11 @@
                                 {% endif %}
                                 {% if current_user.is_admin %}
                                     <li><h2 class="dropdown-header">Quản trị hệ thống</h2></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('admin.dashboard') }}">Tổng quan quản trị</a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('admin.accounts') }}">Quản lý tài khoản</a></li>
                                     <li><a class="dropdown-item" href="{{ url_for('admin.owner_applications') }}">Duyệt yêu cầu chủ sân</a></li>
                                     <li><a class="dropdown-item" href="{{ url_for('venues.admin_index') }}">Duyệt cơ sở</a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('admin.monitoring') }}">Giám sát hệ thống</a></li>
                                 {% endif %}
                                 <li><hr class="dropdown-divider"></li>
                                 <li>

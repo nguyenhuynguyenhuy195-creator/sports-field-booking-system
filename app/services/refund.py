@@ -119,7 +119,7 @@ def apply_creator_cancellation_policy(
             contribution=contribution,
             payment=payment,
             amount=refundable,
-            reason="Người tạo booking hủy; hoàn 100% tiền cọc của đối thủ.",
+            reason="Người đặt sân hủy; hoàn 100% tiền cọc của đối thủ.",
             operation_key=f"CREATOR-CANCEL-{payment.id}",
             current_utc=current_utc,
         )
@@ -140,7 +140,7 @@ def apply_funding_shortfall_refunds(
     """Refund creator 80%, other payers 100%, and retain the creator's 20%."""
     if booking.booking_mode != BookingMode.FIND_OPPONENT.value:
         raise InvalidRefundStateError(
-            "Chính sách thiếu tiền chỉ áp dụng cho booking chia tiền."
+            "Chính sách thiếu tiền chỉ áp dụng cho lịch đặt có nhiều người đóng."
         )
     current_utc = normalize_utc(now)
     paid_before_refunds = Decimal(booking.paid_amount)
@@ -173,7 +173,7 @@ def refund_joined_participant(
 ) -> ParticipantRefundResult:
     """Refund a paid match participant and create a fresh obligation for the slot."""
     if contribution.booking_id != booking.id:
-        raise InvalidRefundStateError("Khoản đóng góp không thuộc booking này.")
+        raise InvalidRefundStateError("Khoản tiền này không thuộc lịch đặt sân.")
     if contribution.contribution_type not in {
         ContributionType.OPPONENT.value,
         ContributionType.PLAYER.value,
@@ -244,11 +244,11 @@ def process_overdue_funding_refunds(*, now: datetime | None = None) -> int:
     for booking in bookings:
         apply_funding_shortfall_refunds(
             booking=booking,
-            reason="Booking không góp đủ tiền trước hạn 12 giờ.",
+            reason="Lịch đặt không được đóng đủ tiền trước hạn 12 giờ.",
             now=current_utc,
         )
     if bookings:
-        commit_refunds("Không thể xử lý các booking thiếu tiền đúng hạn.")
+        commit_refunds("Không thể xử lý các lịch đặt thiếu tiền đúng hạn.")
         try:
             process_pending_momo_refunds(now=current_utc)
         except RefundError:
@@ -441,7 +441,7 @@ def _record_refund(
     if amount > Decimal(contribution.amount_paid):
         raise InvalidRefundStateError("Số tiền hoàn vượt khoản đóng góp còn hiệu lực.")
     if amount > Decimal(booking.paid_amount):
-        raise InvalidRefundStateError("Số tiền hoàn vượt số tiền booking đang ghi nhận.")
+        raise InvalidRefundStateError("Số tiền hoàn vượt số tiền lịch đặt đang ghi nhận.")
 
     is_mock = payment.provider == PaymentProvider.MOCK.value
     refund = Refund(

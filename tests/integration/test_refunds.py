@@ -335,5 +335,5 @@ def test_creator_cancel_route_renders_forfeited_deposit(app, client):
     assert "60.000" in page
     assert "Phí giữ sân" in page
     assert "Còn thiếu:" not in page
-    assert "Booking đã được hủy" in page
+    assert "Lịch đặt sân đã được hủy" in page
     assert "tiền cọc không được hoàn" in page

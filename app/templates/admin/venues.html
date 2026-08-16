@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Kiểm duyệt cơ sở · Sports Field Booking{% endblock %}
+{% block title %}Kiểm duyệt cơ sở · Sân Thể Thao{% endblock %}
 
 {% block content %}
 <section class="container py-5">
@@ -9,6 +9,8 @@
         <h1 class="h2 fw-bold mt-2 mb-1">Kiểm duyệt cơ sở</h1>
         <p class="text-secondary mb-0">Duyệt cơ sở để hiển thị công khai hoặc ẩn cơ sở khi cần thiết.</p>
     </div>
+
+    {% include "admin/_nav.html" %}
 
     {% if venues %}
         <div class="application-list">

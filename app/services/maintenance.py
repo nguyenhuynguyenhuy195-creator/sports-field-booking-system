@@ -124,7 +124,7 @@ def create_maintenance(
         now=now,
     ):
         raise MaintenanceError(
-            "Khoảng giờ này bị chồng với một booking đang chiếm chỗ."
+            "Khoảng giờ này trùng với một lịch đặt sân đang giữ chỗ."
         )
 
     maintenance = FieldMaintenance(

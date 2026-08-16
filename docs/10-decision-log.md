@@ -303,3 +303,24 @@ Tài liệu tham chiếu:
 - Dữ liệu lịch sử thiếu snapshot hiển thị form để đúng bên chủ động bổ sung số và xác nhận chia sẻ.
 
 **Ghi chú schema:** Migration `e8c4a2d9f701` thêm cột nullable `matches.creator_contact_phone`; nullable để không suy diễn sự đồng ý của dữ liệu cũ.
+
+## ADR-030: Chuẩn hóa địa chỉ hành chính venue — hoãn triển khai
+
+**Ngày ghi nhận:** 16/08/2026
+**Trạng thái:** Đã chốt hướng thiết kế, để triển khai sau.
+
+- Form tạo/sửa cơ sở không cho owner nhập tự do tên đơn vị hành chính.
+- Ô thứ nhất chọn `Tỉnh/Thành phố` từ danh mục chính thức; ô thứ hai phụ thuộc vào ô thứ nhất và chỉ hiển thị `Phường/Xã/Đặc khu` thuộc địa phương đã chọn.
+- Không xây luồng mới theo `Quận/Huyện` vì mô hình chính quyền địa phương hai cấp đã kết thúc cấp huyện từ ngày 01/07/2025.
+- Hệ thống dự kiến lưu cả mã và tên đơn vị hành chính để tránh sai chính tả và hỗ trợ cập nhật danh mục.
+- Owner vẫn nhập địa chỉ chi tiết; Google Maps tiếp tục dùng để xác nhận place ID, marker và tọa độ, không thay thế danh mục hành chính chính thức.
+- Bộ lọc Admin dự kiến đổi theo thứ tự `Tỉnh/Thành phố → Phường/Xã/Đặc khu → Cơ sở → Sân`.
+- Dữ liệu venue cũ trong `city` và `district` phải được giữ nguyên cho đến khi có migration và kế hoạch backfill đã kiểm thử; không đổi hoặc xóa trực tiếp dữ liệu hiện có.
+- Thứ tự triển khai sau này: chốt nguồn dữ liệu chính thức → cập nhật thiết kế database → migration không phá dữ liệu → backend danh mục phụ thuộc → form owner → bộ lọc Admin → test SQLite và SQL Server → smoke test giao diện.
+
+Việc ghi nhận ADR này **không thay đổi code, database hoặc giao diện hiện tại**.
+
+Tài liệu tham chiếu:
+
+- [Chính phủ: tổ chức chính quyền địa phương hai cấp](https://xaydungchinhsach.chinhphu.vn/trung-uong-thong-nhat-to-chuc-chinh-quyen-dia-phuong-2-cap-ca-nuoc-se-con-34-tinh-thanh-pho-sau-sap-nhap-119250412184121461.htm)
+- [Bộ Nội vụ: danh mục và mã số 34 đơn vị hành chính cấp tỉnh](https://moha.gov.vn/tin-tuc/---oid57326)

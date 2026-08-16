@@ -43,7 +43,7 @@ class MomoClient:
         transport: Transport | None = None,
     ) -> None:
         if not partner_code or not access_key or not secret_key:
-            raise MomoConfigurationError("Thiếu thông tin xác thực MoMo Sandbox.")
+            raise MomoConfigurationError("Thiếu thông tin kết nối MoMo thử nghiệm.")
         self.partner_code = partner_code
         self.access_key = access_key
         self._secret_key = secret_key
@@ -54,7 +54,7 @@ class MomoClient:
     @classmethod
     def from_app_config(cls) -> "MomoClient":
         if not current_app.config.get("MOMO_ENABLED"):
-            raise MomoConfigurationError("MoMo Sandbox chưa được bật trong cấu hình.")
+            raise MomoConfigurationError("Thanh toán MoMo thử nghiệm chưa được bật.")
         return cls(
             partner_code=current_app.config.get("MOMO_PARTNER_CODE", ""),
             access_key=current_app.config.get("MOMO_ACCESS_KEY", ""),
@@ -219,9 +219,9 @@ class MomoClient:
             with urlopen(request, timeout=timeout) as response:
                 result = json.loads(response.read().decode("utf-8"))
         except (HTTPError, URLError, TimeoutError, json.JSONDecodeError) as exc:
-            raise MomoAPIError("Không thể kết nối MoMo Sandbox lúc này.") from exc
+            raise MomoAPIError("Không thể kết nối MoMo thử nghiệm lúc này.") from exc
         if not isinstance(result, dict):
-            raise MomoAPIError("MoMo Sandbox trả về dữ liệu không hợp lệ.")
+            raise MomoAPIError("MoMo thử nghiệm trả về thông tin không hợp lệ.")
         return result
 
 

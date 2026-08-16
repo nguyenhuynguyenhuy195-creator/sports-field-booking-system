@@ -308,7 +308,41 @@ Không có MoMo secret, server Maps key hoặc connection string trong Git/UI/lo
 
 Serialization/template/log không làm lộ contact_phone ngoài creator sau khi chấp nhận.
 
-## 9.12. Kiểm tra hồi quy
+## 9.12. Admin
+
+### TC-ADMIN-001: Phân quyền khu quản trị
+
+USER/OWNER truy cập dashboard, tài khoản hoặc giám sát Admin → backend trả 403.
+
+### TC-ADMIN-002: Khóa và mở khóa tài khoản
+
+Admin khóa user → user không đăng nhập được, dữ liệu lịch sử vẫn còn; mở khóa → user đăng nhập lại được. Admin không được tự khóa tài khoản đang dùng và không được gửi trạng thái ngoài ACTIVE/LOCKED.
+
+### TC-ADMIN-003: Tìm kiếm tài khoản và bảo vệ secret
+
+Lọc theo tên/email, role và status → kết quả đúng; HTML không chứa password hash, secret key hoặc connection string.
+
+### TC-ADMIN-004: Giám sát dữ liệu MVP
+
+Admin xem được sport/field type, booking, contribution, payment, refund và match; bộ lọc trạng thái/sport/ngày/mã hoạt động và màn hình không có thao tác xóa lịch sử.
+
+### TC-ADMIN-005: Tổng hợp cảnh báo và chi tiết booking
+
+Màn hình giám sát hiển thị số booking chưa đủ cọc, payment cần kiểm tra, refund đang xử lý và match đang mở. Admin mở một booking → xem được thông tin sân, người đặt, tiến độ cọc, contribution, payment, refund, match và dòng thời gian ở chế độ chỉ xem; mã booking không tồn tại được xử lý an toàn.
+
+### TC-ADMIN-006: Nhóm dữ liệu quản trị và nội dung thân thiện
+
+Admin chọn cơ sở rồi chọn sân → năm nhóm lịch đặt, tiền cọc, giao dịch, hoàn tiền và kèo chỉ hiển thị dữ liệu của sân đã chọn; khi xem toàn hệ thống, dữ liệu được gom thành từng sân có thể thu gọn. Trang tài khoản gom theo vai trò rồi trạng thái. Nội dung trên giao diện dùng tiếng Việt dành cho người sử dụng, không hiển thị trực tiếp mã kỹ thuật như booking, contribution, payment, refund, MOCK hoặc OWNER.
+
+### TC-ADMIN-007: Tìm kiếm và phân trang khi có nhiều cơ sở
+
+Tạo ít nhất 12 cơ sở ở nhiều quận/huyện → Admin tìm được theo tên hoặc địa chỉ, lọc đúng tỉnh/thành phố và quận/huyện, mỗi trang chỉ hiển thị tối đa 10 cơ sở. Chuyển trang vẫn giữ điều kiện lọc; chọn một cơ sở ở trang sau vẫn hiển thị đúng danh sách sân và tiếp tục lọc được năm nhóm hoạt động.
+
+### TC-ADMIN-008: Cập nhật trang giám sát tại chỗ
+
+Admin chọn cơ sở, sân, nhóm dữ liệu, bộ lọc hoặc phân trang → chỉ vùng giám sát được cập nhật, thanh điều hướng không tải lại; URL thay đổi đúng và nút Back/Forward khôi phục được trạng thái trước đó.
+
+## 9.13. Kiểm tra hồi quy
 
 - Booking/availability/price/maintenance hiện có vẫn hoạt động sau migration.
 - Venue bóng đá cũ vẫn xuất hiện đúng sport/type.

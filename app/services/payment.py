@@ -96,17 +96,17 @@ def top_up_booking_with_mock(
     current_utc = _normalize_utc(now)
     booking = _lock_booking(booking_code)
     if booking.user_id != payer.id:
-        raise PaymentPermissionError("Chỉ người tạo booking được trả phần còn thiếu.")
+        raise PaymentPermissionError("Chỉ người đặt sân được trả phần còn thiếu.")
     if booking.status != BookingStatus.PARTIALLY_PAID.value:
         raise InvalidPaymentStateError(
-            "Chỉ booking đã thanh toán một phần mới có thể trả phần còn thiếu."
+            "Chỉ lịch đặt đã thanh toán một phần mới có thể trả phần còn thiếu."
         )
     if booking.booking_mode != BookingMode.FIND_OPPONENT.value:
         raise InvalidPaymentStateError(
-            "Chỉ booking tìm đối thủ mới có phần cọc cần trả bổ sung."
+            "Chỉ lịch đặt tìm đối thủ mới có phần cọc cần trả bổ sung."
         )
     if booking.funding_deadline is None or booking.funding_deadline <= current_utc:
-        raise PaymentExpiredError("Đã hết hạn góp đủ tiền cho booking này.")
+        raise PaymentExpiredError("Đã hết hạn đóng đủ tiền cho lịch đặt này.")
     if (
         booking.payment_policy == BookingPaymentPolicy.DEPOSIT_30.value
         and booking.matchmaking_deadline is not None
@@ -118,7 +118,7 @@ def top_up_booking_with_mock(
 
     remaining = Decimal(booking.deposit_amount) - Decimal(booking.paid_amount)
     if remaining <= 0:
-        raise InvalidPaymentStateError("Booking đã được thanh toán đủ.")
+        raise InvalidPaymentStateError("Lịch đặt sân đã được thanh toán đủ.")
 
     pending_statement = db.select(BookingContribution).where(
         BookingContribution.booking_id == booking.id,
@@ -406,7 +406,7 @@ def _start_momo_checkout(
             order_id=payment.order_id,
             request_id=payment.request_id,
             amount=Decimal(payment.amount),
-            order_info=f"Cọc booking {booking.booking_code}",
+            order_info=f"Cọc lịch đặt sân {booking.booking_code}",
             redirect_url=redirect_url,
             ipn_url=ipn_url,
         )
@@ -526,17 +526,17 @@ def _validate_top_up(
     current_utc: datetime,
 ) -> None:
     if booking.user_id != payer.id:
-        raise PaymentPermissionError("Chỉ người tạo booking được trả phần còn thiếu.")
+        raise PaymentPermissionError("Chỉ người đặt sân được trả phần còn thiếu.")
     if booking.status != BookingStatus.PARTIALLY_PAID.value:
         raise InvalidPaymentStateError(
-            "Chỉ booking đã thanh toán một phần mới có thể trả phần còn thiếu."
+            "Chỉ lịch đặt đã thanh toán một phần mới có thể trả phần còn thiếu."
         )
     if booking.booking_mode != BookingMode.FIND_OPPONENT.value:
         raise InvalidPaymentStateError(
-            "Chỉ booking tìm đối thủ mới có phần cọc cần trả bổ sung."
+            "Chỉ lịch đặt tìm đối thủ mới có phần cọc cần trả bổ sung."
         )
     if booking.funding_deadline is None or booking.funding_deadline <= current_utc:
-        raise PaymentExpiredError("Đã hết hạn góp đủ tiền cho booking này.")
+        raise PaymentExpiredError("Đã hết hạn đóng đủ tiền cho lịch đặt này.")
     if (
         booking.payment_policy == BookingPaymentPolicy.DEPOSIT_30.value
         and booking.matchmaking_deadline is not None
@@ -546,7 +546,7 @@ def _validate_top_up(
             "Chỉ có thể trả phần cọc đối thủ còn thiếu trong cửa sổ 30 phút."
         )
     if Decimal(booking.deposit_amount) - Decimal(booking.paid_amount) <= 0:
-        raise InvalidPaymentStateError("Booking đã được thanh toán đủ.")
+        raise InvalidPaymentStateError("Lịch đặt sân đã được thanh toán đủ.")
 
 
 def _validate_payable_contribution(
@@ -562,7 +562,7 @@ def _validate_payable_contribution(
         BookingStatus.CONFIRMED.value,
         BookingStatus.PARTIALLY_PAID.value,
     }:
-        raise InvalidPaymentStateError("Booking hiện không thể nhận thanh toán.")
+        raise InvalidPaymentStateError("Lịch đặt sân hiện không thể nhận thanh toán.")
     if contribution.status != ContributionStatus.PENDING.value:
         raise InvalidPaymentStateError("Khoản đóng góp đã được xử lý.")
     if contribution.expires_at is not None and contribution.expires_at <= current_utc:
@@ -591,7 +591,7 @@ def _lock_booking(booking_code: str) -> Booking:
     )
     booking = db.session.scalar(statement)
     if booking is None:
-        raise PaymentNotFoundError("Không tìm thấy booking.")
+        raise PaymentNotFoundError("Không tìm thấy lịch đặt sân.")
     return booking
 
 
@@ -602,7 +602,7 @@ def _lock_booking_by_id(booking_id: int) -> Booking:
     )
     booking = db.session.scalar(statement)
     if booking is None:
-        raise PaymentNotFoundError("Không tìm thấy booking.")
+        raise PaymentNotFoundError("Không tìm thấy lịch đặt sân.")
     return booking
 
 

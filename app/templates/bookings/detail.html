@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 
-{% block title %}Booking {{ booking.booking_code }} · Sports Field Booking{% endblock %}
+{% block title %}Lịch đặt {{ booking.booking_code }} · Sân Thể Thao{% endblock %}
 
 {% block content %}
 <section class="container py-5">
-    <a class="text-decoration-none" href="{{ url_for('bookings.owner_index') if owner_view else url_for('bookings.index') }}">← Quay lại danh sách booking</a>
+    <a class="text-decoration-none" href="{{ url_for('bookings.owner_index') if owner_view else url_for('bookings.index') }}">← Quay lại lịch đặt sân</a>
 
     <div class="booking-detail-header mt-4">
         <div>
@@ -20,7 +20,7 @@
                 <span>Đã hoàn cho người thanh toán</span>
                 <strong>{{ successful_refund_total|vnd_currency }}</strong>
                 <small>Tiền sân ban đầu: {{ booking.total_amount|vnd_currency }}</small>
-                {% if not booking.payments %}<small>Booking chưa phát sinh thanh toán.</small>{% endif %}
+                {% if not booking.payments %}<small>Lịch đặt này chưa phát sinh thanh toán.</small>{% endif %}
                 {% if booking.cancellation_fee_amount > 0 %}
                     <small>Phí giữ sân: {{ booking.cancellation_fee_amount|vnd_currency }}</small>
                 {% endif %}
@@ -134,7 +134,7 @@
                                         <td class="text-end">{{ contribution.amount_paid|vnd_currency }}</td>
                                     </tr>
                                 {% else %}
-                                    <tr><td colspan="4" class="text-center text-secondary py-4">Booking cũ chưa có dữ liệu phân chia.</td></tr>
+                                    <tr><td colspan="4" class="text-center text-secondary py-4">Lịch đặt cũ chưa có thông tin tiền cọc.</td></tr>
                                 {% endfor %}
                             </tbody>
                         </table>
@@ -209,7 +209,7 @@
                 {% if not owner_view and current_user.id == booking.user_id %}
                     {% if booking.match and booking.match.status != 'CANCELLED' and effective_status in ['PARTIALLY_PAID', 'PAID'] %}
                         <div class="match-booking-cta mb-3">
-                            <span>Kèo gắn với booking</span>
+                            <span>Kèo gắn với lịch đặt sân</span>
                             <strong>{{ booking.match.title }}</strong>
                             <a class="btn btn-outline-primary w-100 mt-2" href="{{ url_for('matches.detail', match_id=booking.match.id) }}">Xem và quản lý kèo</a>
                         </div>
@@ -222,7 +222,7 @@
                     {% endif %}
                 {% endif %}
                 {% if effective_status == 'PENDING' %}
-                    <p class="text-secondary">Booking cũ đang được hệ thống xử lý.</p>
+                    <p class="text-secondary">Lịch đặt cũ đang được hệ thống xử lý.</p>
                 {% elif effective_status == 'CONFIRMED' %}
                     {% if owner_view %}
                         <p class="text-secondary">Hệ thống đã tự động giữ chỗ. Bạn không cần xác nhận thủ công.</p>
@@ -255,12 +255,12 @@
                     {% endif %}
                 {% elif effective_status == 'PARTIALLY_PAID' %}
                     {% if owner_view %}
-                        <p class="text-secondary mb-0">Người đặt đã trả phần cọc giữ sân. Booking vẫn có hiệu lực trong khi chờ đối thủ.</p>
+                        <p class="text-secondary mb-0">Người đặt đã trả phần cọc giữ sân. Lịch đặt vẫn có hiệu lực trong khi chờ đối thủ.</p>
                     {% else %}
                         <div class="alert alert-success">Khoản thanh toán đầu tiên đã thành công.</div>
                         <p class="text-secondary">Còn thiếu {{ booking.remaining_amount|vnd_currency }} tiền cọc từ phía đối thủ.</p>
                         {% if booking.matchmaking_deadline is none and booking.funding_deadline is none %}
-                            <p class="small text-secondary mb-0">Booking đã được giữ bằng phần cọc của bạn. Bài tìm đối thủ nhận yêu cầu đến giờ bắt đầu; nếu chưa có đối thủ, bạn thanh toán 85% còn lại tại sân.</p>
+                            <p class="small text-secondary mb-0">Lịch sân đã được giữ bằng phần cọc của bạn. Bài tìm đối thủ nhận người tham gia đến giờ bắt đầu; nếu chưa có đối thủ, bạn thanh toán 85% còn lại tại sân.</p>
                         {% else %}
                             <p class="small text-secondary">Hạn nhận đối thủ của lịch đặt này: {{ booking.matchmaking_deadline|local_datetime }}.</p>
                             {% if top_up_window_open %}
@@ -282,7 +282,7 @@
                         {% if booking.payment_policy == 'DEPOSIT_30' %}
                             Còn {{ booking.balance_due_at_venue|vnd_currency }} thanh toán tại sân.
                         {% else %}
-                            Booking được giữ chắc chắn cho khung giờ đã chọn.
+                            Lịch sân được giữ chắc chắn cho khung giờ đã chọn.
                         {% endif %}
                     </div>
                 {% elif effective_status == 'REFUND_PENDING' %}
@@ -292,23 +292,23 @@
                     </div>
                 {% elif effective_status == 'CANCELLED' %}
                     <div class="booking-final-status booking-final-status-cancelled">
-                        <strong>Booking đã được hủy.</strong>
+                        <strong>Lịch đặt sân đã được hủy.</strong>
                         {% if booking.refunds %}
                             <span>Hoàn tiền đã được ghi nhận trong lịch sử thanh toán.</span>
                         {% elif booking.cancellation_fee_amount > 0 %}
                             <span>{{ booking.cancellation_fee_amount|vnd_currency }} tiền cọc không được hoàn theo chính sách tự hủy.</span>
                         {% else %}
-                            <span>Booking chưa thu tiền nên không phát sinh hoàn tiền.</span>
+                            <span>Lịch đặt chưa thu tiền nên không phát sinh hoàn tiền.</span>
                         {% endif %}
                     </div>
                 {% elif effective_status == 'EXPIRED' %}
                     <div class="booking-final-status">
-                        <strong>Booking đã hết hạn.</strong>
-                        <span>Khoảng giờ không còn được giữ cho booking này.</span>
+                        <strong>Lịch đặt sân đã hết hạn.</strong>
+                        <span>Khoảng giờ không còn được giữ cho lịch đặt này.</span>
                     </div>
                 {% elif effective_status == 'COMPLETED' %}
                     <div class="booking-final-status booking-final-status-completed">
-                        <strong>Booking đã hoàn thành.</strong>
+                        <strong>Lịch đặt sân đã hoàn thành.</strong>
                         <span>Lịch sử thanh toán vẫn được lưu để đối soát.</span>
                     </div>
                 {% endif %}
@@ -323,13 +323,13 @@
                 {% if owner_view and effective_status in ['CONFIRMED', 'PARTIALLY_PAID', 'PAID'] %}
                     <form method="post"
                           action="{{ url_for('bookings.owner_cancel', booking_code=booking.booking_code) }}"
-                          data-confirm-title="Xác nhận hủy booking?"
-                          data-confirm-message="Booking sẽ bị hủy. Nếu đã thu cọc, hệ thống phải hoàn đủ các khoản hợp lệ trước khi giải phóng lịch sân."
-                          data-confirm-button="Xác nhận hủy booking">
+                          data-confirm-title="Xác nhận hủy lịch đặt sân?"
+                          data-confirm-message="Lịch đặt sân sẽ bị hủy. Nếu đã thu cọc, hệ thống phải hoàn đủ các khoản hợp lệ trước khi giải phóng lịch sân."
+                          data-confirm-button="Xác nhận hủy lịch đặt sân">
                         {{ owner_cancel_form.hidden_tag() }}
                         {{ owner_cancel_form.reason.label(class="form-label") }}
                         {{ owner_cancel_form.reason(class="form-control", rows="3", placeholder="Nêu sự cố buộc phải hủy") }}
-                        <button class="btn btn-outline-danger w-100 mt-3" type="submit">Hủy booking</button>
+                        <button class="btn btn-outline-danger w-100 mt-3" type="submit">Hủy lịch đặt sân</button>
                     </form>
                     {% if booking.paid_amount > 0 %}
                         <p class="small text-secondary mt-2 mb-0">Hệ thống sẽ hoàn 100% mọi khoản đã thu rồi mới giải phóng lịch sân.</p>
@@ -339,24 +339,24 @@
                           action="{{ url_for('bookings.cancel', booking_code=booking.booking_code) }}"
                           {% if booking.paid_amount > 0 %}
                           data-confirm-title="Xác nhận hủy và mất cọc?"
-                          data-confirm-message="Phần cọc do bạn đã đóng sẽ không được hoàn. Phần cọc của đối thủ sẽ được hoàn nếu có. Bạn vẫn muốn hủy booking?"
+                          data-confirm-message="Phần cọc do bạn đã đóng sẽ không được hoàn. Phần cọc của đối thủ sẽ được hoàn nếu có. Bạn vẫn muốn hủy lịch đặt sân?"
                           data-confirm-button="Hủy và chấp nhận mất cọc"
                           {% endif %}>
                         {{ cancel_form.hidden_tag() }}
-                        <button class="btn btn-outline-danger w-100" type="submit">Hủy booking</button>
+                        <button class="btn btn-outline-danger w-100" type="submit">Hủy lịch đặt sân</button>
                     </form>
                     <p class="small text-secondary mt-2 mb-0">Nếu bạn tự hủy trước giờ bắt đầu, phần cọc do bạn đã đóng sẽ không được hoàn. Phần cọc của đối thủ đang tham gia sẽ được hoàn 100%.</p>
                 {% elif not owner_view and effective_status in ['PENDING', 'CONFIRMED'] %}
                     <form method="post" action="{{ url_for('bookings.cancel', booking_code=booking.booking_code) }}">
                         {{ cancel_form.hidden_tag() }}
-                        <button class="btn btn-outline-danger w-100" type="submit">Hủy booking</button>
+                        <button class="btn btn-outline-danger w-100" type="submit">Hủy lịch đặt sân</button>
                     </form>
                     <p class="small text-secondary mt-2 mb-0">Lịch đặt này chỉ có thể hủy trước giờ bắt đầu ít nhất 2 giờ.</p>
                 {% elif not owner_view and effective_status == 'PARTIALLY_PAID' %}
                     <form method="post"
                           action="{{ url_for('bookings.cancel', booking_code=booking.booking_code) }}"
-                          data-confirm-title="Xác nhận hủy booking?"
-                          data-confirm-message="Bạn chỉ được hoàn 80% phần đã đóng; 20% được giữ làm phí giữ sân. Bạn vẫn muốn hủy booking?"
+                          data-confirm-title="Xác nhận hủy lịch đặt sân?"
+                          data-confirm-message="Bạn chỉ được hoàn 80% phần đã đóng; 20% được giữ làm phí giữ sân. Bạn vẫn muốn hủy lịch đặt sân?"
                           data-confirm-button="Hủy và chấp nhận phí giữ sân">
                         {{ cancel_form.hidden_tag() }}
                         <button class="btn btn-outline-danger w-100" type="submit">Hủy và yêu cầu hoàn tiền</button>

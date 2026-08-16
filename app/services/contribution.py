@@ -89,7 +89,7 @@ def build_contribution_plan(
         )
 
     if booking_mode != BookingMode.FIND_OPPONENT.value:
-        raise ContributionError("Hình thức booking không hợp lệ.")
+        raise ContributionError("Hình thức đặt sân không hợp lệ.")
     if requested_players is not None:
         raise ContributionError(
             "Số người muốn tìm không áp dụng cho hình thức tìm đối thủ."
@@ -124,7 +124,7 @@ def add_initial_contributions(
     plan: ContributionPlan,
 ) -> list[BookingContribution]:
     if Decimal(booking.deposit_amount) != plan.deposit_amount:
-        raise ContributionError("Kế hoạch đóng cọc không khớp booking.")
+        raise ContributionError("Kế hoạch đóng cọc không khớp lịch đặt sân.")
     records: list[BookingContribution] = []
     for index, part in enumerate(plan.contributions):
         record = BookingContribution(
