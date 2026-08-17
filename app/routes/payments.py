@@ -55,7 +55,7 @@ def pay_mock(booking_code: str, contribution_id: int):
         flash(str(exc), "warning")
     else:
         flash(
-            f"Thanh toán mô phỏng {payment.amount:,.0f} đ thành công.",
+            f"Thanh toán thử nghiệm {payment.amount:,.0f} đ thành công.",
             "success",
         )
     return _payment_redirect(booking_code)
@@ -82,7 +82,7 @@ def top_up_mock(booking_code: str):
         flash(str(exc), "warning")
     else:
         flash(
-            f"Đã thanh toán mô phỏng phần còn thiếu {payment.amount:,.0f} đ.",
+            f"Đã thanh toán thử nghiệm phần còn thiếu {payment.amount:,.0f} đ.",
             "success",
         )
     return _booking_redirect(booking_code)
@@ -148,10 +148,10 @@ def momo_return():
         flash(f"MoMo chưa xác nhận thanh toán: {exc}", "warning")
         return redirect(url_for("bookings.index"))
     if payment.status == "SUCCESS":
-        flash("MoMo Sandbox đã xác nhận khoản cọc thành công.", "success")
+        flash("MoMo đã xác nhận khoản cọc thành công.", "success")
     elif payment.status == "PENDING":
         flash(
-            "Đang chờ MoMo xác nhận qua IPN. Vui lòng tải lại trang sau ít phút.",
+            "Đang chờ MoMo xác nhận. Vui lòng tải lại trang sau ít phút.",
             "info",
         )
     else:

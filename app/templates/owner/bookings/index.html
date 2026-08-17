@@ -1,17 +1,17 @@
 {% extends "base.html" %}
 
-{% block title %}Quản lý booking · Sports Field Booking{% endblock %}
+{% block title %}Quản lý lịch đặt sân · Sân Thể Thao{% endblock %}
 
 {% block content %}
 <section class="container py-5">
     <div class="mb-4">
         <span class="eyebrow">DÀNH CHO CHỦ SÂN</span>
-        <h1 class="h2 fw-bold mt-2 mb-1">Quản lý booking</h1>
+        <h1 class="h2 fw-bold mt-2 mb-1">Quản lý lịch đặt sân</h1>
         <p class="text-secondary mb-0">Theo dõi lịch được hệ thống xác nhận tự động và xử lý sự cố khi cần.</p>
     </div>
 
     {% if bookings %}
-        <div class="booking-tabs" role="tablist" aria-label="Lọc booking của chủ sân">
+        <div class="booking-tabs" role="tablist" aria-label="Lọc lịch đặt sân của chủ sân">
             {% for group in booking_groups %}
                 <button
                     class="booking-tab{% if loop.first %} active{% endif %}"
@@ -66,7 +66,7 @@
                                         <strong>{{ booking.total_amount|vnd_currency }}</strong>
                                         <span>{{ booking_mode_labels[booking.booking_mode] }}</span>
                                     </div>
-                                    <a class="btn btn-outline-primary" href="{{ url_for('bookings.owner_detail', booking_code=booking.booking_code) }}">Xem booking</a>
+                                    <a class="btn btn-outline-primary" href="{{ url_for('bookings.owner_detail', booking_code=booking.booking_code) }}">Xem lịch đặt</a>
                                 </article>
                             {% endfor %}
                         </div>
@@ -74,8 +74,8 @@
                         <div class="booking-panel-empty">
                             <div class="booking-panel-empty-icon" aria-hidden="true">📋</div>
                             <div>
-                                <h2 class="h6 fw-bold mb-1">Chưa có booking trong mục này</h2>
-                                <p class="text-secondary mb-0">Booking phù hợp sẽ tự động xuất hiện tại đây.</p>
+                                <h2 class="h6 fw-bold mb-1">Chưa có lịch đặt trong mục này</h2>
+                                <p class="text-secondary mb-0">Lịch đặt phù hợp sẽ tự động xuất hiện tại đây.</p>
                             </div>
                         </div>
                     {% endif %}
@@ -85,8 +85,8 @@
     {% else %}
         <div class="empty-state text-center">
             <div class="empty-state-icon" aria-hidden="true">📋</div>
-            <h2 class="h5 fw-bold">Chưa có booking</h2>
-            <p class="text-secondary mb-0">Booking mới sẽ xuất hiện tại đây.</p>
+            <h2 class="h5 fw-bold">Chưa có lịch đặt sân</h2>
+            <p class="text-secondary mb-0">Lịch đặt mới sẽ xuất hiện tại đây.</p>
         </div>
     {% endif %}
 </section>

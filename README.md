@@ -134,6 +134,7 @@ Ba giai đoạn đã được triển khai vào model, migration, service, route
 - Giao diện responsive dùng Jinja2, Bootstrap 5 và CSS riêng.
 - OWNER tạo, sửa và xem danh sách cơ sở của chính mình; venue mới luôn chờ admin duyệt.
 - ADMIN duyệt công khai hoặc ẩn venue và hệ thống lưu dấu vết kiểm duyệt.
+- ADMIN có dashboard tổng quan, tìm kiếm/khóa/mở khóa tài khoản và màn hình giám sát booking, contribution, payment, refund, match cùng danh mục thể thao. Các màn hình giám sát không cho xóa hoặc sửa lịch sử giao dịch.
 - Khách chỉ xem được danh sách và chi tiết venue có trạng thái `ACTIVE`.
 - Danh sách công khai cho tìm theo tên/địa chỉ/quận-thành phố, lọc loại sân và khoảng “giá từ”; chỉ field `ACTIVE` tham gia bộ lọc, kết quả được phân trang và giữ nguyên điều kiện khi chuyển trang.
 - OWNER tạo, sửa và xem các sân con thuộc cơ sở của chính mình; sân mới luôn có trạng thái `INACTIVE`.

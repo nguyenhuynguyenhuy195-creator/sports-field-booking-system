@@ -69,7 +69,7 @@ def validate_match_creation(
     """Validate whether the booking creation screen may be shown."""
     _validate_actor(creator)
     if booking.user_id != creator.id:
-        raise MatchPermissionError("Chỉ người tạo booking được mở kèo.")
+        raise MatchPermissionError("Chỉ người đặt sân được mở kèo.")
     _validate_booking_can_open_match(
         booking,
         current_utc=_normalize_utc(now),
@@ -99,7 +99,7 @@ def create_match(
         now=current_utc,
     )
     if db.session.scalar(db.select(Match.id).where(Match.booking_id == booking.id)):
-        raise InvalidMatchStateError("Booking này đã có một kèo.")
+        raise InvalidMatchStateError("Lịch đặt sân này đã có một kèo.")
 
     normalized_type = _resolve_match_type(booking, match_type)
     total_players, normalized_required = _resolve_player_configuration(
@@ -628,7 +628,7 @@ def _lock_booking_by_code(booking_code: str) -> Booking:
     )
     booking = db.session.scalar(statement)
     if booking is None:
-        raise MatchNotFoundError("Không tìm thấy booking.")
+        raise MatchNotFoundError("Không tìm thấy lịch đặt sân.")
     return booking
 
 
@@ -681,7 +681,7 @@ def _reserve_or_join_participant(
         payment_cutoff = _match_request_cutoff(match.booking)
         if current_utc >= payment_cutoff:
             raise InvalidMatchStateError(
-                "Đã hết hạn nhận đối thủ cho booking này."
+                "Đã hết hạn nhận đối thủ cho lịch đặt này."
             )
         if payment_due_at > payment_cutoff:
             payment_due_at = payment_cutoff
@@ -745,12 +745,12 @@ def _validate_booking_can_open_match(
     if booking.payment_policy == BookingPaymentPolicy.DEPOSIT_30.value:
         if booking.booking_mode == BookingMode.DIRECT_BOOKING.value:
             raise InvalidMatchStateError(
-                "Booking đá nội bộ hoặc đã có kèo không mở tin tìm người."
+                "Lịch đá nội bộ hoặc đã có kèo không thể mở tin tìm người."
             )
         if booking.booking_mode == BookingMode.FIND_OPPONENT.value:
             allowed = booking.status == BookingStatus.PARTIALLY_PAID.value
             if current_utc >= _match_request_cutoff(booking):
-                raise InvalidMatchStateError("Đã hết hạn tìm đối thủ cho booking này.")
+                raise InvalidMatchStateError("Đã hết hạn tìm đối thủ cho lịch đặt này.")
         else:
             allowed = booking.status == BookingStatus.PAID.value
     elif booking.booking_mode == BookingMode.DIRECT_BOOKING.value:
@@ -776,7 +776,7 @@ def _resolve_match_type(booking: Booking, requested_type: str | None) -> str:
         raise MatchmakingError("Loại kèo không hợp lệ.")
     if requested_type and booking.booking_mode != BookingMode.DIRECT_BOOKING.value:
         if requested_type != expected:
-            raise MatchmakingError("Loại kèo không khớp hình thức booking.")
+            raise MatchmakingError("Loại kèo không khớp hình thức đặt sân.")
     return expected
 
 
@@ -810,7 +810,7 @@ def _validate_match_is_open(match: Match, *, current_utc: datetime) -> None:
     if match.status != MatchStatus.OPEN.value:
         raise InvalidMatchStateError("Kèo này không còn nhận yêu cầu mới.")
     if match.booking.status not in MATCHABLE_BOOKING_STATUSES:
-        raise InvalidMatchStateError("Booking của kèo không còn hiệu lực.")
+        raise InvalidMatchStateError("Lịch đặt sân của kèo không còn hiệu lực.")
     if _booking_has_started(match.booking, current_utc=current_utc):
         raise InvalidMatchStateError("Kèo đã đến giờ bắt đầu.")
     if (
@@ -819,7 +819,7 @@ def _validate_match_is_open(match: Match, *, current_utc: datetime) -> None:
         and match.booking.matchmaking_deadline is not None
         and current_utc >= match.booking.matchmaking_deadline
     ):
-        raise InvalidMatchStateError("Đã hết hạn tìm đối thủ cho booking này.")
+        raise InvalidMatchStateError("Đã hết hạn tìm đối thủ cho lịch đặt này.")
 
 
 def _ensure_match_has_capacity(match: Match) -> None:

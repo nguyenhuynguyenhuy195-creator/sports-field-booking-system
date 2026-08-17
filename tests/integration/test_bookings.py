@@ -668,7 +668,7 @@ def test_maintenance_cannot_overlap_occupying_booking(app):
         target_date=target_date,
     )
 
-    with app.app_context(), pytest.raises(MaintenanceError, match="booking"):
+    with app.app_context(), pytest.raises(MaintenanceError, match="lịch đặt sân"):
         create_maintenance(
             owner=db.session.get(User, owner.id),
             field_id=field_id,

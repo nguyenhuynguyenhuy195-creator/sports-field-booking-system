@@ -195,7 +195,7 @@ def create_booking(
         plan=contribution_plan,
     )
 
-    _commit_booking("Không thể tạo booking lúc này. Vui lòng thử lại.")
+    _commit_booking("Không thể tạo lịch đặt sân lúc này. Vui lòng thử lại.")
     return booking
 
 
@@ -312,9 +312,9 @@ def get_user_booking(*, booking_code: str, user_id: int) -> Booking:
         )
     )
     if booking is None:
-        raise BookingNotFoundError("Không tìm thấy booking.")
+        raise BookingNotFoundError("Không tìm thấy lịch đặt sân.")
     if booking.user_id != user_id:
-        raise BookingPermissionError("Bạn không có quyền xem booking này.")
+        raise BookingPermissionError("Bạn không có quyền xem lịch đặt sân này.")
     return booking
 
 
@@ -325,9 +325,9 @@ def get_owner_booking(*, booking_code: str, owner_id: int) -> Booking:
         )
     )
     if booking is None:
-        raise BookingNotFoundError("Không tìm thấy booking.")
+        raise BookingNotFoundError("Không tìm thấy lịch đặt sân.")
     if booking.field.venue.owner_id != owner_id:
-        raise BookingPermissionError("Bạn không có quyền quản lý booking này.")
+        raise BookingPermissionError("Bạn không có quyền quản lý lịch đặt sân này.")
     return booking
 
 
@@ -342,12 +342,12 @@ def cancel_user_booking(
     effective_status = get_effective_booking_status(booking, now=current_local)
     if effective_status == BookingStatus.EXPIRED.value:
         booking.status = BookingStatus.EXPIRED.value
-        _commit_booking("Không thể cập nhật booking đã hết hạn.")
-        raise InvalidBookingStateError("Booking đã hết hạn.")
+        _commit_booking("Không thể cập nhật lịch đặt sân đã hết hạn.")
+        raise InvalidBookingStateError("Lịch đặt sân đã hết hạn.")
     start_at = datetime.combine(booking.booking_date, booking.start_time)
     if start_at <= current_local:
         raise InvalidBookingStateError(
-            "Booking đã bắt đầu nên không thể hủy trên hệ thống."
+            "Lịch đặt sân đã bắt đầu nên không thể hủy trên hệ thống."
         )
 
     if _uses_non_refundable_deposit_cancellation(booking):
@@ -358,14 +358,14 @@ def cancel_user_booking(
             BookingStatus.PAID.value,
         }:
             raise InvalidBookingStateError(
-                "Booking này không còn ở trạng thái có thể tự hủy."
+                "Lịch đặt sân này không còn ở trạng thái có thể tự hủy."
             )
         from .refund import RefundError, apply_creator_cancellation_policy
 
         try:
             apply_creator_cancellation_policy(
                 booking=booking,
-                reason="Người đặt sân chủ động hủy booking.",
+                reason="Người đặt sân chủ động hủy lịch đặt sân.",
                 now=_local_to_utc(current_local),
             )
         except RefundError as exc:
@@ -373,14 +373,14 @@ def cancel_user_booking(
     elif booking.status == BookingStatus.PARTIALLY_PAID.value:
         if start_at - current_local < timedelta(hours=2):
             raise InvalidBookingStateError(
-                "Booking cũ chỉ có thể hủy trước giờ bắt đầu ít nhất 2 giờ."
+                "Lịch đặt cũ chỉ có thể hủy trước giờ bắt đầu ít nhất 2 giờ."
             )
         from .refund import RefundError, apply_funding_shortfall_refunds
 
         try:
             apply_funding_shortfall_refunds(
                 booking=booking,
-                reason="Người tạo hủy booking chưa góp đủ tiền.",
+                reason="Người đặt hủy lịch sân khi chưa đóng đủ tiền.",
                 now=_local_to_utc(current_local),
             )
         except RefundError as exc:
@@ -391,19 +391,19 @@ def cancel_user_booking(
     }:
         if start_at - current_local < timedelta(hours=2):
             raise InvalidBookingStateError(
-                "Booking cũ chỉ có thể hủy trước giờ bắt đầu ít nhất 2 giờ."
+                "Lịch đặt cũ chỉ có thể hủy trước giờ bắt đầu ít nhất 2 giờ."
             )
         booking.status = BookingStatus.CANCELLED.value
-        booking.cancellation_reason = "Người đặt sân chủ động hủy booking."
+        booking.cancellation_reason = "Người đặt sân chủ động hủy lịch đặt sân."
         _set_pending_contributions_status(
             booking_ids=[booking.id],
             status=ContributionStatus.WAIVED.value,
         )
     else:
         raise InvalidBookingStateError(
-            "Booking này không còn ở trạng thái có thể tự hủy."
+            "Lịch đặt sân này không còn ở trạng thái có thể tự hủy."
         )
-    _commit_booking("Không thể hủy booking lúc này.")
+    _commit_booking("Không thể hủy lịch đặt sân lúc này.")
     _attempt_momo_refunds(booking.id)
     return booking
 
@@ -423,7 +423,7 @@ def cancel_owner_booking(
         BookingStatus.PAID.value,
     }:
         raise InvalidBookingStateError(
-            "Chủ sân chỉ có thể hủy booking đang giữ chỗ hoặc đã thu tiền."
+            "Chủ sân chỉ có thể hủy lịch đặt đang giữ chỗ hoặc đã thu tiền."
         )
 
     if Decimal(booking.paid_amount) > 0:
@@ -443,7 +443,7 @@ def cancel_owner_booking(
             booking_ids=[booking.id],
             status=ContributionStatus.WAIVED.value,
         )
-    _commit_booking("Không thể hủy booking lúc này.")
+    _commit_booking("Không thể hủy lịch đặt sân lúc này.")
     _attempt_momo_refunds(booking.id)
     return booking
 
@@ -507,7 +507,7 @@ def expire_stale_bookings(*, now: datetime | None = None) -> int:
             booking_ids=[booking.id for booking in stale_bookings],
             status=ContributionStatus.EXPIRED.value,
         )
-        _commit_booking("Không thể cập nhật các booking đã hết hạn.")
+        _commit_booking("Không thể cập nhật các lịch đặt sân đã hết hạn.")
     return len(stale_bookings)
 
 
@@ -573,7 +573,7 @@ def complete_finished_bookings(*, now: datetime | None = None) -> int:
         for booking in completed:
             if booking.match is not None:
                 booking.match.status = MatchStatus.COMPLETED.value
-    _commit_booking("Không thể hoàn tất các booking đã qua giờ sử dụng.")
+    _commit_booking("Không thể hoàn tất các lịch đặt đã qua giờ sử dụng.")
     return len(completed)
 
 
@@ -796,7 +796,7 @@ def _lock_owner_booking(*, booking_code: str, owner_id: int) -> Booking:
         .where(Booking.booking_code == booking_code)
     )
     if booking is None:
-        raise BookingNotFoundError("Không tìm thấy booking.")
+        raise BookingNotFoundError("Không tìm thấy lịch đặt sân.")
     _lock_field(field_id=booking.field_id)
     statement = with_update_lock(
         db.select(Booking)
@@ -806,7 +806,7 @@ def _lock_owner_booking(*, booking_code: str, owner_id: int) -> Booking:
     )
     booking = db.session.scalar(statement)
     if booking.field.venue.owner_id != owner_id:
-        raise BookingPermissionError("Bạn không có quyền quản lý booking này.")
+        raise BookingPermissionError("Bạn không có quyền quản lý lịch đặt sân này.")
     return booking
 
 
@@ -815,7 +815,7 @@ def _lock_user_booking(*, booking_code: str, user_id: int) -> Booking:
         db.select(Booking).where(Booking.booking_code == booking_code)
     )
     if booking is None:
-        raise BookingNotFoundError("Không tìm thấy booking.")
+        raise BookingNotFoundError("Không tìm thấy lịch đặt sân.")
     _lock_field(field_id=booking.field_id)
     statement = with_update_lock(
         db.select(Booking).where(Booking.id == booking.id),
@@ -823,7 +823,7 @@ def _lock_user_booking(*, booking_code: str, user_id: int) -> Booking:
     )
     booking = db.session.scalar(statement)
     if booking.user_id != user_id:
-        raise BookingPermissionError("Bạn không có quyền quản lý booking này.")
+        raise BookingPermissionError("Bạn không có quyền quản lý lịch đặt sân này.")
     return booking
 
 
@@ -840,18 +840,18 @@ def _lock_field(*, field_id: int) -> Field:
 
 def _validate_booker(user: User) -> None:
     if user.role not in {UserRole.USER.value, UserRole.OWNER.value}:
-        raise BookingPermissionError("Tài khoản này không thể tạo booking.")
+        raise BookingPermissionError("Tài khoản này không thể đặt sân.")
 
 
 def _validate_owner(owner: User) -> None:
     if owner.role != UserRole.OWNER.value:
-        raise BookingPermissionError("Chỉ chủ sân được xử lý booking.")
+        raise BookingPermissionError("Chỉ chủ sân được xử lý lịch đặt sân.")
 
 
 def _validate_booking_mode(booking_mode: str) -> str:
     valid_modes = {mode.value for mode in BookingMode}
     if booking_mode not in valid_modes:
-        raise BookingError("Hình thức booking không hợp lệ.")
+        raise BookingError("Hình thức đặt sân không hợp lệ.")
     return booking_mode
 
 
@@ -867,7 +867,7 @@ def _validate_booking_configuration(
 
     if sport_code == SportCode.FOOTBALL.value:
         if normalized_play_format is not None:
-            raise BookingError("Booking bóng đá không chọn đánh đơn hoặc đánh đôi.")
+            raise BookingError("Lịch sân bóng đá không dùng hình thức đánh đơn hoặc đánh đôi.")
         maximum_players = max(field.capacity - 1, 0)
     else:
         if normalized_play_format not in {item.value for item in PlayFormat}:

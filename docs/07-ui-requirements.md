@@ -146,6 +146,7 @@ Hiển thị:
 - Kiểm tra địa chỉ/marker trước khi kích hoạt venue mới.
 - Danh sách booking, contribution, payment, refund và match.
 - Bộ lọc theo trạng thái, sport, ngày và mã giao dịch.
+- Chọn cơ sở, sân, nhóm dữ liệu, bộ lọc và phân trang phải cập nhật tại chỗ; không tải lại toàn bộ trang giám sát.
 - Không hiển thị secret key; số liên hệ chỉ hiện theo quyền cần thiết.
 
 ## 7.11. Màu trạng thái

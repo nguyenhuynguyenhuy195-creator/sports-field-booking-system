@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Tổng quan quản trị · Sân Thể Thao{% endblock %}
+
+{% block content %}
+<section class="admin-page">
+    <div class="container py-5">
+        <div class="admin-page-heading">
+            <div>
+                <span class="eyebrow">QUẢN TRỊ HỆ THỐNG</span>
+                <h1 class="display-6 fw-bold mt-2 mb-2">Tổng quan vận hành</h1>
+                <p class="text-secondary mb-0">Theo dõi tài khoản, cơ sở, lịch đặt sân và dòng tiền cọc mà không thay đổi lịch sử.</p>
+            </div>
+            <span class="admin-readonly-note">Dữ liệu giám sát</span>
+        </div>
+
+        {% include "admin/_nav.html" %}
+
+        <div class="admin-metric-grid">
+            <a class="admin-metric-card" href="{{ url_for('admin.accounts') }}">
+                <span>Tài khoản</span>
+                <strong>{{ summary.total_accounts }}</strong>
+                <small>{{ summary.active_accounts }} hoạt động · {{ summary.locked_accounts }} đã khóa</small>
+            </a>
+            <a class="admin-metric-card" href="{{ url_for('admin.owner_applications') }}">
+                <span>Yêu cầu chủ sân</span>
+                <strong>{{ summary.pending_owner_applications }}</strong>
+                <small>Đang chờ xét duyệt</small>
+            </a>
+            <a class="admin-metric-card" href="{{ url_for('venues.admin_index') }}">
+                <span>Cơ sở</span>
+                <strong>{{ summary.pending_venues }}</strong>
+                <small>Đang chờ kiểm duyệt</small>
+            </a>
+            <a class="admin-metric-card" href="{{ url_for('admin.monitoring', section='bookings') }}">
+                <span>Lịch đặt sân</span>
+                <strong>{{ summary.total_bookings }}</strong>
+                <small>{{ summary.active_bookings }} lịch đặt còn hiệu lực</small>
+            </a>
+            <a class="admin-metric-card" href="{{ url_for('admin.monitoring', section='payments', status='PENDING') }}">
+                <span>Thanh toán chờ xử lý</span>
+                <strong>{{ summary.pending_payments }}</strong>
+                <small>Cần tiếp tục xác minh</small>
+            </a>
+            <a class="admin-metric-card" href="{{ url_for('admin.monitoring', section='refunds') }}">
+                <span>Hoàn tiền chờ xử lý</span>
+                <strong>{{ summary.pending_refunds }}</strong>
+                <small>Đang chờ hoặc đang xử lý</small>
+            </a>
+            <a class="admin-metric-card" href="{{ url_for('admin.monitoring', section='matches', status='OPEN') }}">
+                <span>Kèo đang mở</span>
+                <strong>{{ summary.open_matches }}</strong>
+                <small>Đang nhận người tham gia</small>
+            </a>
+        </div>
+
+        <div class="admin-money-grid mt-4">
+            <article class="admin-money-card">
+                <span>Tiền cọc đã ghi nhận thành công</span>
+                <strong>{{ summary.successful_deposit_amount|vnd_currency }}</strong>
+                <p>Đây là tổng số tiền đã ghi nhận thành công, không phải doanh thu cuối cùng của chủ sân.</p>
+            </article>
+            <article class="admin-money-card">
+                <span>Tiền đã hoàn thành công</span>
+                <strong>{{ summary.successful_refund_amount|vnd_currency }}</strong>
+                <p>Khoản thu ban đầu vẫn được giữ trong lịch sử; khoản hoàn lại được theo dõi riêng.</p>
+            </article>
+        </div>
+    </div>
+</section>
+{% endblock %}

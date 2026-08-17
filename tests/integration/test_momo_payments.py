@@ -218,7 +218,7 @@ def test_momo_browser_return_stays_pending_until_verified_ipn(
         follow_redirects=True,
     )
     assert response.status_code == 200
-    assert "Đang chờ MoMo xác nhận qua IPN" in response.get_data(as_text=True)
+    assert "Đang chờ MoMo xác nhận" in response.get_data(as_text=True)
 
     with app.app_context():
         payment = db.session.get(Payment, payment_id)

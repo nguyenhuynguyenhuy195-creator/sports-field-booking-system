@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ match.title }} · Sports Field Booking{% endblock %}
+{% block title %}{{ match.title }} · Sân Thể Thao{% endblock %}
 
 {% block content %}
 <section class="container py-5">
@@ -15,7 +15,7 @@
             <p class="text-secondary mb-0">Đăng bởi {{ match.creator.full_name }}</p>
         </div>
         {% if current_user.is_authenticated and current_user.id == match.creator_id %}
-            <a class="btn btn-outline-primary" href="{{ url_for('bookings.detail', booking_code=match.booking.booking_code) }}">Xem booking và tiền sân</a>
+            <a class="btn btn-outline-primary" href="{{ url_for('bookings.detail', booking_code=match.booking.booking_code) }}">Xem lịch đặt và tiền sân</a>
         {% endif %}
     </div>
 
@@ -132,7 +132,7 @@
                             </form>
                         </details>
                     </div>
-                    <a class="btn btn-primary w-100" href="{{ url_for('bookings.detail', booking_code=match.booking.booking_code) }}">Mở chi tiết booking</a>
+                    <a class="btn btn-primary w-100" href="{{ url_for('bookings.detail', booking_code=match.booking.booking_code) }}">Mở chi tiết lịch đặt sân</a>
                 {% elif current_request and current_request.status == 'ACCEPTED_AWAITING_PAYMENT' %}
                     <h2 class="h5 fw-bold">Hoàn tất phần tiền của bạn</h2>
                     <p class="text-secondary">Bạn đang giữ suất đối thủ. Thanh toán trong 15 phút để chính thức vào kèo, không cần chờ người tạo duyệt.</p>

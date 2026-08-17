@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Duyệt chủ sân · Sports Field Booking{% endblock %}
+{% block title %}Duyệt chủ sân · Sân Thể Thao{% endblock %}
 
 {% block content %}
 <section class="container py-5">
@@ -9,6 +9,8 @@
         <h1 class="h2 fw-bold mt-2 mb-1">Yêu cầu trở thành chủ sân</h1>
         <p class="text-secondary mb-0">Chấp nhận hoặc từ chối các yêu cầu đang chờ.</p>
     </div>
+
+    {% include "admin/_nav.html" %}
 
     {% if applications %}
         <div class="application-list">

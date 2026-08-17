@@ -1,6 +1,7 @@
 """WTForms definitions for user input and validation."""
 
 from .auth import LoginForm, RegistrationForm
+from .admin import AdminAccountStatusForm
 from .booking import BookingActionForm, BookingForm, BookingReasonForm
 from .field import FieldForm
 from .maintenance import MaintenanceActionForm, MaintenanceForm
@@ -10,6 +11,7 @@ from .pricing import PriceSlotForm, PricingActionForm
 from .venue import ModerateVenueForm, VenueForm, VenueSearchForm
 
 __all__ = [
+    "AdminAccountStatusForm",
     "BookingActionForm",
     "BookingForm",
     "BookingReasonForm",

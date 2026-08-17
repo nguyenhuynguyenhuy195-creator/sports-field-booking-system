@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 
-{% block title %}Đăng kèo · Sports Field Booking{% endblock %}
+{% block title %}Đăng kèo · Sân Thể Thao{% endblock %}
 
 {% block content %}
 <section class="container py-5">
-    <a class="text-decoration-none" href="{{ url_for('bookings.detail', booking_code=booking.booking_code) }}">← Quay lại booking</a>
+    <a class="text-decoration-none" href="{{ url_for('bookings.detail', booking_code=booking.booking_code) }}">← Quay lại lịch đặt sân</a>
     <div class="row g-4 mt-1">
         <div class="col-lg-7">
             <div class="booking-detail-card">
@@ -42,7 +42,7 @@
                         <input type="hidden" name="required_players" value="{{ locked_required_players }}">
                         <div class="mb-3">
                             <label class="form-label">Số người cần tìm</label>
-                            <div class="match-locked-value">{{ locked_required_players }} người — lấy từ booking đã chốt</div>
+                            <div class="match-locked-value">{{ locked_required_players }} người — lấy từ lịch đặt sân đã chốt</div>
                         </div>
                     {% else %}
                         <div class="mb-3" data-match-player-count>

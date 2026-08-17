@@ -123,7 +123,7 @@ def create(booking_code: str):
     except BookingNotFoundError:
         abort(404)
     if booking.match is not None:
-        flash("Booking này đã có kèo.", "info")
+        flash("Lịch đặt sân này đã có kèo.", "info")
         return redirect(url_for("matches.detail", match_id=booking.match.id))
     try:
         validate_match_creation(booking=booking, creator=current_user)
