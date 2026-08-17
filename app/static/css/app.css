@@ -3408,6 +3408,326 @@ body {
     }
 }
 
+/* Monitoring workspace: scope stays visible while the data area changes. */
+.admin-monitoring-container {
+    max-width: 1380px;
+}
+
+.admin-monitoring-workspace {
+    align-items: start;
+    display: grid;
+    gap: 1.4rem;
+    grid-template-columns: 300px minmax(0, 1fr);
+}
+
+.admin-monitoring-workspace.is-catalog {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.admin-monitoring-sidebar,
+.admin-monitoring-main {
+    min-width: 0;
+}
+
+.admin-monitoring-sidebar .admin-scope-panel {
+    margin: 0;
+    padding: 1rem;
+    position: sticky;
+    top: 1rem;
+}
+
+.admin-scope-panel .admin-location-heading {
+    align-items: flex-start;
+}
+
+.admin-scope-panel .admin-location-heading h2 {
+    font-size: 1.05rem;
+}
+
+.admin-scope-panel .admin-location-heading p {
+    font-size: 0.78rem;
+}
+
+.admin-scope-panel .admin-location-filter {
+    padding: 0.8rem;
+}
+
+.admin-scope-panel .admin-location-filter-grid,
+.admin-scope-panel .admin-venue-choice-grid,
+.admin-scope-panel .admin-field-choice-grid {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.admin-scope-panel .admin-location-filter-actions {
+    align-items: stretch;
+    flex-direction: column;
+}
+
+.admin-scope-panel .admin-location-filter-actions .btn {
+    width: 100%;
+}
+
+.admin-scope-panel .admin-venue-choice-grid {
+    gap: 0.65rem;
+    max-height: 310px;
+    overflow-y: auto;
+    padding: 0.1rem 0.25rem 0.1rem 0.1rem;
+    scrollbar-width: thin;
+}
+
+.admin-scope-panel .admin-venue-choice {
+    min-width: 0;
+    padding: 0.75rem;
+}
+
+.admin-scope-panel .admin-venue-choice > div,
+.admin-scope-panel .admin-field-choice {
+    min-width: 0;
+}
+
+.admin-scope-panel .admin-venue-choice strong,
+.admin-scope-panel .admin-venue-choice small,
+.admin-scope-panel .admin-venue-choice span,
+.admin-scope-panel .admin-field-choice strong,
+.admin-scope-panel .admin-field-choice small {
+    overflow-wrap: anywhere;
+}
+
+.admin-scope-panel .admin-location-icon {
+    flex-basis: 36px;
+    height: 36px;
+    width: 36px;
+}
+
+.admin-scope-panel .admin-field-choice-section {
+    margin-top: 0.9rem;
+    padding-top: 0.9rem;
+}
+
+.admin-scope-panel .admin-field-choice-grid {
+    gap: 0.55rem;
+}
+
+.admin-scope-panel .admin-field-choice {
+    padding: 0.7rem;
+}
+
+.admin-monitoring-toolbar {
+    background: #ffffff;
+    border: 1px solid #dce7e1;
+    border-radius: 22px;
+    box-shadow: 0 12px 35px rgba(20, 67, 48, 0.07);
+    margin-bottom: 1rem;
+    padding: 1.2rem;
+}
+
+.admin-monitoring-toolbar-heading {
+    align-items: flex-start;
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+}
+
+.admin-monitoring-toolbar-heading h2,
+.admin-monitoring-toolbar-heading p {
+    margin: 0;
+}
+
+.admin-monitoring-toolbar-heading h2 {
+    font-size: 1.35rem;
+    font-weight: 800;
+}
+
+.admin-monitoring-toolbar-heading p {
+    color: var(--app-text-muted);
+    font-size: 0.82rem;
+    margin-top: 0.25rem;
+}
+
+.admin-result-count {
+    background: #eaf5ef;
+    border: 1px solid #cfe5d8;
+    border-radius: 999px;
+    color: var(--app-primary-dark);
+    flex: 0 0 auto;
+    font-size: 0.78rem;
+    font-weight: 800;
+    padding: 0.45rem 0.75rem;
+}
+
+.admin-monitoring-page .admin-monitoring-toolbar .admin-monitoring-tabs {
+    border: 0;
+    display: grid;
+    gap: 0.5rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin: 1rem 0 0;
+}
+
+.admin-monitoring-page .admin-monitoring-toolbar .admin-monitoring-tab {
+    align-items: center;
+    background: #f6f9f7;
+    border: 1px solid #dbe6e0;
+    border-radius: 12px;
+    display: flex;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0.6rem 0.7rem;
+    text-align: center;
+}
+
+.admin-monitoring-page .admin-monitoring-toolbar .admin-monitoring-tab:hover {
+    background: #edf6f1;
+    border-color: #91bca5;
+}
+
+.admin-monitoring-page .admin-monitoring-toolbar .admin-monitoring-tab.active {
+    background: var(--app-primary-dark);
+    border-color: var(--app-primary-dark);
+    color: #ffffff;
+}
+
+.admin-monitoring-toolbar .admin-monitoring-explainer {
+    margin: 0.85rem 0;
+}
+
+.admin-monitoring-toolbar .admin-monitoring-filters {
+    box-shadow: none;
+    display: grid;
+    gap: 0.8rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin: 0;
+    padding: 0.9rem;
+}
+
+.admin-monitoring-filters .admin-filter-control {
+    min-width: 0;
+}
+
+.admin-monitoring-filters .admin-filter-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+}
+
+.admin-monitoring-main .admin-booking-monitor-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 0;
+}
+
+.admin-monitoring-main .admin-booking-monitor-card {
+    min-width: 0;
+}
+
+.admin-monitoring-main .admin-booking-monitor-head {
+    gap: 0.65rem;
+}
+
+.admin-monitoring-main .admin-booking-monitor-head > div {
+    min-width: 0;
+}
+
+.admin-monitoring-main .admin-booking-code {
+    overflow-wrap: anywhere;
+}
+
+.admin-monitoring-main .admin-field-data-body {
+    padding: 0.9rem;
+}
+
+.admin-monitoring-main .admin-operation-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.admin-result-summary {
+    align-items: center;
+    color: var(--app-text-muted);
+    display: flex;
+    font-size: 0.82rem;
+    justify-content: space-between;
+    margin-top: 1rem;
+}
+
+.admin-result-summary strong {
+    color: var(--app-secondary);
+}
+
+@media (max-width: 1199.98px) {
+    .admin-monitoring-workspace {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .admin-monitoring-sidebar .admin-scope-panel {
+        position: static;
+    }
+
+    .admin-scope-panel .admin-location-filter-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .admin-scope-panel .admin-location-filter-actions {
+        flex-direction: row;
+        justify-content: flex-end;
+    }
+
+    .admin-scope-panel .admin-location-filter-actions .btn {
+        width: auto;
+    }
+
+    .admin-scope-panel .admin-venue-choice-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        max-height: none;
+        overflow: visible;
+        padding: 0;
+    }
+
+    .admin-scope-panel .admin-field-choice-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 767.98px) {
+    .admin-scope-panel .admin-location-filter-grid,
+    .admin-scope-panel .admin-venue-choice-grid,
+    .admin-scope-panel .admin-field-choice-grid,
+    .admin-monitoring-main .admin-booking-monitor-list,
+    .admin-monitoring-main .admin-operation-card-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .admin-monitoring-page .admin-monitoring-toolbar .admin-monitoring-tabs,
+    .admin-monitoring-toolbar .admin-monitoring-filters {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 575.98px) {
+    .admin-monitoring-container {
+        padding-left: 0.85rem;
+        padding-right: 0.85rem;
+    }
+
+    .admin-monitoring-toolbar,
+    .admin-monitoring-sidebar .admin-scope-panel {
+        border-radius: 18px;
+        padding: 0.9rem;
+    }
+
+    .admin-monitoring-toolbar-heading,
+    .admin-result-summary {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .admin-monitoring-page .admin-monitoring-toolbar .admin-monitoring-tabs,
+    .admin-monitoring-toolbar .admin-monitoring-filters {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .admin-monitoring-filters .admin-filter-actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+}
+
 /* Administrator workspace */
 .admin-page {
     min-height: calc(100vh - 72px);

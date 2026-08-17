@@ -39,6 +39,7 @@ from .locking import with_update_lock
 
 
 ADMIN_PAGE_SIZE = 20
+ADMIN_MONITORING_PAGE_SIZE = 6
 ADMIN_VENUE_PAGE_SIZE = 10
 
 
@@ -502,6 +503,7 @@ def list_admin_bookings(
     return _paginate(
         statement.order_by(Booking.created_at.desc(), Booking.id.desc()),
         page,
+        per_page=ADMIN_MONITORING_PAGE_SIZE,
     )
 
 
@@ -547,6 +549,7 @@ def list_admin_contributions(
             BookingContribution.id.desc(),
         ),
         page,
+        per_page=ADMIN_MONITORING_PAGE_SIZE,
     )
 
 
@@ -598,6 +601,7 @@ def list_admin_payments(
     return _paginate(
         statement.order_by(Payment.created_at.desc(), Payment.id.desc()),
         page,
+        per_page=ADMIN_MONITORING_PAGE_SIZE,
     )
 
 
@@ -649,6 +653,7 @@ def list_admin_refunds(
     return _paginate(
         statement.order_by(Refund.created_at.desc(), Refund.id.desc()),
         page,
+        per_page=ADMIN_MONITORING_PAGE_SIZE,
     )
 
 
@@ -703,6 +708,7 @@ def list_admin_matches(
     return _paginate(
         statement.order_by(Match.created_at.desc(), Match.id.desc()),
         page,
+        per_page=ADMIN_MONITORING_PAGE_SIZE,
     )
 
 
@@ -720,12 +726,17 @@ def _sum_amount(column: Any, *conditions: Any) -> Decimal:
     return Decimal(db.session.scalar(statement) or 0)
 
 
-def _paginate(statement: Any, page: int) -> AdminPage:
+def _paginate(
+    statement: Any,
+    page: int,
+    *,
+    per_page: int = ADMIN_PAGE_SIZE,
+) -> AdminPage:
     normalized_page = max(page, 1)
     pagination = db.paginate(
         statement,
         page=normalized_page,
-        per_page=ADMIN_PAGE_SIZE,
+        per_page=per_page,
         error_out=False,
     )
     return AdminPage(
