@@ -16,6 +16,9 @@ from app.models import (
     FieldType,
     FieldTypeCode,
     Match,
+    MatchParticipant,
+    MatchParticipantStatus,
+    MatchParticipantType,
     MatchStatus,
     MatchType,
     Payment,
@@ -282,9 +285,6 @@ def test_admin_monitoring_lists_all_mvp_records(app, client):
 
     expected = {
         "bookings": booking_code,
-        "contributions": booking_code,
-        "payments": "PAY-ADMIN-MONITOR",
-        "refunds": "REFUND-ADMIN-MONITOR",
         "matches": "Kèo Admin Test",
         "catalog": "Sân bóng đá 5 người",
     }
@@ -305,13 +305,16 @@ def test_admin_monitoring_explains_data_and_opens_booking_detail(app, client):
     monitoring_page = monitoring.get_data(as_text=True)
 
     assert monitoring.status_code == 200
-    assert "Tình trạng cần kiểm tra" in monitoring_page
-    assert "Lịch đặt chưa đủ cọc" in monitoring_page
+    assert "Tình trạng cần kiểm tra" not in monitoring_page
+    assert "Đặt sân &amp; dòng tiền" in monitoring_page
     assert "Chọn cơ sở" in monitoring_page
     assert "Cơ sở Admin Test" in monitoring_page
     assert "Sân kiểm thử" in monitoring_page
     assert "Tiến độ tiền cọc" in monitoring_page
-    assert "Xem chi tiết" in monitoring_page
+    assert "Xem dòng tiền" in monitoring_page
+    assert "PAY-ADMIN-MONITOR" in monitoring_page
+    assert "REFUND-ADMIN-MONITOR" in monitoring_page
+    assert "Xem hồ sơ đầy đủ" in monitoring_page
     assert f"/admin/monitoring/bookings/{booking_code}" in monitoring_page
 
     detail = client.get(f"/admin/monitoring/bookings/{booking_code}")
@@ -355,7 +358,7 @@ def test_admin_monitoring_filters_by_venue_and_field_with_friendly_labels(
         field_id = booking.field_id
     login(client, email=admin.email)
 
-    for section in ("bookings", "contributions", "payments", "refunds", "matches"):
+    for section in ("bookings", "matches"):
         response = client.get(
             f"/admin/monitoring?section={section}&venue={venue_id}&field={field_id}"
         )
@@ -365,7 +368,7 @@ def test_admin_monitoring_filters_by_venue_and_field_with_friendly_labels(
         assert "Sân kiểm thử" in page
 
     payments_page = client.get(
-        f"/admin/monitoring?section=payments&venue={venue_id}&field={field_id}"
+        f"/admin/monitoring?section=bookings&venue={venue_id}&field={field_id}"
     ).get_data(as_text=True)
     assert "Thanh toán thử nghiệm" in payments_page
     assert ">MOCK<" not in payments_page
@@ -382,7 +385,12 @@ def test_admin_monitoring_searches_regions_and_paginates_many_venues(app, client
     owner = create_user(app, email="many-venues-owner@example.com", role=UserRole.OWNER)
     with app.app_context():
         venue_ids = []
-        for index in range(1, 13):
+        field_type = db.session.scalar(
+            db.select(FieldType).where(
+                FieldType.code == FieldTypeCode.FOOTBALL_5.value
+            )
+        )
+        for index in range(1, 51):
             venue = Venue(
                 owner_id=owner.id,
                 name=f"Cơ sở mở rộng {index:02d}",
@@ -396,6 +404,16 @@ def test_admin_monitoring_searches_regions_and_paginates_many_venues(app, client
             db.session.add(venue)
             db.session.flush()
             venue_ids.append(venue.id)
+        for index in range(1, 31):
+            db.session.add(
+                Field(
+                    venue_id=venue_ids[-1],
+                    name=f"Sân mở rộng {index:02d}",
+                    field_type_id=field_type.id,
+                    capacity=10,
+                    status=FieldStatus.ACTIVE.value,
+                )
+            )
         db.session.commit()
     login(client, email=admin.email)
 
@@ -403,24 +421,24 @@ def test_admin_monitoring_searches_regions_and_paginates_many_venues(app, client
         "/admin/monitoring",
         query_string={"section": "bookings", "venue_q": "Cơ sở mở rộng"},
     ).get_data(as_text=True)
-    assert "12 cơ sở phù hợp" in first_page
+    assert "50 cơ sở phù hợp" in first_page
     assert "Cơ sở mở rộng 01" in first_page
     assert "Cơ sở mở rộng 10" in first_page
     assert "Cơ sở mở rộng 11" not in first_page
-    assert "Trang 1/2" in first_page
+    assert "Trang 1/5" in first_page
 
     second_page = client.get(
         "/admin/monitoring",
         query_string={
             "section": "bookings",
             "venue_q": "Cơ sở mở rộng",
-            "venue_page": 2,
+            "venue_page": 5,
         },
     ).get_data(as_text=True)
-    assert "Cơ sở mở rộng 11" in second_page
-    assert "Cơ sở mở rộng 12" in second_page
+    assert "Cơ sở mở rộng 41" in second_page
+    assert "Cơ sở mở rộng 50" in second_page
     assert "Cơ sở mở rộng 01" not in second_page
-    assert "Trang 2/2" in second_page
+    assert "Trang 5/5" in second_page
 
     district_page = client.get(
         "/admin/monitoring",
@@ -431,7 +449,7 @@ def test_admin_monitoring_searches_regions_and_paginates_many_venues(app, client
             "venue_district": "Quận 7",
         },
     ).get_data(as_text=True)
-    assert "6 cơ sở phù hợp" in district_page
+    assert "25 cơ sở phù hợp" in district_page
     assert "Cơ sở mở rộng 02" in district_page
     assert "Cơ sở mở rộng 01" not in district_page
 
@@ -441,10 +459,15 @@ def test_admin_monitoring_searches_regions_and_paginates_many_venues(app, client
             "section": "bookings",
             "venue": venue_ids[-1],
             "venue_q": "Cơ sở mở rộng",
-            "venue_page": 2,
+            "venue_page": 5,
         },
     ).get_data(as_text=True)
-    assert "Chọn sân thuộc Cơ sở mở rộng 12" in selected_page
+    assert "Cơ sở mở rộng 50" in selected_page
+    assert "30 sân" in selected_page
+    assert "data-admin-field-search" in selected_page
+    assert "Xem thêm 22 sân" in selected_page
+    assert 'data-field-search-value="Sân mở rộng 30' in selected_page
+    assert "hidden data-admin-field-extra" in selected_page
 
 
 def test_admin_monitoring_validates_filters(app, client):
@@ -458,10 +481,10 @@ def test_admin_monitoring_validates_filters(app, client):
     assert "không hợp lệ" in invalid_section.get_data(as_text=True)
 
     invalid_status = client.get(
-        "/admin/monitoring?section=payments&status=UNKNOWN",
+        "/admin/monitoring?section=bookings&status=UNKNOWN",
         follow_redirects=True,
     )
-    assert "Trạng thái thanh toán không hợp lệ" in invalid_status.get_data(
+    assert "Trạng thái lịch đặt sân không hợp lệ" in invalid_status.get_data(
         as_text=True
     )
 
@@ -485,3 +508,69 @@ def test_admin_monitoring_loads_partial_navigation_assets(app, client):
     assert "data-admin-monitoring-root" in page
     assert "data-admin-monitoring-status" in page
     assert "/static/js/admin-monitoring.js" in page
+
+
+def test_admin_monitoring_redirects_legacy_finance_sections(app, client):
+    admin = create_user(app, email="legacy-monitor-admin@example.com", role=UserRole.ADMIN)
+    login(client, email=admin.email)
+
+    expected_focus = {
+        "contributions": "incomplete_deposit",
+        "payments": "payment_issue",
+        "refunds": "refund_pending",
+    }
+    for legacy_section, focus in expected_focus.items():
+        response = client.get(
+            "/admin/monitoring",
+            query_string={"section": legacy_section, "venue": 7},
+        )
+        assert response.status_code == 302
+        assert f"section=bookings" in response.location
+        assert f"focus={focus}" in response.location
+        assert "venue=7" in response.location
+
+
+def test_admin_monitoring_shows_only_joined_match_recipients(app, client):
+    admin = create_user(app, email="match-recipient-admin@example.com", role=UserRole.ADMIN)
+    owner = create_user(app, email="match-recipient-owner@example.com", role=UserRole.OWNER)
+    creator = create_user(app, email="match-recipient-creator@example.com")
+    joined_user = create_user(app, email="match-recipient-joined@example.com")
+    withdrawn_user = create_user(app, email="match-recipient-withdrawn@example.com")
+    booking_code = seed_monitoring_data(app, user_id=creator.id, owner_id=owner.id)
+
+    with app.app_context():
+        db.session.get(User, joined_user.id).full_name = "Người đã nhận kèo"
+        db.session.get(User, withdrawn_user.id).full_name = "Người đã rút kèo"
+        match = db.session.scalar(
+            db.select(Match).join(Booking).where(Booking.booking_code == booking_code)
+        )
+        db.session.add(
+            MatchParticipant(
+                match_id=match.id,
+                user_id=joined_user.id,
+                participant_type=MatchParticipantType.PLAYER.value,
+                status=MatchParticipantStatus.JOINED.value,
+            )
+        )
+        for _ in range(4):
+            db.session.add(
+                MatchParticipant(
+                    match_id=match.id,
+                    user_id=withdrawn_user.id,
+                    participant_type=MatchParticipantType.PLAYER.value,
+                    status=MatchParticipantStatus.WITHDRAWN.value,
+                )
+            )
+        db.session.commit()
+
+    login(client, email=admin.email)
+    response = client.get("/admin/monitoring?section=matches")
+    page = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "Người đã nhận kèo" in page
+    assert "Người đã rút kèo" not in page
+    assert "1 người" in page
+    assert "4 yêu cầu đã kết thúc hoặc rút khỏi kèo" in page
+    assert "5 người/yêu cầu" not in page
+    assert f"/admin/monitoring/bookings/{booking_code}" in page

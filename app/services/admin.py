@@ -465,6 +465,7 @@ def list_admin_bookings(
     booking_date: date | None = None,
     venue_id: int | None = None,
     field_id: int | None = None,
+    focus: str | None = None,
     page: int = 1,
 ) -> AdminPage:
     statement = (
@@ -478,6 +479,13 @@ def list_admin_bookings(
             joinedload(Booking.field)
             .joinedload(Field.field_type)
             .joinedload(FieldType.sport),
+            selectinload(Booking.contributions).joinedload(
+                BookingContribution.user
+            ),
+            selectinload(Booking.payments).joinedload(Payment.payer),
+            selectinload(Booking.payments).joinedload(Payment.contribution),
+            selectinload(Booking.refunds).joinedload(Refund.recipient),
+            selectinload(Booking.refunds).joinedload(Refund.payment),
         )
     )
     normalized_query = _normalize_query(query)
@@ -487,6 +495,12 @@ def list_admin_bookings(
             or_(
                 func.lower(Booking.booking_code).like(pattern, escape="\\"),
                 func.lower(User.email).like(pattern, escape="\\"),
+                Booking.payments.any(
+                    func.lower(Payment.order_id).like(pattern, escape="\\")
+                ),
+                Booking.refunds.any(
+                    func.lower(Refund.order_id).like(pattern, escape="\\")
+                ),
             )
         ).join(User, User.id == Booking.user_id)
     if status:
@@ -500,6 +514,36 @@ def list_admin_bookings(
         statement = statement.where(Field.venue_id == venue_id)
     if field_id:
         statement = statement.where(Field.id == field_id)
+    if focus == "incomplete_deposit":
+        statement = statement.where(Booking.paid_amount < Booking.deposit_amount)
+    elif focus == "payment_issue":
+        statement = statement.where(
+            Booking.payments.any(
+                Payment.status.in_(
+                    (
+                        PaymentStatus.FAILED.value,
+                        PaymentStatus.CANCELLED.value,
+                        PaymentStatus.EXPIRED.value,
+                    )
+                )
+            )
+        )
+    elif focus == "refund_pending":
+        statement = statement.where(
+            or_(
+                Booking.status == BookingStatus.REFUND_PENDING.value,
+                Booking.refunds.any(
+                    Refund.status.in_(
+                        (
+                            RefundStatus.PENDING.value,
+                            RefundStatus.PROCESSING.value,
+                        )
+                    )
+                ),
+            )
+        )
+    elif focus == "completed":
+        statement = statement.where(Booking.status == BookingStatus.COMPLETED.value)
     return _paginate(
         statement.order_by(Booking.created_at.desc(), Booking.id.desc()),
         page,
@@ -682,7 +726,7 @@ def list_admin_matches(
             .joinedload(Booking.field)
             .joinedload(Field.field_type)
             .joinedload(FieldType.sport),
-            selectinload(Match.participants),
+            selectinload(Match.participants).joinedload(MatchParticipant.user),
         )
     )
     normalized_query = _normalize_query(query)

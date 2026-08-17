@@ -27,6 +27,45 @@
         }
     }
 
+    function updateFieldPicker(picker) {
+        const input = picker.querySelector("[data-admin-field-search]");
+        const toggle = picker.querySelector("[data-admin-field-toggle]");
+        const empty = picker.querySelector("[data-admin-field-empty]");
+        const choices = Array.from(picker.querySelectorAll("[data-admin-field-choice]"));
+        const query = (input ? input.value : "").trim().toLocaleLowerCase("vi");
+        const expanded = picker.dataset.expanded === "true";
+        let visibleCount = 0;
+
+        choices.forEach(function (choice) {
+            const matches = !query || (choice.dataset.fieldSearchValue || "").toLocaleLowerCase("vi").includes(query);
+            const isExtra = choice.hasAttribute("data-admin-field-extra");
+            const shouldShow = matches && (Boolean(query) || expanded || !isExtra);
+            choice.hidden = !shouldShow;
+            if (shouldShow) {
+                visibleCount += 1;
+            }
+        });
+
+        if (toggle) {
+            toggle.hidden = Boolean(query);
+            const total = Number(toggle.dataset.totalFields || choices.length);
+            toggle.textContent = expanded ? "Thu gọn danh sách sân" : `Xem thêm ${Math.max(total - 8, 0)} sân`;
+        }
+        if (empty) {
+            empty.hidden = visibleCount > 0;
+        }
+    }
+
+    function prepareResponsiveScope(root) {
+        if (!root || !window.matchMedia("(max-width: 575.98px)").matches) {
+            return;
+        }
+        const scope = root.querySelector(".admin-scope-panel");
+        if (scope) {
+            scope.removeAttribute("open");
+        }
+    }
+
     async function loadMonitoringPage(targetUrl, options) {
         const settings = Object.assign({ addHistory: true }, options);
         const currentRoot = getRoot();
@@ -65,6 +104,7 @@
 
             const scrollPosition = { x: window.scrollX, y: window.scrollY };
             currentRoot.replaceWith(nextRoot);
+            prepareResponsiveScope(nextRoot);
             document.title = nextDocument.title;
 
             if (settings.addHistory) {
@@ -87,6 +127,16 @@
     }
 
     document.addEventListener("click", function (event) {
+        const fieldToggle = event.target.closest("[data-admin-field-toggle]");
+        if (fieldToggle) {
+            const picker = fieldToggle.closest("[data-admin-field-picker]");
+            if (picker) {
+                picker.dataset.expanded = String(picker.dataset.expanded !== "true");
+                updateFieldPicker(picker);
+            }
+            return;
+        }
+
         if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
             return;
         }
@@ -98,6 +148,16 @@
 
         event.preventDefault();
         loadMonitoringPage(link.href);
+    });
+
+    document.addEventListener("input", function (event) {
+        if (!event.target.matches("[data-admin-field-search]")) {
+            return;
+        }
+        const picker = event.target.closest("[data-admin-field-picker]");
+        if (picker) {
+            updateFieldPicker(picker);
+        }
     });
 
     document.addEventListener("submit", function (event) {
@@ -117,4 +177,6 @@
             loadMonitoringPage(window.location.href, { addHistory: false });
         }
     });
+
+    prepareResponsiveScope(getRoot());
 })();

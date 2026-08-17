@@ -17,6 +17,397 @@
     --app-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
+/* Booking-centric admin monitoring */
+.admin-monitoring-sidebar .admin-scope-panel {
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
+    scrollbar-width: thin;
+}
+
+.admin-scope-summary {
+    align-items: flex-start;
+    cursor: pointer;
+    display: flex;
+    gap: 0.75rem;
+    justify-content: space-between;
+    list-style: none;
+}
+
+.admin-scope-summary::-webkit-details-marker {
+    display: none;
+}
+
+.admin-scope-summary h2,
+.admin-scope-summary p {
+    margin: 0;
+}
+
+.admin-scope-summary h2 {
+    font-size: 1.05rem;
+    font-weight: 800;
+    margin-top: 0.2rem;
+}
+
+.admin-scope-summary p {
+    color: var(--app-text-muted);
+    font-size: 0.78rem;
+    margin-top: 0.2rem;
+    overflow-wrap: anywhere;
+}
+
+.admin-scope-summary-count {
+    background: #eaf5ef;
+    border-radius: 999px;
+    color: var(--app-primary-dark);
+    flex: 0 0 auto;
+    font-size: 0.72rem;
+    font-weight: 800;
+    padding: 0.35rem 0.6rem;
+}
+
+.admin-scope-content {
+    margin-top: 1rem;
+}
+
+.admin-field-choice-heading > span {
+    color: var(--app-text-muted);
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.admin-field-search {
+    display: block;
+    margin-bottom: 0.65rem;
+}
+
+.admin-field-search > span {
+    color: var(--app-text-muted);
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    margin-bottom: 0.3rem;
+}
+
+.admin-field-choice[hidden] {
+    display: none !important;
+}
+
+.admin-field-toggle {
+    background: transparent;
+    border: 0;
+    color: var(--app-primary-dark);
+    font-size: 0.78rem;
+    font-weight: 800;
+    margin-top: 0.7rem;
+    padding: 0.25rem 0;
+    text-align: left;
+}
+
+.admin-field-toggle:hover {
+    text-decoration: underline;
+}
+
+.admin-field-no-result {
+    color: var(--app-text-muted);
+    font-size: 0.78rem;
+    margin: 0.75rem 0 0;
+}
+
+.admin-booking-focus {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 0.85rem 0;
+}
+
+.admin-booking-focus-chip {
+    background: #f6f9f7;
+    border: 1px solid #dbe6e0;
+    border-radius: 999px;
+    color: var(--app-text-muted);
+    font-size: 0.76rem;
+    font-weight: 800;
+    padding: 0.42rem 0.72rem;
+    text-decoration: none;
+}
+
+.admin-booking-focus-chip:hover,
+.admin-booking-focus-chip.active {
+    background: var(--app-primary-dark);
+    border-color: var(--app-primary-dark);
+    color: #ffffff;
+}
+
+body .admin-monitoring-main .admin-booking-monitor-list {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.admin-booking-money-summary {
+    background: #f6f9f7;
+    border: 1px solid #e2ebe6;
+    border-radius: 14px;
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin: 1rem 0;
+    padding: 0.8rem;
+}
+
+.admin-booking-money-summary span,
+.admin-booking-money-summary strong {
+    display: block;
+}
+
+.admin-booking-money-summary span {
+    color: var(--app-text-muted);
+    font-size: 0.7rem;
+    margin-bottom: 0.2rem;
+}
+
+.admin-booking-money-summary strong {
+    font-size: 0.86rem;
+    overflow-wrap: anywhere;
+}
+
+.admin-booking-cashflow {
+    border: 1px solid #dce7e1;
+    border-radius: 14px;
+    margin-top: 1rem;
+    overflow: hidden;
+}
+
+.admin-booking-cashflow > summary {
+    align-items: center;
+    background: #f7faf8;
+    cursor: pointer;
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+    list-style: none;
+    padding: 0.75rem 0.85rem;
+}
+
+.admin-booking-cashflow > summary::-webkit-details-marker {
+    display: none;
+}
+
+.admin-booking-cashflow > summary strong,
+.admin-booking-cashflow > summary small {
+    display: block;
+}
+
+.admin-booking-cashflow > summary strong {
+    font-size: 0.82rem;
+}
+
+.admin-booking-cashflow > summary small {
+    color: var(--app-text-muted);
+    font-size: 0.72rem;
+    margin-top: 0.15rem;
+}
+
+.admin-booking-cashflow-body {
+    display: grid;
+    gap: 0.8rem;
+    padding: 0.85rem;
+}
+
+.admin-booking-cashflow-body section {
+    min-width: 0;
+}
+
+.admin-booking-cashflow-body h3 {
+    color: var(--app-primary-dark);
+    font-size: 0.78rem;
+    font-weight: 800;
+    margin: 0 0 0.45rem;
+    text-transform: uppercase;
+}
+
+.admin-booking-cashflow-body ul {
+    display: grid;
+    gap: 0.45rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.admin-booking-cashflow-body li {
+    align-items: center;
+    background: #fbfcfb;
+    border: 1px solid #e8eeeb;
+    border-radius: 10px;
+    display: grid;
+    gap: 0.65rem;
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: 0.65rem;
+}
+
+.admin-booking-cashflow-body li > div:last-child {
+    text-align: right;
+}
+
+.admin-booking-cashflow-body li strong,
+.admin-booking-cashflow-body li small {
+    display: block;
+    overflow-wrap: anywhere;
+}
+
+.admin-booking-cashflow-body li strong {
+    font-size: 0.78rem;
+}
+
+.admin-booking-cashflow-body li small,
+.admin-booking-cashflow-body section > p {
+    color: var(--app-text-muted);
+    font-size: 0.7rem;
+    margin: 0.15rem 0 0;
+}
+
+.admin-booking-cashflow-body .status-badge {
+    margin-top: 0.25rem;
+}
+
+.admin-match-monitor-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.admin-match-recipients {
+    background: #eef7f2;
+    border-radius: 12px;
+    margin-bottom: 0.75rem;
+    padding: 0.75rem;
+}
+
+.admin-match-recipients > span {
+    color: var(--app-text-muted);
+    display: block;
+    font-size: 0.68rem;
+    margin-bottom: 0.25rem;
+    text-transform: uppercase;
+}
+
+.admin-match-recipients div {
+    display: flex;
+    flex-wrap: wrap;
+    font-size: 0.82rem;
+    gap: 0.35rem;
+}
+
+.admin-match-recipients p,
+.admin-match-history-count {
+    color: var(--app-text-muted);
+    font-size: 0.74rem;
+    margin: 0;
+}
+
+.admin-match-history-count {
+    margin-bottom: 0.65rem;
+}
+
+.admin-match-detail-link {
+    color: var(--app-primary-dark);
+    font-size: 0.8rem;
+    font-weight: 800;
+    text-decoration: none;
+}
+
+.status-open {
+    background: #e5f6ec;
+    color: #14633d;
+}
+
+.status-full {
+    background: #e8efff;
+    color: #2855a6;
+}
+
+.status-success,
+.status-refunded,
+.status-waived {
+    background: #d1e7dd;
+    color: #0a5036;
+}
+
+.status-failed,
+.status-forfeited {
+    background: #f8d7da;
+    color: #842029;
+}
+
+.status-processing,
+.status-partially_paid,
+.status-accepted_awaiting_payment {
+    background: #dbeafe;
+    color: #1e4f91;
+}
+
+.status-refund_pending,
+.status-partially_refunded {
+    background: #ffe5c2;
+    color: #874b00;
+}
+
+.status-withdrawn {
+    background: #e2e3e5;
+    color: #59616a;
+}
+
+@media (max-width: 1199.98px) {
+    .admin-monitoring-sidebar .admin-scope-panel {
+        max-height: none;
+        overflow: visible;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .admin-match-monitor-grid,
+    .admin-booking-money-summary {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .admin-booking-money-summary {
+        gap: 0.55rem;
+    }
+
+    .admin-booking-money-summary > div {
+        align-items: center;
+        display: flex;
+        gap: 0.75rem;
+        justify-content: space-between;
+    }
+
+    .admin-booking-cashflow-body li {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .admin-booking-cashflow-body li > div:last-child {
+        text-align: left;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .admin-scope-summary-count {
+        display: none;
+    }
+
+    .admin-monitoring-sidebar .admin-scope-panel:not([open]) {
+        padding-bottom: 0.9rem;
+    }
+
+    .admin-booking-focus {
+        flex-wrap: nowrap;
+        margin-inline: -0.15rem;
+        overflow-x: auto;
+        padding: 0.15rem;
+        scrollbar-width: thin;
+    }
+
+    .admin-booking-focus-chip {
+        flex: 0 0 auto;
+    }
+}
+
 /* Multisport catalog and Google Maps */
 .venue-location-picker {
     padding: 1rem;

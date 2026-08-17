@@ -144,8 +144,11 @@ Hiển thị:
 
 - Account, owner application và venue chờ duyệt.
 - Kiểm tra địa chỉ/marker trước khi kích hoạt venue mới.
-- Danh sách booking, contribution, payment, refund và match.
-- Bộ lọc theo trạng thái, sport, ngày và mã giao dịch.
+- Ba vùng giám sát chính: “Đặt sân & dòng tiền”, “Kèo thi đấu” và danh mục thể thao.
+- Mỗi booking chỉ xuất hiện một lần; contribution, payment và refund nằm trong phần “Xem dòng tiền” có thể mở rộng của booking đó.
+- Bộ lọc theo ưu tiên xử lý (chưa đủ cọc, lỗi thanh toán, đang hoàn tiền, đã hoàn thành), trạng thái, sport, ngày và mã giao dịch.
+- Danh sách cơ sở phân trang tối đa 10 mục; danh sách sân có tìm kiếm, chỉ hiện 8 mục đầu và cho xem thêm. Trên màn hình nhỏ, vùng chọn phạm vi có thể thu gọn.
+- Kèo hiển thị riêng người tạo, người thực sự `JOINED`, yêu cầu đang xử lý và số yêu cầu đã kết thúc/rút; liên kết chi tiết luôn mở hồ sơ quản trị của booking.
 - Chọn cơ sở, sân, nhóm dữ liệu, bộ lọc và phân trang phải cập nhật tại chỗ; không tải lại toàn bộ trang giám sát.
 - Không hiển thị secret key; số liên hệ chỉ hiện theo quyền cần thiết.
 

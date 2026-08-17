@@ -30,17 +30,13 @@ from app.services import (
     get_admin_booking,
     get_admin_dashboard_summary,
     get_admin_monitoring_location,
-    get_admin_monitoring_summary,
     list_admin_accounts,
     list_admin_bookings,
     list_admin_catalog,
-    list_admin_contributions,
     list_admin_matches,
     list_admin_monitoring_cities,
     list_admin_monitoring_districts,
     list_admin_monitoring_locations,
-    list_admin_payments,
-    list_admin_refunds,
     list_pending_applications,
     review_owner_application,
     set_admin_account_status,
@@ -147,29 +143,34 @@ BOOKING_MODE_LABELS = {
 }
 
 MONITORING_SECTIONS = (
-    ("bookings", "Đặt sân"),
-    ("contributions", "Tiền cọc cần đóng"),
-    ("payments", "Giao dịch thanh toán"),
-    ("refunds", "Hoàn tiền"),
+    ("bookings", "Đặt sân & dòng tiền"),
     ("matches", "Kèo thi đấu"),
     ("catalog", "Danh mục thể thao"),
 )
 
 MONITORING_SECTION_DESCRIPTIONS = {
-    "bookings": "Theo dõi lịch đặt, sân thi đấu và tiến độ đóng tiền cọc.",
-    "contributions": "Kiểm tra từng người hoặc từng đội cần đóng bao nhiêu tiền cọc.",
-    "payments": "Đối chiếu các lần thanh toán thực tế và kết quả từ nhà cung cấp.",
-    "refunds": "Theo dõi các yêu cầu hoàn tiền cùng trạng thái xử lý.",
+    "bookings": "Mỗi lịch đặt gồm tiến độ tiền cọc, các khoản cần đóng, giao dịch và hoàn tiền liên quan.",
     "matches": "Kiểm tra bài tìm đối thủ, tìm người chơi và số người tham gia.",
     "catalog": "Xem các bộ môn và loại sân đang được hệ thống sử dụng.",
 }
 
 MONITORING_STATUS_OPTIONS = {
     "bookings": BOOKING_STATUS_LABELS,
-    "contributions": CONTRIBUTION_STATUS_LABELS,
-    "payments": PAYMENT_STATUS_LABELS,
-    "refunds": REFUND_STATUS_LABELS,
     "matches": MATCH_STATUS_LABELS,
+}
+
+BOOKING_FOCUS_OPTIONS = (
+    ("", "Tất cả"),
+    ("incomplete_deposit", "Chưa đủ cọc"),
+    ("payment_issue", "Lỗi thanh toán"),
+    ("refund_pending", "Đang hoàn tiền"),
+    ("completed", "Đã hoàn thành"),
+)
+
+LEGACY_MONITORING_FOCUS = {
+    "contributions": "incomplete_deposit",
+    "payments": "payment_issue",
+    "refunds": "refund_pending",
 }
 
 
@@ -302,6 +303,14 @@ def review_owner_application_route(application_id: int):
 @roles_required(UserRole.ADMIN)
 def monitoring():
     section = (request.args.get("section") or "bookings").strip()
+    if section in LEGACY_MONITORING_FOCUS:
+        redirect_args = request.args.to_dict(flat=True)
+        redirect_args.pop("status", None)
+        redirect_args.pop("page", None)
+        redirect_args["section"] = "bookings"
+        redirect_args["focus"] = LEGACY_MONITORING_FOCUS[section]
+        return redirect(url_for("admin.monitoring", **redirect_args))
+
     section_keys = {key for key, _ in MONITORING_SECTIONS}
     if section not in section_keys:
         flash("Nhóm dữ liệu giám sát không hợp lệ.", "warning")
@@ -312,6 +321,11 @@ def monitoring():
     sport_code = (request.args.get("sport") or "").strip()
     booking_date_raw = (request.args.get("date") or "").strip()
     page = max(request.args.get("page", 1, type=int) or 1, 1)
+    focus = (request.args.get("focus") or "").strip()
+    allowed_focus = {value for value, _ in BOOKING_FOCUS_OPTIONS}
+    if focus not in allowed_focus or (section != "bookings" and focus):
+        flash("Bộ lọc xử lý lịch đặt không hợp lệ.", "warning")
+        return redirect(url_for("admin.monitoring", section=section))
     location_query = (request.args.get("venue_q") or "").strip()
     location_city = (request.args.get("venue_city") or "").strip()
     location_district = (request.args.get("venue_district") or "").strip()
@@ -372,6 +386,7 @@ def monitoring():
             booking_date=booking_date,
             venue_id=venue_id,
             field_id=field_id,
+            focus=focus,
             page=page,
         )
     except AdminError as exc:
@@ -383,7 +398,6 @@ def monitoring():
         section=section,
         sections=MONITORING_SECTIONS,
         section_description=MONITORING_SECTION_DESCRIPTIONS[section],
-        monitoring_summary=get_admin_monitoring_summary(),
         data_page=data_page,
         monitoring_groups=_group_monitoring_items(
             section,
@@ -404,6 +418,8 @@ def monitoring():
         selected_status=status,
         selected_sport=sport_code,
         selected_date=booking_date_raw,
+        selected_focus=focus,
+        booking_focus_options=BOOKING_FOCUS_OPTIONS,
         status_options=MONITORING_STATUS_OPTIONS.get(section, {}),
         booking_status_labels=BOOKING_STATUS_LABELS,
         booking_mode_labels=BOOKING_MODE_LABELS,
@@ -452,6 +468,7 @@ def _load_monitoring_page(
     booking_date: date | None,
     venue_id: int | None,
     field_id: int | None,
+    focus: str,
     page: int,
 ):
     common = {
@@ -466,13 +483,8 @@ def _load_monitoring_page(
             **common,
             sport_code=sport_code,
             booking_date=booking_date,
+            focus=focus,
         )
-    if section == "contributions":
-        return list_admin_contributions(**common)
-    if section == "payments":
-        return list_admin_payments(**common)
-    if section == "refunds":
-        return list_admin_refunds(**common)
     if section == "matches":
         return list_admin_matches(
             **common,
@@ -524,8 +536,6 @@ def _group_monitoring_items(section: str, items):
     for item in items:
         if section == "bookings":
             field = item.field
-        elif section in {"contributions", "payments", "refunds"}:
-            field = item.booking.field
         elif section == "matches":
             field = item.booking.field
         else:
