@@ -4,96 +4,209 @@
 {% block admin_page_label %}Tổng quan{% endblock %}
 
 {% block content %}
+{% set payment_issue_count = summary.pending_payments + summary.failed_payments %}
 <section class="admin-page">
-    <div class="container py-4 py-lg-5">
-        <div class="admin-page-heading">
-            <div>
+    <div class="container admin-dashboard-container py-4">
+        <header class="admin-dashboard-heading">
+            <div class="admin-dashboard-heading-copy">
                 <span class="eyebrow">TỔNG QUAN HỆ THỐNG</span>
                 <h1 class="display-6 fw-bold mt-2 mb-2">Tổng quan vận hành</h1>
-                <p class="text-secondary mb-0">Ưu tiên các hồ sơ cần duyệt, lịch đặt hôm nay và vấn đề dòng tiền cần kiểm tra.</p>
+                <p class="admin-dashboard-subtitle">Theo dõi việc cần xử lý, lịch đặt sân và dòng tiền quan trọng trong ngày.</p>
             </div>
-            <span class="admin-readonly-note">Dữ liệu thời gian thực từ hệ thống</span>
-        </div>
+            <span class="admin-dashboard-data-note"><i class="bi bi-arrow-repeat" aria-hidden="true"></i>Dữ liệu cập nhật từ hệ thống</span>
+        </header>
 
         <div class="admin-dashboard-kpi-grid" aria-label="Chỉ số vận hành chính">
-            <a class="admin-dashboard-kpi" href="{{ url_for('admin.owner_applications') }}">
-                <span class="admin-dashboard-kpi-icon" aria-hidden="true">✓</span>
-                <strong>{{ summary.pending_owner_applications }}</strong>
-                <span>Yêu cầu chủ sân đang chờ</span>
+            <a class="admin-dashboard-kpi admin-dashboard-kpi--review" href="{{ url_for('admin.owner_applications') }}">
+                <span class="admin-dashboard-kpi-top">
+                    <span class="admin-dashboard-kpi-icon" aria-hidden="true"><i class="bi bi-person-check"></i></span>
+                </span>
+                <strong class="admin-dashboard-kpi-value">{{ summary.pending_owner_applications }}</strong>
+                <span class="admin-dashboard-kpi-label">Yêu cầu chủ sân đang chờ</span>
+                <small class="admin-dashboard-kpi-note{% if not summary.pending_owner_applications %} is-clear{% endif %}">{% if summary.pending_owner_applications %}Hồ sơ cần xét duyệt{% else %}Không có hồ sơ chờ{% endif %}</small>
             </a>
-            <a class="admin-dashboard-kpi" href="{{ url_for('venues.admin_index') }}">
-                <span class="admin-dashboard-kpi-icon" aria-hidden="true">⌂</span>
-                <strong>{{ summary.pending_venues }}</strong>
-                <span>Cơ sở đang chờ duyệt</span>
+
+            <a class="admin-dashboard-kpi admin-dashboard-kpi--venue" href="{{ url_for('venues.admin_index') }}">
+                <span class="admin-dashboard-kpi-top">
+                    <span class="admin-dashboard-kpi-icon" aria-hidden="true"><i class="bi bi-building-check"></i></span>
+                </span>
+                <strong class="admin-dashboard-kpi-value">{{ summary.pending_venues }}</strong>
+                <span class="admin-dashboard-kpi-label">Cơ sở đang chờ duyệt</span>
+                <small class="admin-dashboard-kpi-note{% if not summary.pending_venues %} is-clear{% endif %}">{% if summary.pending_venues %}Cần kiểm tra thông tin{% else %}Không có cơ sở chờ{% endif %}</small>
             </a>
-            <a class="admin-dashboard-kpi" href="{{ url_for('admin.monitoring', section='bookings') }}">
-                <span class="admin-dashboard-kpi-icon" aria-hidden="true">▤</span>
-                <strong>{{ summary.today_bookings }}</strong>
-                <span>Lịch đặt sân hôm nay</span>
+
+            <a class="admin-dashboard-kpi admin-dashboard-kpi--today" href="{{ url_for('admin.monitoring', section='bookings') }}">
+                <span class="admin-dashboard-kpi-top">
+                    <span class="admin-dashboard-kpi-icon" aria-hidden="true"><i class="bi bi-calendar2-check"></i></span>
+                </span>
+                <strong class="admin-dashboard-kpi-value">{{ summary.today_bookings }}</strong>
+                <span class="admin-dashboard-kpi-label">Lịch đặt sân hôm nay</span>
+                <small class="admin-dashboard-kpi-note{% if not summary.today_bookings %} is-clear{% endif %}">{% if summary.today_bookings %}Theo ngày sử dụng sân{% else %}Chưa có lịch hôm nay{% endif %}</small>
             </a>
-            <a class="admin-dashboard-kpi" href="#admin-attention-list">
-                <span class="admin-dashboard-kpi-icon" aria-hidden="true">!</span>
-                <strong>{{ summary.issues_requiring_attention }}</strong>
-                <span>Các vấn đề cần xử lý</span>
+
+            <a class="admin-dashboard-kpi admin-dashboard-kpi--attention{% if not summary.issues_requiring_attention %} is-clear{% endif %}" href="#admin-attention-list">
+                <span class="admin-dashboard-kpi-top">
+                    <span class="admin-dashboard-kpi-icon" aria-hidden="true"><i class="bi bi-exclamation-triangle"></i></span>
+                    {% if summary.issues_requiring_attention %}
+                        <span class="admin-dashboard-kpi-state">Cần ưu tiên</span>
+                    {% endif %}
+                </span>
+                <strong class="admin-dashboard-kpi-value">{{ summary.issues_requiring_attention }}</strong>
+                <span class="admin-dashboard-kpi-label">Các vấn đề cần xử lý</span>
+                <small class="admin-dashboard-kpi-note{% if not summary.issues_requiring_attention %} is-clear{% endif %}">{% if summary.issues_requiring_attention %}Nhóm dữ liệu cần kiểm tra{% else %}Không có việc tồn đọng{% endif %}</small>
             </a>
         </div>
 
         <div class="admin-dashboard-layout">
-            <section class="admin-dashboard-card" id="admin-attention-list" aria-labelledby="attention-title">
+            <section class="admin-dashboard-card admin-priority-card" id="admin-attention-list" aria-labelledby="attention-title">
                 <div class="admin-dashboard-card-heading">
                     <div>
+                        <span class="admin-dashboard-section-label">CẦN ƯU TIÊN</span>
                         <h2 id="attention-title">Việc cần xử lý</h2>
-                        <p>Chỉ hiển thị các nhóm dữ liệu mà hệ thống hiện đang lưu.</p>
+                        <p>Ưu tiên theo mức độ ảnh hưởng và đi thẳng tới màn hình xử lý.</p>
                     </div>
-                    <span class="status-badge status-pending">{{ summary.issues_requiring_attention }} mục</span>
+                    {% if summary.issues_requiring_attention %}
+                        <span class="admin-priority-total"><i class="bi bi-list-check" aria-hidden="true"></i>{{ summary.issues_requiring_attention }} mục</span>
+                    {% else %}
+                        <span class="admin-priority-total is-clear"><i class="bi bi-check2-circle" aria-hidden="true"></i>Đã xử lý hết</span>
+                    {% endif %}
                 </div>
 
-                <div class="admin-task-list">
-                    <a class="admin-task-item" href="{{ url_for('admin.owner_applications') }}">
-                        <span class="admin-task-count">{{ summary.pending_owner_applications }}</span>
-                        <span><strong>Yêu cầu chủ sân đang chờ duyệt</strong><small>Xác minh hồ sơ trước khi cấp quyền Chủ sân cho tài khoản.</small></span>
-                        <span class="admin-task-arrow" aria-hidden="true">→</span>
-                    </a>
-                    <a class="admin-task-item" href="{{ url_for('venues.admin_index') }}">
-                        <span class="admin-task-count">{{ summary.pending_venues }}</span>
-                        <span><strong>Cơ sở đang chờ duyệt</strong><small>Kiểm tra thông tin chủ sân, địa chỉ và vị trí trước khi công khai.</small></span>
-                        <span class="admin-task-arrow" aria-hidden="true">→</span>
-                    </a>
-                    <a class="admin-task-item" href="{{ url_for('venues.admin_index') }}">
-                        <span class="admin-task-count">{{ summary.venues_missing_coordinates }}</span>
-                        <span><strong>Cơ sở chưa khai báo vị trí đầy đủ</strong><small>Chủ sân cần chọn lại vị trí trên bản đồ trước khi cơ sở được duyệt.</small></span>
-                        <span class="admin-task-arrow" aria-hidden="true">→</span>
-                    </a>
-                    <a class="admin-task-item" href="{{ url_for('admin.monitoring', section='bookings', focus='payment_issue') }}">
-                        <span class="admin-task-count">{{ summary.pending_payments + summary.failed_payments }}</span>
-                        <span><strong>Thanh toán cần kiểm tra</strong><small>{{ summary.pending_payments }} giao dịch đang chờ xác nhận · {{ summary.failed_payments }} giao dịch thất bại.</small></span>
-                        <span class="admin-task-arrow" aria-hidden="true">→</span>
-                    </a>
-                    <a class="admin-task-item" href="{{ url_for('admin.monitoring', section='bookings', focus='refund_pending') }}">
-                        <span class="admin-task-count">{{ summary.pending_refunds }}</span>
-                        <span><strong>Hoàn tiền chưa hoàn tất</strong><small>Kiểm tra tiến độ xử lý tại cổng thanh toán.</small></span>
-                        <span class="admin-task-arrow" aria-hidden="true">→</span>
-                    </a>
-                </div>
+                {% if summary.issues_requiring_attention %}
+                    <div class="admin-priority-list">
+                        {% if payment_issue_count %}
+                            <article class="admin-priority-item {% if summary.failed_payments %}admin-priority-item--danger{% else %}admin-priority-item--warning{% endif %}">
+                                <div class="admin-priority-signal">
+                                    <span class="admin-priority-icon" aria-hidden="true"><i class="bi {% if summary.failed_payments %}bi-exclamation-octagon{% else %}bi-hourglass-split{% endif %}"></i></span>
+                                    <strong>{{ payment_issue_count }}</strong>
+                                </div>
+                                <div class="admin-priority-content">
+                                    <h3>Thanh toán cần kiểm tra</h3>
+                                    <p>{{ summary.pending_payments }} giao dịch đang chờ xác nhận · {{ summary.failed_payments }} giao dịch thất bại.</p>
+                                </div>
+                                <a class="admin-priority-action" href="{{ url_for('admin.monitoring', section='bookings', focus='payment_issue') }}">Kiểm tra thanh toán<i class="bi bi-arrow-right-short" aria-hidden="true"></i></a>
+                            </article>
+                        {% endif %}
+
+                        {% if summary.pending_refunds %}
+                            <article class="admin-priority-item admin-priority-item--warning">
+                                <div class="admin-priority-signal">
+                                    <span class="admin-priority-icon" aria-hidden="true"><i class="bi bi-arrow-counterclockwise"></i></span>
+                                    <strong>{{ summary.pending_refunds }}</strong>
+                                </div>
+                                <div class="admin-priority-content">
+                                    <h3>Hoàn tiền chưa hoàn tất</h3>
+                                    <p>Kiểm tra các yêu cầu đang chờ hoặc đang được cổng thanh toán xử lý.</p>
+                                </div>
+                                <a class="admin-priority-action" href="{{ url_for('admin.monitoring', section='bookings', focus='refund_pending') }}">Theo dõi hoàn tiền<i class="bi bi-arrow-right-short" aria-hidden="true"></i></a>
+                            </article>
+                        {% endif %}
+
+                        {% if summary.venues_missing_coordinates %}
+                            <article class="admin-priority-item admin-priority-item--warning">
+                                <div class="admin-priority-signal">
+                                    <span class="admin-priority-icon" aria-hidden="true"><i class="bi bi-geo-alt"></i></span>
+                                    <strong>{{ summary.venues_missing_coordinates }}</strong>
+                                </div>
+                                <div class="admin-priority-content">
+                                    <h3>Cơ sở chưa khai báo vị trí đầy đủ</h3>
+                                    <p>Cần bổ sung vị trí trên bản đồ trước khi có thể kiểm duyệt đầy đủ.</p>
+                                </div>
+                                <a class="admin-priority-action" href="{{ url_for('venues.admin_index') }}">Xem cơ sở<i class="bi bi-arrow-right-short" aria-hidden="true"></i></a>
+                            </article>
+                        {% endif %}
+
+                        {% if summary.pending_owner_applications %}
+                            <article class="admin-priority-item admin-priority-item--neutral">
+                                <div class="admin-priority-signal">
+                                    <span class="admin-priority-icon" aria-hidden="true"><i class="bi bi-person-check"></i></span>
+                                    <strong>{{ summary.pending_owner_applications }}</strong>
+                                </div>
+                                <div class="admin-priority-content">
+                                    <h3>Yêu cầu chủ sân đang chờ duyệt</h3>
+                                    <p>Xác minh hồ sơ trước khi cấp quyền Chủ sân cho tài khoản.</p>
+                                </div>
+                                <a class="admin-priority-action" href="{{ url_for('admin.owner_applications') }}">Duyệt hồ sơ<i class="bi bi-arrow-right-short" aria-hidden="true"></i></a>
+                            </article>
+                        {% endif %}
+
+                        {% if summary.pending_venues %}
+                            <article class="admin-priority-item admin-priority-item--neutral">
+                                <div class="admin-priority-signal">
+                                    <span class="admin-priority-icon" aria-hidden="true"><i class="bi bi-building-check"></i></span>
+                                    <strong>{{ summary.pending_venues }}</strong>
+                                </div>
+                                <div class="admin-priority-content">
+                                    <h3>Cơ sở đang chờ duyệt</h3>
+                                    <p>Kiểm tra thông tin chủ sân, địa chỉ và vị trí trước khi công khai.</p>
+                                </div>
+                                <a class="admin-priority-action" href="{{ url_for('venues.admin_index') }}">Kiểm duyệt cơ sở<i class="bi bi-arrow-right-short" aria-hidden="true"></i></a>
+                            </article>
+                        {% endif %}
+                    </div>
+
+                    {% if not payment_issue_count or not summary.pending_refunds or not summary.venues_missing_coordinates or not summary.pending_owner_applications or not summary.pending_venues %}
+                        <div class="admin-priority-resolved" aria-label="Nhóm không có mục đang chờ">
+                            <span class="admin-priority-resolved-label"><i class="bi bi-check2-circle" aria-hidden="true"></i>Không có mục đang chờ</span>
+                            <div>
+                                {% if not payment_issue_count %}<span>Thanh toán cần kiểm tra</span>{% endif %}
+                                {% if not summary.pending_refunds %}<span>Hoàn tiền chưa hoàn tất</span>{% endif %}
+                                {% if not summary.venues_missing_coordinates %}<span>Vị trí cơ sở cần bổ sung</span>{% endif %}
+                                {% if not summary.pending_owner_applications %}<span>Yêu cầu chủ sân đang chờ duyệt</span>{% endif %}
+                                {% if not summary.pending_venues %}<span>Cơ sở đang chờ duyệt</span>{% endif %}
+                            </div>
+                        </div>
+                    {% endif %}
+                {% else %}
+                    <div class="admin-priority-empty">
+                        <span aria-hidden="true"><i class="bi bi-check2-circle"></i></span>
+                        <div>
+                            <h3>Không có việc cần ưu tiên</h3>
+                            <p>Các nhóm dữ liệu theo dõi hiện không có mục đang chờ xử lý.</p>
+                        </div>
+                    </div>
+                {% endif %}
             </section>
 
-            <aside class="admin-dashboard-card admin-dashboard-note" aria-label="Thông tin đối soát">
-                <div>
-                    <span class="admin-section-kicker">TIỀN CỌC ĐÃ GHI NHẬN</span>
-                    <strong class="d-block mt-2">{{ summary.successful_deposit_amount|vnd_currency }}</strong>
-                    <p class="mt-2">Tổng tiền cọc từ các giao dịch thành công. Số tiền này chưa bao gồm phần khách trả tại sân.</p>
+            <aside class="admin-dashboard-card admin-finance-card" aria-labelledby="finance-title">
+                <div class="admin-finance-heading">
+                    <div>
+                        <span class="admin-dashboard-section-label">DÒNG TIỀN</span>
+                        <h2 id="finance-title">Tổng quan tài chính</h2>
+                        <p>Các giao dịch thành công đã được hệ thống ghi nhận.</p>
+                    </div>
+                    <span class="admin-finance-heading-icon" aria-hidden="true"><i class="bi bi-wallet2"></i></span>
                 </div>
-                <hr>
-                <div>
-                    <span class="admin-section-kicker">TIỀN ĐÃ HOÀN</span>
-                    <strong class="d-block mt-2">{{ summary.successful_refund_amount|vnd_currency }}</strong>
-                    <p class="mt-2">Tổng số tiền đã hoàn lại thành công cho người thanh toán.</p>
+
+                <div class="admin-finance-list">
+                    <div class="admin-finance-metric">
+                        <span class="admin-finance-metric-icon" aria-hidden="true"><i class="bi bi-shield-check"></i></span>
+                        <div>
+                            <span>Tiền cọc đã ghi nhận</span>
+                            <strong>{{ summary.successful_deposit_amount|vnd_currency }}</strong>
+                            <small>Không gồm phần khách trả tại sân</small>
+                        </div>
+                    </div>
+                    <div class="admin-finance-metric">
+                        <span class="admin-finance-metric-icon is-refund" aria-hidden="true"><i class="bi bi-arrow-return-left"></i></span>
+                        <div>
+                            <span>Tiền đã hoàn</span>
+                            <strong>{{ summary.successful_refund_amount|vnd_currency }}</strong>
+                            <small>Các yêu cầu hoàn tiền thành công</small>
+                        </div>
+                    </div>
                 </div>
-                <hr>
-                <div>
-                    <span class="admin-section-kicker">TÀI KHOẢN</span>
-                    <p class="mt-2">{{ summary.active_accounts }} đang hoạt động · {{ summary.locked_accounts }} đã khóa.</p>
-                    <a class="btn btn-outline-primary w-100 mt-2" href="{{ url_for('admin.accounts') }}">Quản lý tài khoản</a>
+
+                <div class="admin-account-overview">
+                    <div class="admin-account-overview-heading">
+                        <span>Tình trạng tài khoản</span>
+                        <i class="bi bi-people" aria-hidden="true"></i>
+                    </div>
+                    <div class="admin-account-overview-grid">
+                        <div><strong>{{ summary.active_accounts }}</strong><small>Đang hoạt động</small></div>
+                        <div><strong>{{ summary.locked_accounts }}</strong><small>Đã khóa</small></div>
+                    </div>
+                    <a class="admin-finance-action" href="{{ url_for('admin.accounts') }}">Quản lý tài khoản<i class="bi bi-arrow-right-short" aria-hidden="true"></i></a>
                 </div>
             </aside>
         </div>
