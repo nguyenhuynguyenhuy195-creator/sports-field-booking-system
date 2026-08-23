@@ -17,7 +17,7 @@
     {% if google_maps_api_key and map_markers %}
         <section class="admin-map-card" aria-labelledby="admin-venue-map-title">
             <h2 id="admin-venue-map-title">Bản đồ vị trí đã khai báo</h2>
-            <p>Marker chỉ hiển thị cơ sở có đủ latitude và longitude trong database nội bộ.</p>
+            <p>Bản đồ chỉ hiển thị những cơ sở đã khai báo đủ thông tin vị trí.</p>
             <div id="venue-public-map" class="admin-venue-map" data-markers='{{ map_markers|tojson }}'></div>
         </section>
     {% endif %}
@@ -60,26 +60,33 @@
                                 </td>
                                 <td><span class="status-badge status-{{ venue.status|lower }}">{{ status_labels[venue.status] }}</span></td>
                                 <td>
-                                    <span class="admin-location-state">
-                                        {% if venue.has_coordinates %}
-                                            <strong>{{ venue.latitude }}, {{ venue.longitude }}</strong>
-                                            <small>Place ID: {{ venue.google_place_id or 'Chưa có' }}</small>
+                                    <div class="admin-location-state">
+                                        {% if location_complete %}
+                                            <strong>Vị trí đã được khai báo</strong>
                                             <a href="{{ directions_urls[venue.id] }}" target="_blank" rel="noopener noreferrer">Mở Google Maps ↗</a>
                                         {% else %}
-                                            <span class="is-missing">⚠ Thiếu tọa độ</span>
-                                            <small>latitude hoặc longitude đang null</small>
+                                            <span class="is-missing">⚠ Chưa khai báo vị trí đầy đủ</span>
+                                            <small>Chủ sân cần chọn lại vị trí trên bản đồ trước khi cơ sở được duyệt.</small>
                                         {% endif %}
-                                    </span>
+                                        <details class="admin-technical-details">
+                                            <summary>Thông tin kỹ thuật</summary>
+                                            <dl>
+                                                <dt>Vĩ độ</dt><dd>{{ venue.latitude if venue.latitude is not none else 'Chưa có' }}</dd>
+                                                <dt>Kinh độ</dt><dd>{{ venue.longitude if venue.longitude is not none else 'Chưa có' }}</dd>
+                                                <dt>Mã địa điểm Google</dt><dd>{{ venue.google_place_id or 'Chưa có' }}</dd>
+                                            </dl>
+                                        </details>
+                                    </div>
                                 </td>
                                 <td>
                                     <span class="admin-audit-list">
                                         {% if venue.reviewed_at %}
                                             <strong>{{ venue.reviewed_at|local_datetime }}</strong>
-                                            <small>Reviewer: {{ venue.reviewer.full_name if venue.reviewer else 'Không xác định' }}</small>
-                                            <small>Ghi chú: {{ venue.moderation_note or 'Không có' }}</small>
+                                            <small>Người kiểm duyệt: {{ venue.reviewer.full_name if venue.reviewer else 'Không xác định' }}</small>
+                                            <small>Ghi chú kiểm duyệt: {{ venue.moderation_note or 'Không có' }}</small>
                                         {% else %}
                                             <strong>Chưa kiểm duyệt</strong>
-                                            <small>Chưa có reviewer hoặc moderation note.</small>
+                                            <small>Chưa có người kiểm duyệt hoặc ghi chú kiểm duyệt.</small>
                                         {% endif %}
                                     </span>
                                 </td>
@@ -89,7 +96,7 @@
                                         <form class="admin-review-panel" method="post" action="{{ url_for('venues.admin_moderate', venue_id=venue.id) }}" novalidate>
                                             {{ form.hidden_tag() }}
                                             {% if not location_complete %}
-                                                <div class="admin-review-warning">Cơ sở thiếu Google Place ID hoặc cặp tọa độ. Hệ thống không cho chuyển sang ACTIVE cho đến khi chủ sân bổ sung đủ vị trí.</div>
+                                                <div class="admin-review-warning">Chủ sân cần chọn lại vị trí trên bản đồ trước khi cơ sở được duyệt và công khai.</div>
                                             {% endif %}
                                             {% if venue.description %}
                                                 <div class="admin-review-context"><strong>Mô tả cơ sở</strong><br>{{ venue.description }}</div>
@@ -109,7 +116,7 @@
                                             </fieldset>
                                             <div class="mb-3">
                                                 {{ form.moderation_note.label(class="form-label fw-semibold") }}
-                                                {{ form.moderation_note(class="form-control", rows="3", placeholder="Ví dụ: Đã xác minh địa chỉ và marker") }}
+                                                {{ form.moderation_note(class="form-control", rows="3", placeholder="Ví dụ: Đã xác minh địa chỉ và vị trí trên bản đồ") }}
                                             </div>
                                             {{ form.submit(class="btn btn-primary w-100") }}
                                         </form>

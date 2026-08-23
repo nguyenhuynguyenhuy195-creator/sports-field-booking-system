@@ -40,6 +40,15 @@ VENUE_STATUS_LABELS = {
     VenueStatus.HIDDEN.value: "Đã bị ẩn",
     VenueStatus.INACTIVE.value: "Ngừng hoạt động",
 }
+
+ADMIN_VENUE_STATUS_LABELS = {
+    VenueStatus.PENDING.value: "Chờ duyệt",
+    VenueStatus.ACTIVE.value: "Đang hoạt động",
+    VenueStatus.HIDDEN.value: "Đã ẩn",
+    VenueStatus.INACTIVE.value: "Ngừng hoạt động",
+}
+
+
 @venues_bp.get("/venues")
 def index():
     form = VenueSearchForm(request.args)
@@ -256,7 +265,7 @@ def admin_index():
         "admin/venues.html",
         venues=venues,
         moderation_forms=moderation_forms,
-        status_labels=VENUE_STATUS_LABELS,
+        status_labels=ADMIN_VENUE_STATUS_LABELS,
         directions_urls={
             venue.id: build_google_maps_directions_url(venue)
             for venue in venues

@@ -9,7 +9,7 @@
         <div>
             <span class="eyebrow">KIỂM DUYỆT</span>
             <h1 class="h2 fw-bold mt-2 mb-1">Yêu cầu trở thành chủ sân</h1>
-            <p class="text-secondary mb-0">Xác minh người đăng ký và thông tin kinh doanh trước khi phê duyệt. Role chỉ được đổi qua workflow này.</p>
+            <p class="text-secondary mb-0">Xác minh người đăng ký và thông tin kinh doanh trước khi xét duyệt. Khi yêu cầu được chấp thuận, hệ thống sẽ tự động cấp quyền Chủ sân cho tài khoản.</p>
         </div>
         <span class="admin-readonly-note">{{ applications|length }} yêu cầu đang chờ</span>
     </div>
@@ -26,7 +26,7 @@
                             <th scope="col">Số điện thoại</th>
                             <th scope="col">Ngày gửi</th>
                             <th scope="col">Trạng thái</th>
-                            <th scope="col">Thao tác</th>
+                            <th scope="col">Xét duyệt</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -43,7 +43,7 @@
                                 <td><strong>{{ application.business_name }}</strong></td>
                                 <td>{{ application.contact_phone }}</td>
                                 <td>{{ application.created_at|local_datetime }}</td>
-                                <td><span class="status-badge status-pending">Đang chờ</span></td>
+                                <td><span class="status-badge status-pending">Chờ duyệt</span></td>
                                 <td>
                                     <details class="admin-row-details">
                                         <summary>Xét duyệt hồ sơ →</summary>

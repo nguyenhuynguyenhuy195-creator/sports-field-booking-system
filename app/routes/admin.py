@@ -48,7 +48,7 @@ admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
 
 ROLE_LABELS = {
-    UserRole.USER.value: "Người chơi",
+    UserRole.USER.value: "Người dùng",
     UserRole.OWNER.value: "Chủ sân",
     UserRole.ADMIN.value: "Quản trị viên",
 }
@@ -61,10 +61,10 @@ ACCOUNT_STATUS_LABELS = {
 
 BOOKING_STATUS_LABELS = {
     BookingStatus.PENDING.value: "Chờ xác nhận",
-    BookingStatus.CONFIRMED.value: "Đang giữ chỗ",
-    BookingStatus.PARTIALLY_PAID.value: "Đã cọc một phần",
-    BookingStatus.PAID.value: "Đã đủ tiền cọc",
-    BookingStatus.REFUND_PENDING.value: "Đang hoàn tiền",
+    BookingStatus.CONFIRMED.value: "Đã xác nhận",
+    BookingStatus.PARTIALLY_PAID.value: "Đã thanh toán một phần tiền cọc",
+    BookingStatus.PAID.value: "Đã thanh toán đủ tiền cọc",
+    BookingStatus.REFUND_PENDING.value: "Đang chờ hoàn tiền",
     BookingStatus.COMPLETED.value: "Đã hoàn thành",
     BookingStatus.REJECTED.value: "Đã từ chối",
     BookingStatus.CANCELLED.value: "Đã hủy",
@@ -83,7 +83,7 @@ CONTRIBUTION_STATUS_LABELS = {
 }
 
 PAYMENT_STATUS_LABELS = {
-    PaymentStatus.PENDING.value: "Đang xác minh",
+    PaymentStatus.PENDING.value: "Đang chờ xác nhận",
     PaymentStatus.SUCCESS.value: "Thành công",
     PaymentStatus.FAILED.value: "Thất bại",
     PaymentStatus.CANCELLED.value: "Đã hủy",
@@ -94,7 +94,7 @@ REFUND_STATUS_LABELS = {
     RefundStatus.PENDING.value: "Chờ xử lý",
     RefundStatus.PROCESSING.value: "Đang xử lý",
     RefundStatus.SUCCESS.value: "Đã hoàn tiền",
-    RefundStatus.FAILED.value: "Thất bại",
+    RefundStatus.FAILED.value: "Hoàn tiền thất bại",
 }
 
 MATCH_STATUS_LABELS = {
@@ -143,7 +143,7 @@ BOOKING_MODE_LABELS = {
 }
 
 MONITORING_SECTIONS = (
-    ("bookings", "Đặt sân & dòng tiền"),
+    ("bookings", "Lịch đặt sân & thanh toán"),
     ("matches", "Kèo thi đấu"),
     ("catalog", "Danh mục thể thao"),
 )

@@ -601,8 +601,11 @@ def test_admin_page_lists_pending_venue_and_moderation_form(app, client):
 
     assert response.status_code == 200
     assert "Sân bóng Minh Anh" in page
-    assert "Đang chờ duyệt" in page
+    assert "Chờ duyệt" in page
     assert "Duyệt và hiển thị" in page
+    assert "Vị trí đã được khai báo" in page
+    assert "Thông tin kỹ thuật" in page
+    assert "Mã địa điểm Google" in page
 
 
 def test_admin_hides_active_venue_from_public_listing(app, client):

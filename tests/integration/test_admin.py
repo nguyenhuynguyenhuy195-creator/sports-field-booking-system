@@ -36,6 +36,11 @@ from app.models import (
     VenueStatus,
 )
 from app.models.user import utc_now
+from app.routes.admin import (
+    BOOKING_STATUS_LABELS,
+    PAYMENT_STATUS_LABELS,
+    REFUND_STATUS_LABELS,
+)
 from app.services import register_user
 
 
@@ -258,11 +263,54 @@ def test_admin_dashboard_uses_database_counts_for_phase_one_kpis(app, client):
     assert response.status_code == 200
     assert "Yêu cầu chủ sân đang chờ" in page
     assert "Cơ sở đang chờ duyệt" in page
-    assert "Booking hôm nay" in page
+    assert "Lịch đặt sân hôm nay" in page
     assert "Các vấn đề cần xử lý" in page
-    assert "Cơ sở thiếu tọa độ" in page
-    assert "Thanh toán PENDING hoặc FAILED" in page
-    assert "Hoàn tiền PENDING hoặc PROCESSING" in page
+    assert "Cơ sở chưa khai báo vị trí đầy đủ" in page
+    assert "Thanh toán cần kiểm tra" in page
+    assert "Hoàn tiền chưa hoàn tất" in page
+    assert "PENDING" not in page
+    assert "PROCESSING" not in page
+    assert "FAILED" not in page
+
+    owner_applications_page = client.get(
+        "/admin/owner-applications"
+    ).get_data(as_text=True)
+    assert "tự động cấp quyền Chủ sân" in owner_applications_page
+    assert "Role chỉ được đổi qua workflow này" not in owner_applications_page
+    assert "Chờ duyệt" in owner_applications_page
+
+    venues_page = client.get("/admin/venues").get_data(as_text=True)
+    assert "Chưa khai báo vị trí đầy đủ" in venues_page
+    assert "Thông tin kỹ thuật" in venues_page
+    assert "Vĩ độ" in venues_page
+    assert "latitude hoặc longitude đang null" not in venues_page
+
+
+def test_admin_status_labels_use_vietnamese_business_language():
+    assert BOOKING_STATUS_LABELS == {
+        BookingStatus.PENDING.value: "Chờ xác nhận",
+        BookingStatus.CONFIRMED.value: "Đã xác nhận",
+        BookingStatus.PARTIALLY_PAID.value: "Đã thanh toán một phần tiền cọc",
+        BookingStatus.PAID.value: "Đã thanh toán đủ tiền cọc",
+        BookingStatus.REFUND_PENDING.value: "Đang chờ hoàn tiền",
+        BookingStatus.COMPLETED.value: "Đã hoàn thành",
+        BookingStatus.REJECTED.value: "Đã từ chối",
+        BookingStatus.CANCELLED.value: "Đã hủy",
+        BookingStatus.EXPIRED.value: "Đã hết hạn",
+    }
+    assert PAYMENT_STATUS_LABELS == {
+        PaymentStatus.PENDING.value: "Đang chờ xác nhận",
+        PaymentStatus.SUCCESS.value: "Thành công",
+        PaymentStatus.FAILED.value: "Thất bại",
+        PaymentStatus.CANCELLED.value: "Đã hủy",
+        PaymentStatus.EXPIRED.value: "Đã hết hạn",
+    }
+    assert REFUND_STATUS_LABELS == {
+        RefundStatus.PENDING.value: "Chờ xử lý",
+        RefundStatus.PROCESSING.value: "Đang xử lý",
+        RefundStatus.SUCCESS.value: "Đã hoàn tiền",
+        RefundStatus.FAILED.value: "Hoàn tiền thất bại",
+    }
 
 
 def test_admin_sidebar_only_uses_registered_phase_one_endpoints(app, client):
@@ -297,7 +345,7 @@ def test_admin_can_filter_accounts_without_exposing_password_hash(app, client):
     assert target.email in page
     assert admin.email not in page
     assert "Chọn nhóm tài khoản" in page
-    assert "Người chơi" in page
+    assert "Người dùng" in page
     assert "Đang hoạt động" in page
     assert "password_hash" not in page
     assert PASSWORD not in page
@@ -388,12 +436,12 @@ def test_admin_monitoring_explains_data_and_opens_booking_detail(app, client):
 
     assert monitoring.status_code == 200
     assert "Tình trạng cần kiểm tra" not in monitoring_page
-    assert "Đặt sân &amp; dòng tiền" in monitoring_page
+    assert "Lịch đặt sân &amp; thanh toán" in monitoring_page
     assert "Chọn cơ sở" in monitoring_page
     assert "Cơ sở Admin Test" in monitoring_page
     assert "Sân kiểm thử" in monitoring_page
     assert "Tiến độ tiền cọc" in monitoring_page
-    assert "Xem dòng tiền" in monitoring_page
+    assert "Xem thanh toán và hoàn tiền" in monitoring_page
     assert "PAY-ADMIN-MONITOR" in monitoring_page
     assert "REFUND-ADMIN-MONITOR" in monitoring_page
     assert "Xem hồ sơ đầy đủ" in monitoring_page
@@ -407,6 +455,9 @@ def test_admin_monitoring_explains_data_and_opens_booking_detail(app, client):
     assert "Lịch đặt sân đang ở bước nào?" in detail_page
     assert "Các khoản tiền cọc" in detail_page
     assert "Lịch sử thanh toán" in detail_page
+    assert "Cổng thanh toán" in detail_page
+    assert "Mã giao dịch" in detail_page
+    assert "Mã nhà cung cấp" not in detail_page
     assert "PAY-ADMIN-MONITOR" in detail_page
     assert "Kèo Admin Test" in detail_page
 

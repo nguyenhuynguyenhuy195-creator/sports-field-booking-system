@@ -27,7 +27,7 @@
             </div>
             <nav class="admin-account-role-tabs" aria-label="Nhóm tài khoản">
                 <a class="admin-account-role-tab{% if not selected_role %} active{% endif %}" href="{{ url_for('admin.accounts', q=query, status=selected_status) }}"><span>Tất cả</span><strong>{{ account_summary.total }}</strong></a>
-                <a class="admin-account-role-tab{% if selected_role == 'USER' %} active{% endif %}" href="{{ url_for('admin.accounts', q=query, role='USER', status=selected_status) }}"><span>Người chơi</span><strong>{{ account_summary.users }}</strong></a>
+                <a class="admin-account-role-tab{% if selected_role == 'USER' %} active{% endif %}" href="{{ url_for('admin.accounts', q=query, role='USER', status=selected_status) }}"><span>Người dùng</span><strong>{{ account_summary.users }}</strong></a>
                 <a class="admin-account-role-tab{% if selected_role == 'OWNER' %} active{% endif %}" href="{{ url_for('admin.accounts', q=query, role='OWNER', status=selected_status) }}"><span>Chủ sân</span><strong>{{ account_summary.owners }}</strong></a>
                 <a class="admin-account-role-tab{% if selected_role == 'ADMIN' %} active{% endif %}" href="{{ url_for('admin.accounts', q=query, role='ADMIN', status=selected_status) }}"><span>Quản trị viên</span><strong>{{ account_summary.administrators }}</strong></a>
             </nav>

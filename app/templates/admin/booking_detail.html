@@ -1,13 +1,13 @@
 {% extends "admin/base.html" %}
 
 {% block title %}Chi tiết {{ booking.booking_code }} · Sân Thể Thao{% endblock %}
-{% block admin_page_label %}Hồ sơ đặt sân{% endblock %}
+{% block admin_page_label %}Hồ sơ lịch đặt sân{% endblock %}
 
 {% block content %}
 {% set deposit_percent = ((booking.paid_amount / booking.deposit_amount) * 100)|round(0, 'floor')|int %}
 <section class="admin-page admin-booking-detail-page">
     <div class="container py-5">
-        <a class="admin-detail-back" href="{{ url_for('admin.monitoring', section='bookings') }}">← Quay lại danh sách đặt sân</a>
+        <a class="admin-detail-back" href="{{ url_for('admin.monitoring', section='bookings') }}">← Quay lại danh sách lịch đặt sân</a>
 
         <div class="admin-detail-hero">
             <div>
@@ -51,7 +51,7 @@
                         <div><span>Trả tại sân</span><strong>{{ booking.balance_due_at_venue|vnd_currency }}</strong></div>
                     </div>
                     <div class="admin-deposit-progress admin-deposit-progress-large">
-                        <div class="admin-deposit-progress-label"><span>Tiền cọc đã hoàn thành</span><strong>{{ deposit_percent }}%</strong></div>
+                        <div class="admin-deposit-progress-label"><span>Tiến độ tiền cọc</span><strong>{{ deposit_percent }}%</strong></div>
                         <progress max="100" value="{{ deposit_percent }}">{{ deposit_percent }}%</progress>
                         <small>Còn thiếu {{ booking.remaining_amount|vnd_currency }} tiền cọc.</small>
                     </div>
@@ -68,7 +68,7 @@
                     {% if booking.contributions %}
                         <div class="table-responsive">
                             <table class="table admin-table align-middle mb-0">
-                                <thead><tr><th>Vai trò</th><th>Người đóng</th><th>Đã đóng / cần đóng</th><th>Trạng thái</th></tr></thead>
+                                <thead><tr><th>Phần đóng góp</th><th>Người đóng</th><th>Đã đóng / cần đóng</th><th>Trạng thái</th></tr></thead>
                                 <tbody>
                                     {% for contribution in booking.contributions %}
                                         <tr>
@@ -98,11 +98,11 @@
                         <div class="admin-transaction-list">
                             {% for payment in booking.payments %}
                                 <article class="admin-transaction-item">
-                                    <div><strong>{{ payment.amount|vnd_currency }}</strong><span>{{ payment.payer.full_name }} · {{ payment_provider_labels[payment.provider] }}</span></div>
+                                    <div><strong>{{ payment.amount|vnd_currency }}</strong><span>{{ payment.payer.full_name }} · Cổng thanh toán: {{ payment_provider_labels[payment.provider] }}</span></div>
                                     <div><span class="status-badge status-{{ payment.status|lower }}">{{ payment_status_labels[payment.status] }}</span><small>{{ payment.created_at.strftime('%d/%m/%Y %H:%M') }}</small></div>
                                     <details>
                                         <summary>Xem mã giao dịch</summary>
-                                        <dl><dt>Mã đơn</dt><dd>{{ payment.order_id }}</dd><dt>Mã nhà cung cấp</dt><dd>{{ payment.provider_trans_id or 'Chưa có' }}</dd></dl>
+                                        <dl><dt>Mã yêu cầu</dt><dd>{{ payment.order_id }}</dd><dt>Mã giao dịch</dt><dd>{{ payment.provider_trans_id or 'Chưa có' }}</dd></dl>
                                     </details>
                                 </article>
                             {% endfor %}
@@ -122,6 +122,10 @@
                                 <article class="admin-transaction-item">
                                     <div><strong>{{ refund.amount|vnd_currency }}</strong><span>{{ refund.recipient.full_name }} · {{ refund.reason }}</span></div>
                                     <div><span class="status-badge status-{{ refund.status|lower }}">{{ refund_status_labels[refund.status] }}</span><small>{{ refund.created_at.strftime('%d/%m/%Y %H:%M') }}</small></div>
+                                    <details>
+                                        <summary>Xem mã xử lý</summary>
+                                        <dl><dt>Mã yêu cầu</dt><dd>{{ refund.order_id }}</dd><dt>Mã giao dịch hoàn tiền</dt><dd>{{ refund.provider_refund_trans_id or 'Chưa có' }}</dd></dl>
+                                    </details>
                                 </article>
                             {% endfor %}
                         </div>
@@ -158,7 +162,7 @@
                     <h2>Lịch đặt sân đang ở bước nào?</h2>
                     <ol class="admin-booking-timeline">
                         <li class="complete"><span>✓</span><div><strong>Đã tạo lịch đặt sân</strong><small>{{ booking.created_at.strftime('%d/%m/%Y %H:%M') }}</small></div></li>
-                        <li class="{{ 'complete' if booking.paid_amount >= booking.deposit_amount else 'current' }}"><span>{{ '✓' if booking.paid_amount >= booking.deposit_amount else '2' }}</span><div><strong>{{ 'Đã đủ tiền cọc' if booking.paid_amount >= booking.deposit_amount else 'Đang thu tiền cọc' }}</strong><small>{{ booking.paid_amount|vnd_currency }} / {{ booking.deposit_amount|vnd_currency }}</small></div></li>
+                        <li class="{{ 'complete' if booking.paid_amount >= booking.deposit_amount else 'current' }}"><span>{{ '✓' if booking.paid_amount >= booking.deposit_amount else '2' }}</span><div><strong>{{ 'Đã thanh toán đủ tiền cọc' if booking.paid_amount >= booking.deposit_amount else 'Đang thu tiền cọc' }}</strong><small>{{ booking.paid_amount|vnd_currency }} / {{ booking.deposit_amount|vnd_currency }}</small></div></li>
                         {% if booking.match %}
                             <li class="{{ 'complete' if booking.match.status in ['FULL', 'CONFIRMED', 'COMPLETED'] else ('stopped' if booking.match.status == 'CANCELLED' else 'current') }}"><span>{{ '✓' if booking.match.status in ['FULL', 'CONFIRMED', 'COMPLETED'] else '3' }}</span><div><strong>{{ match_type_labels[booking.match.match_type] }}</strong><small>{{ match_status_labels[booking.match.status] }}</small></div></li>
                         {% endif %}

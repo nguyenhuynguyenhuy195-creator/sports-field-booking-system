@@ -48,7 +48,7 @@
 
                     <span class="admin-sidebar-label">VẬN HÀNH</span>
                     <a class="admin-sidebar-link{% if request.endpoint == 'admin.booking_monitoring_detail' or (request.endpoint == 'admin.monitoring' and monitoring_section == 'bookings' and monitoring_focus not in ['payment_issue', 'refund_pending']) %} active{% endif %}" href="{{ url_for('admin.monitoring', section='bookings') }}">
-                        <span aria-hidden="true">▤</span>Đặt sân
+                        <span aria-hidden="true">▤</span>Lịch đặt sân
                     </a>
                     <a class="admin-sidebar-link{% if request.endpoint == 'admin.monitoring' and monitoring_section == 'matches' %} active{% endif %}" href="{{ url_for('admin.monitoring', section='matches') }}">
                         <span aria-hidden="true">⚑</span>Kèo chơi

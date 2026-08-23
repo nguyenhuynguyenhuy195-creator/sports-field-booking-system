@@ -29,7 +29,7 @@
             <a class="admin-dashboard-kpi" href="{{ url_for('admin.monitoring', section='bookings') }}">
                 <span class="admin-dashboard-kpi-icon" aria-hidden="true">▤</span>
                 <strong>{{ summary.today_bookings }}</strong>
-                <span>Booking hôm nay</span>
+                <span>Lịch đặt sân hôm nay</span>
             </a>
             <a class="admin-dashboard-kpi" href="#admin-attention-list">
                 <span class="admin-dashboard-kpi-icon" aria-hidden="true">!</span>
@@ -51,27 +51,27 @@
                 <div class="admin-task-list">
                     <a class="admin-task-item" href="{{ url_for('admin.owner_applications') }}">
                         <span class="admin-task-count">{{ summary.pending_owner_applications }}</span>
-                        <span><strong>Yêu cầu chủ sân PENDING</strong><small>Xác minh hồ sơ trước khi chuyển vai trò tài khoản.</small></span>
+                        <span><strong>Yêu cầu chủ sân đang chờ duyệt</strong><small>Xác minh hồ sơ trước khi cấp quyền Chủ sân cho tài khoản.</small></span>
                         <span class="admin-task-arrow" aria-hidden="true">→</span>
                     </a>
                     <a class="admin-task-item" href="{{ url_for('venues.admin_index') }}">
                         <span class="admin-task-count">{{ summary.pending_venues }}</span>
-                        <span><strong>Cơ sở PENDING</strong><small>Kiểm tra thông tin chủ sân, địa chỉ và vị trí trước khi công khai.</small></span>
+                        <span><strong>Cơ sở đang chờ duyệt</strong><small>Kiểm tra thông tin chủ sân, địa chỉ và vị trí trước khi công khai.</small></span>
                         <span class="admin-task-arrow" aria-hidden="true">→</span>
                     </a>
                     <a class="admin-task-item" href="{{ url_for('venues.admin_index') }}">
                         <span class="admin-task-count">{{ summary.venues_missing_coordinates }}</span>
-                        <span><strong>Cơ sở thiếu tọa độ</strong><small>Không thể kích hoạt cho đến khi có đủ latitude và longitude.</small></span>
+                        <span><strong>Cơ sở chưa khai báo vị trí đầy đủ</strong><small>Chủ sân cần chọn lại vị trí trên bản đồ trước khi cơ sở được duyệt.</small></span>
                         <span class="admin-task-arrow" aria-hidden="true">→</span>
                     </a>
                     <a class="admin-task-item" href="{{ url_for('admin.monitoring', section='bookings', focus='payment_issue') }}">
                         <span class="admin-task-count">{{ summary.pending_payments + summary.failed_payments }}</span>
-                        <span><strong>Thanh toán PENDING hoặc FAILED</strong><small>{{ summary.pending_payments }} đang xác minh · {{ summary.failed_payments }} thất bại.</small></span>
+                        <span><strong>Thanh toán cần kiểm tra</strong><small>{{ summary.pending_payments }} giao dịch đang chờ xác nhận · {{ summary.failed_payments }} giao dịch thất bại.</small></span>
                         <span class="admin-task-arrow" aria-hidden="true">→</span>
                     </a>
                     <a class="admin-task-item" href="{{ url_for('admin.monitoring', section='bookings', focus='refund_pending') }}">
                         <span class="admin-task-count">{{ summary.pending_refunds }}</span>
-                        <span><strong>Hoàn tiền PENDING hoặc PROCESSING</strong><small>Kiểm tra trạng thái provider; không sửa payment gốc.</small></span>
+                        <span><strong>Hoàn tiền chưa hoàn tất</strong><small>Kiểm tra tiến độ xử lý tại cổng thanh toán.</small></span>
                         <span class="admin-task-arrow" aria-hidden="true">→</span>
                     </a>
                 </div>
@@ -79,15 +79,15 @@
 
             <aside class="admin-dashboard-card admin-dashboard-note" aria-label="Thông tin đối soát">
                 <div>
-                    <span class="admin-section-kicker">DÒNG TIỀN CỌC</span>
+                    <span class="admin-section-kicker">TIỀN CỌC ĐÃ GHI NHẬN</span>
                     <strong class="d-block mt-2">{{ summary.successful_deposit_amount|vnd_currency }}</strong>
-                    <p class="mt-2">Tổng payment thành công đã ghi nhận. Đây không phải doanh thu cuối cùng của chủ sân.</p>
+                    <p class="mt-2">Tổng tiền cọc từ các giao dịch thành công. Số tiền này chưa bao gồm phần khách trả tại sân.</p>
                 </div>
                 <hr>
                 <div>
-                    <span class="admin-section-kicker">ĐÃ HOÀN THÀNH CÔNG</span>
+                    <span class="admin-section-kicker">TIỀN ĐÃ HOÀN</span>
                     <strong class="d-block mt-2">{{ summary.successful_refund_amount|vnd_currency }}</strong>
-                    <p class="mt-2">Refund được lưu riêng; lịch sử payment thành công không bị ghi đè.</p>
+                    <p class="mt-2">Tổng số tiền đã hoàn lại thành công cho người thanh toán.</p>
                 </div>
                 <hr>
                 <div>

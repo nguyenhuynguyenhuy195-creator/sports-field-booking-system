@@ -305,6 +305,12 @@
     display: none;
 }
 
+.admin-detail-main,
+.admin-detail-sidebar,
+.admin-detail-card {
+    min-width: 0;
+}
+
 .admin-page-heading {
     margin-bottom: 1.5rem;
 }
@@ -559,6 +565,38 @@
 .admin-location-state .is-missing {
     color: #9a5b00;
     font-weight: 600;
+}
+
+.admin-technical-details {
+    padding-top: 0.35rem;
+    margin-top: 0.2rem;
+    border-top: 1px solid var(--admin-border);
+}
+
+.admin-technical-details summary {
+    color: var(--admin-primary);
+    font-size: 0.65rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.admin-technical-details dl {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.25rem 0.55rem;
+    margin: 0.55rem 0 0;
+    color: var(--admin-muted);
+    font-size: 0.62rem;
+    overflow-wrap: anywhere;
+}
+
+.admin-technical-details dt {
+    color: var(--admin-text);
+    font-weight: 600;
+}
+
+.admin-technical-details dd {
+    margin: 0;
 }
 
 .admin-row-details > summary {
