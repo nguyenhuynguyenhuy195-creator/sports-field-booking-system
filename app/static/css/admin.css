@@ -9,6 +9,8 @@
     --admin-muted: #687386;
     --admin-card-radius: 14px;
     --admin-sidebar-width: 276px;
+    --admin-sidebar-collapsed-width: 72px;
+    --admin-sidebar-expanded-width: 250px;
 }
 
 .admin-body {
@@ -31,6 +33,7 @@
 }
 
 .admin-sidebar-header {
+    min-width: 0;
     min-height: 78px;
     padding: 1.15rem 1.25rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -38,8 +41,10 @@
 
 .admin-brand {
     display: inline-flex;
+    flex: 1 1 auto;
     gap: 0.75rem;
     align-items: center;
+    min-width: 0;
     color: #fff;
     text-decoration: none;
 }
@@ -50,28 +55,35 @@
 
 .admin-brand-mark {
     display: inline-grid;
+    flex: 0 0 auto;
     width: 40px;
     height: 40px;
     place-items: center;
     color: #fff;
     font-size: 1.05rem;
-    font-weight: 700;
     background: var(--admin-primary);
     border-radius: 11px;
 }
 
-.admin-brand span:last-child,
-.admin-profile-card > span:last-child {
+.admin-brand-copy {
     display: grid;
     min-width: 0;
 }
 
-.admin-brand strong {
-    font-size: 0.95rem;
-    letter-spacing: 0.09em;
+.admin-brand-copy strong,
+.admin-brand-copy small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-.admin-brand small {
+.admin-brand-copy strong {
+    font-size: 0.95rem;
+    letter-spacing: -0.01em;
+}
+
+.admin-brand-copy small {
+    margin-top: 0.12rem;
     color: rgba(255, 255, 255, 0.63);
     font-size: 0.7rem;
 }
@@ -79,36 +91,9 @@
 .admin-sidebar-body {
     display: flex;
     flex-direction: column;
-    padding: 1rem;
+    min-width: 0;
+    padding: 0.9rem 1rem 1rem;
     overflow-y: auto;
-}
-
-.admin-profile-card {
-    display: flex;
-    gap: 0.75rem;
-    align-items: center;
-    padding: 0.85rem;
-    margin-bottom: 1rem;
-    background: rgba(255, 255, 255, 0.07);
-    border: 1px solid rgba(255, 255, 255, 0.09);
-    border-radius: 12px;
-}
-
-.admin-profile-card strong,
-.admin-profile-card small {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.admin-profile-card strong {
-    font-size: 0.82rem;
-}
-
-.admin-profile-card small {
-    margin-top: 0.15rem;
-    color: rgba(255, 255, 255, 0.58);
-    font-size: 0.67rem;
 }
 
 .admin-profile-avatar {
@@ -126,6 +111,7 @@
 
 .admin-sidebar-nav {
     display: grid;
+    min-width: 0;
     gap: 0.25rem;
 }
 
@@ -138,26 +124,39 @@
 }
 
 .admin-sidebar-link {
+    position: relative;
     display: flex;
     gap: 0.8rem;
     align-items: center;
-    min-height: 43px;
-    padding: 0.65rem 0.8rem;
+    min-width: 0;
+    min-height: 42px;
+    padding: 0.6rem 0.8rem;
     color: rgba(255, 255, 255, 0.74);
-    font-size: 0.82rem;
+    font-size: 0.84rem;
     font-weight: 500;
     text-decoration: none;
     border-radius: 10px;
     transition: color 160ms ease, background-color 160ms ease;
 }
 
-.admin-sidebar-link > span {
+.admin-sidebar-link > i {
     display: inline-grid;
+    flex: 0 0 auto;
     width: 22px;
     height: 22px;
     place-items: center;
     color: rgba(255, 255, 255, 0.58);
-    font-size: 0.92rem;
+    font-size: 0.96rem;
+    line-height: 1;
+}
+
+.admin-sidebar-link > span,
+.admin-sidebar-secondary > span,
+.admin-sidebar-logout > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .admin-sidebar-link:hover {
@@ -167,12 +166,22 @@
 
 .admin-sidebar-link.active {
     color: #fff;
-    background: var(--admin-primary);
-    box-shadow: 0 7px 18px rgba(0, 0, 0, 0.14);
+    background: rgba(28, 137, 84, 0.18);
 }
 
-.admin-sidebar-link.active > span {
-    color: #fff;
+.admin-sidebar-link.active::before {
+    position: absolute;
+    top: 8px;
+    bottom: 8px;
+    left: 0;
+    width: 3px;
+    content: "";
+    background: #45bd80;
+    border-radius: 0 999px 999px 0;
+}
+
+.admin-sidebar-link.active > i {
+    color: #6bd39c;
 }
 
 .admin-sidebar-actions {
@@ -189,6 +198,7 @@
     gap: 0.6rem;
     align-items: center;
     width: 100%;
+    min-width: 0;
     min-height: 40px;
     padding: 0.55rem 0.75rem;
     color: rgba(255, 255, 255, 0.68);
@@ -198,6 +208,17 @@
     background: transparent;
     border: 0;
     border-radius: 9px;
+}
+
+.admin-sidebar-secondary > i,
+.admin-sidebar-logout > i {
+    display: inline-grid;
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    place-items: center;
+    color: rgba(255, 255, 255, 0.58);
+    font-size: 0.96rem;
 }
 
 .admin-sidebar-secondary:hover,
@@ -225,20 +246,17 @@
 }
 
 .admin-topbar-title {
-    display: grid;
-}
-
-.admin-topbar-title small {
-    color: var(--admin-primary);
-    font-size: 0.62rem;
-    font-weight: 700;
-    letter-spacing: 0.11em;
+    min-width: 0;
 }
 
 .admin-topbar-title strong {
-    margin-top: 0.1rem;
+    display: block;
+    overflow: hidden;
     color: var(--admin-sidebar);
-    font-size: 0.9rem;
+    font-size: 1rem;
+    line-height: 1.3;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .admin-menu-toggle {
@@ -263,6 +281,8 @@
     display: flex;
     gap: 0.55rem;
     align-items: center;
+    min-width: 0;
+    max-width: min(260px, 44vw);
     min-height: 42px;
     padding: 0.25rem 0.5rem;
     color: var(--admin-text);
@@ -271,6 +291,24 @@
     background: #fff;
     border: 1px solid var(--admin-border);
     border-radius: 12px;
+}
+
+.admin-topbar-account-name {
+    min-width: 0;
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.admin-topbar-chevron {
+    flex: 0 0 auto;
+    color: var(--admin-muted);
+    font-size: 0.68rem;
+}
+
+.admin-topbar > .dropdown {
+    min-width: 0;
 }
 
 .admin-topbar-menu {
@@ -707,19 +745,151 @@
 @media (min-width: 992px) {
     .admin-shell {
         display: grid;
-        grid-template-columns: var(--admin-sidebar-width) minmax(0, 1fr);
+        grid-template-columns: var(--admin-sidebar-collapsed-width) minmax(0, 1fr);
     }
 
     .admin-sidebar {
         position: sticky;
+        z-index: 1025;
         top: 0;
         display: flex !important;
+        flex-direction: column;
+        align-self: start;
+        width: var(--admin-sidebar-collapsed-width);
         height: 100vh;
+        overflow: clip;
         visibility: visible !important;
+        transition: width 200ms ease, box-shadow 200ms ease;
     }
 
-    .admin-sidebar .offcanvas-body {
+    .admin-sidebar:hover,
+    .admin-sidebar:focus-within {
+        width: var(--admin-sidebar-expanded-width);
+        box-shadow: 8px 0 24px rgba(8, 25, 47, 0.14);
+    }
+
+    .admin-sidebar-header {
         width: 100%;
+        padding-right: 1rem;
+        padding-left: 1rem;
+    }
+
+    .admin-brand {
+        width: 100%;
+        gap: 0;
+        justify-content: center;
+        transition: gap 200ms ease;
+    }
+
+    .admin-brand-copy {
+        flex: 0 1 auto;
+        max-width: 0;
+        overflow: hidden;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateX(-4px);
+        transition: max-width 200ms ease, opacity 140ms ease, transform 200ms ease, visibility 0s linear 200ms;
+    }
+
+    .admin-sidebar:hover .admin-brand,
+    .admin-sidebar:focus-within .admin-brand {
+        gap: 0.75rem;
+        justify-content: flex-start;
+    }
+
+    .admin-sidebar:hover .admin-brand-copy,
+    .admin-sidebar:focus-within .admin-brand-copy {
+        max-width: 166px;
+        opacity: 1;
+        visibility: visible;
+        transform: translateX(0);
+        transition-delay: 0s;
+    }
+
+    .admin-sidebar .admin-sidebar-body {
+        width: 100%;
+        padding-right: 0.5rem;
+        padding-left: 0.5rem;
+        transition: padding 200ms ease;
+    }
+
+    .admin-sidebar .offcanvas-header {
+        display: flex;
+    }
+
+    .admin-sidebar:hover .admin-sidebar-body,
+    .admin-sidebar:focus-within .admin-sidebar-body {
+        padding-right: 0.875rem;
+        padding-left: 0.875rem;
+    }
+
+    .admin-sidebar-label {
+        overflow: hidden;
+        opacity: 0;
+        visibility: hidden;
+        white-space: nowrap;
+        transition: opacity 140ms ease, visibility 0s linear 200ms;
+    }
+
+    .admin-sidebar:hover .admin-sidebar-label,
+    .admin-sidebar:focus-within .admin-sidebar-label {
+        opacity: 1;
+        visibility: visible;
+        transition-delay: 0s;
+    }
+
+    .admin-sidebar-link,
+    .admin-sidebar-secondary,
+    .admin-sidebar-logout {
+        gap: 0;
+        justify-content: center;
+        padding-right: 0;
+        padding-left: 0;
+        transition: gap 200ms ease, padding 200ms ease, color 160ms ease, background-color 160ms ease;
+    }
+
+    .admin-sidebar-link > span,
+    .admin-sidebar-secondary > span,
+    .admin-sidebar-logout > span {
+        flex: 0 1 auto;
+        max-width: 0;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateX(-4px);
+        transition: max-width 200ms ease, opacity 140ms ease, transform 200ms ease, visibility 0s linear 200ms;
+    }
+
+    .admin-sidebar:hover .admin-sidebar-link,
+    .admin-sidebar:hover .admin-sidebar-secondary,
+    .admin-sidebar:hover .admin-sidebar-logout,
+    .admin-sidebar:focus-within .admin-sidebar-link,
+    .admin-sidebar:focus-within .admin-sidebar-secondary,
+    .admin-sidebar:focus-within .admin-sidebar-logout {
+        gap: 0.8rem;
+        justify-content: flex-start;
+        padding-right: 0.6875rem;
+        padding-left: 0.6875rem;
+    }
+
+    .admin-sidebar:hover .admin-sidebar-link > span,
+    .admin-sidebar:hover .admin-sidebar-secondary > span,
+    .admin-sidebar:hover .admin-sidebar-logout > span,
+    .admin-sidebar:focus-within .admin-sidebar-link > span,
+    .admin-sidebar:focus-within .admin-sidebar-secondary > span,
+    .admin-sidebar:focus-within .admin-sidebar-logout > span {
+        max-width: 172px;
+        opacity: 1;
+        visibility: visible;
+        transform: translateX(0);
+        transition-delay: 0s;
+    }
+
+    .admin-sidebar-link:focus-visible,
+    .admin-brand:focus-visible,
+    .admin-sidebar-secondary:focus-visible,
+    .admin-sidebar-logout:focus-visible {
+        outline: 2px solid rgba(107, 211, 156, 0.86);
+        outline-offset: -2px;
     }
 }
 
@@ -773,7 +943,17 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+    .admin-sidebar,
+    .admin-sidebar-body,
+    .admin-brand,
+    .admin-brand-copy,
+    .admin-sidebar-label,
     .admin-sidebar-link,
+    .admin-sidebar-link > span,
+    .admin-sidebar-secondary,
+    .admin-sidebar-secondary > span,
+    .admin-sidebar-logout,
+    .admin-sidebar-logout > span,
     .admin-dashboard-kpi {
         transition: none;
     }
