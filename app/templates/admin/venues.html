@@ -1,67 +1,139 @@
-{% extends "base.html" %}
+{% extends "admin/base.html" %}
 
 {% block title %}Kiểm duyệt cơ sở · Sân Thể Thao{% endblock %}
+{% block admin_page_label %}Kiểm duyệt cơ sở{% endblock %}
 
 {% block content %}
-<section class="container py-5">
-    <div class="mb-4">
-        <span class="eyebrow">QUẢN TRỊ HỆ THỐNG</span>
-        <h1 class="h2 fw-bold mt-2 mb-1">Kiểm duyệt cơ sở</h1>
-        <p class="text-secondary mb-0">Duyệt cơ sở để hiển thị công khai hoặc ẩn cơ sở khi cần thiết.</p>
+<section class="container py-4 py-lg-5">
+    <div class="admin-management-heading">
+        <div>
+            <span class="eyebrow">KIỂM DUYỆT</span>
+            <h1 class="h2 fw-bold mt-2 mb-1">Kiểm duyệt cơ sở</h1>
+            <p class="text-secondary mb-0">Đối chiếu chủ sân, địa chỉ, vị trí Google và dấu vết kiểm duyệt trước khi công khai.</p>
+        </div>
+        <span class="admin-readonly-note">{{ venues|length }} cơ sở</span>
     </div>
 
-    {% include "admin/_nav.html" %}
+    {% if google_maps_api_key and map_markers %}
+        <section class="admin-map-card" aria-labelledby="admin-venue-map-title">
+            <h2 id="admin-venue-map-title">Bản đồ vị trí đã khai báo</h2>
+            <p>Marker chỉ hiển thị cơ sở có đủ latitude và longitude trong database nội bộ.</p>
+            <div id="venue-public-map" class="admin-venue-map" data-markers='{{ map_markers|tojson }}'></div>
+        </section>
+    {% endif %}
 
     {% if venues %}
-        <div class="application-list">
-            {% for venue in venues %}
-                {% set form = moderation_forms[venue.id] %}
-                <article class="application-card">
-                    <div class="row g-4">
-                        <div class="col-lg-6">
-                            <span class="status-badge status-{{ venue.status|lower }}">{{ status_labels[venue.status] }}</span>
-                            <h2 class="h5 fw-bold mt-3 mb-2">{{ venue.name }}</h2>
-                            <p class="mb-1"><strong>Chủ sân:</strong> {{ venue.owner.full_name }}</p>
-                            <p class="mb-1"><strong>Email:</strong> {{ venue.owner.email }}</p>
-                            <p class="mb-1"><strong>Địa chỉ:</strong> {{ venue.address }}{% if venue.district %}, {{ venue.district }}{% endif %}, {{ venue.city }}</p>
-                            <p class="mb-1"><strong>Giờ:</strong> {{ venue.opening_time.strftime('%H:%M') }}–{{ venue.closing_time.strftime('%H:%M') }}</p>
-                            {% if not venue.has_coordinates %}
-                                <div class="alert alert-warning mt-3 mb-0">Chưa có Google Place ID và tọa độ. Không thể duyệt công khai cho đến khi chủ sân bổ sung vị trí.</div>
-                            {% endif %}
-                            {% if venue.description %}<p class="text-secondary mt-3 mb-0">{{ venue.description }}</p>{% endif %}
-                        </div>
-                        <div class="col-lg-6">
-                            <form method="post" action="{{ url_for('venues.admin_moderate', venue_id=venue.id) }}" novalidate>
-                                {{ form.hidden_tag() }}
-                                <fieldset class="mb-3">
-                                    <legend class="form-label fw-semibold">{{ form.decision.label.text }}</legend>
-                                    {% for choice in form.decision %}
-                                        <div class="form-check mb-2">
-                                            {{ choice(class="form-check-input") }}
-                                            {{ choice.label(class="form-check-label") }}
-                                        </div>
-                                    {% endfor %}
-                                </fieldset>
-                                <div class="mb-3">
-                                    {{ form.moderation_note.label(class="form-label fw-semibold") }}
-                                    {{ form.moderation_note(class="form-control", rows="3", placeholder="Ví dụ: Đã xác minh thông tin cơ sở") }}
-                                </div>
-                                {{ form.submit(class="btn btn-primary") }}
-                            </form>
-                            {% if venue.reviewed_at %}
-                                <p class="small text-secondary mt-3 mb-0">Lần kiểm duyệt gần nhất: {{ venue.reviewed_at|local_datetime }}{% if venue.reviewer %} bởi {{ venue.reviewer.full_name }}{% endif %}</p>
-                            {% endif %}
-                        </div>
-                    </div>
-                </article>
-            {% endfor %}
+        <div class="admin-management-table-card">
+            <div class="table-responsive">
+                <table class="table align-middle" aria-label="Danh sách cơ sở cần kiểm duyệt">
+                    <thead>
+                        <tr>
+                            <th scope="col">Cơ sở</th>
+                            <th scope="col">Chủ sân</th>
+                            <th scope="col">Địa chỉ &amp; giờ</th>
+                            <th scope="col">Trạng thái</th>
+                            <th scope="col">Vị trí</th>
+                            <th scope="col">Kiểm duyệt gần nhất</th>
+                            <th scope="col">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for venue in venues %}
+                            {% set form = moderation_forms[venue.id] %}
+                            {% set location_complete = venue.google_place_id and venue.has_coordinates %}
+                            <tr id="venue-{{ venue.id }}">
+                                <td>
+                                    <span class="admin-management-primary">
+                                        <strong>{{ venue.name }}</strong>
+                                        <small>Mã cơ sở #{{ venue.id }}</small>
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="admin-management-primary">
+                                        <strong>{{ venue.owner.full_name }}</strong>
+                                        <small>{{ venue.owner.email }}</small>
+                                    </span>
+                                </td>
+                                <td class="admin-management-address">
+                                    <strong>{{ venue.address }}{% if venue.district %}, {{ venue.district }}{% endif %}, {{ venue.city }}</strong>
+                                    <small class="d-block admin-management-muted mt-1">{{ venue.opening_time.strftime('%H:%M') }}–{{ venue.closing_time.strftime('%H:%M') }}</small>
+                                </td>
+                                <td><span class="status-badge status-{{ venue.status|lower }}">{{ status_labels[venue.status] }}</span></td>
+                                <td>
+                                    <span class="admin-location-state">
+                                        {% if venue.has_coordinates %}
+                                            <strong>{{ venue.latitude }}, {{ venue.longitude }}</strong>
+                                            <small>Place ID: {{ venue.google_place_id or 'Chưa có' }}</small>
+                                            <a href="{{ directions_urls[venue.id] }}" target="_blank" rel="noopener noreferrer">Mở Google Maps ↗</a>
+                                        {% else %}
+                                            <span class="is-missing">⚠ Thiếu tọa độ</span>
+                                            <small>latitude hoặc longitude đang null</small>
+                                        {% endif %}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="admin-audit-list">
+                                        {% if venue.reviewed_at %}
+                                            <strong>{{ venue.reviewed_at|local_datetime }}</strong>
+                                            <small>Reviewer: {{ venue.reviewer.full_name if venue.reviewer else 'Không xác định' }}</small>
+                                            <small>Ghi chú: {{ venue.moderation_note or 'Không có' }}</small>
+                                        {% else %}
+                                            <strong>Chưa kiểm duyệt</strong>
+                                            <small>Chưa có reviewer hoặc moderation note.</small>
+                                        {% endif %}
+                                    </span>
+                                </td>
+                                <td>
+                                    <details class="admin-row-details">
+                                        <summary>Kiểm duyệt →</summary>
+                                        <form class="admin-review-panel" method="post" action="{{ url_for('venues.admin_moderate', venue_id=venue.id) }}" novalidate>
+                                            {{ form.hidden_tag() }}
+                                            {% if not location_complete %}
+                                                <div class="admin-review-warning">Cơ sở thiếu Google Place ID hoặc cặp tọa độ. Hệ thống không cho chuyển sang ACTIVE cho đến khi chủ sân bổ sung đủ vị trí.</div>
+                                            {% endif %}
+                                            {% if venue.description %}
+                                                <div class="admin-review-context"><strong>Mô tả cơ sở</strong><br>{{ venue.description }}</div>
+                                            {% endif %}
+                                            <fieldset class="mb-3">
+                                                <legend class="form-label fw-semibold">{{ form.decision.label.text }}</legend>
+                                                {% for choice in form.decision %}
+                                                    <div class="form-check mb-2">
+                                                        {% if choice.data == 'ACTIVE' and not location_complete %}
+                                                            {{ choice(class="form-check-input", disabled=true) }}
+                                                        {% else %}
+                                                            {{ choice(class="form-check-input") }}
+                                                        {% endif %}
+                                                        {{ choice.label(class="form-check-label") }}
+                                                    </div>
+                                                {% endfor %}
+                                            </fieldset>
+                                            <div class="mb-3">
+                                                {{ form.moderation_note.label(class="form-label fw-semibold") }}
+                                                {{ form.moderation_note(class="form-control", rows="3", placeholder="Ví dụ: Đã xác minh địa chỉ và marker") }}
+                                            </div>
+                                            {{ form.submit(class="btn btn-primary w-100") }}
+                                        </form>
+                                    </details>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
     {% else %}
-        <div class="empty-state text-center">
-            <div class="empty-state-icon" aria-hidden="true">✓</div>
-            <h2 class="h5 fw-bold">Chưa có cơ sở nào</h2>
+        <div class="admin-empty-card">
+            <div class="empty-state-icon mx-auto" aria-hidden="true">✓</div>
+            <h2 class="h5 fw-bold mt-3">Chưa có cơ sở nào</h2>
             <p class="text-secondary mb-0">Cơ sở do chủ sân tạo sẽ xuất hiện tại đây.</p>
         </div>
     {% endif %}
 </section>
+{% endblock %}
+
+{% block scripts %}
+    {% if google_maps_api_key and map_markers %}
+        <script src="{{ url_for('static', filename='js/venue-public-map.js') }}"></script>
+        <script async src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key|urlencode }}&amp;loading=async&amp;callback=initVenuePublicMap&amp;language=vi&amp;region=VN"></script>
+    {% endif %}
 {% endblock %}

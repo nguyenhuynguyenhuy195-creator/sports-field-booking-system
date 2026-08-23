@@ -1,6 +1,7 @@
-{% extends "base.html" %}
+{% extends "admin/base.html" %}
 
 {% block title %}Quản lý tài khoản · Sân Thể Thao{% endblock %}
+{% block admin_page_label %}Tài khoản{% endblock %}
 
 {% block content %}
 <section class="admin-page admin-accounts-page">
@@ -12,8 +13,6 @@
                 <p class="text-secondary mb-0">Chọn nhóm người dùng cần xem, sau đó tìm hoặc khóa tài khoản khi cần.</p>
             </div>
         </div>
-
-        {% include "admin/_nav.html" %}
 
         <div class="admin-account-summary-grid">
             <article><span>Tất cả tài khoản</span><strong>{{ account_summary.total }}</strong><small>Trên toàn hệ thống</small></article>

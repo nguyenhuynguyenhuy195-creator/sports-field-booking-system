@@ -21,6 +21,8 @@ from app.models import (
     MatchParticipantType,
     MatchStatus,
     MatchType,
+    OwnerApplication,
+    OwnerApplicationStatus,
     Payment,
     PaymentMethod,
     PaymentProvider,
@@ -178,12 +180,25 @@ def test_admin_pages_require_admin_role(app, client):
     user = create_user(app, email="player-admin-denied@example.com")
     login(client, email=user.email)
 
-    for path in (
+    admin_paths = (
         "/admin",
         "/admin/accounts",
+        "/admin/owner-applications",
+        "/admin/venues",
         "/admin/monitoring",
         "/admin/monitoring/bookings/UNKNOWN",
-    ):
+    )
+    for path in admin_paths:
+        assert client.get(path).status_code == 403
+
+    client.post("/auth/logout")
+    owner = create_user(
+        app,
+        email="owner-admin-denied@example.com",
+        role=UserRole.OWNER,
+    )
+    login(client, email=owner.email)
+    for path in admin_paths:
         assert client.get(path).status_code == 403
 
 
@@ -199,8 +214,75 @@ def test_admin_dashboard_and_navigation_are_available(app, client):
     assert "Tổng quan vận hành" in page
     assert "Quản lý tài khoản" in page
     assert "Giám sát dữ liệu" not in page
+    assert "/static/css/admin.css" in page
+    assert "app-footer" not in page
     assert "/admin/accounts" in page
     assert "/admin/monitoring" in page
+
+
+def test_admin_dashboard_uses_database_counts_for_phase_one_kpis(app, client):
+    admin = create_user(app, email="kpi-admin@example.com", role=UserRole.ADMIN)
+    owner = create_user(app, email="kpi-owner@example.com", role=UserRole.OWNER)
+    player = create_user(app, email="kpi-player@example.com")
+    booking_code = seed_monitoring_data(app, user_id=player.id, owner_id=owner.id)
+
+    with app.app_context():
+        db.session.add(
+            OwnerApplication(
+                user_id=player.id,
+                business_name="Cơ sở KPI",
+                contact_phone="0901234567",
+                status=OwnerApplicationStatus.PENDING.value,
+            )
+        )
+        pending_venue = Venue(
+            owner_id=owner.id,
+            name="Cơ sở chờ KPI",
+            address="45 Đường KPI",
+            city="TP. Hồ Chí Minh",
+            opening_time=time(6, 0),
+            closing_time=time(22, 0),
+            status=VenueStatus.PENDING.value,
+        )
+        db.session.add(pending_venue)
+        booking = db.session.scalar(
+            db.select(Booking).where(Booking.booking_code == booking_code)
+        )
+        booking.booking_date = date.today()
+        db.session.commit()
+
+    login(client, email=admin.email)
+    response = client.get("/admin")
+    page = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "Yêu cầu chủ sân đang chờ" in page
+    assert "Cơ sở đang chờ duyệt" in page
+    assert "Booking hôm nay" in page
+    assert "Các vấn đề cần xử lý" in page
+    assert "Cơ sở thiếu tọa độ" in page
+    assert "Thanh toán PENDING hoặc FAILED" in page
+    assert "Hoàn tiền PENDING hoặc PROCESSING" in page
+
+
+def test_admin_sidebar_only_uses_registered_phase_one_endpoints(app, client):
+    admin = create_user(app, email="sidebar-admin@example.com", role=UserRole.ADMIN)
+    login(client, email=admin.email)
+
+    response = client.get("/admin")
+    page = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    for expected_href in (
+        "/admin",
+        "/admin/owner-applications",
+        "/admin/venues",
+        "/admin/monitoring?section=bookings",
+        "/admin/monitoring?section=matches",
+        "/admin/accounts",
+        "/auth/logout",
+    ):
+        assert expected_href in page
 
 
 def test_admin_can_filter_accounts_without_exposing_password_hash(app, client):

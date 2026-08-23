@@ -66,10 +66,14 @@ class AdminDashboardSummary:
     locked_accounts: int
     pending_owner_applications: int
     pending_venues: int
+    venues_missing_coordinates: int
     total_bookings: int
+    today_bookings: int
     active_bookings: int
     pending_payments: int
+    failed_payments: int
     pending_refunds: int
+    issues_requiring_attention: int
     open_matches: int
     successful_deposit_amount: Decimal
     successful_refund_amount: Decimal
@@ -128,16 +132,42 @@ class AdminPage:
 
 
 def get_admin_dashboard_summary() -> AdminDashboardSummary:
+    pending_owner_applications = _count(
+        OwnerApplication,
+        OwnerApplication.status == OwnerApplicationStatus.PENDING.value,
+    )
+    pending_venues = _count(
+        Venue,
+        Venue.status == VenueStatus.PENDING.value,
+    )
+    venues_missing_coordinates = _count(
+        Venue,
+        or_(Venue.latitude.is_(None), Venue.longitude.is_(None)),
+    )
+    pending_payments = _count(
+        Payment,
+        Payment.status == PaymentStatus.PENDING.value,
+    )
+    failed_payments = _count(
+        Payment,
+        Payment.status == PaymentStatus.FAILED.value,
+    )
+    pending_refunds = _count(
+        Refund,
+        Refund.status.in_(
+            {RefundStatus.PENDING.value, RefundStatus.PROCESSING.value}
+        ),
+    )
+
     return AdminDashboardSummary(
         total_accounts=_count(User),
         active_accounts=_count(User, User.status == UserStatus.ACTIVE.value),
         locked_accounts=_count(User, User.status == UserStatus.LOCKED.value),
-        pending_owner_applications=_count(
-            OwnerApplication,
-            OwnerApplication.status == OwnerApplicationStatus.PENDING.value,
-        ),
-        pending_venues=_count(Venue, Venue.status == VenueStatus.PENDING.value),
+        pending_owner_applications=pending_owner_applications,
+        pending_venues=pending_venues,
+        venues_missing_coordinates=venues_missing_coordinates,
         total_bookings=_count(Booking),
+        today_bookings=_count(Booking, Booking.booking_date == date.today()),
         active_bookings=_count(
             Booking,
             Booking.status.in_(
@@ -149,15 +179,16 @@ def get_admin_dashboard_summary() -> AdminDashboardSummary:
                 }
             ),
         ),
-        pending_payments=_count(
-            Payment,
-            Payment.status == PaymentStatus.PENDING.value,
-        ),
-        pending_refunds=_count(
-            Refund,
-            Refund.status.in_(
-                {RefundStatus.PENDING.value, RefundStatus.PROCESSING.value}
-            ),
+        pending_payments=pending_payments,
+        failed_payments=failed_payments,
+        pending_refunds=pending_refunds,
+        issues_requiring_attention=(
+            pending_owner_applications
+            + pending_venues
+            + venues_missing_coordinates
+            + pending_payments
+            + failed_payments
+            + pending_refunds
         ),
         open_matches=_count(Match, Match.status == MatchStatus.OPEN.value),
         successful_deposit_amount=_sum_amount(

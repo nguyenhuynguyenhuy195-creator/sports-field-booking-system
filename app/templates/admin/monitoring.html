@@ -1,6 +1,7 @@
-{% extends "base.html" %}
+{% extends "admin/base.html" %}
 
 {% block title %}Theo dõi hoạt động · Sân Thể Thao{% endblock %}
+{% block admin_page_label %}Giám sát vận hành{% endblock %}
 
 {% block content %}
 <section class="admin-page admin-monitoring-page" data-admin-monitoring-root>
@@ -14,8 +15,6 @@
             </div>
             <span class="admin-readonly-note">Chỉ xem · Không thay đổi lịch sử</span>
         </div>
-
-        {% include "admin/_nav.html" %}
 
         <div class="admin-monitoring-workspace{% if section == 'catalog' %} is-catalog{% endif %}">
             {% if section != 'catalog' %}

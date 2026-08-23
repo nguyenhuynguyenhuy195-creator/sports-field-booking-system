@@ -1,6 +1,7 @@
-{% extends "base.html" %}
+{% extends "admin/base.html" %}
 
 {% block title %}Chi tiết {{ booking.booking_code }} · Sân Thể Thao{% endblock %}
+{% block admin_page_label %}Hồ sơ đặt sân{% endblock %}
 
 {% block content %}
 {% set deposit_percent = ((booking.paid_amount / booking.deposit_amount) * 100)|round(0, 'floor')|int %}

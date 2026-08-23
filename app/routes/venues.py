@@ -257,6 +257,27 @@ def admin_index():
         venues=venues,
         moderation_forms=moderation_forms,
         status_labels=VENUE_STATUS_LABELS,
+        directions_urls={
+            venue.id: build_google_maps_directions_url(venue)
+            for venue in venues
+            if venue.has_coordinates
+        },
+        google_maps_api_key=current_app.config.get(
+            "GOOGLE_MAPS_BROWSER_API_KEY", ""
+        ),
+        map_markers=[
+            {
+                "name": venue.name,
+                "latitude": float(venue.latitude),
+                "longitude": float(venue.longitude),
+                "detail_url": url_for(
+                    "venues.admin_index",
+                    _anchor=f"venue-{venue.id}",
+                ),
+            }
+            for venue in venues
+            if venue.has_coordinates
+        ],
     )
 
 
