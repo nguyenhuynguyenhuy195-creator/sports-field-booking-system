@@ -4,83 +4,205 @@
 {% block admin_page_label %}Duyệt chủ sân{% endblock %}
 
 {% block content %}
-<section class="container py-4 py-lg-5">
-    <div class="admin-management-heading">
+{% set status_labels = {
+    'PENDING': 'Chờ duyệt',
+    'APPROVED': 'Đã chấp thuận',
+    'REJECTED': 'Đã từ chối',
+    'CANCELLED': 'Đã hủy'
+} %}
+{% set account_status_labels = {
+    'ACTIVE': 'Đang hoạt động',
+    'LOCKED': 'Đã khóa',
+    'INACTIVE': 'Ngừng hoạt động'
+} %}
+{% set role_labels = {
+    'USER': 'Người dùng',
+    'OWNER': 'Chủ sân',
+    'ADMIN': 'Quản trị viên'
+} %}
+<section class="container admin-owner-page py-4 py-lg-5">
+    <div class="admin-management-heading admin-owner-heading">
         <div>
             <span class="eyebrow">KIỂM DUYỆT</span>
             <h1 class="h2 fw-bold mt-2 mb-1">Yêu cầu trở thành chủ sân</h1>
             <p class="text-secondary mb-0">Xác minh người đăng ký và thông tin kinh doanh trước khi xét duyệt. Khi yêu cầu được chấp thuận, hệ thống sẽ tự động cấp quyền Chủ sân cho tài khoản.</p>
         </div>
-        <span class="admin-readonly-note">{{ applications|length }} yêu cầu đang chờ</span>
+        <span class="admin-readonly-note"><i class="bi bi-inbox" aria-hidden="true"></i>{{ applications|length }} yêu cầu đang chờ</span>
     </div>
 
     {% if applications %}
-        <div class="admin-management-table-card">
-            <div class="table-responsive">
-                <table class="table align-middle" aria-label="Danh sách yêu cầu chủ sân đang chờ">
-                    <thead>
-                        <tr>
-                            <th scope="col">Người đăng ký</th>
-                            <th scope="col">Email</th>
-                            <th scope="col">Tên kinh doanh</th>
-                            <th scope="col">Số điện thoại</th>
-                            <th scope="col">Ngày gửi</th>
-                            <th scope="col">Trạng thái</th>
-                            <th scope="col">Xét duyệt</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for application in applications %}
-                            {% set form = review_forms[application.id] %}
-                            <tr>
-                                <td>
-                                    <span class="admin-management-primary">
-                                        <strong>{{ application.applicant.full_name }}</strong>
-                                        <small>Mã hồ sơ #{{ application.id }}</small>
-                                    </span>
-                                </td>
-                                <td>{{ application.applicant.email }}</td>
-                                <td><strong>{{ application.business_name }}</strong></td>
-                                <td>{{ application.contact_phone }}</td>
-                                <td>{{ application.created_at|local_datetime }}</td>
-                                <td><span class="status-badge status-pending">Chờ duyệt</span></td>
-                                <td>
-                                    <details class="admin-row-details">
-                                        <summary>Xét duyệt hồ sơ →</summary>
-                                        <form class="admin-review-panel" method="post" action="{{ url_for('admin.review_owner_application_route', application_id=application.id) }}" novalidate>
+        <div class="admin-owner-workspace">
+            <aside class="admin-owner-master" aria-label="Danh sách hồ sơ chờ duyệt">
+                <div class="admin-owner-list-heading">
+                    <div>
+                        <strong>Hồ sơ chờ duyệt</strong>
+                        <small>Hồ sơ gửi sớm được xếp trước</small>
+                    </div>
+                    <span aria-label="{{ applications|length }} hồ sơ">{{ applications|length }}</span>
+                </div>
+                <div class="admin-owner-list" role="tablist" aria-label="Chọn hồ sơ để xem chi tiết">
+                    {% for application in applications %}
+                        <button
+                            class="admin-owner-list-item{% if loop.first %} active{% endif %}"
+                            id="owner-application-tab-{{ application.id }}"
+                            type="button"
+                            role="tab"
+                            data-bs-toggle="list"
+                            data-bs-target="#owner-application-panel-{{ application.id }}"
+                            aria-controls="owner-application-panel-{{ application.id }}"
+                            aria-selected="{{ 'true' if loop.first else 'false' }}"
+                        >
+                            <span class="admin-owner-list-topline">
+                                <strong>{{ application.applicant.full_name }}</strong>
+                                <span class="status-badge status-{{ application.status|lower }}">{{ status_labels.get(application.status, application.status) }}</span>
+                            </span>
+                            <span class="admin-owner-list-email" title="{{ application.applicant.email }}">{{ application.applicant.email }}</span>
+                            <span class="admin-owner-list-meta">
+                                <span class="admin-owner-list-id">Hồ sơ #{{ application.id }}</span>
+                                <span><i class="bi bi-calendar3" aria-hidden="true"></i>{{ application.created_at|local_datetime }}</span>
+                            </span>
+                        </button>
+                    {% endfor %}
+                </div>
+            </aside>
+
+            <div class="tab-content admin-owner-detail-stack">
+                {% for application in applications %}
+                    {% set form = review_forms[application.id] %}
+                    <section
+                        class="tab-pane fade{% if loop.first %} show active{% endif %} admin-owner-detail"
+                        id="owner-application-panel-{{ application.id }}"
+                        role="tabpanel"
+                        aria-labelledby="owner-application-tab-{{ application.id }}"
+                        tabindex="0"
+                    >
+                        <header class="admin-owner-detail-heading">
+                            <span class="admin-owner-avatar" aria-hidden="true">{{ application.applicant.full_name[:1]|upper }}</span>
+                            <div>
+                                <span>HỒ SƠ #{{ application.id }}</span>
+                                <h2>{{ application.applicant.full_name }}</h2>
+                                <p>{{ application.applicant.email }}</p>
+                            </div>
+                            <span class="status-badge status-{{ application.status|lower }}">{{ status_labels.get(application.status, application.status) }}</span>
+                        </header>
+
+                        <div class="admin-owner-detail-section">
+                            <div class="admin-owner-section-heading">
+                                <i class="bi bi-person" aria-hidden="true"></i>
+                                <div>
+                                    <h3>Thông tin tài khoản</h3>
+                                    <p>Thông tin hiện có của người đăng ký trên hệ thống.</p>
+                                </div>
+                            </div>
+                            <dl class="admin-owner-info-grid">
+                                <div><dt>Họ và tên</dt><dd>{{ application.applicant.full_name }}</dd></div>
+                                <div><dt>Email</dt><dd>{{ application.applicant.email }}</dd></div>
+                                <div><dt>Số điện thoại tài khoản</dt><dd>{{ application.applicant.phone or 'Chưa cập nhật' }}</dd></div>
+                                <div><dt>Vai trò hiện tại</dt><dd>{{ role_labels.get(application.applicant.role, application.applicant.role) }}</dd></div>
+                                <div><dt>Trạng thái tài khoản</dt><dd><span class="status-badge status-{{ application.applicant.status|lower }}">{{ account_status_labels.get(application.applicant.status, application.applicant.status) }}</span></dd></div>
+                                <div><dt>Ngày tạo tài khoản</dt><dd>{{ application.applicant.created_at|local_datetime }}</dd></div>
+                            </dl>
+                        </div>
+
+                        <div class="admin-owner-detail-section">
+                            <div class="admin-owner-section-heading">
+                                <i class="bi bi-briefcase" aria-hidden="true"></i>
+                                <div>
+                                    <h3>Thông tin đăng ký</h3>
+                                    <p>Nội dung người dùng cung cấp khi gửi yêu cầu.</p>
+                                </div>
+                            </div>
+                            <dl class="admin-owner-info-grid">
+                                <div><dt>Tên cơ sở hoặc hộ kinh doanh</dt><dd>{{ application.business_name }}</dd></div>
+                                <div><dt>Số điện thoại liên hệ</dt><dd>{{ application.contact_phone }}</dd></div>
+                                <div><dt>Ngày gửi hồ sơ</dt><dd>{{ application.created_at|local_datetime }}</dd></div>
+                                <div><dt>Trạng thái hồ sơ</dt><dd>{{ status_labels.get(application.status, application.status) }}</dd></div>
+                            </dl>
+                            <div class="admin-owner-note">
+                                <span>Thông tin bổ sung</span>
+                                <p>{{ application.note or 'Người đăng ký không cung cấp thông tin bổ sung.' }}</p>
+                            </div>
+                        </div>
+
+                        {% if application.status == 'PENDING' %}
+                            <div class="admin-owner-review-section">
+                                <div class="admin-owner-section-heading">
+                                    <i class="bi bi-shield-check" aria-hidden="true"></i>
+                                    <div>
+                                        <h3>Kết quả xét duyệt</h3>
+                                        <p>Kiểm tra kỹ thông tin trước khi hoàn tất. Thao tác sẽ được xác nhận lại.</p>
+                                    </div>
+                                </div>
+                                <div class="admin-owner-decision-grid">
+                                    <div class="admin-owner-approve-action">
+                                        <span class="admin-owner-action-kicker">Thao tác chính</span>
+                                        <strong>Chấp thuận hồ sơ</strong>
+                                        <p>Chấp thuận sẽ chuyển tài khoản này sang vai trò Chủ sân.</p>
+                                        <form
+                                            method="post"
+                                            action="{{ url_for('admin.review_owner_application_route', application_id=application.id) }}"
+                                            data-confirm-title="Chấp thuận hồ sơ chủ sân"
+                                            data-confirm-message="Tài khoản {{ application.applicant.full_name }} sẽ được chuyển sang vai trò Chủ sân. Bạn muốn tiếp tục?"
+                                            data-confirm-button="Chấp thuận"
+                                        >
                                             {{ form.hidden_tag() }}
-                                            {% if application.note %}
-                                                <div class="admin-review-context"><strong>Thông tin bổ sung</strong><br>{{ application.note }}</div>
-                                            {% endif %}
-                                            <fieldset class="mb-3">
-                                                <legend class="form-label fw-semibold">{{ form.decision.label.text }}</legend>
-                                                <div class="d-flex flex-column gap-2">
-                                                    {% for choice in form.decision %}
-                                                        <div class="form-check">
-                                                            {{ choice(class="form-check-input") }}
-                                                            {{ choice.label(class="form-check-label") }}
-                                                        </div>
-                                                    {% endfor %}
-                                                </div>
-                                            </fieldset>
-                                            <div class="mb-3">
-                                                {{ form.rejection_reason.label(class="form-label fw-semibold") }}
-                                                {{ form.rejection_reason(class="form-control", rows="3", placeholder="Bắt buộc khi chọn Từ chối") }}
-                                                <div class="form-text">Từ chối mà không có lý do sẽ không được hệ thống chấp nhận.</div>
-                                            </div>
-                                            {{ form.submit(class="btn btn-primary w-100") }}
+                                            <input type="hidden" name="{{ form.decision.name }}" value="APPROVED">
+                                            <input type="hidden" name="{{ form.rejection_reason.name }}" value="">
+                                            <button class="btn btn-primary admin-owner-action-button" type="submit"><i class="bi bi-check2-circle" aria-hidden="true"></i>Chấp thuận</button>
                                         </form>
-                                    </details>
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                                    </div>
+                                    <form
+                                        class="admin-owner-reject-action"
+                                        method="post"
+                                        action="{{ url_for('admin.review_owner_application_route', application_id=application.id) }}"
+                                        data-confirm-title="Từ chối hồ sơ chủ sân"
+                                        data-confirm-message="Hồ sơ của {{ application.applicant.full_name }} sẽ bị từ chối và người đăng ký sẽ cần gửi hồ sơ mới. Bạn muốn tiếp tục?"
+                                        data-confirm-button="Từ chối"
+                                    >
+                                        <div class="admin-owner-reject-heading">
+                                            <span class="admin-owner-action-kicker">Cần cân nhắc</span>
+                                            <strong>Từ chối hồ sơ</strong>
+                                        </div>
+                                        {{ form.hidden_tag() }}
+                                        <input type="hidden" name="{{ form.decision.name }}" value="REJECTED">
+                                        {{ form.rejection_reason(class="form-control", rows="3", required=true, maxlength="500", placeholder="Nêu lý do từ chối hồ sơ", aria_describedby='rejection-help-' ~ application.id) }}
+                                        <div class="form-text" id="rejection-help-{{ application.id }}">Bắt buộc khi từ chối, tối đa 500 ký tự.</div>
+                                        <button class="btn btn-outline-danger admin-owner-action-button" type="submit"><i class="bi bi-x-circle" aria-hidden="true"></i>Từ chối</button>
+                                    </form>
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="admin-owner-history-section">
+                                <div class="admin-owner-section-heading">
+                                    <i class="bi bi-clock-history" aria-hidden="true"></i>
+                                    <div>
+                                        <h3>Lịch sử xét duyệt</h3>
+                                        <p>{% if application.status == 'CANCELLED' %}Hồ sơ đã được hủy và không có thao tác xét duyệt.{% else %}Thông tin đã được ghi nhận khi hồ sơ được xử lý.{% endif %}</p>
+                                    </div>
+                                </div>
+                                {% if application.status == 'CANCELLED' %}
+                                    <dl class="admin-owner-info-grid admin-owner-history-grid--single">
+                                        <div><dt>Trạng thái kết quả</dt><dd><span class="status-badge status-cancelled">{{ status_labels.get(application.status, application.status) }}</span></dd></div>
+                                    </dl>
+                                {% else %}
+                                    <dl class="admin-owner-info-grid">
+                                        <div><dt>Trạng thái kết quả</dt><dd><span class="status-badge status-{{ application.status|lower }}">{{ status_labels.get(application.status, application.status) }}</span></dd></div>
+                                        <div><dt>Người xét duyệt</dt><dd>{{ application.reviewer.full_name if application.reviewer else 'Chưa ghi nhận' }}</dd></div>
+                                        <div><dt>Thời gian xét duyệt</dt><dd>{{ application.reviewed_at|local_datetime if application.reviewed_at else 'Chưa ghi nhận' }}</dd></div>
+                                        {% if application.status == 'REJECTED' %}
+                                            <div><dt>Lý do từ chối</dt><dd>{{ application.rejection_reason or 'Chưa ghi nhận' }}</dd></div>
+                                        {% endif %}
+                                    </dl>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    </section>
+                {% endfor %}
             </div>
         </div>
     {% else %}
-        <div class="admin-empty-card">
-            <div class="empty-state-icon mx-auto" aria-hidden="true">✓</div>
+        <div class="admin-empty-card admin-owner-empty-state">
+            <div class="admin-owner-empty-icon" aria-hidden="true"><i class="bi bi-inbox"></i></div>
             <h2 class="h5 fw-bold mt-3">Không có yêu cầu đang chờ</h2>
             <p class="text-secondary mb-0">Các yêu cầu mới sẽ xuất hiện tại đây.</p>
         </div>
