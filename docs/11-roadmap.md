@@ -109,7 +109,7 @@ Hoàn thiện Admin theo phong cách SaaS Operations Dashboard.
 
 ### Step 4 – Kiểm duyệt cơ sở + Google Maps
 
-**Trạng thái: ĐANG THỰC HIỆN**
+**Trạng thái: HOÀN THÀNH**
 
 #### Step 4.0 – Foundation địa chỉ hành chính Việt Nam
 
@@ -126,7 +126,7 @@ Step 4.0 chỉ là foundation dữ liệu; **không đồng nghĩa Step 4 Admin 
 
 #### Step 4.1 – Kiểm duyệt cơ sở + Google Maps (Admin UI)
 
-**Trạng thái: CHƯA LÀM**
+**Trạng thái: HOÀN THÀNH**
 
 - Venue list.
 - Selected venue.
@@ -389,15 +389,15 @@ Hiện tại:
 - Step 2: DONE.
 - Step 3: DONE.
 - Step 4.0: DONE.
-- Step 4.1: NEXT.
-- Step 5: TODO.
+- Step 4.1: DONE.
+- Step 5: NEXT.
 - Step 6: TODO.
 
 ### TASK HIỆN TẠI
 
-**PHASE 1B – STEP 4.0: Foundation địa chỉ hành chính Việt Nam – HOÀN THÀNH.**
+**PHASE 1B – STEP 4.1: Kiểm duyệt cơ sở + Google Maps (Admin UI) – HOÀN THÀNH.**
 
-Step 4.1 là phần tiếp theo, chưa bắt đầu. Không tự làm Step 4.1 hoặc Phase khác khi task hiện tại chưa yêu cầu.
+Step 5 là phần tiếp theo. Không tự làm Step 5 hoặc Phase khác khi task hiện tại chưa yêu cầu.
 
 ---
 

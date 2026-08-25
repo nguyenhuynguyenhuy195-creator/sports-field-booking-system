@@ -52,6 +52,30 @@ ADMIN_VENUE_STATUS_LABELS = {
     VenueStatus.INACTIVE.value: "Ngừng hoạt động",
 }
 
+ADMIN_VENUE_STATUS_FILTERS = {
+    VenueStatus.PENDING.value: {
+        "label": "Chờ duyệt",
+        "list_heading": "Cơ sở cần kiểm duyệt",
+        "sort_note": "Mới gửi gần đây ở trên cùng.",
+        "empty_title": "Không còn cơ sở chờ duyệt",
+        "empty_message": "Cơ sở mới do Chủ sân tạo sẽ xuất hiện tại đây.",
+    },
+    VenueStatus.ACTIVE.value: {
+        "label": "Đang hoạt động",
+        "list_heading": "Cơ sở đang công khai",
+        "sort_note": "Hiển thị theo thời điểm tạo mới nhất.",
+        "empty_title": "Chưa có cơ sở đang hoạt động",
+        "empty_message": "Các cơ sở đã được duyệt sẽ xuất hiện tại đây.",
+    },
+    VenueStatus.HIDDEN.value: {
+        "label": "Đã ẩn",
+        "list_heading": "Cơ sở đang bị ẩn",
+        "sort_note": "Có thể công khai lại khi dữ liệu vị trí đầy đủ.",
+        "empty_title": "Chưa có cơ sở bị ẩn",
+        "empty_message": "Cơ sở bị ẩn khỏi danh sách công khai sẽ xuất hiện tại đây.",
+    },
+}
+
 
 @venues_bp.get("/venues")
 def index():
@@ -258,7 +282,14 @@ def owner_edit(venue_id: int):
 @venues_bp.get("/admin/venues")
 @roles_required(UserRole.ADMIN)
 def admin_index():
-    venues = list_admin_venues()
+    selected_status = (
+        request.args.get("status") or VenueStatus.PENDING.value
+    ).strip().upper()
+    if selected_status not in ADMIN_VENUE_STATUS_FILTERS:
+        flash("Bộ lọc trạng thái cơ sở không hợp lệ.", "warning")
+        return redirect(url_for("venues.admin_index"))
+
+    venues = list_admin_venues(status=selected_status)
     moderation_forms = {}
     for venue in venues:
         form = ModerateVenueForm(prefix=f"venue-{venue.id}")
@@ -274,27 +305,19 @@ def admin_index():
         venues=venues,
         moderation_forms=moderation_forms,
         status_labels=ADMIN_VENUE_STATUS_LABELS,
+        status_filters=ADMIN_VENUE_STATUS_FILTERS,
+        selected_status=selected_status,
+        selected_filter=ADMIN_VENUE_STATUS_FILTERS[selected_status],
         directions_urls={
             venue.id: build_google_maps_directions_url(venue)
             for venue in venues
-            if venue.has_coordinates
         },
         google_maps_api_key=current_app.config.get(
             "GOOGLE_MAPS_BROWSER_API_KEY", ""
         ),
-        map_markers=[
-            {
-                "name": venue.name,
-                "latitude": float(venue.latitude),
-                "longitude": float(venue.longitude),
-                "detail_url": url_for(
-                    "venues.admin_index",
-                    _anchor=f"venue-{venue.id}",
-                ),
-            }
-            for venue in venues
-            if venue.has_coordinates
-        ],
+        has_mappable_venues=any(
+            venue.google_place_id and venue.has_coordinates for venue in venues
+        ),
     )
 
 
@@ -353,7 +376,10 @@ def admin_moderate(venue_id: int):
         )
         flash(first_error, "danger")
 
-    return redirect(url_for("venues.admin_index"))
+    return_status = (request.form.get("return_status") or "").strip().upper()
+    if return_status not in ADMIN_VENUE_STATUS_FILTERS:
+        return_status = VenueStatus.PENDING.value
+    return redirect(url_for("venues.admin_index", status=return_status))
 
 
 def _configure_catalog_choices(form: VenueSearchForm):

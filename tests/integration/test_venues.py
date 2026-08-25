@@ -615,16 +615,24 @@ def test_venue_search_paginates_and_keeps_filters(app, client):
     assert 'value="300000"' in page
 
 
-def test_owner_updates_own_venue_without_changing_moderation_status(app, client):
+def test_owner_critical_update_returns_active_venue_to_pending_review(app, client):
     owner = create_user(
         app,
         email="owner@example.com",
         role=UserRole.OWNER,
     )
+    admin = create_user(
+        app,
+        email="reviewer@example.com",
+        role=UserRole.ADMIN,
+    )
     venue_id = create_venue_for_owner(app, owner.id)
     with app.app_context():
         venue = db.session.get(Venue, venue_id)
         venue.status = VenueStatus.ACTIVE.value
+        venue.reviewed_by = admin.id
+        venue.reviewed_at = venue.created_at
+        venue.moderation_note = "Đã duyệt trước đó."
         db.session.commit()
     login(client, email=owner.email)
 
@@ -637,7 +645,46 @@ def test_owner_updates_own_venue_without_changing_moderation_status(app, client)
     with app.app_context():
         venue = db.session.get(Venue, venue_id)
         assert venue.name == "Sân bóng Minh Anh Mới"
+        assert venue.status == VenueStatus.PENDING.value
+        assert venue.reviewed_by is None
+        assert venue.reviewed_at is None
+        assert venue.moderation_note is None
+
+
+def test_owner_noncritical_update_keeps_active_venue_approval(app, client):
+    owner = create_user(
+        app,
+        email="noncritical-owner@example.com",
+        role=UserRole.OWNER,
+    )
+    admin = create_user(
+        app,
+        email="noncritical-reviewer@example.com",
+        role=UserRole.ADMIN,
+    )
+    venue_id = create_venue_for_owner(app, owner.id)
+    with app.app_context():
+        venue = db.session.get(Venue, venue_id)
+        venue.status = VenueStatus.ACTIVE.value
+        venue.reviewed_by = admin.id
+        venue.reviewed_at = venue.created_at
+        venue.moderation_note = "Duy trì công khai."
+        db.session.commit()
+    login(client, email=owner.email)
+
+    response = client.post(
+        f"/owner/venues/{venue_id}/edit",
+        data=venue_form_data(description="Bổ sung bãi gửi xe có mái che."),
+    )
+
+    assert response.status_code == 302
+    with app.app_context():
+        venue = db.session.get(Venue, venue_id)
+        assert venue.description == "Bổ sung bãi gửi xe có mái che."
         assert venue.status == VenueStatus.ACTIVE.value
+        assert venue.reviewed_by == admin.id
+        assert venue.reviewed_at is not None
+        assert venue.moderation_note == "Duy trì công khai."
 
 
 def test_owner_form_loads_location_consistency_script_without_maps_key(
@@ -791,10 +838,186 @@ def test_admin_page_lists_pending_venue_and_moderation_form(app, client):
     assert response.status_code == 200
     assert "Sân bóng Minh Anh" in page
     assert "Chờ duyệt" in page
-    assert "Duyệt và hiển thị" in page
-    assert "Vị trí đã được khai báo" in page
-    assert "Thông tin kỹ thuật" in page
-    assert "Mã địa điểm Google" in page
+    assert "Duyệt và công khai" in page
+    assert "Đủ dữ liệu vị trí" in page
+    assert "Dữ liệu Google Maps" in page
+    assert "Google Place ID" in page
+    assert "admin-venue-workspace" in page
+
+
+def test_admin_venue_status_filter_shows_only_selected_status(app, client):
+    owner = create_user(
+        app,
+        email="filter-owner@example.com",
+        role=UserRole.OWNER,
+    )
+    admin = create_user(
+        app,
+        email="filter-admin@example.com",
+        role=UserRole.ADMIN,
+    )
+    pending_id = create_venue_for_owner(
+        app,
+        owner.id,
+        name="Cơ sở chờ duyệt",
+    )
+    active_id = create_venue_for_owner(
+        app,
+        owner.id,
+        name="Cơ sở đang hoạt động",
+    )
+    hidden_id = create_venue_for_owner(
+        app,
+        owner.id,
+        name="Cơ sở đã ẩn",
+    )
+    with app.app_context():
+        db.session.get(Venue, active_id).status = VenueStatus.ACTIVE.value
+        db.session.get(Venue, hidden_id).status = VenueStatus.HIDDEN.value
+        db.session.commit()
+    login(client, email=admin.email)
+
+    response = client.get("/admin/venues?status=ACTIVE")
+    page = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "Cơ sở đang hoạt động" in page
+    assert "Cơ sở chờ duyệt" not in page
+    assert "Cơ sở đã ẩn" not in page
+    assert f"admin-venue-panel-{active_id}" in page
+    assert f"admin-venue-panel-{pending_id}" not in page
+
+
+def test_admin_cannot_activate_pending_venue_without_complete_maps_data(
+    app,
+    client,
+):
+    owner = create_user(
+        app,
+        email="missing-location-owner@example.com",
+        role=UserRole.OWNER,
+    )
+    admin = create_user(
+        app,
+        email="missing-location-admin@example.com",
+        role=UserRole.ADMIN,
+    )
+    venue_id = create_venue_for_owner(
+        app,
+        owner.id,
+        google_place_id=None,
+        latitude=None,
+        longitude=None,
+    )
+    login(client, email=admin.email)
+
+    response = client.post(
+        f"/admin/venues/{venue_id}/moderate",
+        data=moderate_form_data(venue_id, VenueStatus.ACTIVE),
+    )
+
+    assert response.status_code == 302
+    with app.app_context():
+        assert db.session.get(Venue, venue_id).status == VenueStatus.PENDING.value
+
+
+def test_admin_reactivates_hidden_venue_with_complete_maps_data(app, client):
+    owner = create_user(
+        app,
+        email="hidden-owner@example.com",
+        role=UserRole.OWNER,
+    )
+    admin = create_user(
+        app,
+        email="hidden-admin@example.com",
+        role=UserRole.ADMIN,
+    )
+    venue_id = create_venue_for_owner(app, owner.id)
+    with app.app_context():
+        db.session.get(Venue, venue_id).status = VenueStatus.HIDDEN.value
+        db.session.commit()
+    login(client, email=admin.email)
+
+    response = client.post(
+        f"/admin/venues/{venue_id}/moderate",
+        data=moderate_form_data(
+            venue_id,
+            VenueStatus.ACTIVE,
+            "Đã đối chiếu lại vị trí.",
+        ),
+    )
+
+    assert response.status_code == 302
+    with app.app_context():
+        venue = db.session.get(Venue, venue_id)
+        assert venue.status == VenueStatus.ACTIVE.value
+        assert venue.reviewed_by == admin.id
+        assert venue.reviewed_at is not None
+        assert venue.moderation_note == "Đã đối chiếu lại vị trí."
+
+
+def test_admin_venue_map_uses_one_selected_map_component(app, client):
+    app.config["GOOGLE_MAPS_BROWSER_API_KEY"] = "browser-key-for-test"
+    owner = create_user(
+        app,
+        email="map-component-owner@example.com",
+        role=UserRole.OWNER,
+    )
+    admin = create_user(
+        app,
+        email="map-component-admin@example.com",
+        role=UserRole.ADMIN,
+    )
+    create_venue_for_owner(app, owner.id, name="Cơ sở có bản đồ 1")
+    create_venue_for_owner(app, owner.id, name="Cơ sở có bản đồ 2")
+    login(client, email=admin.email)
+
+    response = client.get("/admin/venues?status=PENDING")
+    page = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert page.count('id="admin-venue-selected-map"') == 1
+    assert page.count("data-admin-venue-map-slot") == 2
+    assert "/static/js/admin-venue-map.js" in page
+    assert "callback=initAdminVenueMap" in page
+
+
+def test_admin_venue_workspace_handles_legacy_venue_without_maps_data(
+    app,
+    client,
+):
+    owner = create_user(
+        app,
+        email="legacy-venue-owner@example.com",
+        role=UserRole.OWNER,
+    )
+    admin = create_user(
+        app,
+        email="legacy-venue-admin@example.com",
+        role=UserRole.ADMIN,
+    )
+    with app.app_context():
+        venue = Venue(
+            owner_id=owner.id,
+            name="Cơ sở dữ liệu cũ",
+            address="10 Đường Legacy",
+            district="Quận 7",
+            city="TP. Hồ Chí Minh",
+            opening_time=time(6, 0),
+            closing_time=time(22, 0),
+            status=VenueStatus.ACTIVE.value,
+        )
+        db.session.add(venue)
+        db.session.commit()
+    login(client, email=admin.email)
+
+    response = client.get("/admin/venues?status=ACTIVE")
+    page = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "Cơ sở dữ liệu cũ" in page
+    assert "10 Đường Legacy, Quận 7, TP. Hồ Chí Minh" in page
+    assert "Thiếu dữ liệu Google Maps" in page
 
 
 def test_admin_hides_active_venue_from_public_listing(app, client):

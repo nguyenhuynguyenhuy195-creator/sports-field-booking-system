@@ -280,8 +280,8 @@ def test_admin_dashboard_uses_database_counts_for_phase_one_kpis(app, client):
     assert "Chờ duyệt" in owner_applications_page
 
     venues_page = client.get("/admin/venues").get_data(as_text=True)
-    assert "Chưa khai báo vị trí đầy đủ" in venues_page
-    assert "Thông tin kỹ thuật" in venues_page
+    assert "Thiếu dữ liệu Google Maps" in venues_page
+    assert "Dữ liệu Google Maps" in venues_page
     assert "Vĩ độ" in venues_page
     assert "latitude hoặc longitude đang null" not in venues_page
 

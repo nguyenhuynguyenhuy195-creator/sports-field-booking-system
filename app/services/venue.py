@@ -405,13 +405,14 @@ def get_owner_venue(*, venue_id: int, owner_id: int) -> Venue:
     return venue
 
 
-def list_admin_venues() -> list[Venue]:
+def list_admin_venues(*, status: str | None = None) -> list[Venue]:
+    statement = db.select(Venue).options(
+        joinedload(Venue.owner), joinedload(Venue.reviewer)
+    )
+    if status is not None:
+        statement = statement.where(Venue.status == status)
     return list(
-        db.session.scalars(
-            db.select(Venue)
-            .options(joinedload(Venue.owner), joinedload(Venue.reviewer))
-            .order_by(Venue.created_at.desc())
-        )
+        db.session.scalars(statement.order_by(Venue.created_at.desc()))
     )
 
 
@@ -508,8 +509,22 @@ def update_venue(
     if venue.owner_id != owner.id:
         raise VenuePermissionError("Bạn không có quyền quản lý cơ sở này.")
 
-    venue.name = _normalize_required_text(name)
-    venue.address = _normalize_required_text(address)
+    normalized_name = _normalize_required_text(name)
+    normalized_address = _normalize_required_text(address)
+    critical_change = any(
+        (
+            venue.name != normalized_name,
+            venue.address != normalized_address,
+            venue.province_code != administrative_address.province.code,
+            venue.ward_code != administrative_address.ward.code,
+            venue.google_place_id != normalized_location[0],
+            venue.latitude != normalized_location[1],
+            venue.longitude != normalized_location[2],
+        )
+    )
+
+    venue.name = normalized_name
+    venue.address = normalized_address
     venue.province_code = administrative_address.province.code
     venue.province_name = administrative_address.province.name
     venue.ward_code = administrative_address.ward.code
@@ -521,6 +536,15 @@ def update_venue(
     venue.description = (description or "").strip() or None
     venue.opening_time = opening_time
     venue.closing_time = closing_time
+
+    if venue.status == VenueStatus.ACTIVE.value and critical_change:
+        # The current approval only applies to the location and identity that
+        # were reviewed. Clear the single-record audit fields so the pending
+        # venue cannot be mistaken for already reviewed content.
+        venue.status = VenueStatus.PENDING.value
+        venue.reviewed_by = None
+        venue.reviewed_at = None
+        venue.moderation_note = None
 
     _commit_or_raise("Không thể cập nhật cơ sở lúc này. Vui lòng thử lại.")
     return venue
@@ -543,9 +567,17 @@ def moderate_venue(
     )
     if venue is None:
         raise VenueNotFoundError("Không tìm thấy cơ sở.")
-    if venue.status == decision:
+    allowed_transitions = {
+        VenueStatus.PENDING.value: {
+            VenueStatus.ACTIVE.value,
+            VenueStatus.HIDDEN.value,
+        },
+        VenueStatus.ACTIVE.value: {VenueStatus.HIDDEN.value},
+        VenueStatus.HIDDEN.value: {VenueStatus.ACTIVE.value},
+    }
+    if decision not in allowed_transitions.get(venue.status, set()):
         raise InvalidVenueStateError(
-            "Cơ sở đã ở trạng thái này nên không có thay đổi nào được lưu."
+            "Không thể thực hiện chuyển trạng thái kiểm duyệt này."
         )
     if decision == VenueStatus.ACTIVE.value and (
         not venue.google_place_id or not venue.has_coordinates
