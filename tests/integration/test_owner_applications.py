@@ -32,10 +32,11 @@ def create_user(
     *,
     email: str,
     role: UserRole = UserRole.USER,
+    full_name: str = "Nguyễn Văn A",
 ) -> CreatedUser:
     with app.app_context():
         user = register_user(
-            full_name="Nguyễn Văn A",
+            full_name=full_name,
             email=email,
             phone="0901234567",
             password=PASSWORD,
@@ -81,6 +82,49 @@ def review_application(
     )
 
 
+def seed_owner_application_statuses(app):
+    admin = create_user(
+        app,
+        email="filter-admin@example.com",
+        role=UserRole.ADMIN,
+        full_name="Quản trị viên Xét duyệt",
+    )
+    pending_user = create_user(app, email="pending-filter@example.com")
+    approved_user = create_user(app, email="approved-filter@example.com")
+    rejected_user = create_user(app, email="rejected-filter@example.com")
+
+    with app.app_context():
+        applications = {}
+        for status_name, user_id, business_name in (
+            ("pending", pending_user.id, "Cơ sở đang chờ duyệt"),
+            ("approved", approved_user.id, "Cơ sở đã chấp thuận"),
+            ("rejected", rejected_user.id, "Cơ sở đã từ chối"),
+        ):
+            application = submit_owner_application(
+                user=db.session.get(User, user_id),
+                business_name=business_name,
+                contact_phone="0901234567",
+                note=f"Ghi chú {status_name}",
+            )
+            applications[status_name] = application.id
+
+        reviewer = db.session.get(User, admin.id)
+        review_owner_application(
+            application_id=applications["approved"],
+            reviewer=reviewer,
+            decision=OwnerApplicationStatus.APPROVED.value,
+            rejection_reason=None,
+        )
+        review_owner_application(
+            application_id=applications["rejected"],
+            reviewer=reviewer,
+            decision=OwnerApplicationStatus.REJECTED.value,
+            rejection_reason="Không xác minh được thông tin kinh doanh.",
+        )
+
+    return admin, applications
+
+
 def test_user_submits_normalized_pending_application(app, client):
     user = create_user(app, email="player@example.com")
     login(client, email=user.email)
@@ -121,6 +165,128 @@ def test_owner_application_pages_require_correct_permissions(app, client):
     login(client, email=user.email)
     assert client.get("/owner-applications/new").status_code == 200
     assert client.get("/admin/owner-applications").status_code == 403
+
+
+def test_admin_filters_owner_applications_by_status(app, client):
+    admin, _ = seed_owner_application_statuses(app)
+    login(client, email=admin.email)
+
+    expected_business_names = {
+        OwnerApplicationStatus.PENDING.value: "Cơ sở đang chờ duyệt",
+        OwnerApplicationStatus.APPROVED.value: "Cơ sở đã chấp thuận",
+        OwnerApplicationStatus.REJECTED.value: "Cơ sở đã từ chối",
+    }
+
+    default_response = client.get("/admin/owner-applications")
+    default_page = default_response.get_data(as_text=True)
+    assert default_response.status_code == 200
+    assert (
+        expected_business_names[OwnerApplicationStatus.PENDING.value]
+        in default_page
+    )
+    assert (
+        expected_business_names[OwnerApplicationStatus.APPROVED.value]
+        not in default_page
+    )
+    assert (
+        expected_business_names[OwnerApplicationStatus.REJECTED.value]
+        not in default_page
+    )
+    assert 'data-confirm-title="Chấp thuận hồ sơ chủ sân"' in default_page
+    assert 'data-confirm-title="Từ chối hồ sơ chủ sân"' in default_page
+
+    for status, expected_name in expected_business_names.items():
+        response = client.get(f"/admin/owner-applications?status={status}")
+        page = response.get_data(as_text=True)
+
+        assert response.status_code == 200
+        assert expected_name in page
+        for other_status, other_name in expected_business_names.items():
+            if other_status != status:
+                assert other_name not in page
+
+
+def test_admin_owner_application_filter_rejects_invalid_status(app, client):
+    admin = create_user(
+        app,
+        email="invalid-filter-admin@example.com",
+        role=UserRole.ADMIN,
+    )
+    login(client, email=admin.email)
+
+    response = client.get(
+        "/admin/owner-applications?status=UNKNOWN",
+        follow_redirects=True,
+    )
+    page = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert response.request.path == "/admin/owner-applications"
+    assert response.request.query_string == b""
+    assert "Bộ lọc trạng thái hồ sơ không hợp lệ." in page
+    assert "Chờ duyệt" in page
+
+
+def test_processed_owner_applications_show_review_history_without_actions(
+    app,
+    client,
+):
+    admin, _ = seed_owner_application_statuses(app)
+    login(client, email=admin.email)
+
+    approved_response = client.get(
+        "/admin/owner-applications?status=APPROVED"
+    )
+    approved_page = approved_response.get_data(as_text=True)
+    assert approved_response.status_code == 200
+    assert "Lịch sử xét duyệt" in approved_page
+    assert "Đã chấp thuận" in approved_page
+    assert "Quản trị viên Xét duyệt" in approved_page
+    assert "Thời gian xét duyệt" in approved_page
+    assert "Lý do từ chối" not in approved_page
+    assert 'data-confirm-title="Chấp thuận hồ sơ chủ sân"' not in approved_page
+    assert 'data-confirm-title="Từ chối hồ sơ chủ sân"' not in approved_page
+
+    rejected_response = client.get(
+        "/admin/owner-applications?status=REJECTED"
+    )
+    rejected_page = rejected_response.get_data(as_text=True)
+    assert rejected_response.status_code == 200
+    assert "Lịch sử xét duyệt" in rejected_page
+    assert "Đã từ chối" in rejected_page
+    assert "Quản trị viên Xét duyệt" in rejected_page
+    assert "Thời gian xét duyệt" in rejected_page
+    assert "Lý do từ chối" in rejected_page
+    assert "Không xác minh được thông tin kinh doanh." in rejected_page
+    assert 'data-confirm-title="Chấp thuận hồ sơ chủ sân"' not in rejected_page
+    assert 'data-confirm-title="Từ chối hồ sơ chủ sân"' not in rejected_page
+
+
+def test_admin_cannot_review_processed_owner_application_again(app, client):
+    admin, applications = seed_owner_application_statuses(app)
+    login(client, email=admin.email)
+
+    response = review_application(
+        client,
+        application_id=applications["approved"],
+        decision=OwnerApplicationStatus.REJECTED,
+        rejection_reason="Thử xử lý lại hồ sơ.",
+    )
+
+    assert response.status_code == 302
+    redirected_page = client.get(response.headers["Location"]).get_data(
+        as_text=True
+    )
+    assert "Yêu cầu này đã được xử lý trước đó." in redirected_page
+    with app.app_context():
+        application = db.session.get(
+            OwnerApplication,
+            applications["approved"],
+        )
+        applicant = db.session.get(User, application.user_id)
+        assert application.status == OwnerApplicationStatus.APPROVED.value
+        assert application.rejection_reason is None
+        assert applicant.role == UserRole.OWNER.value
 
 
 def test_admin_approves_application_and_promotes_user(app, client):

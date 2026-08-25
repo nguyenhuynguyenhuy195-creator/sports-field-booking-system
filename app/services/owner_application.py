@@ -50,15 +50,27 @@ def list_user_applications(user_id: int) -> list[OwnerApplication]:
 
 
 def list_pending_applications() -> list[OwnerApplication]:
+    return list_owner_applications(OwnerApplicationStatus.PENDING.value)
+
+
+def list_owner_applications(status: str) -> list[OwnerApplication]:
+    order_by = (
+        (OwnerApplication.created_at.asc(),)
+        if status == OwnerApplicationStatus.PENDING.value
+        else (
+            OwnerApplication.reviewed_at.desc(),
+            OwnerApplication.created_at.desc(),
+        )
+    )
     return list(
         db.session.scalars(
             db.select(OwnerApplication)
-            .options(joinedload(OwnerApplication.applicant))
-            .where(
-                OwnerApplication.status
-                == OwnerApplicationStatus.PENDING.value
+            .options(
+                joinedload(OwnerApplication.applicant),
+                joinedload(OwnerApplication.reviewer),
             )
-            .order_by(OwnerApplication.created_at.asc())
+            .where(OwnerApplication.status == status)
+            .order_by(*order_by)
         )
     )
 

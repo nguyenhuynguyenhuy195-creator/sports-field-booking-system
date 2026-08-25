@@ -27,16 +27,28 @@
             <h1 class="h2 fw-bold mt-2 mb-1">Yêu cầu trở thành chủ sân</h1>
             <p class="text-secondary mb-0">Xác minh người đăng ký và thông tin kinh doanh trước khi xét duyệt. Khi yêu cầu được chấp thuận, hệ thống sẽ tự động cấp quyền Chủ sân cho tài khoản.</p>
         </div>
-        <span class="admin-readonly-note"><i class="bi bi-inbox" aria-hidden="true"></i>{{ applications|length }} yêu cầu đang chờ</span>
+        <span class="admin-readonly-note"><i class="bi bi-{{ selected_filter.icon }}" aria-hidden="true"></i>{{ applications|length }} {{ selected_filter.result_label }}</span>
     </div>
+
+    <nav class="admin-owner-filters" aria-label="Lọc hồ sơ theo trạng thái">
+        {% for status_value, filter_option in status_filters.items() %}
+            <a
+                class="admin-owner-filter{% if selected_status == status_value %} is-active{% endif %}"
+                href="{{ url_for('admin.owner_applications', status=status_value) }}"
+                {% if selected_status == status_value %}aria-current="page"{% endif %}
+            >
+                {{ filter_option.label }}
+            </a>
+        {% endfor %}
+    </nav>
 
     {% if applications %}
         <div class="admin-owner-workspace">
-            <aside class="admin-owner-master" aria-label="Danh sách hồ sơ chờ duyệt">
+            <aside class="admin-owner-master" aria-label="Danh sách {{ selected_filter.result_label }}">
                 <div class="admin-owner-list-heading">
                     <div>
-                        <strong>Hồ sơ chờ duyệt</strong>
-                        <small>Hồ sơ gửi sớm được xếp trước</small>
+                        <strong>{{ selected_filter.list_heading }}</strong>
+                        <small>{{ selected_filter.sort_note }}</small>
                     </div>
                     <span aria-label="{{ applications|length }} hồ sơ">{{ applications|length }}</span>
                 </div>
@@ -68,7 +80,6 @@
 
             <div class="tab-content admin-owner-detail-stack">
                 {% for application in applications %}
-                    {% set form = review_forms[application.id] %}
                     <section
                         class="tab-pane fade{% if loop.first %} show active{% endif %} admin-owner-detail"
                         id="owner-application-panel-{{ application.id }}"
@@ -125,6 +136,7 @@
                         </div>
 
                         {% if application.status == 'PENDING' %}
+                            {% set form = review_forms[application.id] %}
                             <div class="admin-owner-review-section">
                                 <div class="admin-owner-section-heading">
                                     <i class="bi bi-shield-check" aria-hidden="true"></i>
@@ -202,9 +214,9 @@
         </div>
     {% else %}
         <div class="admin-empty-card admin-owner-empty-state">
-            <div class="admin-owner-empty-icon" aria-hidden="true"><i class="bi bi-inbox"></i></div>
-            <h2 class="h5 fw-bold mt-3">Không có yêu cầu đang chờ</h2>
-            <p class="text-secondary mb-0">Các yêu cầu mới sẽ xuất hiện tại đây.</p>
+            <div class="admin-owner-empty-icon" aria-hidden="true"><i class="bi bi-{{ selected_filter.icon }}"></i></div>
+            <h2 class="h5 fw-bold mt-3">{{ selected_filter.empty_title }}</h2>
+            <p class="text-secondary mb-0">{{ selected_filter.empty_message }}</p>
         </div>
     {% endif %}
 </section>

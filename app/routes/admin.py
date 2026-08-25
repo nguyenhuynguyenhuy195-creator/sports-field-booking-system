@@ -37,7 +37,7 @@ from app.services import (
     list_admin_monitoring_cities,
     list_admin_monitoring_districts,
     list_admin_monitoring_locations,
-    list_pending_applications,
+    list_owner_applications,
     review_owner_application,
     set_admin_account_status,
 )
@@ -173,6 +173,36 @@ LEGACY_MONITORING_FOCUS = {
     "refunds": "refund_pending",
 }
 
+OWNER_APPLICATION_FILTERS = {
+    OwnerApplicationStatus.PENDING.value: {
+        "label": "Chờ duyệt",
+        "result_label": "hồ sơ chờ duyệt",
+        "list_heading": "Hồ sơ chờ duyệt",
+        "sort_note": "Hồ sơ gửi sớm được xếp trước",
+        "empty_title": "Không có yêu cầu đang chờ",
+        "empty_message": "Các yêu cầu mới sẽ xuất hiện tại đây.",
+        "icon": "inbox",
+    },
+    OwnerApplicationStatus.APPROVED.value: {
+        "label": "Đã chấp thuận",
+        "result_label": "hồ sơ đã chấp thuận",
+        "list_heading": "Hồ sơ đã chấp thuận",
+        "sort_note": "Hồ sơ xử lý gần nhất được xếp trước",
+        "empty_title": "Chưa có hồ sơ được chấp thuận",
+        "empty_message": "Hồ sơ được chấp thuận sẽ xuất hiện tại đây.",
+        "icon": "check2-circle",
+    },
+    OwnerApplicationStatus.REJECTED.value: {
+        "label": "Đã từ chối",
+        "result_label": "hồ sơ đã từ chối",
+        "list_heading": "Hồ sơ đã từ chối",
+        "sort_note": "Hồ sơ xử lý gần nhất được xếp trước",
+        "empty_title": "Chưa có hồ sơ bị từ chối",
+        "empty_message": "Hồ sơ bị từ chối sẽ xuất hiện tại đây.",
+        "icon": "x-circle",
+    },
+}
+
 
 @admin_bp.get("")
 @roles_required(UserRole.ADMIN)
@@ -252,15 +282,26 @@ def update_account_status(account_id: int):
 @admin_bp.get("/owner-applications")
 @roles_required(UserRole.ADMIN)
 def owner_applications():
-    applications = list_pending_applications()
+    selected_status = (
+        request.args.get("status") or OwnerApplicationStatus.PENDING.value
+    ).strip().upper()
+    if selected_status not in OWNER_APPLICATION_FILTERS:
+        flash("Bộ lọc trạng thái hồ sơ không hợp lệ.", "warning")
+        return redirect(url_for("admin.owner_applications"))
+
+    applications = list_owner_applications(selected_status)
     return render_template(
         "admin/owner_applications.html",
         applications=applications,
+        selected_status=selected_status,
+        selected_filter=OWNER_APPLICATION_FILTERS[selected_status],
+        status_filters=OWNER_APPLICATION_FILTERS,
         review_forms={
             application.id: ReviewOwnerApplicationForm(
                 prefix=f"application-{application.id}"
             )
             for application in applications
+            if application.status == OwnerApplicationStatus.PENDING.value
         },
     )
 

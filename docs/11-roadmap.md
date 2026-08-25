@@ -95,9 +95,10 @@ Hoàn thiện Admin theo phong cách SaaS Operations Dashboard.
 
 ### Step 3 – Duyệt chủ sân
 
-**Trạng thái: ĐANG THỰC HIỆN**
+**Trạng thái: HOÀN THÀNH**
 
 - Master-detail moderation workspace.
+- Bộ lọc Chờ duyệt / Đã chấp thuận / Đã từ chối.
 - Thông tin tài khoản.
 - Thông tin đăng ký.
 - Approve/reject.
@@ -369,16 +370,16 @@ Hiện tại:
 
 - Step 1: DONE.
 - Step 2: DONE.
-- Step 3: IN PROGRESS.
+- Step 3: DONE.
 - Step 4: TODO.
 - Step 5: TODO.
 - Step 6: TODO.
 
 ### TASK HIỆN TẠI
 
-**PHASE 1B – STEP 3: Duyệt chủ sân.**
+**PHASE 1B – STEP 3: Duyệt chủ sân – HOÀN THÀNH.**
 
-Không tự làm Step 4 hoặc Phase khác khi task hiện tại chưa yêu cầu.
+Step 4 chưa bắt đầu. Không tự làm Step 4 hoặc Phase khác khi task hiện tại chưa yêu cầu.
 
 ---
 
