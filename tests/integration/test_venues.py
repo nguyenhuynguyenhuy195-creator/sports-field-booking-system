@@ -17,11 +17,20 @@ from app.models import (
     UserRole,
     Venue,
     VenueStatus,
+    Ward,
 )
-from app.services import VenueError, create_venue, register_user
+from app.services import (
+    VenueError,
+    create_venue,
+    list_provinces,
+    list_wards,
+    register_user,
+)
 
 
 PASSWORD = "MatKhauAnToan123"
+HCMC_PROVINCE_CODE = "79"
+HCMC_WARD_CODE = "27475"
 
 
 @dataclass(frozen=True)
@@ -60,8 +69,8 @@ def venue_form_data(**overrides):
     data = {
         "name": "  Sân bóng Minh Anh  ",
         "address": "  123 Nguyễn Hữu Thọ  ",
-        "district": "  Quận 7  ",
-        "city": "  TP. Hồ Chí Minh  ",
+        "province_code": HCMC_PROVINCE_CODE,
+        "ward_code": HCMC_WARD_CODE,
         "phone": " 0909876543 ",
         "description": "  Có bãi giữ xe và phòng thay đồ.  ",
         "opening_hour": "06",
@@ -81,8 +90,8 @@ def create_venue_for_owner(app, owner_id: int, **overrides) -> int:
         values = {
             "name": "Sân bóng Minh Anh",
             "address": "123 Nguyễn Hữu Thọ",
-            "district": "Quận 7",
-            "city": "TP. Hồ Chí Minh",
+            "province_code": HCMC_PROVINCE_CODE,
+            "ward_code": HCMC_WARD_CODE,
             "phone": "0909876543",
             "description": "Có bãi giữ xe.",
             "opening_time": time(6, 0),
@@ -103,10 +112,14 @@ def create_searchable_venue(
     name: str,
     address: str,
     district: str | None,
-    city: str,
+    city: str | None,
     field_name: str,
     field_type: FieldTypeCode,
     hourly_price: Decimal,
+    province_code: str | None = None,
+    province_name: str | None = None,
+    ward_code: str | None = None,
+    ward_name: str | None = None,
     venue_status: VenueStatus = VenueStatus.ACTIVE,
     field_status: FieldStatus = FieldStatus.ACTIVE,
 ) -> int:
@@ -117,6 +130,10 @@ def create_searchable_venue(
             address=address,
             district=district,
             city=city,
+            province_code=province_code,
+            province_name=province_name,
+            ward_code=ward_code,
+            ward_name=ward_name,
             opening_time=time(6, 0),
             closing_time=time(23, 0),
             status=venue_status.value,
@@ -167,6 +184,67 @@ def test_only_owner_can_open_owner_venue_pages(app, client):
     assert client.get("/owner/venues/new").status_code == 403
 
 
+def test_administrative_catalog_loads_all_provinces_and_wards(app):
+    with app.app_context():
+        provinces = list_provinces()
+        hcmc_wards = list_wards(province_code=HCMC_PROVINCE_CODE)
+
+        assert len(provinces) == 34
+        assert db.session.scalar(db.select(db.func.count(Ward.code))) == 3321
+        assert any(
+            province.code == HCMC_PROVINCE_CODE
+            and province.name == "Thành phố Hồ Chí Minh"
+            for province in provinces
+        )
+        assert any(
+            ward.code == HCMC_WARD_CODE
+            and ward.full_name == "Phường Tân Hưng"
+            for ward in hcmc_wards
+        )
+
+
+def test_ward_api_filters_by_province_and_validates_code(app, client):
+    response = client.get(
+        "/api/administrative-units/wards",
+        query_string={"province_code": HCMC_PROVINCE_CODE},
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert any(item["code"] == HCMC_WARD_CODE for item in payload["wards"])
+    assert not any(item["code"] == "20209" for item in payload["wards"])
+    assert client.get("/api/administrative-units/wards").status_code == 400
+    assert (
+        client.get(
+            "/api/administrative-units/wards",
+            query_string={"province_code": "00"},
+        ).status_code
+        == 400
+    )
+
+
+def test_owner_form_rejects_ward_outside_selected_province(app, client):
+    owner = create_user(
+        app,
+        email="mismatch-owner@example.com",
+        role=UserRole.OWNER,
+    )
+    login(client, email=owner.email)
+
+    response = client.post(
+        "/owner/venues/new",
+        data=venue_form_data(ward_code="20209"),
+    )
+
+    assert response.status_code == 200
+    assert (
+        "Phường, xã hoặc đặc khu không thuộc tỉnh/thành phố đã chọn."
+        in response.get_data(as_text=True)
+    )
+    with app.app_context():
+        assert db.session.scalar(db.select(db.func.count(Venue.id))) == 0
+
+
 def test_owner_creates_normalized_pending_venue_without_trusting_form_owner(
     app,
     client,
@@ -188,8 +266,12 @@ def test_owner_creates_normalized_pending_venue_without_trusting_form_owner(
         assert venue.owner_id == owner.id
         assert venue.name == "Sân bóng Minh Anh"
         assert venue.address == "123 Nguyễn Hữu Thọ"
-        assert venue.district == "Quận 7"
-        assert venue.city == "TP. Hồ Chí Minh"
+        assert venue.province_code == HCMC_PROVINCE_CODE
+        assert venue.province_name == "Thành phố Hồ Chí Minh"
+        assert venue.ward_code == HCMC_WARD_CODE
+        assert venue.ward_name == "Phường Tân Hưng"
+        assert venue.district is None
+        assert venue.city is None
         assert venue.phone == "0909876543"
         assert venue.description == "Có bãi giữ xe và phòng thay đồ."
         assert venue.opening_time == time(6, 0)
@@ -281,6 +363,43 @@ def test_public_venue_search_matches_name_and_area(app, client):
     assert by_area.status_code == 200
     assert "Sân bóng Hòa Bình" in by_area.get_data(as_text=True)
     assert "Sân bóng Phú Mỹ" not in by_area.get_data(as_text=True)
+
+
+@pytest.mark.parametrize(
+    ("query", "email_key"),
+    [("hồ chí minh", "province"), ("tân hưng", "ward")],
+)
+def test_public_venue_search_matches_structured_province_and_ward(
+    app,
+    client,
+    query,
+    email_key,
+):
+    owner = create_user(
+        app,
+        email=f"structured-{email_key}@example.com",
+        role=UserRole.OWNER,
+    )
+    create_searchable_venue(
+        app,
+        owner_id=owner.id,
+        name="Cơ sở địa chỉ chuẩn hóa",
+        address="123 Nguyễn Hữu Thọ",
+        district=None,
+        city=None,
+        province_code=HCMC_PROVINCE_CODE,
+        province_name="Thành phố Hồ Chí Minh",
+        ward_code=HCMC_WARD_CODE,
+        ward_name="Phường Tân Hưng",
+        field_name="Sân chuẩn hóa",
+        field_type=FieldTypeCode.FOOTBALL_5,
+        hourly_price=Decimal("250000"),
+    )
+
+    response = client.get("/venues", query_string={"q": query})
+
+    assert response.status_code == 200
+    assert "Cơ sở địa chỉ chuẩn hóa" in response.get_data(as_text=True)
 
 
 def test_public_venue_filters_combine_field_type_and_matching_type_price(
@@ -521,6 +640,24 @@ def test_owner_updates_own_venue_without_changing_moderation_status(app, client)
         assert venue.status == VenueStatus.ACTIVE.value
 
 
+def test_owner_edit_form_keeps_structured_province_and_ward_selection(app, client):
+    owner = create_user(
+        app,
+        email="edit-address-owner@example.com",
+        role=UserRole.OWNER,
+    )
+    venue_id = create_venue_for_owner(app, owner.id)
+    login(client, email=owner.email)
+
+    response = client.get(f"/owner/venues/{venue_id}/edit")
+    page = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert f'selected value="{HCMC_PROVINCE_CODE}"' in page
+    assert f'selected value="{HCMC_WARD_CODE}"' in page
+    assert "Phường Tân Hưng" in page
+
+
 def test_owner_cannot_edit_another_owners_venue(app, client):
     owner_a = create_user(
         app,
@@ -688,8 +825,8 @@ def test_create_venue_rolls_back_when_commit_fails(app, monkeypatch):
                 owner=owner_model,
                 name="Sân lỗi",
                 address="123 Đường A",
-                district=None,
-                city="TP. Hồ Chí Minh",
+                province_code=HCMC_PROVINCE_CODE,
+                ward_code=HCMC_WARD_CODE,
                 phone=None,
                 description=None,
                 opening_time=time(6, 0),

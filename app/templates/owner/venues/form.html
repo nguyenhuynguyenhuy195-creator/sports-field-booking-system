@@ -45,11 +45,42 @@
                 {{ form.latitude() }}
                 {{ form.longitude() }}
 
+                {% if venue and not (venue.province_code and venue.ward_code) %}
+                    <div class="alert alert-warning">
+                        Cơ sở này đang dùng địa chỉ cũ. Vui lòng chọn lại tỉnh/thành phố và phường/xã theo danh mục hiện hành; dữ liệu cũ vẫn được hệ thống giữ nguyên.
+                    </div>
+                {% endif %}
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            {{ form.province_code.label(class="form-label") }}
+                            {{ form.province_code(class="form-select" + (" is-invalid" if form.province_code.errors else ""), data_wards_url=wards_api_url) }}
+                            {% for error in form.province_code.errors %}<div class="invalid-feedback">{{ error }}</div>{% endfor %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            {{ form.ward_code.label(class="form-label") }}
+                            {{ form.ward_code(class="form-select" + (" is-invalid" if form.ward_code.errors else "")) }}
+                            {% for error in form.ward_code.errors %}<div class="invalid-feedback">{{ error }}</div>{% endfor %}
+                        </div>
+                    </div>
+                </div>
+                <p id="administrative-unit-status" class="form-text mt-0 mb-3" role="status">
+                    Phường/xã được lọc theo tỉnh/thành phố đã chọn.
+                </p>
+                <noscript>
+                    <div class="alert alert-warning">Cần bật JavaScript để tải danh sách phường/xã theo tỉnh/thành phố.</div>
+                </noscript>
+                {{ render_field(form.address, placeholder="Ví dụ: 123 Nguyễn Hữu Thọ") }}
+
                 <div class="venue-location-picker mb-3">
                     <label class="form-label fw-semibold" for="venue-place-autocomplete">Tìm địa chỉ trên Google Maps</label>
                     {% if google_maps_api_key %}
                         <div id="venue-place-autocomplete" class="venue-place-autocomplete"></div>
-                        <p class="form-text mb-2">Chọn một gợi ý để lưu đúng vị trí và ghim bản đồ.</p>
+                        <p class="form-text mb-2">Google Maps chỉ hỗ trợ đối chiếu địa chỉ và lưu vị trí; tỉnh/phường vẫn lấy từ danh mục hành chính phía trên.</p>
+                        <p id="venue-google-formatted-address" class="small text-secondary mb-2" hidden></p>
                         <div
                             id="venue-location-map"
                             class="venue-location-map"
@@ -68,11 +99,6 @@
                     {% for error in form.latitude.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
                     {% for error in form.longitude.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
                 </div>
-                {{ render_field(form.address, placeholder="Ví dụ: 123 Nguyễn Hữu Thọ") }}
-                <div class="row">
-                    <div class="col-md-6">{{ render_field(form.district, placeholder="Ví dụ: Quận 7") }}</div>
-                    <div class="col-md-6">{{ render_field(form.city, placeholder="Ví dụ: TP. Hồ Chí Minh") }}</div>
-                </div>
                 {{ render_field(form.phone, placeholder="Ví dụ: 0901234567") }}
                 {{ render_field(form.description, rows="4", placeholder="Mô tả vị trí, tiện ích và thông tin liên hệ") }}
                 <div class="row g-3">
@@ -87,6 +113,7 @@
 {% endblock %}
 
 {% block scripts %}
+    <script src="{{ url_for('static', filename='js/administrative-unit-picker.js') }}"></script>
     {% if google_maps_api_key %}
         <script src="{{ url_for('static', filename='js/venue-location-picker.js') }}"></script>
         <script async src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key|urlencode }}&loading=async&libraries=places&callback=initVenueLocationPicker&language=vi&region=VN"></script>

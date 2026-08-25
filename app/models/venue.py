@@ -9,6 +9,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import db
 
+from .administrative_unit import Province, Ward
 from .user import User, timestamp_type, utc_now
 
 
@@ -48,6 +49,12 @@ class Venue(db.Model):
         ),
         db.Index("ix_venues_owner_created", "owner_id", "created_at"),
         db.Index("ix_venues_status_city", "status", "city"),
+        db.Index(
+            "ix_venues_status_province_ward",
+            "status",
+            "province_code",
+            "ward_code",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -58,7 +65,23 @@ class Venue(db.Model):
     name: Mapped[str] = mapped_column(db.Unicode(150), nullable=False)
     address: Mapped[str] = mapped_column(db.Unicode(255), nullable=False)
     district: Mapped[str | None] = mapped_column(db.Unicode(100), nullable=True)
-    city: Mapped[str] = mapped_column(db.Unicode(100), nullable=False)
+    city: Mapped[str | None] = mapped_column(db.Unicode(100), nullable=True)
+    province_code: Mapped[str | None] = mapped_column(
+        db.ForeignKey("provinces.code"),
+        nullable=True,
+    )
+    province_name: Mapped[str | None] = mapped_column(
+        db.Unicode(100),
+        nullable=True,
+    )
+    ward_code: Mapped[str | None] = mapped_column(
+        db.ForeignKey("wards.code"),
+        nullable=True,
+    )
+    ward_name: Mapped[str | None] = mapped_column(
+        db.Unicode(100),
+        nullable=True,
+    )
     google_place_id: Mapped[str | None] = mapped_column(
         db.String(255),
         nullable=True,
@@ -106,6 +129,10 @@ class Venue(db.Model):
 
     owner: Mapped[User] = relationship(foreign_keys=[owner_id])
     reviewer: Mapped[User | None] = relationship(foreign_keys=[reviewed_by])
+    province: Mapped[Province | None] = relationship(
+        foreign_keys=[province_code]
+    )
+    ward: Mapped[Ward | None] = relationship(foreign_keys=[ward_code])
 
     @property
     def is_active(self) -> bool:
@@ -114,6 +141,22 @@ class Venue(db.Model):
     @property
     def has_coordinates(self) -> bool:
         return self.latitude is not None and self.longitude is not None
+
+    @property
+    def full_address(self) -> str:
+        """Return a safe display address for structured and legacy venues."""
+        parts = [self.address]
+        parts.append(self.ward_name or self.district)
+        parts.append(self.province_name or self.city)
+        normalized_parts: list[str] = []
+        seen: set[str] = set()
+        for part in parts:
+            value = (part or "").strip()
+            key = value.casefold()
+            if value and key not in seen:
+                normalized_parts.append(value)
+                seen.add(key)
+        return ", ".join(normalized_parts)
 
     def __repr__(self) -> str:
         return (

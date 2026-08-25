@@ -31,7 +31,7 @@
 
 ### Tìm kiếm và Google Maps
 
-- Tìm theo tên, địa chỉ, quận/huyện hoặc tỉnh/thành phố.
+- Tìm theo tên, địa chỉ chi tiết, phường/xã/đặc khu hoặc tỉnh/thành phố.
 - Lọc theo bộ môn, loại sân và khoảng giá.
 - Tìm venue đã được duyệt trong bán kính 3 km, 5 km hoặc 10 km từ vị trí user.
 - Hiển thị khoảng cách gần đúng, ghim bản đồ và nút mở Google Maps để chỉ đường.

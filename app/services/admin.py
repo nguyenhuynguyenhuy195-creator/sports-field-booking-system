@@ -241,32 +241,38 @@ def get_admin_account_summary() -> AdminAccountSummary:
     )
 
 
-def list_admin_monitoring_cities() -> tuple[str, ...]:
+def list_admin_monitoring_provinces() -> tuple[str, ...]:
+    location_province = func.coalesce(Venue.province_name, Venue.city)
     statement = (
-        db.select(Venue.city)
-        .where(Venue.city != "")
+        db.select(location_province)
+        .where(location_province.is_not(None), location_province != "")
         .distinct()
-        .order_by(Venue.city.asc())
+        .order_by(location_province.asc())
     )
     return tuple(db.session.scalars(statement))
 
 
-def list_admin_monitoring_districts(*, city: str | None = None) -> tuple[str, ...]:
-    statement = db.select(Venue.district).where(
-        Venue.district.is_not(None),
-        Venue.district != "",
+def list_admin_monitoring_wards(
+    *,
+    province: str | None = None,
+) -> tuple[str, ...]:
+    location_province = func.coalesce(Venue.province_name, Venue.city)
+    location_ward = func.coalesce(Venue.ward_name, Venue.district)
+    statement = db.select(location_ward).where(
+        location_ward.is_not(None),
+        location_ward != "",
     )
-    if city:
-        statement = statement.where(Venue.city == city)
-    statement = statement.distinct().order_by(Venue.district.asc())
+    if province:
+        statement = statement.where(location_province == province)
+    statement = statement.distinct().order_by(location_ward.asc())
     return tuple(value for value in db.session.scalars(statement) if value)
 
 
 def list_admin_monitoring_locations(
     *,
     query: str | None = None,
-    city: str | None = None,
-    district: str | None = None,
+    province: str | None = None,
+    ward: str | None = None,
     page: int = 1,
 ) -> AdminPage:
     statement = db.select(Venue)
@@ -277,17 +283,25 @@ def list_admin_monitoring_locations(
             or_(
                 func.lower(Venue.name).like(pattern, escape="\\"),
                 func.lower(Venue.address).like(pattern, escape="\\"),
-                func.lower(Venue.city).like(pattern, escape="\\"),
-                func.lower(func.coalesce(Venue.district, "")).like(
+                func.lower(
+                    func.coalesce(Venue.province_name, Venue.city, "")
+                ).like(pattern, escape="\\"),
+                func.lower(
+                    func.coalesce(Venue.ward_name, Venue.district, "")
+                ).like(
                     pattern,
                     escape="\\",
                 ),
             )
         )
-    if city:
-        statement = statement.where(Venue.city == city)
-    if district:
-        statement = statement.where(Venue.district == district)
+    if province:
+        statement = statement.where(
+            func.coalesce(Venue.province_name, Venue.city) == province
+        )
+    if ward:
+        statement = statement.where(
+            func.coalesce(Venue.ward_name, Venue.district) == ward
+        )
 
     normalized_page = max(page, 1)
     pagination = db.paginate(

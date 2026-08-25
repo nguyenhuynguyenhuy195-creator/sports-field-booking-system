@@ -97,7 +97,27 @@ Seed MVP:
 
 Unique constraint cần có: `(sport_id, name)`. Sport/field type đã được field tham chiếu chỉ chuyển `INACTIVE`, không xóa vật lý.
 
-## 5.6. Bảng `venues`
+## 5.6. Bảng `provinces`
+
+| Cột | Kiểu dữ liệu | Ràng buộc |
+|---|---|---|
+| code | VARCHAR(2) | PK |
+| name | NVARCHAR(100) | NOT NULL, UNIQUE |
+
+Catalog chỉ đọc, dùng mã cấp tỉnh chính thức theo Quyết định 19/2025/QĐ-TTg. Owner không có API tạo/sửa/xóa catalog.
+
+## 5.7. Bảng `wards`
+
+| Cột | Kiểu dữ liệu | Ràng buộc |
+|---|---|---|
+| code | VARCHAR(5) | PK |
+| province_code | VARCHAR(2) | FK → provinces.code, NOT NULL |
+| name | NVARCHAR(100) | NOT NULL |
+| type | VARCHAR(20) | NOT NULL |
+
+`type`: `PHUONG`, `XA`, `DAC_KHU`. Index `(province_code, name)` phục vụ dropdown phụ thuộc. Catalog snapshot có 34 tỉnh/thành phố và 3.321 đơn vị gồm 2.621 xã, 687 phường, 13 đặc khu; migration kiểm tra cả tổng số, cơ cấu loại, mã trùng và quan hệ parent trước khi seed.
+
+## 5.8. Bảng `venues`
 
 | Cột | Kiểu dữ liệu | Ràng buộc |
 |---|---|---|
@@ -105,8 +125,12 @@ Unique constraint cần có: `(sport_id, name)`. Sport/field type đã được 
 | owner_id | INT | FK → users.id, NOT NULL |
 | name | NVARCHAR(150) | NOT NULL |
 | address | NVARCHAR(255) | NOT NULL |
-| district | NVARCHAR(100) | NULL |
-| city | NVARCHAR(100) | NOT NULL |
+| province_code | VARCHAR(2) | FK → provinces.code, NULL cho legacy |
+| province_name | NVARCHAR(100) | NULL cho legacy |
+| ward_code | VARCHAR(5) | FK → wards.code, NULL cho legacy |
+| ward_name | NVARCHAR(100) | NULL cho legacy |
+| district | NVARCHAR(100) | NULL, chỉ fallback legacy |
+| city | NVARCHAR(100) | NULL, chỉ fallback legacy |
 | google_place_id | VARCHAR(255) | NULL |
 | latitude | DECIMAL(9,6) | NULL |
 | longitude | DECIMAL(9,6) | NULL |
@@ -131,9 +155,11 @@ Check constraint:
 - `longitude BETWEEN -180 AND 180` nếu có.
 - Latitude và longitude phải cùng `NULL` hoặc cùng có giá trị.
 
-Venue mới phải có `google_place_id` và tọa độ trước khi được duyệt `ACTIVE`. Dữ liệu venue cũ được migration để tọa độ `NULL`; venue đó vẫn tìm được theo văn bản nhưng chưa tham gia tìm bán kính.
+Backend phải tra catalog để xác nhận province tồn tại, ward tồn tại và `ward.province_code == province.code`; frontend không được tự gửi tên snapshot. Index `(status, province_code, ward_code)` phục vụ tìm kiếm và phạm vi quản trị.
 
-## 5.7. Bảng `fields`
+`full_address` ưu tiên `address + ward_name + province_name`; nếu venue chưa chuẩn hóa thì fallback `address + district + city`. Venue mới phải có `google_place_id` và tọa độ trước khi được duyệt `ACTIVE`. Migration không sửa `google_place_id/latitude/longitude`, không map đoán district cũ sang ward mới và giữ nguyên hai cột legacy để đọc dữ liệu cũ.
+
+## 5.9. Bảng `fields`
 
 | Cột | Kiểu dữ liệu | Ràng buộc |
 |---|---|---|
@@ -157,7 +183,7 @@ Unique constraint cần có: `(venue_id, name)` để tránh trùng tên field t
 
 `field_type_id` chỉ được đổi khi field chưa có booking. Nếu đã có lịch sử, owner chuyển field cũ `INACTIVE` và tạo field mới.
 
-## 5.8. Bảng `field_price_slots`
+## 5.10. Bảng `field_price_slots`
 
 | Cột | Kiểu dữ liệu | Ràng buộc |
 |---|---|---|
@@ -179,7 +205,7 @@ Check constraint: `start_time < end_time`.
 
 Service phải ngăn các khung `ACTIVE` của cùng field và cùng ngày bị chồng nhau. Index cần có: `(field_id, day_of_week, status, start_time, end_time)`.
 
-## 5.9. Bảng `field_maintenances`
+## 5.11. Bảng `field_maintenances`
 
 | Cột | Kiểu dữ liệu | Ràng buộc |
 |---|---|---|
@@ -201,7 +227,7 @@ Service phải ngăn hai lịch bảo trì `ACTIVE` của cùng field bị chồ
 
 Index cần có: `(field_id, maintenance_date, status, start_time, end_time)`.
 
-## 5.10. Bảng `bookings`
+## 5.12. Bảng `bookings`
 
 | Cột | Kiểu dữ liệu | Ràng buộc |
 |---|---|---|
@@ -267,7 +293,7 @@ Index tối thiểu:
 - `(user_id, created_at)` cho lịch sử user.
 - `(status, initial_payment_due_at)` cho giữ chỗ 15 phút. Hai index deadline cũ có thể được giữ tạm để xử lý booking legacy nhưng không còn phục vụ booking ADR-027.
 
-## 5.11. Bảng `booking_price_details`
+## 5.13. Bảng `booking_price_details`
 
 | Cột | Kiểu dữ liệu | Ràng buộc |
 |---|---|---|
@@ -284,7 +310,7 @@ Bảng này là snapshot giá; không cập nhật khi owner thay đổi khung g
 
 Check constraint: `start_time < end_time`, `duration_minutes > 0`, `hourly_price > 0` và `subtotal > 0`. Khung giá đã được dùng phải chuyển `INACTIVE` thay vì xóa vật lý.
 
-## 5.12. Bảng `booking_contributions`
+## 5.14. Bảng `booking_contributions`
 
 | Cột | Kiểu dữ liệu | Ràng buộc |
 |---|---|---|
@@ -314,7 +340,7 @@ Tổng `amount_due` của các contribution còn hiệu lực phải đúng bằ
 
 Với FIND_OPPONENT mới, contribution CREATOR `PAID` bằng 15% đã đủ làm booking hợp lệ. Contribution OPPONENT chưa có người có thể giữ `PENDING` đến giờ bắt đầu rồi chuyển `EXPIRED` mà không hủy booking. Nếu đối thủ đã thanh toán rồi chủ động rút/no-show, contribution chuyển `FORFEITED`, payment vẫn `SUCCESS`, khoản đó tiếp tục nằm trong `bookings.paid_amount` và người thay thế không được tạo thêm payment cho cùng nghĩa vụ.
 
-## 5.13. Bảng `payments`
+## 5.15. Bảng `payments`
 
 | Cột | Kiểu dữ liệu | Ràng buộc |
 |---|---|---|
@@ -345,7 +371,7 @@ Index/constraint bắt buộc:
 - Filtered unique `provider_trans_id WHERE provider_trans_id IS NOT NULL` để SQL Server cho phép nhiều payment chưa có mã giao dịch.
 - Filtered unique `contribution_id WHERE status = 'SUCCESS'` để ngăn hai payment thành công cho cùng nghĩa vụ.
 
-## 5.14. Bảng `refunds`
+## 5.16. Bảng `refunds`
 
 | Cột | Kiểu dữ liệu | Ràng buộc |
 |---|---|---|
@@ -372,7 +398,7 @@ Booking mới không tạo refund cho creator/đối thủ chủ động hủy, 
 
 Filtered unique index cần có: `provider_refund_trans_id WHERE provider_refund_trans_id IS NOT NULL`. Service phải khóa payment và kiểm tra tổng refund `SUCCESS`/đang xử lý không vượt số tiền payment thành công.
 
-## 5.15. Bảng `matches`
+## 5.17. Bảng `matches`
 
 | Cột | Kiểu dữ liệu | Ràng buộc |
 |---|---|---|
@@ -405,7 +431,7 @@ FIND_OPPONENT có effective state “đã đóng” từ giờ booking bắt đ�
 
 `creator_contact_phone` là snapshot có sự đồng ý cho từng kèo. Migration để cột nullable nhằm giữ tương thích dữ liệu cũ; hệ thống không tự sao chép số hồ sơ vào match lịch sử. Creator của bản ghi cũ phải chủ động bổ sung và đồng ý chia sẻ.
 
-## 5.16. Bảng `match_participants`
+## 5.18. Bảng `match_participants`
 
 | Cột | Kiểu dữ liệu | Ràng buộc |
 |---|---|---|
@@ -438,10 +464,11 @@ Service phải ngăn một user có hai yêu cầu đang hoạt động cho cùn
 
 Filtered unique index hoặc cơ chế khóa tương đương cần áp dụng cho `(match_id, user_id)` ở các trạng thái `PENDING`, `ACCEPTED_AWAITING_PAYMENT` và `JOINED`.
 
-## 5.17. Quan hệ chính
+## 5.19. Quan hệ chính
 
 - User 1–N OwnerApplication; Admin 1–N OwnerApplication đã review.
 - Sport 1–N FieldType.
+- Province 1–N Ward; Venue tham chiếu một Province và Ward khi đã chuẩn hóa.
 - FieldType 1–N Field; mỗi Field chỉ có một FieldType.
 - User 1–N Venue theo vai trò owner; Admin 1–N Venue đã review; Venue 1–N Field.
 - Field 1–N FieldPriceSlot và 1–N FieldMaintenance.
@@ -454,7 +481,7 @@ Filtered unique index hoặc cơ chế khóa tương đương cần áp dụng c
 - Match 1–N MatchParticipant.
 - MatchParticipant 1–0..1 BookingContribution đang hoạt động.
 
-## 5.18. Ràng buộc cần kiểm tra trong service và transaction
+## 5.20. Ràng buộc cần kiểm tra trong service và transaction
 
 - Không trùng booking hoặc lịch bảo trì.
 - Không tạo hai lịch bảo trì `ACTIVE` chồng nhau cho cùng field.
@@ -472,8 +499,9 @@ Filtered unique index hoặc cơ chế khóa tương đương cần áp dụng c
 - Không trả `matches.creator_contact_phone` hoặc `match_participants.contact_phone` cho user không liên quan, trước khi participant `JOINED`, hoặc sau khi booking kết thúc/hủy.
 - Việc participant xuất hiện trong lịch cá nhân được suy ra từ `match_participants.user_id/status`; không tạo booking thứ hai và không thay đổi `bookings.user_id`.
 - Tìm theo bán kính chỉ dùng venue `ACTIVE` có cặp tọa độ hợp lệ.
+- Không lưu venue mới với province/ward không tồn tại hoặc ward không thuộc province đã chọn.
 
-## 5.19. Tương thích dữ liệu khi triển khai ADR-027
+## 5.21. Tương thích dữ liệu khi triển khai ADR-027
 
 Rà soát model và chuỗi migration hiện có cho thấy `matchmaking_deadline` và `funding_deadline` đều đã nullable, đồng thời không có check constraint bắt buộc FIND_OPPONENT phải có deadline. Vì vậy ADR-027 không cần migration schema mới:
 

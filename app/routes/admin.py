@@ -34,8 +34,8 @@ from app.services import (
     list_admin_bookings,
     list_admin_catalog,
     list_admin_matches,
-    list_admin_monitoring_cities,
-    list_admin_monitoring_districts,
+    list_admin_monitoring_provinces,
+    list_admin_monitoring_wards,
     list_admin_monitoring_locations,
     list_owner_applications,
     review_owner_application,
@@ -368,34 +368,42 @@ def monitoring():
         flash("Bộ lọc xử lý lịch đặt không hợp lệ.", "warning")
         return redirect(url_for("admin.monitoring", section=section))
     location_query = (request.args.get("venue_q") or "").strip()
-    location_city = (request.args.get("venue_city") or "").strip()
-    location_district = (request.args.get("venue_district") or "").strip()
+    location_province = (
+        request.args.get("venue_province")
+        or request.args.get("venue_city")
+        or ""
+    ).strip()
+    location_ward = (
+        request.args.get("venue_ward")
+        or request.args.get("venue_district")
+        or ""
+    ).strip()
     venue_page_number = max(
         request.args.get("venue_page", 1, type=int) or 1,
         1,
     )
     catalog = list_admin_catalog()
-    location_cities = list_admin_monitoring_cities()
-    if location_city and location_city not in location_cities:
+    location_provinces = list_admin_monitoring_provinces()
+    if location_province and location_province not in location_provinces:
         flash("Tỉnh hoặc thành phố được chọn không hợp lệ.", "warning")
         return redirect(url_for("admin.monitoring", section=section))
-    location_districts = list_admin_monitoring_districts(
-        city=location_city or None,
+    location_wards = list_admin_monitoring_wards(
+        province=location_province or None,
     )
-    if location_district and location_district not in location_districts:
-        flash("Quận hoặc huyện được chọn không hợp lệ.", "warning")
+    if location_ward and location_ward not in location_wards:
+        flash("Phường, xã hoặc đặc khu được chọn không hợp lệ.", "warning")
         return redirect(
             url_for(
                 "admin.monitoring",
                 section=section,
                 venue_q=location_query,
-                venue_city=location_city,
+                venue_province=location_province,
             )
         )
     location_page = list_admin_monitoring_locations(
         query=location_query,
-        city=location_city,
-        district=location_district,
+        province=location_province,
+        ward=location_ward,
         page=venue_page_number,
     )
 
@@ -447,11 +455,11 @@ def monitoring():
         catalog=catalog,
         location_page=location_page,
         locations=location_page.items,
-        location_cities=location_cities,
-        location_districts=location_districts,
+        location_provinces=location_provinces,
+        location_wards=location_wards,
         location_query=location_query,
-        selected_location_city=location_city,
-        selected_location_district=location_district,
+        selected_location_province=location_province,
+        selected_location_ward=location_ward,
         selected_location=selected_location,
         selected_venue_id=venue_id,
         selected_field_id=field_id,

@@ -168,7 +168,7 @@ AI lọc spam, phân tích cảm xúc, recommendation, chat thời gian thực, 
 **Ngày quyết định:** 12/08/2026
 
 - Tận dụng các cột venue, field và khung giá hiện có; không thêm bảng hoặc migration cho module tìm kiếm MVP.
-- Từ khóa tìm trên tên, địa chỉ, quận/huyện và tỉnh/thành phố; ký tự wildcard do người dùng nhập phải được escape trước khi tạo điều kiện `LIKE`.
+- Từ khóa tìm trên tên, địa chỉ, phường/xã/đặc khu và tỉnh/thành phố; ký tự wildcard do người dùng nhập phải được escape trước khi tạo điều kiện `LIKE`. Venue legacy tiếp tục fallback `district/city` cho đến khi backfill an toàn.
 - Chỉ venue `ACTIVE` có field `ACTIVE` được đưa vào danh sách công khai.
 - “Giá từ” là mức `hourly_price` thấp nhất của khung giá `ACTIVE` trên field `ACTIVE`; khi chọn loại sân, giá và khoảng lọc cùng xét đúng loại đó.
 - Các điều kiện tìm kiếm được kết hợp bằng `AND`, truy vấn và tính giá nằm trong service, route chỉ validate query string và render kết quả.
@@ -304,26 +304,30 @@ Tài liệu tham chiếu:
 
 **Ghi chú schema:** Migration `e8c4a2d9f701` thêm cột nullable `matches.creator_contact_phone`; nullable để không suy diễn sự đồng ý của dữ liệu cũ.
 
-## ADR-030: Chuẩn hóa địa chỉ hành chính venue — hoãn triển khai
+## ADR-030: Chuẩn hóa địa chỉ hành chính venue theo mô hình hai cấp
 
 **Ngày ghi nhận:** 16/08/2026
-**Trạng thái:** Đã chốt hướng thiết kế, để triển khai sau.
+**Trạng thái:** Foundation đã triển khai tại Step 4.0 ngày 25/08/2026; Admin Step 4 UI chưa triển khai.
 
 - Form tạo/sửa cơ sở không cho owner nhập tự do tên đơn vị hành chính.
 - Ô thứ nhất chọn `Tỉnh/Thành phố` từ danh mục chính thức; ô thứ hai phụ thuộc vào ô thứ nhất và chỉ hiển thị `Phường/Xã/Đặc khu` thuộc địa phương đã chọn.
 - Không xây luồng mới theo `Quận/Huyện` vì mô hình chính quyền địa phương hai cấp đã kết thúc cấp huyện từ ngày 01/07/2025.
-- Hệ thống dự kiến lưu cả mã và tên đơn vị hành chính để tránh sai chính tả và hỗ trợ cập nhật danh mục.
+- Hệ thống lưu cả mã và tên đơn vị hành chính để tránh sai chính tả và giữ snapshot hiển thị khi catalog được cập nhật.
 - Owner vẫn nhập địa chỉ chi tiết; Google Maps tiếp tục dùng để xác nhận place ID, marker và tọa độ, không thay thế danh mục hành chính chính thức.
-- Bộ lọc Admin dự kiến đổi theo thứ tự `Tỉnh/Thành phố → Phường/Xã/Đặc khu → Cơ sở → Sân`.
+- Bộ lọc Admin dùng thứ tự `Tỉnh/Thành phố → Phường/Xã/Đặc khu → Cơ sở → Sân`.
 - Dữ liệu venue cũ trong `city` và `district` phải được giữ nguyên cho đến khi có migration và kế hoạch backfill đã kiểm thử; không đổi hoặc xóa trực tiếp dữ liệu hiện có.
-- Thứ tự triển khai sau này: chốt nguồn dữ liệu chính thức → cập nhật thiết kế database → migration không phá dữ liệu → backend danh mục phụ thuộc → form owner → bộ lọc Admin → test SQLite và SQL Server → smoke test giao diện.
+- Catalog dùng mã hành chính theo Quyết định 19/2025/QĐ-TTg; snapshot máy đọc được được ghim phiên bản, kiểm tra đủ 34 tỉnh/thành phố và 3.321 phường/xã/đặc khu trước khi seed.
+- Migration `f3a7c9d2e410` thêm catalog cùng các cột `province_code/province_name/ward_code/ward_name`; giữ `city/district` nullable làm fallback legacy, không tự suy diễn district cũ thành ward mới.
+- Backend tự tra mã và kiểm tra ward thuộc province; Google Maps chỉ lưu place ID/tọa độ và hiển thị formatted address để đối chiếu.
 
-Việc ghi nhận ADR này **không thay đổi code, database hoặc giao diện hiện tại**.
+Foundation này không thay đổi workflow kiểm duyệt venue và chưa redesign màn Admin Step 4.
 
 Tài liệu tham chiếu:
 
 - [Chính phủ: tổ chức chính quyền địa phương hai cấp](https://xaydungchinhsach.chinhphu.vn/trung-uong-thong-nhat-to-chuc-chinh-quyen-dia-phuong-2-cap-ca-nuoc-se-con-34-tinh-thanh-pho-sau-sap-nhap-119250412184121461.htm)
 - [Bộ Nội vụ: danh mục và mã số 34 đơn vị hành chính cấp tỉnh](https://moha.gov.vn/tin-tuc/---oid57326)
+- [Quyết định 19/2025/QĐ-TTg: Bảng danh mục và mã số các đơn vị hành chính Việt Nam](https://datafiles.chinhphu.vn/cpp/files/vbpq/2025/7/19ttg.signed.pdf)
+- [Structured snapshot đối chiếu từ các nghị quyết sắp xếp hành chính](https://github.com/mantisvn/Vietnamese-Administrative-Units-Dataset)
 
 ## ADR-031: Thanh toán sandbox và đối soát cho Owner
 

@@ -13,7 +13,7 @@
 
 ## 7.2. Trang chủ và danh sách venue
 
-- Ô tìm theo tên, địa chỉ, quận/huyện hoặc tỉnh/thành phố.
+- Ô tìm theo tên, địa chỉ chi tiết, phường/xã/đặc khu hoặc tỉnh/thành phố.
 - Bộ lọc sport, field type và khoảng giá; khi user đổi sport, trang tự áp dụng bộ lọc để hiển thị toàn bộ venue có field thuộc sport đó. Chỉ các field type thực tế thuộc sport đã chọn được hiển thị trực tiếp thành nút, không có nút “Tất cả”; khi chưa chọn nút field type nào thì sport vẫn bao gồm mọi loại sân của chính nó. Bấm lại field type đang chọn để bỏ lọc chi tiết. Card kết quả chỉ liệt kê field type thuộc sport/field type đang lọc.
 - Nút “Dùng vị trí của tôi” và bán kính 3/5/10 km.
 - Nếu browser từ chối vị trí, hiển thị hướng dẫn ngắn và giữ tìm kiếm văn bản hoạt động.
@@ -26,9 +26,11 @@
 ## 7.3. Form owner tạo/sửa venue
 
 - Nhập tên, số liên hệ, mô tả và giờ hoạt động.
-- Ô địa chỉ dùng Places Autocomplete.
-- Sau khi chọn gợi ý, hiển thị bản đồ và marker để owner kiểm tra.
-- Lưu place ID, địa chỉ chuẩn hóa và tọa độ trong hidden fields nhưng backend vẫn validate.
+- Owner chọn `Tỉnh/Thành phố`, sau đó chỉ chọn được `Phường/Xã/Đặc khu` thuộc địa phương đó; danh mục không cho nhập tự do.
+- Owner nhập địa chỉ chi tiết riêng. Backend tự tra catalog và lưu snapshot tên theo mã đã chọn.
+- Places Autocomplete chỉ hỗ trợ đối chiếu địa chỉ Google, place ID và tọa độ; không tự quyết định tỉnh/phường.
+- Sau khi chọn gợi ý Google, hiển thị địa chỉ đối chiếu, bản đồ và marker để owner kiểm tra.
+- Lưu place ID và tọa độ trong hidden fields nhưng backend vẫn validate.
 - Nếu owner sửa chữ trong địa chỉ sau khi chọn place, yêu cầu chọn/xác nhận lại vị trí.
 - Không hiển thị API key server hoặc chi tiết billing.
 

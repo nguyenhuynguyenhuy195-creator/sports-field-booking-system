@@ -20,6 +20,7 @@
 
 - owner_id lấy từ current_user.
 - Venue mới PENDING và chưa công khai.
+- Province phải tồn tại; ward phải tồn tại và thuộc đúng province. Backend lưu cả code và tên từ catalog, không tin tên do frontend gửi.
 - Venue mới phải có địa chỉ/place ID/tọa độ hợp lệ trước khi admin duyệt ACTIVE.
 - Admin duyệt lưu người/thời điểm/ghi chú.
 - Field thuộc venue của owner, mặc định INACTIVE và không trùng tên trong cùng venue.
@@ -27,7 +28,8 @@
 
 ## AC-004: Google Places và tìm vị trí
 
-- Owner chọn gợi ý địa chỉ, xem được marker và lưu place ID/latitude/longitude.
+- Owner chọn tỉnh rồi chỉ thấy phường/xã/đặc khu trực thuộc; edit load đúng lựa chọn hiện tại.
+- Owner chọn gợi ý Google, xem được địa chỉ đối chiếu/marker và lưu place ID/latitude/longitude; Google không ghi đè catalog hành chính.
 - Backend từ chối latitude ngoài [-90,90], longitude ngoài [-180,180] hoặc cặp tọa độ thiếu một phía.
 - Venue cũ không tọa độ vẫn tìm theo từ khóa nhưng không xuất hiện trong kết quả bán kính.
 - User chọn 3/5/10 km và nhận đúng venue ACTIVE nội bộ nằm trong bán kính, sắp theo khoảng cách.
@@ -37,7 +39,7 @@
 
 ## AC-005: Tìm kiếm và lọc
 
-- Tìm theo tên/địa chỉ/quận/thành phố không phân biệt hoa thường.
+- Tìm theo tên/địa chỉ/phường-xã/tỉnh-thành phố không phân biệt hoa thường; venue legacy vẫn có fallback `district/city`.
 - Wildcard được escape.
 - Lọc sport, field type và giá dùng riêng hoặc kết hợp được.
 - Field type phải thuộc sport đã chọn.

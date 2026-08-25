@@ -11,12 +11,11 @@
         }
 
         const addressInput = document.getElementById("address");
-        const districtInput = document.getElementById("district");
-        const cityInput = document.getElementById("city");
         const placeIdInput = document.getElementById("google_place_id");
         const latitudeInput = document.getElementById("latitude");
         const longitudeInput = document.getElementById("longitude");
         const statusElement = document.getElementById("venue-location-status");
+        const formattedAddressElement = document.getElementById("venue-google-formatted-address");
 
         const initialLatitude = Number.parseFloat(mapElement.dataset.latitude);
         const initialLongitude = Number.parseFloat(mapElement.dataset.longitude);
@@ -49,7 +48,7 @@
                 return;
             }
             await place.fetchFields({
-                fields: ["id", "formattedAddress", "location", "addressComponents"],
+                fields: ["id", "formattedAddress", "location"],
             });
             if (!place.id || !place.location) {
                 setStatus("Google chưa trả đủ tọa độ. Hãy chọn một gợi ý khác.", true);
@@ -64,10 +63,10 @@
             placeIdInput.value = place.id;
             latitudeInput.value = position.lat.toFixed(6);
             longitudeInput.value = position.lng.toFixed(6);
-            if (place.formattedAddress) {
-                addressInput.value = place.formattedAddress;
+            if (formattedAddressElement && place.formattedAddress) {
+                formattedAddressElement.textContent = `Địa chỉ Google để đối chiếu: ${place.formattedAddress}`;
+                formattedAddressElement.hidden = false;
             }
-            fillAdministrativeArea(place.addressComponents || [], districtInput, cityInput);
 
             if (marker) {
                 marker.setPosition(position);
@@ -97,6 +96,10 @@
                 marker.setMap(null);
                 marker = null;
             }
+            if (formattedAddressElement) {
+                formattedAddressElement.textContent = "";
+                formattedAddressElement.hidden = true;
+            }
         }
 
         function setStatus(message, isWarning) {
@@ -106,24 +109,4 @@
         }
     };
 
-    function fillAdministrativeArea(components, districtInput, cityInput) {
-        let district = "";
-        let city = "";
-        for (const component of components) {
-            const types = component.types || [];
-            const value = component.longText || component.long_name || "";
-            if (!district && types.includes("administrative_area_level_2")) {
-                district = value;
-            }
-            if (!city && (types.includes("administrative_area_level_1") || types.includes("locality"))) {
-                city = value;
-            }
-        }
-        if (district && !districtInput.value.trim()) {
-            districtInput.value = district;
-        }
-        if (city) {
-            cityInput.value = city;
-        }
-    }
 })();

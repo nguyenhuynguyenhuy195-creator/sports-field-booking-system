@@ -30,7 +30,7 @@
                 </svg>
                 {{ form.q(
                     class_="form-control venue-search-input" + (" is-invalid" if form.q.errors else ""),
-                    placeholder="Tên cơ sở, quận/huyện hoặc thành phố",
+                    placeholder="Tên cơ sở, phường/xã hoặc tỉnh/thành phố",
                     autocomplete="off",
                     aria_label="Tên sân hoặc khu vực"
                 ) }}
@@ -149,9 +149,9 @@
                                 {% if result.starting_price is not none %}<span>Giá từ</span><strong>{{ result.starting_price|vnd_currency }}/giờ</strong>{% endif %}
                             </div>
                         </div>
-                        <p class="small text-uppercase text-success fw-bold mb-2">{{ venue.city }}</p>
+                        <p class="small text-uppercase text-success fw-bold mb-2">{{ venue.province_name or venue.city or 'Chưa chuẩn hóa khu vực' }}</p>
                         <h3 class="h5 fw-bold mb-2">{{ venue.name }}</h3>
-                        <p class="venue-location text-secondary mb-3"><span aria-hidden="true">⌖</span> {{ venue.address }}{% if venue.district %}, {{ venue.district }}{% endif %}</p>
+                        <p class="venue-location text-secondary mb-3"><span aria-hidden="true">⌖</span> {{ venue.full_address }}</p>
                         <div class="venue-type-list mb-3" aria-label="Các loại sân đang hoạt động">
                             {% for active_field_type in result.field_types %}
                                 <span class="venue-type-chip">{{ active_field_type.sport_name }} · {{ active_field_type.name }}</span>

@@ -3,6 +3,7 @@ from flask import (
     abort,
     current_app,
     flash,
+    jsonify,
     redirect,
     render_template,
     request,
@@ -14,6 +15,7 @@ from app.decorators import roles_required
 from app.forms import ModerateVenueForm, VenueForm, VenueSearchForm
 from app.models import DAY_OF_WEEK_LABELS, UserRole, VenueStatus
 from app.services import (
+    AdministrativeUnitError,
     VenueError,
     VenueNotFoundError,
     VenuePermissionError,
@@ -25,7 +27,9 @@ from app.services import (
     list_owner_venues,
     list_active_field_types,
     list_active_sports,
+    list_provinces,
     list_public_fields,
+    list_wards,
     moderate_venue,
     search_public_venues,
     update_venue,
@@ -153,14 +157,15 @@ def owner_index():
 @roles_required(UserRole.OWNER)
 def owner_create():
     form = VenueForm()
+    _configure_administrative_choices(form)
     if form.validate_on_submit():
         try:
             venue = create_venue(
                 owner=current_user,
                 name=form.name.data,
                 address=form.address.data,
-                district=form.district.data,
-                city=form.city.data,
+                province_code=form.province_code.data,
+                ward_code=form.ward_code.data,
                 google_place_id=form.google_place_id.data,
                 latitude=form.latitude.data,
                 longitude=form.longitude.data,
@@ -186,6 +191,7 @@ def owner_create():
         google_maps_api_key=current_app.config.get(
             "GOOGLE_MAPS_BROWSER_API_KEY", ""
         ),
+        wards_api_url=url_for("venues.administrative_wards"),
     )
 
 
@@ -206,6 +212,7 @@ def owner_edit(venue_id: int):
         abort(403)
 
     form = VenueForm(obj=venue)
+    _configure_administrative_choices(form)
     if not form.is_submitted():
         form.set_operating_hours(venue.opening_time, venue.closing_time)
     if form.validate_on_submit():
@@ -215,8 +222,8 @@ def owner_edit(venue_id: int):
                 owner=current_user,
                 name=form.name.data,
                 address=form.address.data,
-                district=form.district.data,
-                city=form.city.data,
+                province_code=form.province_code.data,
+                ward_code=form.ward_code.data,
                 google_place_id=form.google_place_id.data,
                 latitude=form.latitude.data,
                 longitude=form.longitude.data,
@@ -244,6 +251,7 @@ def owner_edit(venue_id: int):
         google_maps_api_key=current_app.config.get(
             "GOOGLE_MAPS_BROWSER_API_KEY", ""
         ),
+        wards_api_url=url_for("venues.administrative_wards"),
     )
 
 
@@ -287,6 +295,27 @@ def admin_index():
             for venue in venues
             if venue.has_coordinates
         ],
+    )
+
+
+@venues_bp.get("/api/administrative-units/wards")
+def administrative_wards():
+    province_code = (request.args.get("province_code") or "").strip()
+    try:
+        wards = list_wards(province_code=province_code)
+    except AdministrativeUnitError as exc:
+        return jsonify({"error": str(exc)}), 400
+    return jsonify(
+        {
+            "wards": [
+                {
+                    "code": ward.code,
+                    "name": ward.full_name,
+                    "type": ward.type,
+                }
+                for ward in wards
+            ]
+        }
     )
 
 
@@ -344,3 +373,19 @@ def _configure_catalog_choices(form: VenueSearchForm):
         for field_type in field_types
     ]
     return sports, field_types
+
+
+def _configure_administrative_choices(form: VenueForm) -> None:
+    form.province_code.choices = [("", "Chọn tỉnh hoặc thành phố")] + [
+        (province.code, province.name) for province in list_provinces()
+    ]
+    selected_province_code = (form.province_code.data or "").strip()
+    wards = ()
+    if selected_province_code:
+        try:
+            wards = list_wards(province_code=selected_province_code)
+        except AdministrativeUnitError:
+            wards = ()
+    form.ward_code.choices = [("", "Chọn phường, xã hoặc đặc khu")] + [
+        (ward.code, ward.full_name) for ward in wards
+    ]

@@ -42,6 +42,18 @@ Booking cũ được backfill LEGACY_FULL_ONLINE/rate 1/deposit bằng total; kh
 
 Owner hiện tại, PENDING và chưa công khai.
 
+### TC-ADMIN-UNIT-001: Danh mục và dropdown phụ thuộc
+
+Seed đủ 34 tỉnh/thành phố và 3.321 phường/xã/đặc khu; API ward chỉ trả đơn vị thuộc province hợp lệ, từ chối mã tỉnh thiếu hoặc không tồn tại.
+
+### TC-ADMIN-UNIT-002: Validation và snapshot địa chỉ
+
+Tạo/sửa venue với province/ward hợp lệ lưu đúng code và tên chính thức; ward thuộc province khác bị từ chối và rollback. Form edit giữ đúng hai lựa chọn.
+
+### TC-ADMIN-UNIT-003: Hiển thị, tìm kiếm và legacy
+
+`venue.full_address` ưu tiên địa chỉ chi tiết + ward_name + province_name; venue chỉ có district/city vẫn hiển thị và tìm được. Tìm riêng theo ward hoặc province trả đúng venue chuẩn hóa.
+
 ### TC-MAP-001: Lưu place hợp lệ
 
 Chọn Places prediction → lưu address/place_id/latitude/longitude, render đúng marker.
@@ -336,7 +348,7 @@ Admin chọn cơ sở rồi chọn sân → “Đặt sân & dòng tiền” và
 
 ### TC-ADMIN-007: Tìm kiếm và phân trang khi có nhiều cơ sở
 
-Tạo 50 cơ sở ở nhiều quận/huyện → Admin tìm được theo tên hoặc địa chỉ, lọc đúng tỉnh/thành phố và quận/huyện, mỗi trang chỉ hiển thị tối đa 10 cơ sở. Cơ sở có 30 sân vẫn tìm được mọi sân, chỉ hiện 8 sân đầu và nút “Xem thêm”. Chuyển trang vẫn giữ điều kiện lọc; chọn một cơ sở ở trang sau vẫn hiển thị đúng danh sách sân.
+Tạo 50 cơ sở ở nhiều phường/xã → Admin tìm được theo tên hoặc địa chỉ, lọc đúng tỉnh/thành phố và phường/xã/đặc khu, mỗi trang chỉ hiển thị tối đa 10 cơ sở. Cơ sở có 30 sân vẫn tìm được mọi sân, chỉ hiện 8 sân đầu và nút “Xem thêm”. Chuyển trang vẫn giữ điều kiện lọc; chọn một cơ sở ở trang sau vẫn hiển thị đúng danh sách sân.
 
 ### TC-ADMIN-009: Người nhận kèo thực tế
 

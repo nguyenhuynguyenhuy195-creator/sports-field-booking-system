@@ -14,6 +14,7 @@ from .booking_contribution import (
     ContributionType,
 )
 from .booking_price_detail import BookingPriceDetail
+from .administrative_unit import Province, Ward, WardType
 from .field import Field, FieldStatus
 from .field_type import FieldType, FieldTypeCode
 from .field_maintenance import FieldMaintenance, FieldMaintenanceStatus
@@ -39,6 +40,7 @@ __all__ = [
     "BookingContribution",
     "BookingPriceDetail",
     "BookingStatus",
+    "Province",
     "PlayFormat",
     "ContributionStatus",
     "ContributionType",
@@ -75,4 +77,6 @@ __all__ = [
     "UserStatus",
     "Venue",
     "VenueStatus",
+    "Ward",
+    "WardType",
 ]

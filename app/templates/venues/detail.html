@@ -10,7 +10,7 @@
             <div class="col-lg-8">
                 <span class="status-badge status-active">Đang hoạt động</span>
                 <h1 class="display-6 fw-bold mt-3">{{ venue.name }}</h1>
-                <p class="lead text-secondary">{{ venue.address }}{% if venue.district %}, {{ venue.district }}{% endif %}, {{ venue.city }}</p>
+                <p class="lead text-secondary">{{ venue.full_address }}</p>
                 <a class="btn btn-outline-primary mb-3" href="{{ directions_url }}" target="_blank" rel="noopener noreferrer">Mở chỉ đường trên Google Maps</a>
                 {% if venue.description %}
                     <p class="venue-description mb-0">{{ venue.description }}</p>

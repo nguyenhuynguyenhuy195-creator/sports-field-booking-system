@@ -32,7 +32,7 @@ class VenueSearchForm(FlaskForm):
         csrf = False
 
     q = StringField(
-        "Tên sân hoặc khu vực",
+        "Tên sân, phường/xã hoặc tỉnh/thành phố",
         validators=[
             Optional(),
             Length(max=150, message="Nội dung tìm kiếm tối đa 150 ký tự."),
@@ -135,25 +135,23 @@ class VenueForm(FlaskForm):
         ],
     )
     address = StringField(
-        "Địa chỉ",
+        "Địa chỉ chi tiết",
         validators=[
             DataRequired(message="Vui lòng nhập địa chỉ."),
             Length(min=5, max=255, message="Địa chỉ phải từ 5 đến 255 ký tự."),
         ],
     )
-    district = StringField(
-        "Quận, huyện (không bắt buộc)",
-        validators=[
-            Optional(),
-            Length(max=100, message="Quận, huyện tối đa 100 ký tự."),
-        ],
+    province_code = SelectField(
+        "Tỉnh/Thành phố",
+        choices=[("", "Chọn tỉnh hoặc thành phố")],
+        validate_choice=False,
+        validators=[DataRequired(message="Vui lòng chọn tỉnh hoặc thành phố.")],
     )
-    city = StringField(
-        "Tỉnh, thành phố",
-        validators=[
-            DataRequired(message="Vui lòng nhập tỉnh hoặc thành phố."),
-            Length(min=2, max=100, message="Tỉnh, thành phố tối đa 100 ký tự."),
-        ],
+    ward_code = SelectField(
+        "Phường/Xã/Đặc khu",
+        choices=[("", "Chọn phường, xã hoặc đặc khu")],
+        validate_choice=False,
+        validators=[DataRequired(message="Vui lòng chọn phường, xã hoặc đặc khu.")],
     )
     google_place_id = HiddenField(
         "Google Place ID",

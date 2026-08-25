@@ -111,6 +111,19 @@ Hoàn thiện Admin theo phong cách SaaS Operations Dashboard.
 
 **Trạng thái: CHƯA LÀM**
 
+#### Step 4.0 – Foundation địa chỉ hành chính Việt Nam
+
+**Trạng thái: HOÀN THÀNH**
+
+- Catalog hai cấp gồm 34 tỉnh/thành phố và 3.321 phường/xã/đặc khu.
+- Venue lưu `province_code/province_name/ward_code/ward_name`; giữ `district/city` để đọc dữ liệu legacy.
+- Migration mới không map đoán district cũ sang ward mới và không thay đổi Place ID/tọa độ.
+- Form Owner dùng dropdown phụ thuộc; backend kiểm tra ward thuộc province.
+- Tìm kiếm/hiển thị dùng `venue.full_address`, có fallback legacy.
+- Google Maps tiếp tục chỉ hỗ trợ place ID, tọa độ, marker và đối chiếu formatted address.
+
+Step 4.0 chỉ là foundation dữ liệu; **không đồng nghĩa Step 4 Admin UI đã hoàn thành**.
+
 - Venue list.
 - Selected venue.
 - Detail panel.

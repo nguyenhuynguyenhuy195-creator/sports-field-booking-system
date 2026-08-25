@@ -6,7 +6,7 @@ from decimal import Decimal
 from math import asin, ceil, cos, radians, sin, sqrt
 from urllib.parse import urlencode
 
-from sqlalchemy import and_, or_
+from sqlalchemy import or_
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload
 
@@ -30,6 +30,10 @@ from app.services.sport_catalog import (
     SportCatalogError,
     get_active_field_type,
     get_active_sport,
+)
+from app.services.administrative_unit import (
+    AdministrativeUnitError,
+    resolve_administrative_address,
 )
 
 
@@ -88,11 +92,6 @@ class PublicVenueSearchPage:
 
 def _normalize_required_text(value: str) -> str:
     return normalize_full_name(value)
-
-
-def _normalize_optional_text(value: str | None) -> str | None:
-    normalized = " ".join(value.split()) if value else ""
-    return normalized or None
 
 
 def _validate_operating_hours(opening_time: time, closing_time: time) -> None:
@@ -211,14 +210,12 @@ def search_public_venues(
             or_(
                 db.func.lower(Venue.name).like(pattern, escape="\\"),
                 db.func.lower(Venue.address).like(pattern, escape="\\"),
-                db.func.lower(Venue.city).like(pattern, escape="\\"),
-                and_(
-                    Venue.district.is_not(None),
-                    db.func.lower(Venue.district).like(
-                        pattern,
-                        escape="\\",
-                    ),
-                ),
+                db.func.lower(
+                    db.func.coalesce(Venue.province_name, Venue.city, "")
+                ).like(pattern, escape="\\"),
+                db.func.lower(
+                    db.func.coalesce(Venue.ward_name, Venue.district, "")
+                ).like(pattern, escape="\\"),
             )
         )
     if min_price is not None:
@@ -360,11 +357,7 @@ def build_google_maps_directions_url(venue: Venue) -> str:
     if venue.has_coordinates:
         destination = f"{venue.latitude},{venue.longitude}"
     else:
-        destination = ", ".join(
-            item
-            for item in (venue.address, venue.district, venue.city)
-            if item
-        )
+        destination = venue.full_address
     parameters = {"api": "1", "destination": destination}
     if venue.google_place_id:
         parameters["destination_place_id"] = venue.google_place_id
@@ -427,8 +420,8 @@ def create_venue(
     owner: User,
     name: str,
     address: str,
-    district: str | None,
-    city: str,
+    province_code: str,
+    ward_code: str,
     phone: str | None,
     description: str | None,
     opening_time: time,
@@ -440,6 +433,13 @@ def create_venue(
     if owner.role != UserRole.OWNER.value:
         raise VenuePermissionError("Chỉ chủ sân được tạo cơ sở thể thao.")
     _validate_operating_hours(opening_time, closing_time)
+    try:
+        administrative_address = resolve_administrative_address(
+            province_code=province_code,
+            ward_code=ward_code,
+        )
+    except AdministrativeUnitError as exc:
+        raise VenueError(str(exc)) from exc
     normalized_location = _normalize_venue_location(
         google_place_id=google_place_id,
         latitude=latitude,
@@ -450,8 +450,10 @@ def create_venue(
         owner_id=owner.id,
         name=_normalize_required_text(name),
         address=_normalize_required_text(address),
-        district=_normalize_optional_text(district),
-        city=_normalize_required_text(city),
+        province_code=administrative_address.province.code,
+        province_name=administrative_address.province.name,
+        ward_code=administrative_address.ward.code,
+        ward_name=administrative_address.ward.full_name,
         google_place_id=normalized_location[0],
         latitude=normalized_location[1],
         longitude=normalized_location[2],
@@ -472,8 +474,8 @@ def update_venue(
     owner: User,
     name: str,
     address: str,
-    district: str | None,
-    city: str,
+    province_code: str,
+    ward_code: str,
     phone: str | None,
     description: str | None,
     opening_time: time,
@@ -485,6 +487,13 @@ def update_venue(
     if owner.role != UserRole.OWNER.value:
         raise VenuePermissionError("Chỉ chủ sân được sửa cơ sở thể thao.")
     _validate_operating_hours(opening_time, closing_time)
+    try:
+        administrative_address = resolve_administrative_address(
+            province_code=province_code,
+            ward_code=ward_code,
+        )
+    except AdministrativeUnitError as exc:
+        raise VenueError(str(exc)) from exc
     normalized_location = _normalize_venue_location(
         google_place_id=google_place_id,
         latitude=latitude,
@@ -501,8 +510,10 @@ def update_venue(
 
     venue.name = _normalize_required_text(name)
     venue.address = _normalize_required_text(address)
-    venue.district = _normalize_optional_text(district)
-    venue.city = _normalize_required_text(city)
+    venue.province_code = administrative_address.province.code
+    venue.province_name = administrative_address.province.name
+    venue.ward_code = administrative_address.ward.code
+    venue.ward_name = administrative_address.ward.full_name
     venue.google_place_id = normalized_location[0]
     venue.latitude = normalized_location[1]
     venue.longitude = normalized_location[2]

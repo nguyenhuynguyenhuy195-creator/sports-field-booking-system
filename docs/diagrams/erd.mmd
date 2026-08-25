@@ -46,13 +46,29 @@ erDiagram
         DATETIME2 updated_at
     }
 
+    PROVINCES {
+        VARCHAR code PK
+        NVARCHAR name UK
+    }
+
+    WARDS {
+        VARCHAR code PK
+        VARCHAR province_code FK
+        NVARCHAR name
+        VARCHAR type
+    }
+
     VENUES {
         INT id PK
         INT owner_id FK
         NVARCHAR name
         NVARCHAR address
-        NVARCHAR district
-        NVARCHAR city
+        VARCHAR province_code FK
+        NVARCHAR province_name
+        VARCHAR ward_code FK
+        NVARCHAR ward_name
+        NVARCHAR district "legacy"
+        NVARCHAR city "legacy"
         VARCHAR google_place_id
         DECIMAL latitude
         DECIMAL longitude
@@ -225,6 +241,9 @@ erDiagram
     USERS o|--o{ OWNER_APPLICATIONS : reviews
     SPORTS ||--o{ FIELD_TYPES : classifies
     FIELD_TYPES ||--o{ FIELDS : types
+    PROVINCES ||--o{ WARDS : contains
+    PROVINCES o|--o{ VENUES : locates
+    WARDS o|--o{ VENUES : locates
     USERS ||--o{ VENUES : owns
     USERS o|--o{ VENUES : reviews
     VENUES ||--o{ FIELDS : contains

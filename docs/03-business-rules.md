@@ -66,7 +66,7 @@ User phải đăng nhập trước khi tạo booking, tạo kèo, gửi yêu c�
 
 ### BR-010: Tìm kiếm và lọc venue
 
-- Từ khóa tìm trên tên, địa chỉ, quận/huyện và tỉnh/thành phố.
+- Từ khóa tìm trên tên, địa chỉ chi tiết, phường/xã/đặc khu và tỉnh/thành phố; venue legacy chưa chuẩn hóa vẫn có fallback đọc `district/city`.
 - Khoảng trắng được chuẩn hóa; ký tự wildcard phải được hiểu như văn bản thường.
 - Chỉ trả venue ACTIVE có ít nhất một field ACTIVE.
 - Bộ lọc sport, field type và khoảng giá được kết hợp đồng thời.

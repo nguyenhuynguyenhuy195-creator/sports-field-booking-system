@@ -55,7 +55,7 @@
                                     </span>
                                 </td>
                                 <td class="admin-management-address">
-                                    <strong>{{ venue.address }}{% if venue.district %}, {{ venue.district }}{% endif %}, {{ venue.city }}</strong>
+                                    <strong>{{ venue.full_address }}</strong>
                                     <small class="d-block admin-management-muted mt-1">{{ venue.opening_time.strftime('%H:%M') }}–{{ venue.closing_time.strftime('%H:%M') }}</small>
                                 </td>
                                 <td><span class="status-badge status-{{ venue.status|lower }}">{{ status_labels[venue.status] }}</span></td>
