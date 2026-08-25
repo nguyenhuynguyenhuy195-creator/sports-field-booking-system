@@ -114,8 +114,8 @@
 
 {% block scripts %}
     <script src="{{ url_for('static', filename='js/administrative-unit-picker.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/venue-location-picker.js') }}"></script>
     {% if google_maps_api_key %}
-        <script src="{{ url_for('static', filename='js/venue-location-picker.js') }}"></script>
         <script async src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key|urlencode }}&loading=async&libraries=places&callback=initVenueLocationPicker&language=vi&region=VN"></script>
     {% endif %}
 {% endblock %}

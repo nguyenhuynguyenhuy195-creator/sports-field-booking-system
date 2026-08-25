@@ -640,6 +640,58 @@ def test_owner_updates_own_venue_without_changing_moderation_status(app, client)
         assert venue.status == VenueStatus.ACTIVE.value
 
 
+def test_owner_form_loads_location_consistency_script_without_maps_key(
+    app,
+    client,
+):
+    owner = create_user(
+        app,
+        email="location-consistency-owner@example.com",
+        role=UserRole.OWNER,
+    )
+    login(client, email=owner.email)
+
+    response = client.get("/owner/venues/new")
+
+    assert response.status_code == 200
+    assert 'src="/static/js/venue-location-picker.js"' in response.get_data(
+        as_text=True
+    )
+
+
+def test_owner_update_persists_cleared_google_location_after_address_change(
+    app,
+    client,
+):
+    owner = create_user(
+        app,
+        email="clear-location-owner@example.com",
+        role=UserRole.OWNER,
+    )
+    venue_id = create_venue_for_owner(app, owner.id)
+    login(client, email=owner.email)
+
+    response = client.post(
+        f"/owner/venues/{venue_id}/edit",
+        data=venue_form_data(
+            address="456 Nguyễn Hữu Thọ",
+            google_place_id="",
+            latitude="",
+            longitude="",
+        ),
+    )
+
+    assert response.status_code == 302
+    with app.app_context():
+        venue = db.session.get(Venue, venue_id)
+        assert venue.address == "456 Nguyễn Hữu Thọ"
+        assert venue.google_place_id is None
+        assert venue.latitude is None
+        assert venue.longitude is None
+        assert venue.district is None
+        assert venue.city is None
+
+
 def test_owner_edit_form_keeps_structured_province_and_ward_selection(app, client):
     owner = create_user(
         app,

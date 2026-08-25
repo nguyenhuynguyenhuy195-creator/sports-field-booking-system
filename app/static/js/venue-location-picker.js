@@ -2,6 +2,9 @@
     "use strict";
 
     const DEFAULT_CENTER = { lat: 10.7769, lng: 106.7009 };
+    const LOCATION_CLEARED_EVENT = "venue-location:cleared";
+
+    initializeLocationConsistency();
 
     window.initVenueLocationPicker = async function () {
         const autocompleteHost = document.getElementById("venue-place-autocomplete");
@@ -19,7 +22,9 @@
 
         const initialLatitude = Number.parseFloat(mapElement.dataset.latitude);
         const initialLongitude = Number.parseFloat(mapElement.dataset.longitude);
-        const hasInitialLocation = Number.isFinite(initialLatitude) && Number.isFinite(initialLongitude);
+        const hasInitialLocation = Boolean(placeIdInput.value)
+            && Number.isFinite(initialLatitude)
+            && Number.isFinite(initialLongitude);
         const initialCenter = hasInitialLocation
             ? { lat: initialLatitude, lng: initialLongitude }
             : DEFAULT_CENTER;
@@ -36,10 +41,31 @@
             ? new google.maps.Marker({ map, position: initialCenter })
             : null;
 
+        window.addEventListener(LOCATION_CLEARED_EVENT, () => {
+            if (marker) {
+                marker.setMap(null);
+                marker = null;
+            }
+        });
+
         const autocomplete = new PlaceAutocompleteElement({});
         autocomplete.placeholder = "Nhập tên đường hoặc cơ sở thể thao";
         autocomplete.includedRegionCodes = ["vn"];
         autocompleteHost.appendChild(autocomplete);
+
+        const clearLocation = () => {
+            placeIdInput.value = "";
+            latitudeInput.value = "";
+            longitudeInput.value = "";
+            if (marker) {
+                marker.setMap(null);
+                marker = null;
+            }
+            if (formattedAddressElement) {
+                formattedAddressElement.textContent = "";
+                formattedAddressElement.hidden = true;
+            }
+        };
 
         const handleSelection = async (event) => {
             const prediction = event.placePrediction;
@@ -81,32 +107,54 @@
         autocomplete.addEventListener("gmp-select", handleSelection);
         autocomplete.addEventListener("gmp-placeselect", handleSelection);
 
-        addressInput.addEventListener("input", () => {
-            if (placeIdInput.value) {
-                clearLocation();
-                setStatus("Địa chỉ đã thay đổi. Hãy chọn lại gợi ý Google để xác nhận vị trí.", true);
-            }
-        });
-
-        function clearLocation() {
-            placeIdInput.value = "";
-            latitudeInput.value = "";
-            longitudeInput.value = "";
-            if (marker) {
-                marker.setMap(null);
-                marker = null;
-            }
-            if (formattedAddressElement) {
-                formattedAddressElement.textContent = "";
-                formattedAddressElement.hidden = true;
-            }
-        }
-
         function setStatus(message, isWarning) {
             statusElement.textContent = message;
             statusElement.classList.toggle("text-warning", isWarning);
             statusElement.classList.toggle("text-secondary", !isWarning);
         }
     };
+
+    function initializeLocationConsistency() {
+        const addressInput = document.getElementById("address");
+        const provinceSelect = document.getElementById("province_code");
+        const wardSelect = document.getElementById("ward_code");
+        const placeIdInput = document.getElementById("google_place_id");
+        const latitudeInput = document.getElementById("latitude");
+        const longitudeInput = document.getElementById("longitude");
+        const statusElement = document.getElementById("venue-location-status");
+        const formattedAddressElement = document.getElementById("venue-google-formatted-address");
+        if (!addressInput || !provinceSelect || !wardSelect || !placeIdInput
+            || !latitudeInput || !longitudeInput) {
+            return;
+        }
+
+        const invalidateLocation = () => {
+            const hasSavedLocation = Boolean(
+                placeIdInput.value || latitudeInput.value || longitudeInput.value
+            );
+            if (!hasSavedLocation) {
+                return;
+            }
+
+            placeIdInput.value = "";
+            latitudeInput.value = "";
+            longitudeInput.value = "";
+            if (formattedAddressElement) {
+                formattedAddressElement.textContent = "";
+                formattedAddressElement.hidden = true;
+            }
+            window.dispatchEvent(new Event(LOCATION_CLEARED_EVENT));
+
+            if (statusElement) {
+                statusElement.textContent = "Địa chỉ hành chính đã thay đổi. Hãy chọn lại gợi ý Google để xác nhận vị trí.";
+                statusElement.classList.add("text-warning");
+                statusElement.classList.remove("text-secondary");
+            }
+        };
+
+        addressInput.addEventListener("input", invalidateLocation);
+        provinceSelect.addEventListener("change", invalidateLocation);
+        wardSelect.addEventListener("change", invalidateLocation);
+    }
 
 })();
