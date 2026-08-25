@@ -324,3 +324,22 @@ Tài liệu tham chiếu:
 
 - [Chính phủ: tổ chức chính quyền địa phương hai cấp](https://xaydungchinhsach.chinhphu.vn/trung-uong-thong-nhat-to-chuc-chinh-quyen-dia-phuong-2-cap-ca-nuoc-se-con-34-tinh-thanh-pho-sau-sap-nhap-119250412184121461.htm)
 - [Bộ Nội vụ: danh mục và mã số 34 đơn vị hành chính cấp tỉnh](https://moha.gov.vn/tin-tuc/---oid57326)
+
+## ADR-031: Thanh toán sandbox và đối soát cho Owner
+
+**Ngày quyết định:** 23/08/2026
+**Trạng thái:** Đã chốt định hướng nghiệp vụ; triển khai thuộc Phase 2 – Admin Operations và Phase 3 – Owner Console.
+
+- Đồ án sử dụng MoMo/ZaloPay sandbox và không thực hiện giao dịch tiền thật.
+- `Payment SUCCESS` là căn cứ để hệ thống tự động xác nhận booking (`CONFIRMED`); không yêu cầu Owner duyệt booking sau thanh toán.
+- `Payment SUCCESS` không đồng nghĩa Owner đã được quyết toán. Payment, refund và settlement là các bản ghi/vòng đời độc lập để bảo toàn đối soát.
+- Settlement sử dụng các trạng thái: `PENDING`, `ELIGIBLE`, `SETTLED`, `FAILED` và `ON_HOLD`.
+- Sau khi ca sân kết thúc 30 phút, nếu không có cancellation, refund hoặc dispute: booking chuyển `COMPLETED` và settlement chuyển `ELIGIBLE`.
+- Owner không tự xác nhận để nhận tiền; User cũng không bắt buộc xác nhận đã chơi xong. Admin chỉ can thiệp vào các trường hợp ngoại lệ.
+- Khi Owner hủy booking, settlement bị chặn (`ON_HOLD`) và booking đi vào refund workflow; chỉ tiếp tục đối soát khi các nghĩa vụ hoàn tiền/ngoại lệ đã được giải quyết đúng quy trình.
+- Payout cho Owner ưu tiên sandbox disbursement nếu provider hỗ trợ và dễ tích hợp. Nếu không phù hợp, hệ thống dùng simulated payout adapter để trình diễn đầy đủ vòng đời đối soát mà không chuyển tiền thật.
+- Payout thành công chuyển settlement sang `SETTLED`; lỗi payout được ghi nhận là `FAILED` hoặc `ON_HOLD` tùy nguyên nhân và cần luồng xử lý ngoại lệ của Admin.
+- Phần tiền còn lại sau tiền cọc được thanh toán trực tiếp tại sân; settlement chỉ đối soát các khoản online mà hệ thống có căn cứ ghi nhận.
+- Owner cấu hình tài khoản nhận tiền trong Owner Console. Thông tin tài khoản nhận tiền không thuộc Owner Application.
+
+ADR này mở rộng ADR-006 về sandbox và làm rõ phần đối soát chưa được triển khai. ADR-016 vẫn giữ nguyên nguyên tắc booking không chờ Owner xác nhận; việc ánh xạ trạng thái chi tiết trong code hiện hữu chỉ được điều chỉnh khi Phase 2 được yêu cầu riêng.

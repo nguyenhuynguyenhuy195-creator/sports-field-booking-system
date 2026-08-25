@@ -1,0 +1,1117 @@
+<!doctype html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Mockup Admin · Giám sát vận hành</title>
+    <style>
+        :root {
+            --navy: #10243e;
+            --navy-2: #183553;
+            --green: #16784c;
+            --green-dark: #0f5c39;
+            --green-soft: #e9f5ef;
+            --lime: #b7e45d;
+            --ink: #172434;
+            --muted: #687688;
+            --line: #dfe7e3;
+            --surface: #ffffff;
+            --canvas: #f4f7f6;
+            --warning: #a46106;
+            --warning-bg: #fff3dd;
+            --danger: #a63a36;
+            --danger-bg: #fdebea;
+            --blue: #2861a8;
+            --blue-bg: #eaf2fc;
+            --shadow: 0 16px 40px rgba(21, 45, 38, 0.08);
+        }
+
+        * { box-sizing: border-box; }
+
+        html { color-scheme: light; }
+
+        body {
+            background: var(--canvas);
+            color: var(--ink);
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            margin: 0;
+            min-width: 320px;
+        }
+
+        button,
+        input,
+        select { font: inherit; }
+
+        button,
+        select { cursor: pointer; }
+
+        .mockup-note {
+            align-items: center;
+            background: #fff8d9;
+            border-bottom: 1px solid #eadc9d;
+            color: #735d12;
+            display: flex;
+            font-size: 13px;
+            font-weight: 700;
+            gap: 8px;
+            justify-content: center;
+            min-height: 36px;
+            padding: 8px 16px;
+            position: relative;
+            z-index: 30;
+        }
+
+        .mockup-note span {
+            background: #806b18;
+            border-radius: 999px;
+            color: #fff;
+            font-size: 10px;
+            letter-spacing: .08em;
+            padding: 3px 7px;
+        }
+
+        .admin-shell {
+            display: grid;
+            grid-template-columns: 238px minmax(0, 1fr);
+            min-height: calc(100vh - 36px);
+        }
+
+        .sidebar {
+            background: linear-gradient(180deg, var(--navy) 0%, #0c1c31 100%);
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            min-height: calc(100vh - 36px);
+            padding: 22px 16px 16px;
+            position: sticky;
+            top: 0;
+        }
+
+        .brand {
+            align-items: center;
+            display: flex;
+            gap: 11px;
+            margin: 0 8px 28px;
+        }
+
+        .brand-mark {
+            align-items: center;
+            background: var(--lime);
+            border-radius: 12px;
+            box-shadow: 0 8px 20px rgba(183, 228, 93, .2);
+            color: var(--navy);
+            display: grid;
+            font-size: 20px;
+            font-weight: 900;
+            height: 42px;
+            place-items: center;
+            width: 42px;
+        }
+
+        .brand strong,
+        .brand small { display: block; }
+
+        .brand strong { font-size: 15px; }
+
+        .brand small {
+            color: rgba(255,255,255,.58);
+            font-size: 10px;
+            letter-spacing: .08em;
+            margin-top: 2px;
+        }
+
+        .nav-label {
+            color: rgba(255,255,255,.42);
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: .12em;
+            margin: 20px 10px 8px;
+            text-transform: uppercase;
+        }
+
+        .side-nav {
+            display: grid;
+            gap: 4px;
+        }
+
+        .side-link {
+            align-items: center;
+            border-radius: 10px;
+            color: rgba(255,255,255,.72);
+            display: flex;
+            font-size: 13px;
+            font-weight: 650;
+            gap: 10px;
+            min-height: 42px;
+            padding: 9px 11px;
+            text-decoration: none;
+        }
+
+        .side-link:hover { background: rgba(255,255,255,.07); color: #fff; }
+
+        .side-link.active {
+            background: rgba(183, 228, 93, .14);
+            box-shadow: inset 3px 0 var(--lime);
+            color: #fff;
+        }
+
+        .side-icon {
+            align-items: center;
+            color: rgba(255,255,255,.66);
+            display: inline-flex;
+            font-size: 15px;
+            justify-content: center;
+            width: 22px;
+        }
+
+        .side-link.active .side-icon { color: var(--lime); }
+
+        .sidebar-user {
+            align-items: center;
+            border-top: 1px solid rgba(255,255,255,.1);
+            display: flex;
+            gap: 10px;
+            margin-top: auto;
+            padding: 17px 8px 2px;
+        }
+
+        .avatar {
+            align-items: center;
+            background: var(--lime);
+            border-radius: 50%;
+            color: var(--navy);
+            display: flex;
+            flex: 0 0 34px;
+            font-size: 12px;
+            font-weight: 900;
+            height: 34px;
+            justify-content: center;
+        }
+
+        .sidebar-user strong,
+        .sidebar-user small { display: block; }
+
+        .sidebar-user strong { font-size: 12px; }
+
+        .sidebar-user small {
+            color: rgba(255,255,255,.5);
+            font-size: 10px;
+            margin-top: 2px;
+        }
+
+        .main { min-width: 0; }
+
+        .topbar {
+            align-items: center;
+            background: rgba(255,255,255,.92);
+            border-bottom: 1px solid var(--line);
+            display: flex;
+            height: 64px;
+            justify-content: space-between;
+            padding: 0 30px;
+            position: sticky;
+            top: 0;
+            z-index: 20;
+        }
+
+        .mobile-menu {
+            background: transparent;
+            border: 0;
+            color: var(--navy);
+            display: none;
+            font-size: 23px;
+            padding: 4px;
+        }
+
+        .breadcrumb {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .breadcrumb strong { color: var(--ink); }
+
+        .top-actions {
+            align-items: center;
+            display: flex;
+            gap: 10px;
+        }
+
+        .date-chip,
+        .readonly-chip {
+            align-items: center;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            color: var(--muted);
+            display: inline-flex;
+            font-size: 11px;
+            font-weight: 700;
+            gap: 6px;
+            min-height: 32px;
+            padding: 6px 11px;
+        }
+
+        .readonly-chip {
+            background: var(--green-soft);
+            border-color: #cfe5d9;
+            color: var(--green-dark);
+        }
+
+        .content {
+            margin: 0 auto;
+            max-width: 1460px;
+            padding: 28px 30px 44px;
+        }
+
+        .page-heading {
+            align-items: flex-end;
+            display: flex;
+            gap: 18px;
+            justify-content: space-between;
+            margin-bottom: 22px;
+        }
+
+        .eyebrow {
+            color: var(--green);
+            display: block;
+            font-size: 10px;
+            font-weight: 900;
+            letter-spacing: .13em;
+            margin-bottom: 7px;
+            text-transform: uppercase;
+        }
+
+        h1 {
+            color: var(--navy);
+            font-size: clamp(26px, 3vw, 34px);
+            letter-spacing: -.035em;
+            margin: 0;
+        }
+
+        .page-heading p {
+            color: var(--muted);
+            font-size: 13px;
+            margin: 7px 0 0;
+        }
+
+        .primary-button,
+        .secondary-button,
+        .icon-button {
+            align-items: center;
+            border-radius: 9px;
+            display: inline-flex;
+            font-size: 12px;
+            font-weight: 800;
+            gap: 7px;
+            justify-content: center;
+            min-height: 38px;
+            padding: 8px 13px;
+        }
+
+        .primary-button {
+            background: var(--green);
+            border: 1px solid var(--green);
+            color: #fff;
+        }
+
+        .primary-button:hover { background: var(--green-dark); }
+
+        .secondary-button,
+        .icon-button {
+            background: #fff;
+            border: 1px solid var(--line);
+            color: var(--ink);
+        }
+
+        .filter-panel {
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: 13px;
+            box-shadow: 0 8px 24px rgba(21, 45, 38, .04);
+            display: grid;
+            gap: 12px;
+            grid-template-columns: minmax(220px, 1.5fr) repeat(4, minmax(145px, .8fr)) auto;
+            margin-bottom: 18px;
+            padding: 14px;
+        }
+
+        .filter-toggle {
+            align-items: center;
+            background: #fff;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            color: var(--ink);
+            display: none;
+            font-size: 12px;
+            font-weight: 800;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            min-height: 42px;
+            padding: 9px 12px;
+            width: 100%;
+        }
+
+        .filter-toggle span {
+            color: var(--green-dark);
+            font-size: 11px;
+        }
+
+        .field { min-width: 0; }
+
+        .field label {
+            color: var(--muted);
+            display: block;
+            font-size: 10px;
+            font-weight: 800;
+            margin: 0 0 5px 2px;
+            text-transform: uppercase;
+        }
+
+        .field input,
+        .field select {
+            background: #fbfcfb;
+            border: 1px solid #d9e3de;
+            border-radius: 8px;
+            color: var(--ink);
+            height: 38px;
+            outline: none;
+            padding: 0 10px;
+            width: 100%;
+        }
+
+        .field input:focus,
+        .field select:focus {
+            border-color: var(--green);
+            box-shadow: 0 0 0 3px rgba(22,120,76,.1);
+        }
+
+        .filter-action {
+            align-items: end;
+            display: flex;
+        }
+
+        .tabs-row {
+            align-items: center;
+            border-bottom: 1px solid var(--line);
+            display: flex;
+            gap: 22px;
+            justify-content: space-between;
+            margin-bottom: 14px;
+        }
+
+        .tabs { display: flex; gap: 22px; }
+
+        .tab {
+            background: transparent;
+            border: 0;
+            border-bottom: 3px solid transparent;
+            color: var(--muted);
+            font-size: 13px;
+            font-weight: 800;
+            padding: 11px 2px 10px;
+        }
+
+        .tab.active {
+            border-bottom-color: var(--green);
+            color: var(--green-dark);
+        }
+
+        .result-count {
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .table-card {
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: 13px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .data-table {
+            border-collapse: collapse;
+            table-layout: fixed;
+            width: 100%;
+        }
+
+        .data-table th {
+            background: #f7f9f8;
+            color: var(--muted);
+            font-size: 10px;
+            font-weight: 900;
+            letter-spacing: .05em;
+            padding: 12px 14px;
+            text-align: left;
+            text-transform: uppercase;
+        }
+
+        .data-table td {
+            border-top: 1px solid #edf1ef;
+            font-size: 12px;
+            padding: 13px 14px;
+            vertical-align: middle;
+        }
+
+        .data-table tbody tr { transition: background .15s ease; }
+
+        .data-table tbody tr:hover { background: #fbfdfc; }
+
+        .code {
+            color: var(--green-dark);
+            display: block;
+            font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+            font-size: 11px;
+            font-weight: 850;
+            overflow-wrap: anywhere;
+        }
+
+        .cell-title {
+            color: var(--ink);
+            display: block;
+            font-weight: 800;
+        }
+
+        .cell-subtitle {
+            color: var(--muted);
+            display: block;
+            font-size: 10px;
+            margin-top: 3px;
+        }
+
+        .money strong,
+        .money span { display: block; }
+
+        .money strong { font-size: 12px; }
+
+        .money span {
+            color: var(--muted);
+            font-size: 10px;
+            margin-top: 3px;
+        }
+
+        .progress {
+            background: #e3ebe7;
+            border-radius: 999px;
+            height: 5px;
+            margin-top: 6px;
+            overflow: hidden;
+            width: 86px;
+        }
+
+        .progress span {
+            background: var(--green);
+            display: block;
+            height: 100%;
+        }
+
+        .badge {
+            border-radius: 999px;
+            display: inline-flex;
+            font-size: 10px;
+            font-weight: 850;
+            padding: 5px 8px;
+            white-space: nowrap;
+        }
+
+        .badge.good { background: var(--green-soft); color: var(--green-dark); }
+        .badge.warning { background: var(--warning-bg); color: var(--warning); }
+        .badge.danger { background: var(--danger-bg); color: var(--danger); }
+        .badge.info { background: var(--blue-bg); color: var(--blue); }
+        .badge.neutral { background: #edf0ef; color: #56616d; }
+
+        .issue {
+            align-items: center;
+            display: flex;
+            font-size: 11px;
+            font-weight: 750;
+            gap: 6px;
+        }
+
+        .issue::before {
+            background: #9aaaaf;
+            border-radius: 50%;
+            content: "";
+            height: 7px;
+            width: 7px;
+        }
+
+        .issue.warning { color: var(--warning); }
+        .issue.warning::before { background: #e29b28; }
+        .issue.danger { color: var(--danger); }
+        .issue.danger::before { background: #cf5a55; }
+        .issue.good { color: var(--green-dark); }
+        .issue.good::before { background: var(--green); }
+
+        .row-action {
+            background: #fff;
+            border: 1px solid #cfdcd5;
+            border-radius: 8px;
+            color: var(--green-dark);
+            font-size: 11px;
+            font-weight: 850;
+            min-height: 32px;
+            padding: 6px 9px;
+        }
+
+        .row-action:hover { background: var(--green-soft); border-color: #a9cdbb; }
+
+        .table-footer {
+            align-items: center;
+            background: #fbfcfb;
+            border-top: 1px solid var(--line);
+            color: var(--muted);
+            display: flex;
+            font-size: 11px;
+            justify-content: space-between;
+            padding: 12px 14px;
+        }
+
+        .pagination { display: flex; gap: 5px; }
+
+        .page-button {
+            background: #fff;
+            border: 1px solid var(--line);
+            border-radius: 7px;
+            color: var(--muted);
+            height: 29px;
+            min-width: 29px;
+        }
+
+        .page-button.active { background: var(--green); border-color: var(--green); color: #fff; }
+
+        .panel[hidden] { display: none; }
+
+        .overlay {
+            background: rgba(8, 25, 43, .35);
+            inset: 0;
+            opacity: 0;
+            pointer-events: none;
+            position: fixed;
+            transition: opacity .2s ease;
+            z-index: 50;
+        }
+
+        .overlay.open { opacity: 1; pointer-events: auto; }
+
+        .drawer {
+            background: #fff;
+            box-shadow: -22px 0 55px rgba(13, 32, 51, .18);
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            max-width: calc(100vw - 24px);
+            overflow-y: auto;
+            padding: 22px;
+            position: absolute;
+            right: 0;
+            top: 0;
+            transform: translateX(102%);
+            transition: transform .25s ease;
+            width: 460px;
+        }
+
+        .overlay.open .drawer { transform: translateX(0); }
+
+        .drawer-head {
+            align-items: flex-start;
+            border-bottom: 1px solid var(--line);
+            display: flex;
+            gap: 15px;
+            justify-content: space-between;
+            padding-bottom: 17px;
+        }
+
+        .drawer-head h2 {
+            color: var(--navy);
+            font-size: 20px;
+            margin: 5px 0 0;
+        }
+
+        .close-button {
+            background: #f3f6f5;
+            border: 0;
+            border-radius: 9px;
+            color: var(--ink);
+            font-size: 20px;
+            height: 36px;
+            width: 36px;
+        }
+
+        .detail-grid {
+            background: #f7f9f8;
+            border-radius: 11px;
+            display: grid;
+            gap: 14px;
+            grid-template-columns: 1fr 1fr;
+            margin: 16px 0;
+            padding: 14px;
+        }
+
+        .detail-grid span,
+        .detail-grid strong { display: block; }
+
+        .detail-grid span {
+            color: var(--muted);
+            font-size: 10px;
+            margin-bottom: 3px;
+        }
+
+        .detail-grid strong { font-size: 12px; }
+
+        .drawer-section {
+            border-top: 1px solid var(--line);
+            padding: 17px 0;
+        }
+
+        .drawer-section h3 {
+            color: var(--navy);
+            font-size: 13px;
+            margin: 0 0 11px;
+        }
+
+        .cash-summary {
+            display: grid;
+            gap: 8px;
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        .cash-summary article {
+            background: var(--green-soft);
+            border-radius: 9px;
+            min-width: 0;
+            padding: 10px;
+        }
+
+        .cash-summary span,
+        .cash-summary strong { display: block; }
+
+        .cash-summary span { color: var(--muted); font-size: 9px; }
+
+        .cash-summary strong { font-size: 12px; margin-top: 4px; overflow-wrap: anywhere; }
+
+        .timeline {
+            display: grid;
+            gap: 0;
+        }
+
+        .timeline-item {
+            display: grid;
+            gap: 10px;
+            grid-template-columns: 17px minmax(0,1fr) auto;
+            padding-bottom: 14px;
+            position: relative;
+        }
+
+        .timeline-item:not(:last-child)::after {
+            background: #dbe6e0;
+            content: "";
+            height: calc(100% - 17px);
+            left: 7px;
+            position: absolute;
+            top: 15px;
+            width: 2px;
+        }
+
+        .timeline-dot {
+            background: var(--green);
+            border: 4px solid var(--green-soft);
+            border-radius: 50%;
+            height: 16px;
+            position: relative;
+            width: 16px;
+            z-index: 1;
+        }
+
+        .timeline-item strong,
+        .timeline-item small { display: block; }
+
+        .timeline-item strong { font-size: 11px; }
+
+        .timeline-item small { color: var(--muted); font-size: 9px; margin-top: 3px; }
+
+        .timeline-item > span { color: var(--muted); font-size: 9px; }
+
+        .drawer-footer {
+            align-items: center;
+            border-top: 1px solid var(--line);
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: auto;
+            padding-top: 17px;
+        }
+
+        .sidebar-scrim { display: none; }
+
+        @media (max-width: 1180px) {
+            .filter-panel { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+            .filter-action { align-items: end; }
+        }
+
+        @media (max-width: 960px) {
+            .admin-shell { grid-template-columns: minmax(0,1fr); }
+
+            .sidebar {
+                bottom: 0;
+                left: 0;
+                position: fixed;
+                top: 36px;
+                transform: translateX(-102%);
+                transition: transform .2s ease;
+                width: 238px;
+                z-index: 60;
+            }
+
+            body.sidebar-open .sidebar { transform: translateX(0); }
+
+            .sidebar-scrim {
+                background: rgba(7,22,39,.38);
+                inset: 36px 0 0;
+                position: fixed;
+                z-index: 55;
+            }
+
+            body.sidebar-open .sidebar-scrim { display: block; }
+
+            .mobile-menu { display: inline-flex; }
+            .topbar { padding: 0 20px; }
+            .content { padding: 24px 20px 40px; }
+        }
+
+        @media (max-width: 760px) {
+            .mockup-note { justify-content: flex-start; }
+            .date-chip { display: none; }
+            .content { padding: 20px 14px 32px; }
+            .page-heading { align-items: flex-start; flex-direction: column; }
+            .page-heading .secondary-button { width: 100%; }
+            .filter-toggle { display: flex; }
+            .filter-panel { display: none; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .filter-panel.open { display: grid; }
+            .filter-action { grid-column: 1 / -1; }
+            .filter-action .primary-button { width: 100%; }
+            .tabs-row { align-items: flex-end; }
+
+            .data-table,
+            .data-table tbody,
+            .data-table tr,
+            .data-table td { display: block; width: 100%; }
+
+            .data-table thead { display: none; }
+
+            .data-table tbody {
+                display: grid;
+                gap: 10px;
+                padding: 10px;
+            }
+
+            .data-table tbody tr {
+                border: 1px solid var(--line);
+                border-radius: 10px;
+                display: grid;
+                gap: 0;
+                padding: 8px 11px;
+            }
+
+            .data-table td {
+                align-items: center;
+                border-top: 1px solid #edf1ef;
+                display: flex;
+                gap: 15px;
+                justify-content: space-between;
+                min-height: 42px;
+                padding: 9px 0;
+                text-align: right;
+            }
+
+            .data-table td:first-child { border-top: 0; }
+
+            .data-table td::before {
+                color: var(--muted);
+                content: attr(data-label);
+                flex: 0 0 90px;
+                font-size: 9px;
+                font-weight: 850;
+                letter-spacing: .04em;
+                text-align: left;
+                text-transform: uppercase;
+            }
+
+            .progress { margin-left: auto; }
+            .table-footer { align-items: flex-start; flex-direction: column; gap: 10px; }
+            .cash-summary { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 480px) {
+            .readonly-chip { display: none; }
+            .topbar { padding: 0 14px; }
+            .filter-panel { grid-template-columns: minmax(0,1fr); }
+            .filter-action { grid-column: auto; }
+            .tabs { gap: 15px; }
+            .result-count { display: none; }
+            .drawer { padding: 17px; width: 100%; }
+            .detail-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="mockup-note"><span>MOCKUP</span> Bản mẫu giao diện độc lập · Dữ liệu bên dưới chỉ để minh họa</div>
+
+    <div class="admin-shell">
+        <aside class="sidebar" aria-label="Điều hướng quản trị">
+            <div class="brand">
+                <span class="brand-mark">▦</span>
+                <div><strong>Sân Thể Thao</strong><small>ADMIN CONSOLE</small></div>
+            </div>
+
+            <div class="nav-label">Vận hành</div>
+            <nav class="side-nav">
+                <a class="side-link" href="#"><span class="side-icon">⌂</span>Tổng quan</a>
+                <a class="side-link active" href="#"><span class="side-icon">◫</span>Giám sát</a>
+                <a class="side-link" href="#"><span class="side-icon">♙</span>Tài khoản</a>
+            </nav>
+
+            <div class="nav-label">Phê duyệt</div>
+            <nav class="side-nav">
+                <a class="side-link" href="#"><span class="side-icon">✓</span>Yêu cầu chủ sân</a>
+                <a class="side-link" href="#"><span class="side-icon">⌖</span>Cơ sở kinh doanh</a>
+            </nav>
+
+            <div class="nav-label">Hệ thống</div>
+            <nav class="side-nav">
+                <a class="side-link" href="#"><span class="side-icon">⚙</span>Danh mục & cấu hình</a>
+            </nav>
+
+            <div class="sidebar-user">
+                <span class="avatar">N</span>
+                <div><strong>Nguyễn Gia Huy</strong><small>Quản trị viên</small></div>
+            </div>
+        </aside>
+
+        <button class="sidebar-scrim" type="button" aria-label="Đóng menu"></button>
+
+        <main class="main">
+            <header class="topbar">
+                <div style="display:flex;align-items:center;gap:12px">
+                    <button class="mobile-menu" type="button" aria-label="Mở menu">☰</button>
+                    <div class="breadcrumb">Quản trị / <strong>Giám sát vận hành</strong></div>
+                </div>
+                <div class="top-actions">
+                    <span class="date-chip">◷ 20/08/2026</span>
+                    <span class="readonly-chip">● Chế độ chỉ xem</span>
+                </div>
+            </header>
+
+            <div class="content">
+                <section class="page-heading">
+                    <div>
+                        <span class="eyebrow">Trung tâm vận hành</span>
+                        <h1>Giám sát hệ thống</h1>
+                        <p>Tìm nhanh lịch đặt hoặc kèo thi đấu và kiểm tra chi tiết ngay trên một màn hình.</p>
+                    </div>
+                    <button class="secondary-button" type="button">↻ Làm mới dữ liệu</button>
+                </section>
+
+                <button class="filter-toggle" type="button" aria-expanded="false">☷ Bộ lọc dữ liệu <span>Ngày 20/08 · Tất cả cơ sở</span></button>
+                <section class="filter-panel" aria-label="Bộ lọc giám sát">
+                    <div class="field"><label for="search">Tìm nhanh</label><input id="search" type="search" placeholder="Mã đặt sân, giao dịch, người chơi"></div>
+                    <div class="field"><label for="venue">Cơ sở</label><select id="venue"><option>Tất cả cơ sở</option><option>Sân bóng Hiệp Phú</option><option>Sân cầu lông Minh Anh</option></select></div>
+                    <div class="field"><label for="field">Sân</label><select id="field"><option>Tất cả sân</option><option>Sân số 1</option><option>Sân số 2</option></select></div>
+                    <div class="field"><label for="date">Ngày thi đấu</label><input id="date" type="date" value="2026-08-20"></div>
+                    <div class="field"><label for="status">Trạng thái</label><select id="status"><option>Tất cả trạng thái</option><option>Chưa đủ cọc</option><option>Lỗi thanh toán</option><option>Đang hoàn tiền</option><option>Đã hoàn thành</option></select></div>
+                    <div class="filter-action"><button class="primary-button" type="button">Lọc dữ liệu</button></div>
+                </section>
+
+                <div class="tabs-row">
+                    <div class="tabs" role="tablist" aria-label="Nhóm dữ liệu">
+                        <button class="tab active" type="button" role="tab" aria-selected="true" data-tab="bookings">Đặt sân <span>17</span></button>
+                        <button class="tab" type="button" role="tab" aria-selected="false" data-tab="matches">Kèo thi đấu <span>5</span></button>
+                    </div>
+                    <span class="result-count">Cập nhật lúc 15:42</span>
+                </div>
+
+                <section class="panel" data-panel="bookings">
+                    <div class="table-card">
+                        <table class="data-table">
+                            <colgroup><col style="width:15%"><col style="width:15%"><col style="width:17%"><col style="width:13%"><col style="width:14%"><col style="width:13%"><col style="width:9%"><col style="width:7%"></colgroup>
+                            <thead><tr><th>Lịch đặt</th><th>Thời gian</th><th>Cơ sở / Sân</th><th>Người đặt</th><th>Tiền cọc</th><th>Dòng tiền</th><th>Trạng thái</th><th></th></tr></thead>
+                            <tbody>
+                                <tr>
+                                    <td data-label="Lịch đặt"><span class="code">BK-260820-001</span><span class="cell-subtitle">Tìm đối thủ</span></td>
+                                    <td data-label="Thời gian"><span class="cell-title">20/08/2026</span><span class="cell-subtitle">18:00 – 19:30</span></td>
+                                    <td data-label="Cơ sở / Sân"><span class="cell-title">Sân bóng Hiệp Phú</span><span class="cell-subtitle">Sân số 2 · Bóng đá 7</span></td>
+                                    <td data-label="Người đặt"><span class="cell-title">Nguyễn Vinh</span><span class="cell-subtitle">0901 234 567</span></td>
+                                    <td data-label="Tiền cọc"><div class="money"><strong>90.000 / 90.000 đ</strong><span>Còn tại sân 210.000 đ</span><div class="progress"><span style="width:100%"></span></div></div></td>
+                                    <td data-label="Dòng tiền"><span class="issue good">Đã đối soát</span><span class="cell-subtitle">2 giao dịch</span></td>
+                                    <td data-label="Trạng thái"><span class="badge good">Đã đủ cọc</span></td>
+                                    <td data-label="Chi tiết"><button class="row-action open-detail" type="button">Xem</button></td>
+                                </tr>
+                                <tr>
+                                    <td data-label="Lịch đặt"><span class="code">BK-260820-002</span><span class="cell-subtitle">Đặt cho nhóm</span></td>
+                                    <td data-label="Thời gian"><span class="cell-title">20/08/2026</span><span class="cell-subtitle">19:30 – 21:00</span></td>
+                                    <td data-label="Cơ sở / Sân"><span class="cell-title">Sân bóng Hiệp Phú</span><span class="cell-subtitle">Sân số 1 · Bóng đá 5</span></td>
+                                    <td data-label="Người đặt"><span class="cell-title">Trần Minh Tú</span><span class="cell-subtitle">0918 222 333</span></td>
+                                    <td data-label="Tiền cọc"><div class="money"><strong>30.000 / 90.000 đ</strong><span>Thiếu 60.000 đ</span><div class="progress"><span style="width:33%"></span></div></div></td>
+                                    <td data-label="Dòng tiền"><span class="issue warning">Chưa đủ cọc</span><span class="cell-subtitle">Hạn còn 08 phút</span></td>
+                                    <td data-label="Trạng thái"><span class="badge warning">Cọc một phần</span></td>
+                                    <td data-label="Chi tiết"><button class="row-action open-detail" type="button">Xem</button></td>
+                                </tr>
+                                <tr>
+                                    <td data-label="Lịch đặt"><span class="code">BK-260819-014</span><span class="cell-subtitle">Tìm thêm người</span></td>
+                                    <td data-label="Thời gian"><span class="cell-title">21/08/2026</span><span class="cell-subtitle">06:00 – 07:30</span></td>
+                                    <td data-label="Cơ sở / Sân"><span class="cell-title">Sân cầu lông Minh Anh</span><span class="cell-subtitle">Sân A2 · Cầu lông</span></td>
+                                    <td data-label="Người đặt"><span class="cell-title">Lê Hoàng Nam</span><span class="cell-subtitle">0934 555 121</span></td>
+                                    <td data-label="Tiền cọc"><div class="money"><strong>0 / 60.000 đ</strong><span>Chưa ghi nhận</span><div class="progress"><span style="width:0%"></span></div></div></td>
+                                    <td data-label="Dòng tiền"><span class="issue danger">Thanh toán lỗi</span><span class="cell-subtitle">1 lần thất bại</span></td>
+                                    <td data-label="Trạng thái"><span class="badge danger">Cần kiểm tra</span></td>
+                                    <td data-label="Chi tiết"><button class="row-action open-detail" type="button">Xem</button></td>
+                                </tr>
+                                <tr>
+                                    <td data-label="Lịch đặt"><span class="code">BK-260818-009</span><span class="cell-subtitle">Đặt cho nhóm</span></td>
+                                    <td data-label="Thời gian"><span class="cell-title">18/08/2026</span><span class="cell-subtitle">16:00 – 17:00</span></td>
+                                    <td data-label="Cơ sở / Sân"><span class="cell-title">Sân bóng Hiệp Phú</span><span class="cell-subtitle">Sân số 1 · Bóng đá 5</span></td>
+                                    <td data-label="Người đặt"><span class="cell-title">Nguyễn Hào</span><span class="cell-subtitle">0908 731 111</span></td>
+                                    <td data-label="Tiền cọc"><div class="money"><strong>60.000 / 60.000 đ</strong><span>Đã hoàn 60.000 đ</span><div class="progress"><span style="width:100%"></span></div></div></td>
+                                    <td data-label="Dòng tiền"><span class="issue warning">Đang hoàn tiền</span><span class="cell-subtitle">Chờ nhà cung cấp</span></td>
+                                    <td data-label="Trạng thái"><span class="badge info">Đang xử lý</span></td>
+                                    <td data-label="Chi tiết"><button class="row-action open-detail" type="button">Xem</button></td>
+                                </tr>
+                                <tr>
+                                    <td data-label="Lịch đặt"><span class="code">BK-260817-006</span><span class="cell-subtitle">Đặt cho nhóm</span></td>
+                                    <td data-label="Thời gian"><span class="cell-title">17/08/2026</span><span class="cell-subtitle">07:30 – 08:30</span></td>
+                                    <td data-label="Cơ sở / Sân"><span class="cell-title">Sân bóng Hiệp Phú</span><span class="cell-subtitle">Sân số 2 · Bóng đá 7</span></td>
+                                    <td data-label="Người đặt"><span class="cell-title">Phạm Hải Yến</span><span class="cell-subtitle">0987 610 042</span></td>
+                                    <td data-label="Tiền cọc"><div class="money"><strong>60.000 / 60.000 đ</strong><span>Đã thanh toán tại sân</span><div class="progress"><span style="width:100%"></span></div></div></td>
+                                    <td data-label="Dòng tiền"><span class="issue good">Hoàn tất</span><span class="cell-subtitle">Không có vấn đề</span></td>
+                                    <td data-label="Trạng thái"><span class="badge neutral">Hoàn thành</span></td>
+                                    <td data-label="Chi tiết"><button class="row-action open-detail" type="button">Xem</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <footer class="table-footer"><span>Hiển thị 5 trong 17 lịch đặt</span><div class="pagination"><button class="page-button active">1</button><button class="page-button">2</button><button class="page-button">3</button><button class="page-button">→</button></div></footer>
+                    </div>
+                </section>
+
+                <section class="panel" data-panel="matches" hidden>
+                    <div class="table-card">
+                        <table class="data-table">
+                            <colgroup><col style="width:20%"><col style="width:18%"><col style="width:16%"><col style="width:18%"><col style="width:12%"><col style="width:10%"><col style="width:6%"></colgroup>
+                            <thead><tr><th>Kèo thi đấu</th><th>Thời gian / Sân</th><th>Người tạo</th><th>Người nhận kèo</th><th>Tiến độ</th><th>Trạng thái</th><th></th></tr></thead>
+                            <tbody>
+                                <tr><td data-label="Kèo"><span class="cell-title">Tìm đối thủ đá giao hữu</span><span class="code">BK-260820-001</span></td><td data-label="Thời gian / Sân"><span class="cell-title">20/08 · 18:00</span><span class="cell-subtitle">Hiệp Phú · Sân số 2</span></td><td data-label="Người tạo"><span class="cell-title">Nguyễn Vinh</span><span class="cell-subtitle">Đội chủ nhà</span></td><td data-label="Người nhận"><span class="cell-title">Nguyễn Hào</span><span class="cell-subtitle">Đã xác nhận tham gia</span></td><td data-label="Tiến độ"><span class="cell-title">1 / 1 đội</span><span class="cell-subtitle">Đã đủ</span></td><td data-label="Trạng thái"><span class="badge info">Đã có đối thủ</span></td><td data-label="Chi tiết"><button class="row-action open-detail" type="button">Xem</button></td></tr>
+                                <tr><td data-label="Kèo"><span class="cell-title">Cần thêm 3 người chơi</span><span class="code">BK-260819-014</span></td><td data-label="Thời gian / Sân"><span class="cell-title">21/08 · 06:00</span><span class="cell-subtitle">Minh Anh · Sân A2</span></td><td data-label="Người tạo"><span class="cell-title">Lê Hoàng Nam</span><span class="cell-subtitle">Người đặt sân</span></td><td data-label="Người nhận"><span class="cell-title">Trần Văn An</span><span class="cell-subtitle">+1 người đang chờ</span></td><td data-label="Tiến độ"><span class="cell-title">1 / 3 người</span><span class="cell-subtitle">Còn thiếu 2</span></td><td data-label="Trạng thái"><span class="badge good">Đang mở</span></td><td data-label="Chi tiết"><button class="row-action open-detail" type="button">Xem</button></td></tr>
+                                <tr><td data-label="Kèo"><span class="cell-title">Tìm đối thủ trình độ khá</span><span class="code">BK-260822-021</span></td><td data-label="Thời gian / Sân"><span class="cell-title">22/08 · 19:30</span><span class="cell-subtitle">Hiệp Phú · Sân số 1</span></td><td data-label="Người tạo"><span class="cell-title">Phạm Quốc Bảo</span><span class="cell-subtitle">Đội chủ nhà</span></td><td data-label="Người nhận"><span class="cell-title">Chưa có</span><span class="cell-subtitle">0 yêu cầu đang chờ</span></td><td data-label="Tiến độ"><span class="cell-title">0 / 1 đội</span><span class="cell-subtitle">Chưa có đối thủ</span></td><td data-label="Trạng thái"><span class="badge good">Đang mở</span></td><td data-label="Chi tiết"><button class="row-action open-detail" type="button">Xem</button></td></tr>
+                            </tbody>
+                        </table>
+                        <footer class="table-footer"><span>Hiển thị 3 trong 5 kèo thi đấu</span><div class="pagination"><button class="page-button active">1</button><button class="page-button">2</button><button class="page-button">→</button></div></footer>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <div class="overlay" aria-hidden="true">
+        <aside class="drawer" aria-label="Chi tiết lịch đặt">
+            <header class="drawer-head">
+                <div><span class="code">BK-260820-001</span><h2>Hồ sơ lịch đặt</h2></div>
+                <button class="close-button" type="button" aria-label="Đóng">×</button>
+            </header>
+
+            <div class="detail-grid">
+                <div><span>Người đặt</span><strong>Nguyễn Vinh</strong></div>
+                <div><span>Trạng thái</span><strong>Đã đủ tiền cọc</strong></div>
+                <div><span>Thời gian</span><strong>20/08 · 18:00–19:30</strong></div>
+                <div><span>Sân thi đấu</span><strong>Hiệp Phú · Sân số 2</strong></div>
+            </div>
+
+            <section class="drawer-section">
+                <h3>Tổng quan dòng tiền</h3>
+                <div class="cash-summary">
+                    <article><span>Cọc cần đóng</span><strong>90.000 đ</strong></article>
+                    <article><span>Đã ghi nhận</span><strong>90.000 đ</strong></article>
+                    <article><span>Còn tại sân</span><strong>210.000 đ</strong></article>
+                </div>
+            </section>
+
+            <section class="drawer-section">
+                <h3>Khoản cần đóng</h3>
+                <div class="timeline">
+                    <div class="timeline-item"><span class="timeline-dot"></span><div><strong>Nguyễn Vinh · Người đặt sân</strong><small>45.000 / 45.000 đ · Đã thanh toán</small></div><span>17:42</span></div>
+                    <div class="timeline-item"><span class="timeline-dot"></span><div><strong>Nguyễn Hào · Đội đối thủ</strong><small>45.000 / 45.000 đ · Đã thanh toán</small></div><span>17:51</span></div>
+                </div>
+            </section>
+
+            <section class="drawer-section">
+                <h3>Lịch sử giao dịch</h3>
+                <div class="timeline">
+                    <div class="timeline-item"><span class="timeline-dot"></span><div><strong>PAY-260820-A19F</strong><small>45.000 đ · MoMo · Thành công</small></div><span>17:42</span></div>
+                    <div class="timeline-item"><span class="timeline-dot"></span><div><strong>PAY-260820-B28D</strong><small>45.000 đ · MoMo · Thành công</small></div><span>17:51</span></div>
+                </div>
+            </section>
+
+            <footer class="drawer-footer"><button class="secondary-button close-drawer" type="button">Đóng</button><button class="primary-button" type="button">Mở trang đầy đủ</button></footer>
+        </aside>
+    </div>
+
+    <script>
+        (function () {
+            const tabs = document.querySelectorAll("[data-tab]");
+            const panels = document.querySelectorAll("[data-panel]");
+            const overlay = document.querySelector(".overlay");
+
+            tabs.forEach(function (tab) {
+                tab.addEventListener("click", function () {
+                    tabs.forEach(function (item) {
+                        const active = item === tab;
+                        item.classList.toggle("active", active);
+                        item.setAttribute("aria-selected", String(active));
+                    });
+                    panels.forEach(function (panel) {
+                        panel.hidden = panel.dataset.panel !== tab.dataset.tab;
+                    });
+                });
+            });
+
+            function openDrawer() {
+                overlay.classList.add("open");
+                overlay.setAttribute("aria-hidden", "false");
+            }
+
+            function closeDrawer() {
+                overlay.classList.remove("open");
+                overlay.setAttribute("aria-hidden", "true");
+            }
+
+            document.querySelectorAll(".open-detail").forEach(function (button) {
+                button.addEventListener("click", openDrawer);
+            });
+
+            document.querySelector(".close-button").addEventListener("click", closeDrawer);
+            document.querySelector(".close-drawer").addEventListener("click", closeDrawer);
+            overlay.addEventListener("click", function (event) {
+                if (event.target === overlay) closeDrawer();
+            });
+
+            document.querySelector(".mobile-menu").addEventListener("click", function () {
+                document.body.classList.add("sidebar-open");
+            });
+            document.querySelector(".sidebar-scrim").addEventListener("click", function () {
+                document.body.classList.remove("sidebar-open");
+            });
+
+            document.querySelector(".filter-toggle").addEventListener("click", function (event) {
+                const panel = document.querySelector(".filter-panel");
+                const open = panel.classList.toggle("open");
+                event.currentTarget.setAttribute("aria-expanded", String(open));
+            });
+
+            document.addEventListener("keydown", function (event) {
+                if (event.key === "Escape") {
+                    closeDrawer();
+                    document.body.classList.remove("sidebar-open");
+                }
+            });
+        })();
+    </script>
+</body>
+</html>
