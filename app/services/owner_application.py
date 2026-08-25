@@ -159,6 +159,13 @@ def review_owner_application(
         raise OwnerApplicationNotFoundError(
             "Không tìm thấy tài khoản gửi yêu cầu."
         )
+    if (
+        decision == OwnerApplicationStatus.APPROVED.value
+        and applicant.role != UserRole.USER.value
+    ):
+        raise InvalidOwnerApplicationStateError(
+            "Không thể chấp thuận vì vai trò tài khoản đã thay đổi."
+        )
 
     application.status = decision
     application.reviewed_by = reviewer.id

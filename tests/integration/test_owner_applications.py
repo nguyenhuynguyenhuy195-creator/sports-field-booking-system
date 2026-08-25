@@ -319,6 +319,44 @@ def test_admin_approves_application_and_promotes_user(app, client):
         assert promoted_user.role == UserRole.OWNER.value
 
 
+def test_admin_cannot_approve_when_applicant_role_has_changed(app, client):
+    player = create_user(app, email="role-changed-player@example.com")
+    admin = create_user(
+        app,
+        email="role-changed-admin@example.com",
+        role=UserRole.ADMIN,
+    )
+    login(client, email=player.email)
+    assert submit_application(client).status_code == 302
+    client.post("/auth/logout")
+
+    with app.app_context():
+        application_id = db.session.scalar(
+            db.select(OwnerApplication.id)
+        )
+        applicant = db.session.get(User, player.id)
+        applicant.role = UserRole.OWNER.value
+        db.session.commit()
+
+    login(client, email=admin.email)
+    response = review_application(
+        client,
+        application_id=application_id,
+        decision=OwnerApplicationStatus.APPROVED,
+    )
+
+    assert response.status_code == 302
+    page = client.get(response.headers["Location"]).get_data(as_text=True)
+    assert "Không thể chấp thuận vì vai trò tài khoản đã thay đổi." in page
+    with app.app_context():
+        application = db.session.get(OwnerApplication, application_id)
+        applicant = db.session.get(User, player.id)
+        assert application.status == OwnerApplicationStatus.PENDING.value
+        assert application.reviewed_by is None
+        assert application.reviewed_at is None
+        assert applicant.role == UserRole.OWNER.value
+
+
 def test_admin_rejection_requires_reason_and_does_not_promote(app, client):
     player = create_user(app, email="player@example.com")
     admin = create_user(app, email="admin@example.com", role=UserRole.ADMIN)
