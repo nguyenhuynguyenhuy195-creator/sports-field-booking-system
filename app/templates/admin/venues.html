@@ -32,7 +32,7 @@
         <div>
             <span class="eyebrow">KIỂM DUYỆT</span>
             <h1 class="h2 fw-bold mt-2 mb-1">Kiểm duyệt cơ sở</h1>
-            <p class="text-secondary mb-0">Đối chiếu Chủ sân, địa chỉ, vị trí Google và dấu vết kiểm duyệt trước khi công khai.</p>
+            <p class="text-secondary mb-0">Đối chiếu chủ sân, địa chỉ, vị trí Google và dấu vết kiểm duyệt trước khi công khai.</p>
         </div>
         <span class="admin-readonly-note"><i class="bi bi-buildings" aria-hidden="true"></i>{{ venues|length }} {{ selected_filter.label|lower }}</span>
     </div>
@@ -72,7 +72,7 @@
                         >
                             <span class="admin-venue-list-topline">
                                 <strong>{{ venue.name }}</strong>
-                                <span class="status-badge status-{{ venue.status|lower }}">{{ status_labels.get(venue.status, venue.status) }}</span>
+                                <span class="status-badge status-{{ venue.status|lower }}">{{ status_labels.get(venue.status, 'Chưa xác định') }}</span>
                             </span>
                             <span class="admin-venue-list-owner" title="{{ venue.owner.email }}"><i class="bi bi-person" aria-hidden="true"></i>{{ venue.owner.full_name }}</span>
                             <span class="admin-venue-list-address" title="{{ venue.full_address }}">{{ venue.full_address }}</span>
@@ -100,7 +100,7 @@
                                 <h2>{{ venue.name }}</h2>
                                 <p><i class="bi bi-person" aria-hidden="true"></i>{{ venue.owner.full_name }} · {{ venue.owner.email }}</p>
                             </div>
-                            <span class="status-badge status-{{ venue.status|lower }}">{{ status_labels.get(venue.status, venue.status) }}</span>
+                            <span class="status-badge status-{{ venue.status|lower }}">{{ status_labels.get(venue.status, 'Chưa xác định') }}</span>
                         </header>
 
                         <div class="admin-venue-detail-section">
@@ -115,7 +115,7 @@
                                 <div><dt>Số điện thoại</dt><dd>{{ venue.phone or 'Chưa cập nhật' }}</dd></div>
                                 <div><dt>Giờ hoạt động</dt><dd>{{ venue.opening_time.strftime('%H:%M') }}–{{ venue.closing_time.strftime('%H:%M') }}</dd></div>
                                 <div><dt>Ngày tạo</dt><dd>{{ venue.created_at|local_datetime }}</dd></div>
-                                <div><dt>Trạng thái</dt><dd><span class="status-badge status-{{ venue.status|lower }}">{{ status_labels.get(venue.status, venue.status) }}</span></dd></div>
+                                <div><dt>Trạng thái</dt><dd><span class="status-badge status-{{ venue.status|lower }}">{{ status_labels.get(venue.status, 'Chưa xác định') }}</span></dd></div>
                             </dl>
                             <div class="admin-venue-note"><span>Mô tả</span><p>{{ venue.description or 'Chủ sân chưa cung cấp mô tả.' }}</p></div>
                         </div>

@@ -231,6 +231,7 @@ def test_admin_dashboard_and_navigation_are_available(app, client):
     assert "Quản lý tài khoản" in page
     assert "Giám sát dữ liệu" not in page
     assert "/static/css/admin.css" in page
+    assert "/static/js/admin-navigation.js" in page
     assert "app-footer" not in page
     assert "/admin/users" in page
     assert "/admin/monitoring" in page
@@ -286,7 +287,7 @@ def test_admin_dashboard_uses_database_counts_for_phase_one_kpis(app, client):
     owner_applications_page = client.get(
         "/admin/owner-applications"
     ).get_data(as_text=True)
-    assert "tự động cấp quyền Chủ sân" in owner_applications_page
+    assert "tự động cấp quyền chủ sân" in owner_applications_page
     assert "Role chỉ được đổi qua workflow này" not in owner_applications_page
     assert "Chờ duyệt" in owner_applications_page
 
@@ -300,10 +301,10 @@ def test_admin_dashboard_uses_database_counts_for_phase_one_kpis(app, client):
 def test_admin_status_labels_use_vietnamese_business_language():
     assert BOOKING_STATUS_LABELS == {
         BookingStatus.PENDING.value: "Chờ xác nhận",
-        BookingStatus.CONFIRMED.value: "Đã xác nhận",
-        BookingStatus.PARTIALLY_PAID.value: "Đã thanh toán một phần tiền cọc",
-        BookingStatus.PAID.value: "Đã thanh toán đủ tiền cọc",
-        BookingStatus.REFUND_PENDING.value: "Đang chờ hoàn tiền",
+        BookingStatus.CONFIRMED.value: "Đang giữ chỗ",
+        BookingStatus.PARTIALLY_PAID.value: "Đã cọc một phần",
+        BookingStatus.PAID.value: "Đã thanh toán cọc",
+        BookingStatus.REFUND_PENDING.value: "Đang hoàn tiền",
         BookingStatus.COMPLETED.value: "Đã hoàn thành",
         BookingStatus.REJECTED.value: "Đã từ chối",
         BookingStatus.CANCELLED.value: "Đã hủy",
@@ -311,8 +312,8 @@ def test_admin_status_labels_use_vietnamese_business_language():
     }
     assert PAYMENT_STATUS_LABELS == {
         PaymentStatus.PENDING.value: "Đang chờ xác nhận",
-        PaymentStatus.SUCCESS.value: "Thành công",
-        PaymentStatus.FAILED.value: "Thất bại",
+        PaymentStatus.SUCCESS.value: "Thanh toán thành công",
+        PaymentStatus.FAILED.value: "Thanh toán thất bại",
         PaymentStatus.CANCELLED.value: "Đã hủy",
         PaymentStatus.EXPIRED.value: "Đã hết hạn",
     }
@@ -343,6 +344,19 @@ def test_admin_sidebar_only_uses_registered_phase_one_endpoints(app, client):
     ):
         assert expected_href in page
 
+    payment_page = client.get(
+        "/admin/monitoring?section=bookings&focus=payment_issue"
+    ).get_data(as_text=True)
+    refund_page = client.get(
+        "/admin/monitoring?section=bookings&focus=refund_pending"
+    ).get_data(as_text=True)
+    match_page = client.get(
+        "/admin/monitoring?section=matches"
+    ).get_data(as_text=True)
+    assert 'title="Thanh toán" aria-current="page"' in payment_page
+    assert 'title="Hoàn tiền" aria-current="page"' in refund_page
+    assert 'title="Kèo chơi" aria-current="page"' in match_page
+
 
 def test_admin_can_filter_accounts_without_exposing_password_hash(app, client):
     admin = create_user(app, email="accounts-admin@example.com", role=UserRole.ADMIN)
@@ -355,6 +369,8 @@ def test_admin_can_filter_accounts_without_exposing_password_hash(app, client):
     assert response.status_code == 200
     assert target.email in page
     assert admin.email not in page
+    assert "data-admin-account-root" in page
+    assert "data-admin-account-detail-link" in page
     assert "Chọn nhóm tài khoản" in page
     assert "Người dùng" in page
     assert "Đang hoạt động" in page
@@ -669,7 +685,7 @@ def test_admin_monitoring_explains_data_and_opens_booking_detail(app, client):
 
     assert monitoring.status_code == 200
     assert "Tình trạng cần kiểm tra" not in monitoring_page
-    assert "Lịch đặt sân &amp; thanh toán" in monitoring_page
+    assert "Lịch đặt sân &amp; dòng tiền" in monitoring_page
     assert "Chọn cơ sở" in monitoring_page
     assert "Cơ sở Admin Test" in monitoring_page
     assert "Sân kiểm thử" in monitoring_page
@@ -678,6 +694,7 @@ def test_admin_monitoring_explains_data_and_opens_booking_detail(app, client):
     assert "PAY-ADMIN-MONITOR" in monitoring_page
     assert "REFUND-ADMIN-MONITOR" in monitoring_page
     assert "Xem hồ sơ đầy đủ" in monitoring_page
+    assert "data-admin-workspace-detail-link" in monitoring_page
     assert f"/admin/monitoring/bookings/{booking_code}" in monitoring_page
 
     detail = client.get(f"/admin/monitoring/bookings/{booking_code}")
@@ -693,6 +710,7 @@ def test_admin_monitoring_explains_data_and_opens_booking_detail(app, client):
     assert "Mã nhà cung cấp" not in detail_page
     assert "PAY-ADMIN-MONITOR" in detail_page
     assert "Kèo Admin Test" in detail_page
+    assert 'data-admin-workspace-return="monitoring"' in detail_page
 
 
 def test_admin_booking_detail_redirects_when_booking_does_not_exist(app, client):

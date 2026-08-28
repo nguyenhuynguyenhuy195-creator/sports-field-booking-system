@@ -18,6 +18,10 @@
 <body class="admin-body">
     {% set monitoring_section = request.args.get('section', 'bookings') %}
     {% set monitoring_focus = request.args.get('focus', '') %}
+    {% set bookings_nav_active = request.endpoint == 'admin.booking_monitoring_detail' or (request.endpoint == 'admin.monitoring' and monitoring_section == 'bookings' and monitoring_focus not in ['payment_issue', 'refund_pending']) %}
+    {% set matches_nav_active = request.endpoint == 'admin.monitoring' and monitoring_section == 'matches' %}
+    {% set payments_nav_active = request.endpoint == 'admin.monitoring' and monitoring_focus == 'payment_issue' %}
+    {% set refunds_nav_active = request.endpoint == 'admin.monitoring' and monitoring_focus == 'refund_pending' %}
     <div class="admin-shell">
         <aside class="offcanvas-lg offcanvas-start admin-sidebar" tabindex="-1" id="adminSidebar" aria-labelledby="adminSidebarLabel">
             <div class="offcanvas-header admin-sidebar-header">
@@ -35,31 +39,31 @@
                     </a>
 
                     <span class="admin-sidebar-label">KIỂM DUYỆT</span>
-                    <a class="admin-sidebar-link{% if request.endpoint in ['admin.owner_applications', 'admin.review_owner_application_route'] %} active{% endif %}" href="{{ url_for('admin.owner_applications') }}" title="Duyệt chủ sân">
+                    <a class="admin-sidebar-link{% if request.endpoint in ['admin.owner_applications', 'admin.review_owner_application_route'] %} active{% endif %}" href="{{ url_for('admin.owner_applications') }}" title="Duyệt chủ sân"{% if request.endpoint in ['admin.owner_applications', 'admin.review_owner_application_route'] %} aria-current="page"{% endif %}>
                         <i class="bi bi-person-check" aria-hidden="true"></i><span>Duyệt chủ sân</span>
                     </a>
-                    <a class="admin-sidebar-link{% if request.endpoint in ['venues.admin_index', 'venues.admin_moderate'] %} active{% endif %}" href="{{ url_for('venues.admin_index') }}" title="Kiểm duyệt cơ sở">
+                    <a class="admin-sidebar-link{% if request.endpoint in ['venues.admin_index', 'venues.admin_moderate'] %} active{% endif %}" href="{{ url_for('venues.admin_index') }}" title="Kiểm duyệt cơ sở"{% if request.endpoint in ['venues.admin_index', 'venues.admin_moderate'] %} aria-current="page"{% endif %}>
                         <i class="bi bi-building-check" aria-hidden="true"></i><span>Kiểm duyệt cơ sở</span>
                     </a>
 
                     <span class="admin-sidebar-label">VẬN HÀNH</span>
-                    <a class="admin-sidebar-link{% if request.endpoint == 'admin.booking_monitoring_detail' or (request.endpoint == 'admin.monitoring' and monitoring_section == 'bookings' and monitoring_focus not in ['payment_issue', 'refund_pending']) %} active{% endif %}" href="{{ url_for('admin.monitoring', section='bookings') }}" title="Lịch đặt sân">
+                    <a class="admin-sidebar-link{% if bookings_nav_active %} active{% endif %}" href="{{ url_for('admin.monitoring', section='bookings') }}" title="Lịch đặt sân"{% if bookings_nav_active %} aria-current="page"{% endif %}>
                         <i class="bi bi-calendar2-week" aria-hidden="true"></i><span>Lịch đặt sân</span>
                     </a>
-                    <a class="admin-sidebar-link{% if request.endpoint == 'admin.monitoring' and monitoring_section == 'matches' %} active{% endif %}" href="{{ url_for('admin.monitoring', section='matches') }}" title="Kèo chơi">
+                    <a class="admin-sidebar-link{% if matches_nav_active %} active{% endif %}" href="{{ url_for('admin.monitoring', section='matches') }}" title="Kèo chơi"{% if matches_nav_active %} aria-current="page"{% endif %}>
                         <i class="bi bi-people" aria-hidden="true"></i><span>Kèo chơi</span>
                     </a>
 
                     <span class="admin-sidebar-label">TÀI CHÍNH</span>
-                    <a class="admin-sidebar-link{% if request.endpoint == 'admin.monitoring' and monitoring_focus == 'payment_issue' %} active{% endif %}" href="{{ url_for('admin.monitoring', section='bookings', focus='payment_issue') }}" title="Thanh toán">
+                    <a class="admin-sidebar-link{% if payments_nav_active %} active{% endif %}" href="{{ url_for('admin.monitoring', section='bookings', focus='payment_issue') }}" title="Thanh toán"{% if payments_nav_active %} aria-current="page"{% endif %}>
                         <i class="bi bi-credit-card" aria-hidden="true"></i><span>Thanh toán</span>
                     </a>
-                    <a class="admin-sidebar-link{% if request.endpoint == 'admin.monitoring' and monitoring_focus == 'refund_pending' %} active{% endif %}" href="{{ url_for('admin.monitoring', section='bookings', focus='refund_pending') }}" title="Hoàn tiền">
+                    <a class="admin-sidebar-link{% if refunds_nav_active %} active{% endif %}" href="{{ url_for('admin.monitoring', section='bookings', focus='refund_pending') }}" title="Hoàn tiền"{% if refunds_nav_active %} aria-current="page"{% endif %}>
                         <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i><span>Hoàn tiền</span>
                     </a>
 
                     <span class="admin-sidebar-label">HỆ THỐNG</span>
-                    <a class="admin-sidebar-link{% if request.endpoint in ['admin.accounts', 'admin.account_detail', 'admin.update_account_status'] %} active{% endif %}" href="{{ url_for('admin.accounts') }}" title="Tài khoản">
+                    <a class="admin-sidebar-link{% if request.endpoint in ['admin.accounts', 'admin.account_detail', 'admin.update_account_status'] %} active{% endif %}" href="{{ url_for('admin.accounts') }}" title="Tài khoản"{% if request.endpoint in ['admin.accounts', 'admin.account_detail', 'admin.update_account_status'] %} aria-current="page"{% endif %}>
                         <i class="bi bi-person-gear" aria-hidden="true"></i><span>Tài khoản</span>
                     </a>
                 </nav>
@@ -121,7 +125,7 @@
     </div>
 
     <div class="modal fade" id="confirmActionModal" tabindex="-1" aria-labelledby="confirmActionModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content border-0 shadow">
                 <div class="modal-header border-0 pb-0">
                     <h2 class="modal-title fs-5 fw-bold" id="confirmActionModalLabel">Xác nhận thao tác</h2>
@@ -137,6 +141,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <script src="{{ url_for('static', filename='js/admin-navigation.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/ui-motion.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/confirm-actions.js') }}" defer></script>
     {% block scripts %}{% endblock %}

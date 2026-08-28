@@ -62,10 +62,10 @@ ACCOUNT_STATUS_LABELS = {
 
 BOOKING_STATUS_LABELS = {
     BookingStatus.PENDING.value: "Chờ xác nhận",
-    BookingStatus.CONFIRMED.value: "Đã xác nhận",
-    BookingStatus.PARTIALLY_PAID.value: "Đã thanh toán một phần tiền cọc",
-    BookingStatus.PAID.value: "Đã thanh toán đủ tiền cọc",
-    BookingStatus.REFUND_PENDING.value: "Đang chờ hoàn tiền",
+    BookingStatus.CONFIRMED.value: "Đang giữ chỗ",
+    BookingStatus.PARTIALLY_PAID.value: "Đã cọc một phần",
+    BookingStatus.PAID.value: "Đã thanh toán cọc",
+    BookingStatus.REFUND_PENDING.value: "Đang hoàn tiền",
     BookingStatus.COMPLETED.value: "Đã hoàn thành",
     BookingStatus.REJECTED.value: "Đã từ chối",
     BookingStatus.CANCELLED.value: "Đã hủy",
@@ -73,8 +73,8 @@ BOOKING_STATUS_LABELS = {
 }
 
 CONTRIBUTION_STATUS_LABELS = {
-    ContributionStatus.PENDING.value: "Chờ thanh toán",
-    ContributionStatus.PAID.value: "Đã thanh toán",
+    ContributionStatus.PENDING.value: "Chờ thanh toán cọc",
+    ContributionStatus.PAID.value: "Đã thanh toán cọc",
     ContributionStatus.EXPIRED.value: "Đã hết hạn",
     ContributionStatus.WAIVED.value: "Không cần thu thêm",
     ContributionStatus.REFUND_PENDING.value: "Đang hoàn tiền",
@@ -85,8 +85,8 @@ CONTRIBUTION_STATUS_LABELS = {
 
 PAYMENT_STATUS_LABELS = {
     PaymentStatus.PENDING.value: "Đang chờ xác nhận",
-    PaymentStatus.SUCCESS.value: "Thành công",
-    PaymentStatus.FAILED.value: "Thất bại",
+    PaymentStatus.SUCCESS.value: "Thanh toán thành công",
+    PaymentStatus.FAILED.value: "Thanh toán thất bại",
     PaymentStatus.CANCELLED.value: "Đã hủy",
     PaymentStatus.EXPIRED.value: "Đã hết hạn",
 }
@@ -144,8 +144,8 @@ BOOKING_MODE_LABELS = {
 }
 
 MONITORING_SECTIONS = (
-    ("bookings", "Lịch đặt sân & thanh toán"),
-    ("matches", "Kèo thi đấu"),
+    ("bookings", "Lịch đặt sân & dòng tiền"),
+    ("matches", "Kèo chơi"),
     ("catalog", "Danh mục thể thao"),
 )
 

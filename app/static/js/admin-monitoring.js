@@ -66,8 +66,31 @@
         }
     }
 
+    function syncAdminShell(nextDocument, currentRoot) {
+        const currentNavigation = document.querySelector(".admin-sidebar-nav");
+        const nextNavigation = nextDocument.querySelector(".admin-sidebar-nav");
+        if (currentNavigation && nextNavigation) {
+            currentNavigation.replaceWith(nextNavigation.cloneNode(true));
+        }
+
+        const currentPageLabel = document.querySelector(".admin-topbar-title strong");
+        const nextPageLabel = nextDocument.querySelector(".admin-topbar-title strong");
+        if (currentPageLabel && nextPageLabel) {
+            currentPageLabel.textContent = nextPageLabel.textContent;
+        }
+
+        const currentFlash = document.querySelector(".admin-flash-container");
+        const nextFlash = nextDocument.querySelector(".admin-flash-container");
+        if (currentFlash) {
+            currentFlash.remove();
+        }
+        if (nextFlash) {
+            currentRoot.before(nextFlash.cloneNode(true));
+        }
+    }
+
     async function loadMonitoringPage(targetUrl, options) {
-        const settings = Object.assign({ addHistory: true }, options);
+        const settings = Object.assign({ addHistory: true, restoreScroll: null }, options);
         const currentRoot = getRoot();
         if (!currentRoot) {
             window.location.assign(targetUrl);
@@ -102,13 +125,31 @@
                 return;
             }
 
-            const scrollPosition = { x: window.scrollX, y: window.scrollY };
+            const scrollPosition = settings.restoreScroll || {
+                x: window.scrollX,
+                y: window.scrollY,
+            };
+            if (settings.addHistory) {
+                window.history.replaceState(
+                    Object.assign({}, window.history.state, {
+                        adminMonitoring: true,
+                        adminScroll: { x: window.scrollX, y: window.scrollY },
+                    }),
+                    "",
+                    window.location.href
+                );
+            }
+            syncAdminShell(nextDocument, currentRoot);
             currentRoot.replaceWith(nextRoot);
             prepareResponsiveScope(nextRoot);
             document.title = nextDocument.title;
 
             if (settings.addHistory) {
-                window.history.pushState({ adminMonitoring: true }, "", response.url || targetUrl);
+                window.history.pushState(
+                    { adminMonitoring: true, adminScroll: scrollPosition },
+                    "",
+                    response.url || targetUrl
+                );
             }
 
             window.scrollTo(scrollPosition.x, scrollPosition.y);
@@ -172,9 +213,12 @@
         loadMonitoringPage(targetUrl.href);
     });
 
-    window.addEventListener("popstate", function () {
+    window.addEventListener("popstate", function (event) {
         if (isMonitoringUrl(window.location.href)) {
-            loadMonitoringPage(window.location.href, { addHistory: false });
+            loadMonitoringPage(window.location.href, {
+                addHistory: false,
+                restoreScroll: event.state?.adminScroll || null,
+            });
         }
     });
 

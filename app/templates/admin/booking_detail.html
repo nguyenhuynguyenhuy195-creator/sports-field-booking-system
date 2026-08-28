@@ -7,7 +7,7 @@
 {% set deposit_percent = ((booking.paid_amount / booking.deposit_amount) * 100)|round(0, 'floor')|int %}
 <section class="admin-page admin-booking-detail-page">
     <div class="container py-5">
-        <a class="admin-detail-back" href="{{ url_for('admin.monitoring', section='bookings') }}">← Quay lại danh sách lịch đặt sân</a>
+        <a class="admin-detail-back" href="{{ url_for('admin.monitoring', section='bookings') }}" data-admin-workspace-return="monitoring"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại danh sách lịch đặt sân</a>
 
         <div class="admin-detail-hero">
             <div>
@@ -161,12 +161,12 @@
                     <span class="admin-section-kicker">TIẾN TRÌNH</span>
                     <h2>Lịch đặt sân đang ở bước nào?</h2>
                     <ol class="admin-booking-timeline">
-                        <li class="complete"><span>✓</span><div><strong>Đã tạo lịch đặt sân</strong><small>{{ booking.created_at.strftime('%d/%m/%Y %H:%M') }}</small></div></li>
-                        <li class="{{ 'complete' if booking.paid_amount >= booking.deposit_amount else 'current' }}"><span>{{ '✓' if booking.paid_amount >= booking.deposit_amount else '2' }}</span><div><strong>{{ 'Đã thanh toán đủ tiền cọc' if booking.paid_amount >= booking.deposit_amount else 'Đang thu tiền cọc' }}</strong><small>{{ booking.paid_amount|vnd_currency }} / {{ booking.deposit_amount|vnd_currency }}</small></div></li>
+                        <li class="complete"><span><i class="bi bi-check" aria-hidden="true"></i><span class="visually-hidden">Hoàn thành</span></span><div><strong>Đã tạo lịch đặt sân</strong><small>{{ booking.created_at.strftime('%d/%m/%Y %H:%M') }}</small></div></li>
+                        <li class="{{ 'complete' if booking.paid_amount >= booking.deposit_amount else 'current' }}"><span>{% if booking.paid_amount >= booking.deposit_amount %}<i class="bi bi-check" aria-hidden="true"></i><span class="visually-hidden">Hoàn thành</span>{% else %}2{% endif %}</span><div><strong>{{ 'Đã thanh toán đủ tiền cọc' if booking.paid_amount >= booking.deposit_amount else 'Đang thu tiền cọc' }}</strong><small>{{ booking.paid_amount|vnd_currency }} / {{ booking.deposit_amount|vnd_currency }}</small></div></li>
                         {% if booking.match %}
-                            <li class="{{ 'complete' if booking.match.status in ['FULL', 'CONFIRMED', 'COMPLETED'] else ('stopped' if booking.match.status == 'CANCELLED' else 'current') }}"><span>{{ '✓' if booking.match.status in ['FULL', 'CONFIRMED', 'COMPLETED'] else '3' }}</span><div><strong>{{ match_type_labels[booking.match.match_type] }}</strong><small>{{ match_status_labels[booking.match.status] }}</small></div></li>
+                            <li class="{{ 'complete' if booking.match.status in ['FULL', 'CONFIRMED', 'COMPLETED'] else ('stopped' if booking.match.status == 'CANCELLED' else 'current') }}"><span>{% if booking.match.status in ['FULL', 'CONFIRMED', 'COMPLETED'] %}<i class="bi bi-check" aria-hidden="true"></i><span class="visually-hidden">Hoàn thành</span>{% else %}3{% endif %}</span><div><strong>{{ match_type_labels[booking.match.match_type] }}</strong><small>{{ match_status_labels[booking.match.status] }}</small></div></li>
                         {% endif %}
-                        <li class="{{ 'complete' if booking.status == 'COMPLETED' else ('stopped' if booking.status in ['CANCELLED', 'REJECTED', 'EXPIRED'] else 'waiting') }}"><span>{{ '✓' if booking.status == 'COMPLETED' else '•' }}</span><div><strong>{{ 'Đã hoàn thành trận đấu' if booking.status == 'COMPLETED' else ('Lịch đặt sân đã dừng' if booking.status in ['CANCELLED', 'REJECTED', 'EXPIRED'] else 'Chờ ngày ra sân') }}</strong><small>{{ booking.booking_date.strftime('%d/%m/%Y') }} · {{ booking.start_time.strftime('%H:%M') }}</small></div></li>
+                        <li class="{{ 'complete' if booking.status == 'COMPLETED' else ('stopped' if booking.status in ['CANCELLED', 'REJECTED', 'EXPIRED'] else 'waiting') }}"><span>{% if booking.status == 'COMPLETED' %}<i class="bi bi-check" aria-hidden="true"></i><span class="visually-hidden">Hoàn thành</span>{% else %}<i class="bi bi-circle-fill" aria-hidden="true"></i><span class="visually-hidden">Đang chờ</span>{% endif %}</span><div><strong>{{ 'Đã hoàn thành trận đấu' if booking.status == 'COMPLETED' else ('Lịch đặt sân đã dừng' if booking.status in ['CANCELLED', 'REJECTED', 'EXPIRED'] else 'Chờ ngày ra sân') }}</strong><small>{{ booking.booking_date.strftime('%d/%m/%Y') }} · {{ booking.start_time.strftime('%H:%M') }}</small></div></li>
                     </ol>
                 </section>
 

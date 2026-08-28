@@ -1,19 +1,35 @@
 {% extends "admin/base.html" %}
 
-{% block title %}Theo dõi hoạt động · Sân Thể Thao{% endblock %}
-{% block admin_page_label %}Giám sát vận hành{% endblock %}
+{% block title %}{% if request.args.get('focus') == 'payment_issue' %}Thanh toán{% elif request.args.get('focus') == 'refund_pending' %}Hoàn tiền{% elif request.args.get('section') == 'matches' %}Kèo chơi{% elif request.args.get('section') == 'catalog' %}Danh mục thể thao{% else %}Lịch đặt sân{% endif %} · Sân Thể Thao{% endblock %}
+{% block admin_page_label %}{% if request.args.get('focus') == 'payment_issue' %}Thanh toán{% elif request.args.get('focus') == 'refund_pending' %}Hoàn tiền{% elif request.args.get('section') == 'matches' %}Kèo chơi{% elif request.args.get('section') == 'catalog' %}Danh mục thể thao{% else %}Lịch đặt sân{% endif %}{% endblock %}
 
 {% block content %}
+{% if selected_focus == 'payment_issue' %}
+    {% set workspace_title = 'Giám sát thanh toán' %}
+    {% set workspace_description = 'Theo dõi giao dịch đang chờ xác nhận hoặc thất bại mà không thay đổi lịch sử.' %}
+{% elif selected_focus == 'refund_pending' %}
+    {% set workspace_title = 'Giám sát hoàn tiền' %}
+    {% set workspace_description = 'Theo dõi các khoản hoàn tiền đang chờ hoặc đang được xử lý.' %}
+{% elif section == 'matches' %}
+    {% set workspace_title = 'Kèo chơi' %}
+    {% set workspace_description = 'Theo dõi kèo tìm đối thủ, tìm thêm người và hồ sơ lịch đặt sân liên quan.' %}
+{% elif section == 'catalog' %}
+    {% set workspace_title = 'Danh mục thể thao' %}
+    {% set workspace_description = 'Theo dõi các bộ môn và loại sân đang được hệ thống sử dụng.' %}
+{% else %}
+    {% set workspace_title = 'Lịch đặt sân' %}
+    {% set workspace_description = 'Theo dõi lịch đặt sân, tiến độ tiền cọc và dòng tiền liên quan.' %}
+{% endif %}
 <section class="admin-page admin-monitoring-page" data-admin-monitoring-root>
     <p class="visually-hidden" role="status" aria-live="polite" data-admin-monitoring-status></p>
     <div class="container admin-monitoring-container py-5">
         <div class="admin-page-heading">
             <div>
                 <span class="eyebrow">QUẢN TRỊ HỆ THỐNG</span>
-                <h1 class="display-6 fw-bold mt-2 mb-2">Theo dõi hoạt động</h1>
-                <p class="text-secondary mb-0">Chọn cơ sở và sân để theo dõi lịch đặt, thanh toán và kèo chơi liên quan.</p>
+                <h1 class="display-6 fw-bold mt-2 mb-2">{{ workspace_title }}</h1>
+                <p class="text-secondary mb-0">{{ workspace_description }}</p>
             </div>
-            <span class="admin-readonly-note">Chỉ xem · Không thay đổi lịch sử</span>
+            <span class="admin-readonly-note"><i class="bi bi-eye" aria-hidden="true"></i>Chỉ xem · Không thay đổi lịch sử</span>
         </div>
 
         <div class="admin-monitoring-workspace{% if section == 'catalog' %} is-catalog{% endif %}">
@@ -41,11 +57,11 @@
                             </form>
 
                             <div class="admin-venue-choice-grid">
-                                <a class="admin-venue-choice{% if not selected_venue_id %} active{% endif %}" href="{{ url_for('admin.monitoring', section=section, venue_q=location_query, venue_province=selected_location_province, venue_ward=selected_location_ward, venue_page=location_page.page) }}"><span class="admin-location-icon" aria-hidden="true">⌂</span><div><strong>Toàn hệ thống</strong><small>Không giới hạn theo cơ sở</small></div></a>
-                                {% for location in locations %}<a class="admin-venue-choice{% if selected_venue_id == location.venue.id %} active{% endif %}" href="{{ url_for('admin.monitoring', section=section, venue=location.venue.id, venue_q=location_query, venue_province=selected_location_province, venue_ward=selected_location_ward, venue_page=location_page.page) }}"><span class="admin-location-icon" aria-hidden="true">▦</span><div><strong>{{ location.venue.name }}</strong><small>{{ location.venue.ward_name or location.venue.district or 'Chưa rõ phường/xã' }} · {{ location.venue.province_name or location.venue.city or 'Chưa rõ tỉnh/thành phố' }}</small><span>{{ location.fields|length }} sân · {{ location.total_bookings }} lịch đặt</span></div></a>{% endfor %}
+                                <a class="admin-venue-choice{% if not selected_venue_id %} active{% endif %}" href="{{ url_for('admin.monitoring', section=section, venue_q=location_query, venue_province=selected_location_province, venue_ward=selected_location_ward, venue_page=location_page.page) }}"><span class="admin-location-icon" aria-hidden="true"><i class="bi bi-globe2"></i></span><div><strong>Toàn hệ thống</strong><small>Không giới hạn theo cơ sở</small></div></a>
+                                {% for location in locations %}<a class="admin-venue-choice{% if selected_venue_id == location.venue.id %} active{% endif %}" href="{{ url_for('admin.monitoring', section=section, venue=location.venue.id, venue_q=location_query, venue_province=selected_location_province, venue_ward=selected_location_ward, venue_page=location_page.page) }}"><span class="admin-location-icon" aria-hidden="true"><i class="bi bi-building"></i></span><div><strong>{{ location.venue.name }}</strong><small>{{ location.venue.ward_name or location.venue.district or 'Chưa rõ phường/xã' }} · {{ location.venue.province_name or location.venue.city or 'Chưa rõ tỉnh/thành phố' }}</small><span>{{ location.fields|length }} sân · {{ location.total_bookings }} lịch đặt</span></div></a>{% endfor %}
                             </div>
                             {% if not locations %}<div class="admin-location-empty"><strong>Không tìm thấy cơ sở phù hợp</strong><span>Hãy thử tên, địa chỉ hoặc khu vực khác.</span></div>{% endif %}
-                            {% if location_page.pages > 1 %}<nav class="admin-location-pagination" aria-label="Phân trang cơ sở">{% if location_page.has_prev %}<a class="btn btn-sm btn-outline-primary" href="{{ url_for('admin.monitoring', section=section, venue_q=location_query, venue_province=selected_location_province, venue_ward=selected_location_ward, venue_page=location_page.page - 1) }}">← Trước</a>{% endif %}<span>Trang {{ location_page.page }}/{{ location_page.pages }}</span>{% if location_page.has_next %}<a class="btn btn-sm btn-outline-primary" href="{{ url_for('admin.monitoring', section=section, venue_q=location_query, venue_province=selected_location_province, venue_ward=selected_location_ward, venue_page=location_page.page + 1) }}">Sau →</a>{% endif %}</nav>{% endif %}
+                            {% if location_page.pages > 1 %}<nav class="admin-location-pagination" aria-label="Phân trang cơ sở">{% if location_page.has_prev %}<a class="btn btn-sm btn-outline-primary" href="{{ url_for('admin.monitoring', section=section, venue_q=location_query, venue_province=selected_location_province, venue_ward=selected_location_ward, venue_page=location_page.page - 1) }}"><i class="bi bi-arrow-left" aria-hidden="true"></i>Trang trước</a>{% endif %}<span>Trang {{ location_page.page }}/{{ location_page.pages }}</span>{% if location_page.has_next %}<a class="btn btn-sm btn-outline-primary" href="{{ url_for('admin.monitoring', section=section, venue_q=location_query, venue_province=selected_location_province, venue_ward=selected_location_ward, venue_page=location_page.page + 1) }}">Trang sau<i class="bi bi-arrow-right" aria-hidden="true"></i></a>{% endif %}</nav>{% endif %}
 
                             {% if selected_location %}
                                 <div class="admin-field-choice-section" data-admin-field-picker>
@@ -88,7 +104,7 @@
                     <div class="admin-field-data-groups">
                         {% for group in monitoring_groups %}
                             <details class="admin-field-data-group" open>
-                                <summary><div class="admin-field-group-name"><span class="admin-location-icon" aria-hidden="true">▦</span><div><small>{{ group.field.venue.name }}</small><strong>{{ group.field.name }}</strong><span>{{ group.field.field_type.sport.name }} · {{ group.field.field_type.name }}</span></div></div><div class="admin-field-group-count"><strong>{{ group.items|length }}</strong><span>{{ 'lịch đặt' if section == 'bookings' else 'kèo' }}</span><small>Nhấn để thu gọn</small></div></summary>
+                                <summary><div class="admin-field-group-name"><span class="admin-location-icon" aria-hidden="true"><i class="bi bi-grid-3x3-gap"></i></span><div><small>{{ group.field.venue.name }}</small><strong>{{ group.field.name }}</strong><span>{{ group.field.field_type.sport.name }} · {{ group.field.field_type.name }}</span></div></div><div class="admin-field-group-count"><strong>{{ group.items|length }}</strong><span>{{ 'lịch đặt' if section == 'bookings' else 'kèo' }}</span><small>Nhấn để thu gọn</small></div></summary>
                                 <div class="admin-field-data-body">
                                     {% if section == 'bookings' %}
                                         <div class="admin-booking-monitor-list">
@@ -98,12 +114,12 @@
                                                     <div class="admin-booking-monitor-head"><div><span class="admin-booking-code">Mã đặt sân {{ booking.booking_code }}</span><h2>{{ booking.booking_date.strftime('%d/%m/%Y') }} · {{ booking.start_time.strftime('%H:%M') }}–{{ booking.end_time.strftime('%H:%M') }}</h2><p>{{ booking.user.full_name }} · {{ booking_mode_labels[booking.booking_mode] }}</p></div><span class="status-badge status-{{ booking.status|lower }}">{{ booking_status_labels[booking.status] }}</span></div>
                                                     <div class="admin-booking-money-summary"><div><span>Cọc cần đóng</span><strong>{{ booking.deposit_amount|vnd_currency }}</strong></div><div><span>Đã ghi nhận</span><strong>{{ booking.paid_amount|vnd_currency }}</strong></div><div><span>Còn trả tại sân</span><strong>{{ booking.balance_due_at_venue|vnd_currency }}</strong></div></div>
                                                     <div class="admin-deposit-progress"><div class="admin-deposit-progress-label"><span>Tiến độ tiền cọc</span><strong>{{ deposit_percent }}%</strong></div><progress max="100" value="{{ deposit_percent }}">{{ deposit_percent }}%</progress></div>
-                                                    <details class="admin-booking-cashflow"><summary><span><strong>Xem thanh toán và hoàn tiền</strong><small>{{ booking.contributions|length }} khoản cần đóng · {{ booking.payments|length }} giao dịch · {{ booking.refunds|length }} hoàn tiền</small></span><span aria-hidden="true">⌄</span></summary><div class="admin-booking-cashflow-body">
+                                                    <details class="admin-booking-cashflow"><summary><span><strong>Xem thanh toán và hoàn tiền</strong><small>{{ booking.contributions|length }} khoản cần đóng · {{ booking.payments|length }} giao dịch · {{ booking.refunds|length }} hoàn tiền</small></span><i class="bi bi-chevron-down" aria-hidden="true"></i></summary><div class="admin-booking-cashflow-body">
                                                         <section><h3>Khoản cần đóng</h3>{% if booking.contributions %}<ul>{% for contribution in booking.contributions %}<li><div><strong>{{ contribution.user.full_name if contribution.user else 'Chưa có người nhận' }}</strong><small>{{ contribution_type_labels[contribution.contribution_type] }}</small></div><div><strong>{{ contribution.amount_paid|vnd_currency }} / {{ contribution.amount_due|vnd_currency }}</strong><span class="status-badge status-{{ contribution.status|lower }}">{{ contribution_status_labels[contribution.status] }}</span></div></li>{% endfor %}</ul>{% else %}<p>Chưa phát sinh khoản cần đóng.</p>{% endif %}</section>
                                                         <section><h3>Thanh toán</h3>{% if booking.payments %}<ul>{% for payment in booking.payments %}<li><div><strong>Mã yêu cầu: {{ payment.order_id }}</strong><small>{{ payment.payer.full_name }} · Cổng thanh toán: {{ payment_provider_labels[payment.provider] }}</small></div><div><strong>{{ payment.amount|vnd_currency }}</strong><span class="status-badge status-{{ payment.status|lower }}">{{ payment_status_labels[payment.status] }}</span></div></li>{% endfor %}</ul>{% else %}<p>Chưa có giao dịch thanh toán.</p>{% endif %}</section>
                                                         <section><h3>Hoàn tiền</h3>{% if booking.refunds %}<ul>{% for refund in booking.refunds %}<li><div><strong>Mã xử lý: {{ refund.order_id }}</strong><small>{{ refund.recipient.full_name }} · {{ refund.reason }}</small></div><div><strong>{{ refund.amount|vnd_currency }}</strong><span class="status-badge status-{{ refund.status|lower }}">{{ refund_status_labels[refund.status] }}</span></div></li>{% endfor %}</ul>{% else %}<p>Chưa phát sinh hoàn tiền.</p>{% endif %}</section>
                                                     </div></details>
-                                                    <div class="admin-booking-monitor-actions"><span>Tổng tiền sân: <strong>{{ booking.total_amount|vnd_currency }}</strong></span><a class="btn btn-outline-primary" href="{{ url_for('admin.booking_monitoring_detail', booking_code=booking.booking_code) }}">Xem hồ sơ đầy đủ →</a></div>
+                                                    <div class="admin-booking-monitor-actions"><span>Tổng tiền sân: <strong>{{ booking.total_amount|vnd_currency }}</strong></span><a class="btn btn-outline-primary" href="{{ url_for('admin.booking_monitoring_detail', booking_code=booking.booking_code) }}" data-admin-workspace-detail-link>Xem hồ sơ đầy đủ<i class="bi bi-arrow-right" aria-hidden="true"></i></a></div>
                                                 </article>
                                             {% endfor %}
                                         </div>
@@ -116,7 +132,7 @@
                                                     <div class="admin-operation-meta"><div><span>Ngày thi đấu</span><strong>{{ match.booking.booking_date.strftime('%d/%m/%Y') }} · {{ match.booking.start_time.strftime('%H:%M') }}</strong></div><div><span>Đã nhận kèo</span><strong>{{ joined_participants|length }} người</strong></div><div><span>Đang xử lý</span><strong>{{ pending_participants|length + awaiting_participants|length }} yêu cầu</strong></div></div>
                                                     <div class="admin-match-recipients"><span>Người đã nhận kèo</span>{% if joined_participants %}<div>{% for participant in joined_participants %}<strong>{{ participant.user.full_name }}</strong>{% if not loop.last %}<span>·</span>{% endif %}{% endfor %}</div>{% else %}<p>Chưa có người tham gia được xác nhận.</p>{% endif %}</div>
                                                     {% if match.participants|length > joined_participants|length + pending_participants|length + awaiting_participants|length %}<p class="admin-match-history-count">{{ match.participants|length - joined_participants|length - pending_participants|length - awaiting_participants|length }} yêu cầu đã kết thúc hoặc rút khỏi kèo.</p>{% endif %}
-                                                    <a class="admin-match-detail-link" href="{{ url_for('admin.booking_monitoring_detail', booking_code=match.booking.booking_code) }}">Xem hồ sơ đặt sân →</a>
+                                                    <a class="admin-match-detail-link" href="{{ url_for('admin.booking_monitoring_detail', booking_code=match.booking.booking_code) }}" data-admin-workspace-detail-link>Xem hồ sơ đặt sân<i class="bi bi-arrow-right" aria-hidden="true"></i></a>
                                                 </article>
                                             {% endfor %}
                                         </div>
@@ -125,10 +141,10 @@
                             </details>
                         {% endfor %}
                     </div>
-                {% else %}<div class="admin-table-card"><div class="empty-state text-center m-4"><div class="empty-state-icon" aria-hidden="true">⌕</div><h2 class="h5 fw-bold">Không có thông tin phù hợp</h2><p class="text-secondary mb-0">Hãy chọn cơ sở, sân hoặc điều kiện lọc khác.</p></div></div>{% endif %}
+                {% else %}<div class="admin-table-card"><div class="empty-state text-center m-4"><div class="empty-state-icon" aria-hidden="true"><i class="bi bi-search"></i></div><h2 class="h5 fw-bold">Không có thông tin phù hợp</h2><p class="text-secondary mb-0">Hãy chọn cơ sở, sân hoặc điều kiện lọc khác.</p></div></div>{% endif %}
 
                 {% if data_page %}<div class="admin-result-summary"><span>Hiển thị {{ data_page.items|length }} trong {{ data_page.total }} kết quả</span></div>{% endif %}
-                {% if data_page and data_page.pages > 1 %}<nav class="admin-pagination" aria-label="Phân trang thông tin theo dõi">{% if data_page.has_prev %}<a class="btn btn-outline-primary" href="{{ url_for('admin.monitoring', section=section, venue=selected_venue_id, field=selected_field_id, venue_q=location_query, venue_province=selected_location_province, venue_ward=selected_location_ward, venue_page=location_page.page, q=query, status=selected_status, sport=selected_sport, date=selected_date, focus=selected_focus if section == 'bookings' else None, page=data_page.page - 1) }}">← Trang trước</a>{% endif %}<span>Trang {{ data_page.page }}/{{ data_page.pages }}</span>{% if data_page.has_next %}<a class="btn btn-outline-primary" href="{{ url_for('admin.monitoring', section=section, venue=selected_venue_id, field=selected_field_id, venue_q=location_query, venue_province=selected_location_province, venue_ward=selected_location_ward, venue_page=location_page.page, q=query, status=selected_status, sport=selected_sport, date=selected_date, focus=selected_focus if section == 'bookings' else None, page=data_page.page + 1) }}">Trang sau →</a>{% endif %}</nav>{% endif %}
+                {% if data_page and data_page.pages > 1 %}<nav class="admin-pagination" aria-label="Phân trang thông tin theo dõi">{% if data_page.has_prev %}<a class="btn btn-outline-primary" href="{{ url_for('admin.monitoring', section=section, venue=selected_venue_id, field=selected_field_id, venue_q=location_query, venue_province=selected_location_province, venue_ward=selected_location_ward, venue_page=location_page.page, q=query, status=selected_status, sport=selected_sport, date=selected_date, focus=selected_focus if section == 'bookings' else None, page=data_page.page - 1) }}"><i class="bi bi-arrow-left" aria-hidden="true"></i>Trang trước</a>{% endif %}<span>Trang {{ data_page.page }}/{{ data_page.pages }}</span>{% if data_page.has_next %}<a class="btn btn-outline-primary" href="{{ url_for('admin.monitoring', section=section, venue=selected_venue_id, field=selected_field_id, venue_q=location_query, venue_province=selected_location_province, venue_ward=selected_location_ward, venue_page=location_page.page, q=query, status=selected_status, sport=selected_sport, date=selected_date, focus=selected_focus if section == 'bookings' else None, page=data_page.page + 1) }}">Trang sau<i class="bi bi-arrow-right" aria-hidden="true"></i></a>{% endif %}</nav>{% endif %}
             </main>
         </div>
     </div>

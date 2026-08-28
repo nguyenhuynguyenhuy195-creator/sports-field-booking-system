@@ -10,7 +10,8 @@
     'REJECTED': 'Đã từ chối',
     'CANCELLED': 'Đã hủy'
 } %}
-<section class="container admin-account-page py-4 py-lg-5">
+<section class="container admin-account-page py-4 py-lg-5" data-admin-account-root>
+    <p class="visually-hidden" role="status" aria-live="polite" data-admin-account-status></p>
     <div class="admin-management-heading admin-account-heading">
         <div>
             <span class="eyebrow">QUẢN TRỊ HỆ THỐNG</span>
@@ -55,7 +56,7 @@
         </div>
         <div class="admin-filter-actions">
             <button class="btn btn-primary" type="submit"><i class="bi bi-search" aria-hidden="true"></i>Tìm tài khoản</button>
-            {% if query %}<a class="btn btn-outline-secondary" href="{{ url_for('admin.accounts', role=selected_role, status=selected_status) }}">Xóa từ khóa</a>{% endif %}
+            {% if query or selected_role or selected_status %}<a class="btn btn-outline-secondary" href="{{ url_for('admin.accounts') }}"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Đặt lại bộ lọc</a>{% endif %}
         </div>
     </form>
 
@@ -71,6 +72,7 @@
                         <a
                             class="admin-account-list-item{% if selected_account and selected_account.account.id == account.id %} active{% endif %}"
                             href="{{ url_for('admin.account_detail', account_id=account.id, q=query, role=selected_role, status=selected_status, page=account_page.page) }}"
+                            data-admin-account-detail-link
                             {% if selected_account and selected_account.account.id == account.id %}aria-current="true"{% endif %}
                         >
                             <span class="admin-account-list-topline">
@@ -86,7 +88,7 @@
 
             {% if selected_account %}
                 {% set account = selected_account.account %}
-                <article class="admin-account-detail">
+                <article class="admin-account-detail" tabindex="-1">
                     <header class="admin-account-detail-heading">
                         <span class="admin-account-detail-avatar" aria-hidden="true">{{ account.full_name[:1]|upper }}</span>
                         <div><span>TÀI KHOẢN #{{ account.id }}</span><h2>{{ account.full_name }}</h2><p>{{ account.email }}</p></div>
@@ -120,9 +122,9 @@
                         {% if account.id == current_user.id %}
                             <div class="admin-account-guardrail"><i class="bi bi-info-circle" aria-hidden="true"></i><div><strong>Tài khoản đang sử dụng</strong><span>Bạn không thể tự khóa tài khoản quản trị đang đăng nhập.</span></div></div>
                         {% elif account.role == 'ADMIN' %}
-                            <div class="admin-account-guardrail"><i class="bi bi-eye" aria-hidden="true"></i><div><strong>Chỉ xem tài khoản quản trị viên</strong><span>Step 5 không cho phép khóa, mở khóa hoặc thay đổi vai trò của quản trị viên khác.</span></div></div>
+                            <div class="admin-account-guardrail"><i class="bi bi-eye" aria-hidden="true"></i><div><strong>Chỉ xem tài khoản quản trị viên</strong><span>Màn hình này không cho phép khóa, mở khóa hoặc thay đổi vai trò của quản trị viên khác.</span></div></div>
                         {% elif account.status == 'INACTIVE' %}
-                            <div class="admin-account-guardrail"><i class="bi bi-slash-circle" aria-hidden="true"></i><div><strong>Không có thao tác phù hợp</strong><span>Tài khoản ngừng hoạt động không được chuyển trạng thái trong Step 5.</span></div></div>
+                            <div class="admin-account-guardrail"><i class="bi bi-slash-circle" aria-hidden="true"></i><div><strong>Không có thao tác phù hợp</strong><span>Tài khoản ngừng hoạt động không hỗ trợ chuyển trạng thái tại màn hình này.</span></div></div>
                         {% else %}
                             <form
                                 method="post"

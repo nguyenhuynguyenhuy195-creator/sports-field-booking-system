@@ -68,6 +68,8 @@ Bao gồm:
 
 ## PHASE 1B – ADMIN FOUNDATION UI REDESIGN
 
+**Trạng thái: HOÀN THÀNH**
+
 ### Mục tiêu
 
 Hoàn thiện Admin theo phong cách SaaS Operations Dashboard.
@@ -148,7 +150,7 @@ Step 4.0 chỉ là foundation dữ liệu; **không đồng nghĩa Step 4 Admin 
 
 ### Step 6 – Admin consistency / responsive / UX wording
 
-**Trạng thái: CHƯA LÀM**
+**Trạng thái: HOÀN THÀNH**
 
 - Desktop/tablet/mobile.
 - Terminology.
@@ -382,6 +384,7 @@ Chỉ làm sau khi toàn bộ nghiệp vụ ổn định.
 Hiện tại:
 
 - Phase 1A: DONE.
+- Phase 1B: DONE.
 
 ### Phase 1B
 
@@ -391,13 +394,13 @@ Hiện tại:
 - Step 4.0: DONE.
 - Step 4.1: DONE.
 - Step 5: DONE.
-- Step 6: NEXT.
+- Step 6: DONE.
 
-### TASK HIỆN TẠI
+### TASK TIẾP THEO
 
-**PHASE 1B – STEP 5: Quản lý tài khoản Admin – HOÀN THÀNH.**
+**PHASE 1.2 – USER UI FOUNDATION + FIND VENUE: NEXT.**
 
-Step 6 là phần tiếp theo. Không tự làm Step 6 hoặc Phase khác khi task hiện tại chưa yêu cầu.
+Phase 1.2 chưa được triển khai trong task này.
 
 ---
 

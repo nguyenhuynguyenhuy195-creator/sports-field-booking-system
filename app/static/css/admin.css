@@ -2972,6 +2972,347 @@
     border-radius: var(--admin-card-radius);
 }
 
+/* Shared Admin UI/UX foundation */
+.admin-body {
+    overflow-x: clip;
+}
+
+.admin-main .container,
+.admin-main .admin-monitoring-container,
+.admin-page-heading > div,
+.admin-management-heading > div,
+.admin-monitoring-toolbar-heading > div,
+.admin-detail-hero > div {
+    min-width: 0;
+}
+
+.admin-dashboard-heading h1,
+.admin-page-heading h1,
+.admin-management-heading h1 {
+    margin-top: 0.4rem !important;
+    margin-bottom: 0.35rem !important;
+    color: var(--admin-sidebar);
+    font-size: clamp(1.65rem, 2.5vw, 2.15rem);
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.035em;
+}
+
+.eyebrow,
+.admin-section-kicker,
+.admin-dashboard-section-label {
+    color: var(--admin-primary);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+}
+
+.admin-body .btn {
+    display: inline-flex;
+    gap: 0.45rem;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    font-weight: 600;
+    white-space: normal;
+    border-radius: 10px;
+}
+
+.admin-body .btn-sm {
+    min-height: 36px;
+}
+
+.admin-body .form-control,
+.admin-body .form-select {
+    min-width: 0;
+    min-height: 42px;
+    border-color: #ccd6e0;
+    border-radius: 10px;
+}
+
+.admin-body textarea.form-control {
+    min-height: 96px;
+}
+
+.admin-body :is(a, button, input, select, textarea, summary):focus-visible {
+    outline: 3px solid rgba(20, 108, 67, 0.22);
+    outline-offset: 2px;
+}
+
+.admin-readonly-note {
+    gap: 0.4rem;
+    align-items: center;
+    max-width: 100%;
+    white-space: normal;
+}
+
+.status-badge {
+    display: inline-flex;
+    gap: 0.38rem;
+    align-items: center;
+    width: fit-content;
+    max-width: 100%;
+    min-height: 28px;
+    padding: 0.32rem 0.62rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1.35;
+    white-space: normal;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    overflow-wrap: anywhere;
+}
+
+.status-badge::before {
+    width: 0.42rem;
+    height: 0.42rem;
+    flex: 0 0 auto;
+    content: "";
+    background: currentColor;
+    border-radius: 50%;
+}
+
+.status-pending,
+.status-processing,
+.status-refund_pending,
+.status-refund-pending,
+.status-partially_refunded,
+.status-accepted_awaiting_payment {
+    color: #7a4a00;
+    background: #fff4d6;
+    border-color: #ebd39d;
+}
+
+.status-confirmed {
+    color: #24558d;
+    background: #e8f1fb;
+    border-color: #c9dbef;
+}
+
+.status-partially_paid,
+.status-partially-paid {
+    color: #5c3b94;
+    background: #f0ebfb;
+    border-color: #d9cef1;
+}
+
+.status-active,
+.status-approved,
+.status-paid,
+.status-success,
+.status-refunded,
+.status-open,
+.status-full {
+    color: #0f5b3d;
+    background: #e5f4eb;
+    border-color: #c7e3d2;
+}
+
+.status-rejected,
+.status-cancelled,
+.status-failed,
+.status-forfeited,
+.status-hidden,
+.status-locked {
+    color: #8b2f36;
+    background: #fbeaec;
+    border-color: #efcbd0;
+}
+
+.status-completed,
+.status-expired,
+.status-inactive,
+.status-withdrawn,
+.status-waived {
+    color: #4f5f70;
+    background: #eef1f4;
+    border-color: #d8dee5;
+}
+
+.admin-filter-panel,
+.admin-account-browser,
+.admin-location-browser,
+.admin-monitoring-toolbar,
+.admin-table-card,
+.admin-catalog-card,
+.admin-field-data-group,
+.admin-operation-card,
+.admin-booking-monitor-card,
+.admin-detail-card {
+    border-color: var(--admin-border);
+    border-radius: var(--admin-card-radius);
+    box-shadow: none;
+}
+
+.admin-filter-panel {
+    gap: 0.85rem;
+    padding: 1rem;
+    background: #fff;
+}
+
+.admin-filter-control {
+    min-width: 0;
+}
+
+.admin-filter-control label {
+    color: var(--admin-sidebar);
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.admin-filter-actions {
+    flex-wrap: wrap;
+}
+
+.admin-account-summary-grid article {
+    background: #fff;
+    border-color: var(--admin-border);
+    border-radius: var(--admin-card-radius);
+}
+
+.admin-account-browser,
+.admin-location-browser {
+    padding: 1rem;
+}
+
+.admin-account-role-tab,
+.admin-venue-choice,
+.admin-field-choice {
+    min-width: 0;
+    border-radius: 11px;
+    box-shadow: none !important;
+    transform: none !important;
+}
+
+.admin-account-role-tab:hover,
+.admin-venue-choice:hover,
+.admin-field-choice:hover {
+    background: #eef8f2;
+}
+
+.admin-account-status-filters a,
+.admin-owner-filter,
+.admin-venue-filter,
+.admin-booking-focus-chip {
+    min-height: 38px;
+    display: inline-flex;
+    align-items: center;
+}
+
+.admin-monitoring-container {
+    max-width: 1540px;
+}
+
+.admin-monitoring-toolbar {
+    padding: 1rem;
+    margin-bottom: 1rem;
+    background: #fff;
+}
+
+.admin-monitoring-toolbar-heading h2 {
+    color: var(--admin-sidebar);
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+.admin-monitoring-page .admin-monitoring-toolbar .admin-monitoring-tab {
+    min-width: 0;
+    min-height: 42px;
+    border-radius: 10px;
+}
+
+.admin-monitoring-toolbar .admin-monitoring-filters {
+    padding: 0.9rem;
+    background: #f8faf9;
+    border: 1px solid #e1e9e5;
+}
+
+.admin-scope-summary {
+    min-width: 0;
+}
+
+.admin-scope-summary > div {
+    min-width: 0;
+}
+
+.admin-scope-summary-count,
+.admin-result-count,
+.admin-detail-count {
+    max-width: 100%;
+    white-space: normal;
+}
+
+.admin-location-icon {
+    font-size: 1rem;
+}
+
+.admin-location-pagination .btn,
+.admin-pagination .btn {
+    gap: 0.4rem;
+}
+
+.admin-booking-cashflow > summary > i {
+    flex: 0 0 auto;
+    transition: transform 160ms ease;
+}
+
+.admin-booking-cashflow[open] > summary > i {
+    transform: rotate(180deg);
+}
+
+.admin-booking-cashflow-body li > div {
+    min-width: 0;
+}
+
+.admin-booking-monitor-actions .btn,
+.admin-match-detail-link,
+.admin-detail-back {
+    display: inline-flex;
+    gap: 0.4rem;
+    align-items: center;
+}
+
+.admin-detail-hero,
+.admin-detail-card,
+.admin-detail-info-grid > div,
+.admin-money-grid > div,
+.admin-participant-grid > div,
+.admin-transaction-item {
+    border-radius: var(--admin-card-radius);
+}
+
+.admin-detail-hero h1,
+.admin-detail-hero p,
+.admin-transaction-item,
+.admin-detail-info-grid,
+.admin-money-grid,
+.admin-participant-grid {
+    overflow-wrap: anywhere;
+}
+
+.admin-booking-timeline li > span > i.bi-circle-fill {
+    font-size: 0.42rem;
+}
+
+.admin-owner-detail,
+.admin-venue-detail {
+    scroll-margin-top: 82px;
+}
+
+.admin-empty-card,
+.admin-table-card .empty-state {
+    min-width: 0;
+}
+
+.admin-body .modal-dialog {
+    max-width: min(500px, calc(100vw - 2rem));
+}
+
+.admin-body .modal-content {
+    max-height: calc(100dvh - 2rem);
+    border-radius: var(--admin-card-radius);
+}
+
 @media (min-width: 992px) {
     .admin-shell {
         display: grid;
@@ -3131,6 +3472,10 @@
     .admin-dashboard-layout {
         grid-template-columns: 1fr;
     }
+
+    .admin-monitoring-workspace {
+        gap: 1rem;
+    }
 }
 
 @media (max-width: 767.98px) {
@@ -3194,6 +3539,162 @@
 
     .admin-management-table-card {
         overflow-x: auto;
+    }
+
+    .admin-monitoring-container.py-5,
+    .admin-booking-detail-page .container.py-5 {
+        padding-top: 1.5rem !important;
+        padding-bottom: 1.5rem !important;
+    }
+
+    .admin-page-heading,
+    .admin-management-heading,
+    .admin-monitoring-toolbar-heading,
+    .admin-detail-hero,
+    .admin-detail-card-heading {
+        gap: 0.75rem;
+    }
+
+    .admin-filter-actions,
+    .admin-location-filter-actions {
+        width: 100%;
+    }
+
+    .admin-filter-actions .btn,
+    .admin-location-filter-actions .btn {
+        flex: 1 1 180px;
+    }
+
+    .admin-monitoring-toolbar,
+    .admin-monitoring-sidebar .admin-scope-panel,
+    .admin-detail-card,
+    .admin-detail-hero {
+        padding: 1rem;
+    }
+
+    .admin-booking-cashflow-body li {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .admin-booking-cashflow-body li > div:last-child {
+        text-align: left;
+    }
+
+    .admin-booking-monitor-head,
+    .admin-booking-monitor-actions,
+    .admin-operation-card-head,
+    .admin-transaction-item {
+        min-width: 0;
+    }
+
+    .admin-pagination {
+        gap: 0.65rem;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .admin-topbar {
+        padding-right: 0.75rem;
+        padding-left: 0.75rem;
+    }
+
+    .admin-topbar-account {
+        max-width: 96px;
+    }
+
+    .admin-account-summary-grid {
+        gap: 0.65rem;
+    }
+
+    .admin-account-summary-grid article {
+        padding: 0.9rem 1rem;
+    }
+
+    .admin-owner-filters,
+    .admin-venue-filters,
+    .admin-account-status-filters,
+    .admin-booking-focus {
+        gap: 0.45rem;
+    }
+
+    .admin-booking-focus {
+        flex-wrap: wrap;
+        margin-inline: 0;
+        padding: 0;
+        overflow-x: visible;
+    }
+
+    .admin-owner-filter,
+    .admin-venue-filter,
+    .admin-account-status-filters a,
+    .admin-booking-focus-chip {
+        flex: 1 1 auto;
+        justify-content: center;
+        text-align: center;
+    }
+
+    .admin-filter-actions,
+    .admin-location-filter-actions,
+    .admin-location-pagination,
+    .admin-detail-hero,
+    .admin-detail-card-heading,
+    .admin-booking-monitor-head,
+    .admin-booking-monitor-actions,
+    .admin-operation-card-head {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .admin-filter-actions .btn,
+    .admin-location-filter-actions .btn,
+    .admin-location-pagination .btn,
+    .admin-booking-monitor-actions .btn,
+    .admin-pagination .btn {
+        width: 100%;
+    }
+
+    .admin-pagination {
+        display: grid;
+        grid-template-columns: 1fr;
+        width: 100%;
+        text-align: center;
+    }
+
+    .admin-pagination span {
+        grid-row: 1;
+    }
+
+    .admin-booking-cashflow > summary {
+        gap: 0.65rem;
+    }
+
+    .admin-booking-cashflow > summary small {
+        overflow-wrap: anywhere;
+    }
+
+    .admin-detail-info-grid,
+    .admin-money-grid,
+    .admin-participant-grid,
+    .admin-operation-meta,
+    .admin-booking-money-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-transaction-item {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .admin-transaction-item > div:nth-child(2) {
+        text-align: left;
+    }
+
+    .admin-body .modal-dialog {
+        max-width: calc(100vw - 1rem);
+        margin: 0.5rem;
+    }
+
+    .admin-body .modal-content {
+        max-height: calc(100dvh - 1rem);
     }
 }
 
