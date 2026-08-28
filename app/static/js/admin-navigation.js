@@ -250,6 +250,11 @@
             return;
         }
 
+        if (link.matches(".admin-sidebar-link")) {
+            safeRemove(pendingKey);
+            return;
+        }
+
         const currentUrl = new URL(window.location.href);
         const targetUrl = new URL(link.href, currentUrl);
         if (targetUrl.origin !== currentUrl.origin) {

@@ -156,6 +156,7 @@ Step 4.0 chỉ là foundation dữ liệu; **không đồng nghĩa Step 4 Admin 
 - Terminology.
 - Statuses.
 - Visual consistency.
+- Navigation continuity / scroll preservation.
 
 ---
 
