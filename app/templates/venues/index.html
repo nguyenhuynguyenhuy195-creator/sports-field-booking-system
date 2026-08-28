@@ -132,16 +132,28 @@
         </div>
 
         {% if venue_results %}
-            {% if map_markers and google_maps_api_key %}
-                <details class="venue-map-panel mb-4">
+            {% if map_markers %}
+                <details id="venue-map-panel" class="venue-map-panel mb-4">
                     <summary class="fw-semibold">Xem {{ map_markers|length }} cơ sở trên bản đồ</summary>
-                    <div id="venue-public-map" class="venue-public-map mt-3" data-markers='{{ map_markers|tojson }}'></div>
+                    <div
+                        id="venue-public-map"
+                        class="venue-public-map mt-3{% if not google_maps_api_key %} d-none{% endif %}"
+                        data-markers='{{ map_markers|tojson }}'
+                        data-map-api-enabled="{{ 'true' if google_maps_api_key else 'false' }}"
+                    ></div>
+                    <div
+                        class="venue-map-fallback mt-3{% if google_maps_api_key %} d-none{% endif %}"
+                        data-venue-map-fallback
+                        role="status"
+                    >
+                        Bản đồ hiện chưa khả dụng. Bạn vẫn có thể mở chỉ đường từ từng cơ sở bên dưới.
+                    </div>
                 </details>
             {% endif %}
             <div class="venue-grid">
                 {% for result in venue_results %}
                     {% set venue = result.venue %}
-                    <article class="venue-card h-100">
+                    <article class="venue-card h-100" data-venue-card="{{ venue.id }}">
                         <div class="d-flex justify-content-between align-items-start gap-3">
                             <div class="venue-card-icon" aria-hidden="true">🏟️</div>
                             <div class="venue-starting-price text-end">
@@ -160,6 +172,9 @@
                         <p class="small mb-3"><strong>Giờ hoạt động:</strong> {{ venue.opening_time.strftime('%H:%M') }}–{{ venue.closing_time.strftime('%H:%M') }}</p>
                         <div class="d-grid gap-2 mt-auto">
                             <a class="btn btn-primary" href="{{ url_for('venues.detail', venue_id=venue.id) }}">Xem sân và lịch trống</a>
+                            {% if venue.has_coordinates %}
+                                <button class="btn btn-outline-secondary venue-map-focus-button" type="button" data-venue-map-target="{{ venue.id }}">Xem trên bản đồ</button>
+                            {% endif %}
                             <a class="btn btn-outline-primary" href="{{ result.directions_url }}" target="_blank" rel="noopener noreferrer">Mở chỉ đường</a>
                         </div>
                     </article>
@@ -195,8 +210,10 @@
 
 {% block scripts %}
     <script src="{{ url_for('static', filename='js/venue-search-location.js') }}"></script>
-    {% if map_markers and google_maps_api_key %}
+    {% if map_markers %}
         <script src="{{ url_for('static', filename='js/venue-public-map.js') }}"></script>
-        <script async src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key|urlencode }}&loading=async&callback=initVenuePublicMap&language=vi&region=VN"></script>
+    {% endif %}
+    {% if map_markers and google_maps_api_key %}
+        <script async src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key|urlencode }}&loading=async&callback=initVenuePublicMap&language=vi&region=VN" onerror="handleVenuePublicMapError()"></script>
     {% endif %}
 {% endblock %}

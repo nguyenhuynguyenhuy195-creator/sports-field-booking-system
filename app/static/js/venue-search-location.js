@@ -7,24 +7,31 @@
         return;
     }
 
+    const latitudeInput = document.getElementById("latitude");
+    const longitudeInput = document.getElementById("longitude");
+    const radiusInput = document.getElementById("radius_km");
+    const statusElement = document.getElementById("location-search-status");
+
+    form.addEventListener("submit", prepareLocationFilters);
+    radiusInput?.addEventListener("change", prepareLocationFilters);
     setupDependentFieldTypes();
 
     if (!button) {
         return;
     }
 
-    const latitudeInput = document.getElementById("latitude");
-    const longitudeInput = document.getElementById("longitude");
-    const radiusInput = document.getElementById("radius_km");
-    const statusElement = document.getElementById("location-search-status");
-
     button.addEventListener("click", () => {
         if (!navigator.geolocation) {
+            clearCoordinates();
             showError("Trình duyệt này không hỗ trợ lấy vị trí. Bạn vẫn có thể tìm theo khu vực.");
             return;
         }
+        if (!latitudeInput || !longitudeInput || !radiusInput) {
+            showError("Không thể chuẩn bị tìm kiếm theo vị trí. Bạn vẫn có thể tìm theo khu vực.");
+            return;
+        }
         button.disabled = true;
-        statusElement.textContent = "Đang lấy vị trí hiện tại…";
+        setStatus("Đang lấy vị trí hiện tại…");
         navigator.geolocation.getCurrentPosition(
             (position) => {
                 latitudeInput.value = position.coords.latitude.toFixed(6);
@@ -32,11 +39,12 @@
                 if (!radiusInput.value) {
                     radiusInput.value = "5";
                 }
-                statusElement.textContent = "Đã lấy vị trí. Đang tìm các sân gần bạn…";
+                setStatus("Đã lấy vị trí. Đang tìm các sân gần bạn…");
                 form.submit();
             },
             (error) => {
                 button.disabled = false;
+                clearCoordinates();
                 const message = error.code === error.PERMISSION_DENIED
                     ? "Bạn chưa cho phép truy cập vị trí. Tìm kiếm theo tên/khu vực vẫn hoạt động."
                     : "Không thể lấy vị trí lúc này. Hãy thử lại hoặc tìm theo khu vực.";
@@ -46,9 +54,31 @@
         );
     });
 
-    function showError(message) {
+    function prepareLocationFilters() {
+        if (!radiusInput?.value) {
+            clearCoordinates();
+        }
+    }
+
+    function clearCoordinates() {
+        if (latitudeInput) {
+            latitudeInput.value = "";
+        }
+        if (longitudeInput) {
+            longitudeInput.value = "";
+        }
+    }
+
+    function setStatus(message, isError = false) {
+        if (!statusElement) {
+            return;
+        }
         statusElement.textContent = message;
-        statusElement.classList.add("text-danger");
+        statusElement.classList.toggle("text-danger", isError);
+    }
+
+    function showError(message) {
+        setStatus(message, true);
     }
 
     function setupDependentFieldTypes() {
@@ -65,6 +95,7 @@
         fieldTypeOptionsElement.classList.remove("d-none");
 
         const submitFilters = () => {
+            prepareLocationFilters();
             if (typeof form.requestSubmit === "function") {
                 form.requestSubmit();
             } else {

@@ -442,6 +442,38 @@ body .admin-monitoring-main .admin-booking-monitor-list {
     cursor: pointer;
 }
 
+.venue-map-fallback {
+    background: #f8fafc;
+    border: 1px dashed #b8c7d3;
+    border-radius: 14px;
+    color: #526578;
+    padding: 1rem;
+}
+
+.venue-map-info {
+    display: grid;
+    gap: 0.35rem;
+    max-width: min(260px, 70vw);
+    padding: 0.25rem;
+}
+
+.venue-map-info-meta {
+    color: #526578;
+    display: block;
+    font-size: 0.85rem;
+}
+
+.venue-map-info-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    margin-top: 0.25rem;
+}
+
+.venue-map-info-actions a {
+    font-weight: 700;
+}
+
 .venue-filter-grid-multisport {
     grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -1216,6 +1248,11 @@ a:hover {
     border-color: #bad8c6;
     box-shadow: 0 18px 40px rgba(15, 39, 71, 0.1);
     transform: translateY(-3px);
+}
+
+.venue-card.is-map-focused {
+    border-color: var(--app-primary);
+    box-shadow: 0 0 0 3px rgba(20, 108, 67, 0.15), 0 18px 40px rgba(15, 39, 71, 0.1);
 }
 
 .venue-card-icon {

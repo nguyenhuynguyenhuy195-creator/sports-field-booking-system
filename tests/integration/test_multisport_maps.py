@@ -1,5 +1,8 @@
 from datetime import date, time, timedelta
 from decimal import Decimal
+from html import unescape
+import json
+import re
 
 import pytest
 
@@ -36,6 +39,12 @@ from app.services import (
 
 
 PASSWORD = "MatKhauAnToan123"
+
+
+def extract_map_markers(page: str) -> list[dict]:
+    match = re.search(r"data-markers='([^']*)'", page)
+    assert match is not None
+    return json.loads(unescape(match.group(1)))
 
 
 def create_user(app, *, email: str, role: UserRole) -> int:
@@ -420,3 +429,145 @@ def test_text_search_still_includes_legacy_venue_without_coordinates(app):
         assert result.total == 1
         assert result.items[0].venue.id == legacy_id
         assert result.items[0].distance_km is None
+
+
+def test_public_map_marker_payload_uses_server_search_results(app, client):
+    owner_id = create_user(
+        app,
+        email="public-marker-owner@example.com",
+        role=UserRole.OWNER,
+    )
+    venue_id = create_public_venue_with_field(
+        app,
+        owner_id=owner_id,
+        name="Sân marker công khai",
+        latitude=Decimal("10.777500"),
+        longitude=Decimal("106.701500"),
+        field_type_code=FieldTypeCode.BADMINTON_STANDARD.value,
+    )
+    app.config["GOOGLE_MAPS_BROWSER_API_KEY"] = "test-browser-key"
+
+    response = client.get(
+        "/venues",
+        query_string={
+            "latitude": "10.776900",
+            "longitude": "106.700900",
+            "radius_km": "3",
+        },
+    )
+    page = response.get_data(as_text=True)
+    markers = extract_map_markers(page)
+
+    assert response.status_code == 200
+    assert len(markers) == 1
+    assert markers[0]["venue_id"] == venue_id
+    assert markers[0]["detail_url"] == f"/venues/{venue_id}"
+    assert markers[0]["directions_url"].startswith(
+        "https://www.google.com/maps/dir/"
+    )
+    assert markers[0]["starting_price"] == 200000.0
+    assert markers[0]["distance_km"] is not None
+    assert markers[0]["distance_km"] < 1
+    assert f'data-venue-map-target="{venue_id}"' in page
+
+
+def test_public_maps_show_fallback_without_browser_api_key(app, client):
+    owner_id = create_user(
+        app,
+        email="public-map-fallback-owner@example.com",
+        role=UserRole.OWNER,
+    )
+    venue_id = create_public_venue_with_field(
+        app,
+        owner_id=owner_id,
+        name="Sân không có API key",
+        latitude=Decimal("10.777500"),
+        longitude=Decimal("106.701500"),
+        field_type_code=FieldTypeCode.FOOTBALL_5.value,
+    )
+    app.config["GOOGLE_MAPS_BROWSER_API_KEY"] = ""
+
+    listing_response = client.get("/venues")
+    detail_response = client.get(f"/venues/{venue_id}")
+    listing_page = listing_response.get_data(as_text=True)
+    detail_page = detail_response.get_data(as_text=True)
+
+    assert listing_response.status_code == 200
+    assert detail_response.status_code == 200
+    assert "Bản đồ hiện chưa khả dụng" in listing_page
+    assert "Bản đồ hiện chưa khả dụng" in detail_page
+    assert "/static/js/venue-public-map.js" in listing_page
+    assert "/static/js/venue-public-map.js" in detail_page
+    assert "maps.googleapis.com" not in listing_page
+    assert "maps.googleapis.com" not in detail_page
+    assert "Mở chỉ đường" in listing_page
+    assert "Mở chỉ đường trên Google Maps" in detail_page
+
+
+def test_public_detail_marker_keeps_directions_separate_from_detail_url(
+    app,
+    client,
+):
+    owner_id = create_user(
+        app,
+        email="detail-map-owner@example.com",
+        role=UserRole.OWNER,
+    )
+    venue_id = create_public_venue_with_field(
+        app,
+        owner_id=owner_id,
+        name="Sân chi tiết bản đồ",
+        latitude=Decimal("10.777500"),
+        longitude=Decimal("106.701500"),
+        field_type_code=FieldTypeCode.TENNIS_STANDARD.value,
+    )
+    app.config["GOOGLE_MAPS_BROWSER_API_KEY"] = "test-browser-key"
+
+    response = client.get(f"/venues/{venue_id}")
+    page = response.get_data(as_text=True)
+    markers = extract_map_markers(page)
+
+    assert response.status_code == 200
+    assert len(markers) == 1
+    assert markers[0]["venue_id"] == venue_id
+    assert markers[0]["detail_url"] is None
+    assert markers[0]["directions_url"].startswith(
+        "https://www.google.com/maps/dir/"
+    )
+    assert "Xem chi tiết" not in page
+
+
+def test_nearby_search_paginates_and_keeps_location_filters(app, client):
+    owner_id = create_user(
+        app,
+        email="nearby-pagination-owner@example.com",
+        role=UserRole.OWNER,
+    )
+    for number in range(1, 11):
+        create_public_venue_with_field(
+            app,
+            owner_id=owner_id,
+            name=f"Sân gần phân trang {number:02d}",
+            latitude=Decimal("10.777000") + Decimal(number) / Decimal("100000"),
+            longitude=Decimal("106.701000"),
+            field_type_code=FieldTypeCode.PICKLEBALL_STANDARD.value,
+        )
+
+    response = client.get(
+        "/venues",
+        query_string={
+            "q": "gần phân trang",
+            "latitude": "10.776900",
+            "longitude": "106.700900",
+            "radius_km": "3",
+            "page": "2",
+        },
+    )
+    page = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "10 cơ sở phù hợp" in page
+    assert "Trang 2/2" in page
+    assert "latitude=10.776900" in page
+    assert "longitude=106.700900" in page
+    assert "radius_km=3" in page
