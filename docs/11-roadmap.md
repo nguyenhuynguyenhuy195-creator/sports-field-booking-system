@@ -137,7 +137,7 @@ Step 4.0 chỉ là foundation dữ liệu; **không đồng nghĩa Step 4 Admin 
 
 ### Step 5 – Quản lý tài khoản
 
-**Trạng thái: CHƯA LÀM**
+**Trạng thái: HOÀN THÀNH**
 
 - Search/filter.
 - Account detail.
@@ -390,14 +390,14 @@ Hiện tại:
 - Step 3: DONE.
 - Step 4.0: DONE.
 - Step 4.1: DONE.
-- Step 5: NEXT.
-- Step 6: TODO.
+- Step 5: DONE.
+- Step 6: NEXT.
 
 ### TASK HIỆN TẠI
 
-**PHASE 1B – STEP 4.1: Kiểm duyệt cơ sở + Google Maps (Admin UI) – HOÀN THÀNH.**
+**PHASE 1B – STEP 5: Quản lý tài khoản Admin – HOÀN THÀNH.**
 
-Step 5 là phần tiếp theo. Không tự làm Step 5 hoặc Phase khác khi task hiện tại chưa yêu cầu.
+Step 6 là phần tiếp theo. Không tự làm Step 6 hoặc Phase khác khi task hiện tại chưa yêu cầu.
 
 ---
 

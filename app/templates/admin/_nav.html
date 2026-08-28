@@ -1,6 +1,6 @@
 <nav class="admin-section-nav" aria-label="Điều hướng quản trị">
     <a class="admin-section-link{% if request.endpoint == 'admin.dashboard' %} active{% endif %}" href="{{ url_for('admin.dashboard') }}">Tổng quan</a>
-    <a class="admin-section-link{% if request.endpoint in ['admin.accounts', 'admin.update_account_status'] %} active{% endif %}" href="{{ url_for('admin.accounts') }}">Tài khoản</a>
+    <a class="admin-section-link{% if request.endpoint in ['admin.accounts', 'admin.account_detail', 'admin.update_account_status'] %} active{% endif %}" href="{{ url_for('admin.accounts') }}">Tài khoản</a>
     <a class="admin-section-link{% if request.endpoint in ['admin.owner_applications', 'admin.review_owner_application_route'] %} active{% endif %}" href="{{ url_for('admin.owner_applications') }}">Duyệt chủ sân</a>
     <a class="admin-section-link{% if request.endpoint in ['venues.admin_index', 'venues.admin_moderate'] %} active{% endif %}" href="{{ url_for('venues.admin_index') }}">Duyệt cơ sở</a>
     <a class="admin-section-link{% if request.endpoint == 'admin.monitoring' %} active{% endif %}" href="{{ url_for('admin.monitoring') }}">Giám sát</a>

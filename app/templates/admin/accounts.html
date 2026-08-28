@@ -4,90 +4,161 @@
 {% block admin_page_label %}Tài khoản{% endblock %}
 
 {% block content %}
-<section class="admin-page admin-accounts-page">
-    <div class="container py-5">
-        <div class="admin-page-heading">
-            <div>
-                <span class="eyebrow">QUẢN TRỊ HỆ THỐNG</span>
-                <h1 class="display-6 fw-bold mt-2 mb-2">Quản lý tài khoản</h1>
-                <p class="text-secondary mb-0">Chọn nhóm người dùng cần xem, sau đó tìm hoặc khóa tài khoản khi cần.</p>
-            </div>
+{% set owner_application_labels = {
+    'PENDING': 'Chờ duyệt',
+    'APPROVED': 'Đã chấp thuận',
+    'REJECTED': 'Đã từ chối',
+    'CANCELLED': 'Đã hủy'
+} %}
+<section class="container admin-account-page py-4 py-lg-5">
+    <div class="admin-management-heading admin-account-heading">
+        <div>
+            <span class="eyebrow">QUẢN TRỊ HỆ THỐNG</span>
+            <h1 class="h2 fw-bold mt-2 mb-1">Quản lý tài khoản</h1>
+            <p class="text-secondary mb-0">Tra cứu hồ sơ tài khoản và kiểm soát quyền đăng nhập mà không làm mất dữ liệu lịch sử.</p>
         </div>
-
-        <div class="admin-account-summary-grid">
-            <article><span>Tất cả tài khoản</span><strong>{{ account_summary.total }}</strong><small>Trên toàn hệ thống</small></article>
-            <article><span>Đang hoạt động</span><strong>{{ account_summary.active }}</strong><small>Có thể đăng nhập</small></article>
-            <article><span>Đã khóa</span><strong>{{ account_summary.locked }}</strong><small>Không thể đăng nhập</small></article>
-        </div>
-
-        <section class="admin-account-browser" aria-labelledby="account-role-title">
-            <div class="admin-account-browser-heading">
-                <div><span class="admin-section-kicker">BƯỚC 1</span><h2 id="account-role-title">Chọn nhóm tài khoản</h2></div>
-                <span>{{ account_page.total }} kết quả đang hiển thị</span>
-            </div>
-            <nav class="admin-account-role-tabs" aria-label="Nhóm tài khoản">
-                <a class="admin-account-role-tab{% if not selected_role %} active{% endif %}" href="{{ url_for('admin.accounts', q=query, status=selected_status) }}"><span>Tất cả</span><strong>{{ account_summary.total }}</strong></a>
-                <a class="admin-account-role-tab{% if selected_role == 'USER' %} active{% endif %}" href="{{ url_for('admin.accounts', q=query, role='USER', status=selected_status) }}"><span>Người dùng</span><strong>{{ account_summary.users }}</strong></a>
-                <a class="admin-account-role-tab{% if selected_role == 'OWNER' %} active{% endif %}" href="{{ url_for('admin.accounts', q=query, role='OWNER', status=selected_status) }}"><span>Chủ sân</span><strong>{{ account_summary.owners }}</strong></a>
-                <a class="admin-account-role-tab{% if selected_role == 'ADMIN' %} active{% endif %}" href="{{ url_for('admin.accounts', q=query, role='ADMIN', status=selected_status) }}"><span>Quản trị viên</span><strong>{{ account_summary.administrators }}</strong></a>
-            </nav>
-            <div class="admin-account-status-filters" aria-label="Trạng thái tài khoản">
-                <span>BƯỚC 2 · Chọn trạng thái</span>
-                <a class="{% if not selected_status %}active{% endif %}" href="{{ url_for('admin.accounts', q=query, role=selected_role) }}">Tất cả</a>
-                <a class="{% if selected_status == 'ACTIVE' %}active{% endif %}" href="{{ url_for('admin.accounts', q=query, role=selected_role, status='ACTIVE') }}">Đang hoạt động</a>
-                <a class="{% if selected_status == 'LOCKED' %}active{% endif %}" href="{{ url_for('admin.accounts', q=query, role=selected_role, status='LOCKED') }}">Đã khóa</a>
-            </div>
-        </section>
-
-        <form class="admin-filter-panel admin-account-search" method="get" action="{{ url_for('admin.accounts') }}">
-            <input type="hidden" name="role" value="{{ selected_role }}"><input type="hidden" name="status" value="{{ selected_status }}">
-            <div class="admin-filter-control admin-filter-grow">
-                <label for="admin-account-query">Tìm theo tên, email hoặc số điện thoại</label>
-                <input class="form-control" id="admin-account-query" name="q" type="search" maxlength="100" value="{{ query }}" placeholder="Ví dụ: Nguyễn An hoặc 0901...">
-            </div>
-            <div class="admin-filter-actions">
-                <button class="btn btn-primary" type="submit">Tìm tài khoản</button>
-                {% if query %}<a class="btn btn-outline-secondary" href="{{ url_for('admin.accounts', role=selected_role, status=selected_status) }}">Xóa từ khóa</a>{% endif %}
-            </div>
-        </form>
-
-        {% if account_groups %}
-            <div class="admin-account-groups">
-                {% for role_group in account_groups %}
-                    {% set role_count = namespace(value=0) %}{% for status_group in role_group.statuses %}{% set role_count.value = role_count.value + status_group.items|length %}{% endfor %}
-                    <section class="admin-account-group">
-                        <div class="admin-account-group-heading"><div><span>{{ '⚽' if role_group.role == 'USER' else ('▣' if role_group.role == 'OWNER' else '◆') }}</span><div><h2>{{ role_labels[role_group.role] }}</h2><p>{{ role_count.value }} tài khoản trong trang này</p></div></div></div>
-                        {% for status_group in role_group.statuses %}
-                            <details class="admin-account-status-group" open>
-                                <summary><span class="status-badge status-{{ status_group.status|lower }}">{{ status_labels[status_group.status] }}</span><strong>{{ status_group.items|length }}</strong><small>Nhấn để thu gọn hoặc mở rộng</small></summary>
-                                <div class="admin-account-card-grid">
-                                    {% for account in status_group.items %}
-                                        <article class="admin-account-card">
-                                            <div class="admin-account-card-top"><span class="admin-account-avatar" aria-hidden="true">{{ account.full_name[:1]|upper }}</span><div><h3>{{ account.full_name }}</h3><p>{{ account.email }}</p></div><span class="status-badge status-{{ account.status|lower }}">{{ status_labels[account.status] }}</span></div>
-                                            <div class="admin-account-card-meta"><div><span>Nhóm</span><strong>{{ role_labels[account.role] }}</strong></div><div><span>Số điện thoại</span><strong>{{ account.phone or 'Chưa cập nhật' }}</strong></div><div><span>Tham gia từ</span><strong>{{ account.created_at|local_datetime }}</strong></div></div>
-                                            <div class="admin-account-card-actions">
-                                                {% if account.id == current_user.id %}<span class="admin-current-account">Tài khoản đang dùng</span>
-                                                {% elif account.status == 'ACTIVE' %}
-                                                    <form method="post" action="{{ url_for('admin.update_account_status', account_id=account.id) }}" data-confirm-title="Khóa tài khoản" data-confirm-message="{{ account.full_name }} sẽ không thể đăng nhập cho đến khi được mở khóa. Các lịch sử liên quan vẫn được giữ nguyên." data-confirm-button="Khóa tài khoản"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="status" value="LOCKED"><button class="btn btn-sm btn-outline-danger" type="submit">Khóa tài khoản</button></form>
-                                                {% elif account.status == 'LOCKED' %}
-                                                    <form method="post" action="{{ url_for('admin.update_account_status', account_id=account.id) }}" data-confirm-title="Mở khóa tài khoản" data-confirm-message="{{ account.full_name }} sẽ có thể đăng nhập trở lại." data-confirm-button="Mở khóa"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="status" value="ACTIVE"><button class="btn btn-sm btn-outline-primary" type="submit">Mở khóa</button></form>
-                                                {% else %}<span class="text-secondary small">Không có thao tác phù hợp</span>{% endif %}
-                                            </div>
-                                        </article>
-                                    {% endfor %}
-                                </div>
-                            </details>
-                        {% endfor %}
-                    </section>
-                {% endfor %}
-            </div>
-        {% else %}
-            <div class="admin-table-card"><div class="empty-state text-center m-4"><div class="empty-state-icon" aria-hidden="true">⌕</div><h2 class="h5 fw-bold">Không tìm thấy tài khoản</h2><p class="text-secondary mb-0">Hãy đổi nhóm, trạng thái hoặc từ khóa tìm kiếm.</p></div></div>
-        {% endif %}
-
-        {% if account_page.pages > 1 %}
-            <nav class="admin-pagination" aria-label="Phân trang tài khoản">{% if account_page.has_prev %}<a class="btn btn-outline-primary" href="{{ url_for('admin.accounts', q=query, role=selected_role, status=selected_status, page=account_page.page - 1) }}">← Trang trước</a>{% endif %}<span>Trang {{ account_page.page }}/{{ account_page.pages }}</span>{% if account_page.has_next %}<a class="btn btn-outline-primary" href="{{ url_for('admin.accounts', q=query, role=selected_role, status=selected_status, page=account_page.page + 1) }}">Trang sau →</a>{% endif %}</nav>
-        {% endif %}
+        <span class="admin-readonly-note"><i class="bi bi-shield-lock" aria-hidden="true"></i>Chỉ quản trị viên</span>
     </div>
+
+    <div class="admin-account-summary-grid" aria-label="Tổng quan tài khoản">
+        <article><span>Tất cả tài khoản</span><strong>{{ account_summary.total }}</strong><small>Trên toàn hệ thống</small></article>
+        <article><span>Đang hoạt động</span><strong>{{ account_summary.active }}</strong><small>Có thể đăng nhập</small></article>
+        <article><span>Đã khóa</span><strong>{{ account_summary.locked }}</strong><small>Không thể đăng nhập</small></article>
+    </div>
+
+    <section class="admin-account-browser" aria-labelledby="account-role-title">
+        <div class="admin-account-browser-heading">
+            <div><span class="admin-section-kicker">BỘ LỌC</span><h2 id="account-role-title">Chọn nhóm tài khoản</h2></div>
+            <span>{{ account_page.total }} kết quả</span>
+        </div>
+        <nav class="admin-account-role-tabs" aria-label="Lọc theo vai trò">
+            <a class="admin-account-role-tab{% if not selected_role %} active{% endif %}" href="{{ url_for('admin.accounts', q=query, status=selected_status) }}"{% if not selected_role %} aria-current="page"{% endif %}><span>Tất cả</span><strong>{{ account_summary.total }}</strong></a>
+            <a class="admin-account-role-tab{% if selected_role == 'USER' %} active{% endif %}" href="{{ url_for('admin.accounts', q=query, role='USER', status=selected_status) }}"{% if selected_role == 'USER' %} aria-current="page"{% endif %}><span>Người dùng</span><strong>{{ account_summary.users }}</strong></a>
+            <a class="admin-account-role-tab{% if selected_role == 'OWNER' %} active{% endif %}" href="{{ url_for('admin.accounts', q=query, role='OWNER', status=selected_status) }}"{% if selected_role == 'OWNER' %} aria-current="page"{% endif %}><span>Chủ sân</span><strong>{{ account_summary.owners }}</strong></a>
+            <a class="admin-account-role-tab{% if selected_role == 'ADMIN' %} active{% endif %}" href="{{ url_for('admin.accounts', q=query, role='ADMIN', status=selected_status) }}"{% if selected_role == 'ADMIN' %} aria-current="page"{% endif %}><span>Quản trị viên</span><strong>{{ account_summary.administrators }}</strong></a>
+        </nav>
+        <div class="admin-account-status-filters" aria-label="Lọc theo trạng thái">
+            <span>TRẠNG THÁI</span>
+            <a class="{% if not selected_status %}active{% endif %}" href="{{ url_for('admin.accounts', q=query, role=selected_role) }}">Tất cả</a>
+            <a class="{% if selected_status == 'ACTIVE' %}active{% endif %}" href="{{ url_for('admin.accounts', q=query, role=selected_role, status='ACTIVE') }}">Đang hoạt động</a>
+            <a class="{% if selected_status == 'LOCKED' %}active{% endif %}" href="{{ url_for('admin.accounts', q=query, role=selected_role, status='LOCKED') }}">Đã khóa</a>
+            <a class="{% if selected_status == 'INACTIVE' %}active{% endif %}" href="{{ url_for('admin.accounts', q=query, role=selected_role, status='INACTIVE') }}">Ngừng hoạt động</a>
+        </div>
+    </section>
+
+    <form class="admin-filter-panel admin-account-search" method="get" action="{{ url_for('admin.accounts') }}">
+        <input type="hidden" name="role" value="{{ selected_role }}">
+        <input type="hidden" name="status" value="{{ selected_status }}">
+        <div class="admin-filter-control admin-filter-grow">
+            <label for="admin-account-query">Tìm theo họ tên, email hoặc số điện thoại</label>
+            <input class="form-control" id="admin-account-query" name="q" type="search" maxlength="100" value="{{ query }}" placeholder="Ví dụ: Nguyễn An, an@example.com hoặc 0901...">
+        </div>
+        <div class="admin-filter-actions">
+            <button class="btn btn-primary" type="submit"><i class="bi bi-search" aria-hidden="true"></i>Tìm tài khoản</button>
+            {% if query %}<a class="btn btn-outline-secondary" href="{{ url_for('admin.accounts', role=selected_role, status=selected_status) }}">Xóa từ khóa</a>{% endif %}
+        </div>
+    </form>
+
+    {% if account_page.items %}
+        <div class="admin-account-workspace">
+            <aside class="admin-account-master" aria-label="Danh sách tài khoản">
+                <div class="admin-account-list-heading">
+                    <div><strong>Danh sách tài khoản</strong><small>Mới tạo gần đây hiển thị trước</small></div>
+                    <span>{{ account_page.total }}</span>
+                </div>
+                <div class="admin-account-list">
+                    {% for account in account_page.items %}
+                        <a
+                            class="admin-account-list-item{% if selected_account and selected_account.account.id == account.id %} active{% endif %}"
+                            href="{{ url_for('admin.account_detail', account_id=account.id, q=query, role=selected_role, status=selected_status, page=account_page.page) }}"
+                            {% if selected_account and selected_account.account.id == account.id %}aria-current="true"{% endif %}
+                        >
+                            <span class="admin-account-list-topline">
+                                <strong>{{ account.full_name }}</strong>
+                                <span class="status-badge status-{{ account.status|lower }}">{{ status_labels[account.status] }}</span>
+                            </span>
+                            <span class="admin-account-list-email">{{ account.email }}</span>
+                            <span class="admin-account-list-meta"><span>{{ role_labels[account.role] }}</span><span>{{ account.created_at|local_datetime }}</span></span>
+                        </a>
+                    {% endfor %}
+                </div>
+            </aside>
+
+            {% if selected_account %}
+                {% set account = selected_account.account %}
+                <article class="admin-account-detail">
+                    <header class="admin-account-detail-heading">
+                        <span class="admin-account-detail-avatar" aria-hidden="true">{{ account.full_name[:1]|upper }}</span>
+                        <div><span>TÀI KHOẢN #{{ account.id }}</span><h2>{{ account.full_name }}</h2><p>{{ account.email }}</p></div>
+                        <span class="status-badge status-{{ account.status|lower }}">{{ status_labels[account.status] }}</span>
+                    </header>
+
+                    <section class="admin-account-detail-section">
+                        <div class="admin-account-section-heading"><i class="bi bi-person-vcard" aria-hidden="true"></i><div><h3>Thông tin tài khoản</h3><p>Dữ liệu hồ sơ đang được lưu trong hệ thống.</p></div></div>
+                        <dl class="admin-account-info-grid">
+                            <div><dt>Họ và tên</dt><dd>{{ account.full_name }}</dd></div>
+                            <div><dt>Email</dt><dd>{{ account.email }}</dd></div>
+                            <div><dt>Số điện thoại</dt><dd>{{ account.phone or 'Chưa cập nhật' }}</dd></div>
+                            <div><dt>Vai trò</dt><dd>{{ role_labels[account.role] }}</dd></div>
+                            <div><dt>Trạng thái</dt><dd><span class="status-badge status-{{ account.status|lower }}">{{ status_labels[account.status] }}</span></dd></div>
+                            <div><dt>Ngày tạo</dt><dd>{{ account.created_at|local_datetime }}</dd></div>
+                            <div><dt>Cập nhật gần nhất</dt><dd>{{ account.updated_at|local_datetime if account.updated_at else 'Chưa có thay đổi' }}</dd></div>
+                        </dl>
+                    </section>
+
+                    <section class="admin-account-detail-section">
+                        <div class="admin-account-section-heading"><i class="bi bi-diagram-3" aria-hidden="true"></i><div><h3>Dữ liệu liên quan</h3><p>Thông tin tham chiếu phục vụ việc kiểm tra tài khoản.</p></div></div>
+                        <div class="admin-account-related-grid">
+                            <div><span>Hồ sơ chủ sân gần nhất</span><strong>{% if selected_account.latest_owner_application %}{{ owner_application_labels.get(selected_account.latest_owner_application.status, selected_account.latest_owner_application.status) }}{% else %}Chưa có{% endif %}</strong>{% if selected_account.latest_owner_application %}<small>Gửi {{ selected_account.latest_owner_application.created_at|local_datetime }}</small>{% endif %}</div>
+                            <div><span>Số cơ sở sở hữu</span><strong>{{ selected_account.venue_count }}</strong><small>Không bị xóa khi khóa tài khoản</small></div>
+                            <div><span>Số lịch đã đặt</span><strong>{{ selected_account.booking_count }}</strong><small>Lịch sử được giữ nguyên</small></div>
+                        </div>
+                    </section>
+
+                    <section class="admin-account-action-section">
+                        <div class="admin-account-section-heading"><i class="bi bi-shield-check" aria-hidden="true"></i><div><h3>Kiểm soát đăng nhập</h3><p>Khóa hoặc mở khóa không thay đổi vai trò và không xóa dữ liệu lịch sử.</p></div></div>
+                        {% if account.id == current_user.id %}
+                            <div class="admin-account-guardrail"><i class="bi bi-info-circle" aria-hidden="true"></i><div><strong>Tài khoản đang sử dụng</strong><span>Bạn không thể tự khóa tài khoản quản trị đang đăng nhập.</span></div></div>
+                        {% elif account.role == 'ADMIN' %}
+                            <div class="admin-account-guardrail"><i class="bi bi-eye" aria-hidden="true"></i><div><strong>Chỉ xem tài khoản quản trị viên</strong><span>Step 5 không cho phép khóa, mở khóa hoặc thay đổi vai trò của quản trị viên khác.</span></div></div>
+                        {% elif account.status == 'INACTIVE' %}
+                            <div class="admin-account-guardrail"><i class="bi bi-slash-circle" aria-hidden="true"></i><div><strong>Không có thao tác phù hợp</strong><span>Tài khoản ngừng hoạt động không được chuyển trạng thái trong Step 5.</span></div></div>
+                        {% else %}
+                            <form
+                                method="post"
+                                action="{{ url_for('admin.update_account_status', account_id=account.id) }}"
+                                data-confirm-title="{{ 'Khóa tài khoản' if account.status == 'ACTIVE' else 'Mở khóa tài khoản' }}"
+                                data-confirm-message="{% if account.status == 'ACTIVE' %}{{ account.full_name }} sẽ không thể đăng nhập cho đến khi được mở khóa. Booking, payment, cơ sở và dữ liệu lịch sử vẫn được giữ nguyên.{% else %}{{ account.full_name }} sẽ có thể đăng nhập trở lại với vai trò hiện tại.{% endif %}"
+                                data-confirm-button="{{ 'Khóa tài khoản' if account.status == 'ACTIVE' else 'Mở khóa' }}"
+                            >
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="status" value="{{ 'LOCKED' if account.status == 'ACTIVE' else 'ACTIVE' }}">
+                                <input type="hidden" name="q" value="{{ query }}">
+                                <input type="hidden" name="role" value="{{ selected_role }}">
+                                <input type="hidden" name="filter_status" value="{{ selected_status }}">
+                                <input type="hidden" name="page" value="{{ account_page.page }}">
+                                <input type="hidden" name="selected_id" value="{{ account.id }}">
+                                <button class="btn {{ 'btn-outline-danger' if account.status == 'ACTIVE' else 'btn-primary' }} admin-account-status-action" type="submit"><i class="bi bi-{{ 'lock' if account.status == 'ACTIVE' else 'unlock' }}" aria-hidden="true"></i>{{ 'Khóa tài khoản' if account.status == 'ACTIVE' else 'Mở khóa tài khoản' }}</button>
+                            </form>
+                        {% endif %}
+                    </section>
+                </article>
+            {% endif %}
+        </div>
+    {% else %}
+        <div class="admin-empty-card admin-account-empty-state">
+            <div class="admin-account-empty-icon" aria-hidden="true"><i class="bi bi-search"></i></div>
+            <h2 class="h5 fw-bold mt-3">Không tìm thấy tài khoản</h2>
+            <p class="text-secondary mb-0">Hãy thay đổi vai trò, trạng thái hoặc từ khóa tìm kiếm.</p>
+        </div>
+    {% endif %}
+
+    {% if account_page.pages > 1 %}
+        <nav class="admin-pagination" aria-label="Phân trang tài khoản">
+            {% if account_page.has_prev %}<a class="btn btn-outline-primary" href="{{ url_for('admin.accounts', q=query, role=selected_role, status=selected_status, page=account_page.page - 1) }}"><i class="bi bi-arrow-left" aria-hidden="true"></i>Trang trước</a>{% endif %}
+            <span>Trang {{ account_page.page }}/{{ account_page.pages }}</span>
+            {% if account_page.has_next %}<a class="btn btn-outline-primary" href="{{ url_for('admin.accounts', q=query, role=selected_role, status=selected_status, page=account_page.page + 1) }}">Trang sau<i class="bi bi-arrow-right" aria-hidden="true"></i></a>{% endif %}
+        </nav>
+    {% endif %}
 </section>
 {% endblock %}

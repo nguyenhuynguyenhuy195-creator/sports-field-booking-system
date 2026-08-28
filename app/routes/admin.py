@@ -26,6 +26,7 @@ from app.models import (
 )
 from app.services import (
     AdminError,
+    get_admin_account_detail,
     get_admin_account_summary,
     get_admin_booking,
     get_admin_dashboard_summary,
@@ -214,8 +215,19 @@ def dashboard():
 
 
 @admin_bp.get("/accounts")
+@admin_bp.get("/users")
 @roles_required(UserRole.ADMIN)
 def accounts():
+    return _render_accounts()
+
+
+@admin_bp.get("/users/<int:account_id>")
+@roles_required(UserRole.ADMIN)
+def account_detail(account_id: int):
+    return _render_accounts(selected_account_id=account_id)
+
+
+def _render_accounts(*, selected_account_id: int | None = None):
     query = (request.args.get("q") or "").strip()
     role = (request.args.get("role") or "").strip()
     status = (request.args.get("status") or "").strip()
@@ -231,11 +243,29 @@ def accounts():
         flash(str(exc), "warning")
         return redirect(url_for("admin.accounts"))
 
+    if selected_account_id is None and account_page.items:
+        selected_account_id = account_page.items[0].id
+    selected_account = None
+    if selected_account_id is not None:
+        try:
+            selected_account = get_admin_account_detail(selected_account_id)
+        except AdminError as exc:
+            flash(str(exc), "warning")
+            return redirect(
+                url_for(
+                    "admin.accounts",
+                    q=query,
+                    role=role,
+                    status=status,
+                    page=page,
+                )
+            )
+
     return render_template(
         "admin/accounts.html",
         account_summary=get_admin_account_summary(),
         account_page=account_page,
-        account_groups=_group_accounts(account_page.items),
+        selected_account=selected_account,
         query=query,
         selected_role=role,
         selected_status=status,
@@ -246,6 +276,7 @@ def accounts():
 
 
 @admin_bp.post("/accounts/<int:account_id>/status")
+@admin_bp.post("/users/<int:account_id>/status")
 @roles_required(UserRole.ADMIN)
 def update_account_status(account_id: int):
     form = AdminAccountStatusForm()
@@ -259,7 +290,7 @@ def update_account_status(account_id: int):
             "Dữ liệu tài khoản không hợp lệ.",
         )
         flash(first_error, "danger")
-        return redirect(url_for("admin.accounts"))
+        return _redirect_to_accounts(account_id)
 
     try:
         account = set_admin_account_status(
@@ -276,7 +307,22 @@ def update_account_status(account_id: int):
             else f"Đã khóa tài khoản {account.email}."
         )
         flash(message, "success")
-    return redirect(url_for("admin.accounts"))
+    return _redirect_to_accounts(account_id)
+
+
+def _redirect_to_accounts(account_id: int):
+    route_values = {
+        "q": (request.form.get("q") or "").strip(),
+        "role": (request.form.get("role") or "").strip(),
+        "status": (request.form.get("filter_status") or "").strip(),
+        "page": max(request.form.get("page", 1, type=int) or 1, 1),
+    }
+    selected_id = request.form.get("selected_id", type=int)
+    if selected_id == account_id:
+        return redirect(
+            url_for("admin.account_detail", account_id=account_id, **route_values)
+        )
+    return redirect(url_for("admin.accounts", **route_values))
 
 
 @admin_bp.get("/owner-applications")

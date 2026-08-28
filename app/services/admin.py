@@ -98,6 +98,14 @@ class AdminAccountSummary:
 
 
 @dataclass(frozen=True)
+class AdminAccountDetail:
+    account: User
+    latest_owner_application: OwnerApplication | None
+    venue_count: int
+    booking_count: int
+
+
+@dataclass(frozen=True)
 class AdminFieldLocationSummary:
     field: Field
     total_bookings: int
@@ -452,6 +460,28 @@ def list_admin_accounts(
     return _paginate(statement.order_by(User.created_at.desc(), User.id.desc()), page)
 
 
+def get_admin_account_detail(account_id: int) -> AdminAccountDetail:
+    account = db.session.get(User, account_id)
+    if account is None:
+        raise AdminAccountNotFoundError("Không tìm thấy tài khoản.")
+
+    latest_owner_application = db.session.scalar(
+        db.select(OwnerApplication)
+        .where(OwnerApplication.user_id == account.id)
+        .order_by(
+            OwnerApplication.created_at.desc(),
+            OwnerApplication.id.desc(),
+        )
+        .limit(1)
+    )
+    return AdminAccountDetail(
+        account=account,
+        latest_owner_application=latest_owner_application,
+        venue_count=_count(Venue, Venue.owner_id == account.id),
+        booking_count=_count(Booking, Booking.user_id == account.id),
+    )
+
+
 def set_admin_account_status(
     *,
     account_id: int,
@@ -477,6 +507,10 @@ def set_admin_account_status(
     )
     if account is None:
         raise AdminAccountNotFoundError("Không tìm thấy tài khoản.")
+    if account.role == UserRole.ADMIN.value:
+        raise InvalidAdminAccountActionError(
+            "Tài khoản quản trị viên chỉ được xem, không thể khóa hoặc mở khóa."
+        )
     if account.status == UserStatus.INACTIVE.value:
         raise InvalidAdminAccountActionError(
             "Tài khoản ngừng hoạt động không thể khóa hoặc mở khóa tại đây."

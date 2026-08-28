@@ -59,7 +59,7 @@
                     </a>
 
                     <span class="admin-sidebar-label">HỆ THỐNG</span>
-                    <a class="admin-sidebar-link{% if request.endpoint in ['admin.accounts', 'admin.update_account_status'] %} active{% endif %}" href="{{ url_for('admin.accounts') }}" title="Tài khoản">
+                    <a class="admin-sidebar-link{% if request.endpoint in ['admin.accounts', 'admin.account_detail', 'admin.update_account_status'] %} active{% endif %}" href="{{ url_for('admin.accounts') }}" title="Tài khoản">
                         <i class="bi bi-person-gear" aria-hidden="true"></i><span>Tài khoản</span>
                     </a>
                 </nav>

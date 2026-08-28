@@ -10,6 +10,7 @@ from .administrative_unit import (
 )
 
 from .admin import (
+    AdminAccountDetail,
     AdminAccountNotFoundError,
     AdminAccountSummary,
     AdminDashboardSummary,
@@ -20,6 +21,7 @@ from .admin import (
     AdminPermissionError,
     AdminVenueLocationSummary,
     InvalidAdminAccountActionError,
+    get_admin_account_detail,
     get_admin_account_summary,
     get_admin_booking,
     get_admin_dashboard_summary,
@@ -205,6 +207,7 @@ from .venue import (
 )
 
 __all__ = [
+    "AdminAccountDetail",
     "AdminAccountNotFoundError",
     "AdminAccountSummary",
     "AdminDashboardSummary",
@@ -296,6 +299,7 @@ __all__ = [
     "calculate_deposit_amount",
     "expire_stale_bookings",
     "get_booking_field",
+    "get_admin_account_detail",
     "get_admin_account_summary",
     "get_admin_booking",
     "get_admin_dashboard_summary",

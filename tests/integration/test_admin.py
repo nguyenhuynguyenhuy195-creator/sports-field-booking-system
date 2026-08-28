@@ -53,15 +53,24 @@ class CreatedUser:
     email: str
 
 
-def create_user(app, *, email: str, role: UserRole = UserRole.USER) -> CreatedUser:
+def create_user(
+    app,
+    *,
+    email: str,
+    role: UserRole = UserRole.USER,
+    full_name: str | None = None,
+    phone: str = "0901234567",
+    status: UserStatus = UserStatus.ACTIVE,
+) -> CreatedUser:
     with app.app_context():
         user = register_user(
-            full_name=f"Tài khoản {role.value}",
+            full_name=full_name or f"Tài khoản {role.value}",
             email=email,
-            phone="0901234567",
+            phone=phone,
             password=PASSWORD,
         )
         user.role = role.value
+        user.status = status.value
         db.session.commit()
         return CreatedUser(id=user.id, email=user.email)
 
@@ -188,6 +197,8 @@ def test_admin_pages_require_admin_role(app, client):
     admin_paths = (
         "/admin",
         "/admin/accounts",
+        "/admin/users",
+        "/admin/users/999",
         "/admin/owner-applications",
         "/admin/venues",
         "/admin/monitoring",
@@ -221,7 +232,7 @@ def test_admin_dashboard_and_navigation_are_available(app, client):
     assert "Giám sát dữ liệu" not in page
     assert "/static/css/admin.css" in page
     assert "app-footer" not in page
-    assert "/admin/accounts" in page
+    assert "/admin/users" in page
     assert "/admin/monitoring" in page
 
 
@@ -327,7 +338,7 @@ def test_admin_sidebar_only_uses_registered_phase_one_endpoints(app, client):
         "/admin/venues",
         "/admin/monitoring?section=bookings",
         "/admin/monitoring?section=matches",
-        "/admin/accounts",
+        "/admin/users",
         "/auth/logout",
     ):
         assert expected_href in page
@@ -338,7 +349,7 @@ def test_admin_can_filter_accounts_without_exposing_password_hash(app, client):
     target = create_user(app, email="unique-player@example.com")
     login(client, email=admin.email)
 
-    response = client.get("/admin/accounts?q=unique-player&role=USER&status=ACTIVE")
+    response = client.get("/admin/users?q=unique-player&role=USER&status=ACTIVE")
     page = response.get_data(as_text=True)
 
     assert response.status_code == 200
@@ -351,13 +362,132 @@ def test_admin_can_filter_accounts_without_exposing_password_hash(app, client):
     assert PASSWORD not in page
 
 
+def test_admin_users_searches_name_email_phone_and_handles_empty_result(
+    app, client
+):
+    admin = create_user(app, email="search-admin@example.com", role=UserRole.ADMIN)
+    target = create_user(
+        app,
+        email="minh.anh@example.com",
+        full_name="Nguyễn Minh Anh",
+        phone="0987654321",
+    )
+    unrelated = create_user(app, email="unrelated@example.com")
+    login(client, email=admin.email)
+
+    for query in ("Minh Anh", "minh.anh@example.com", "0987654321"):
+        response = client.get("/admin/users", query_string={"q": query})
+        page = response.get_data(as_text=True)
+        assert response.status_code == 200
+        assert target.email in page
+        assert unrelated.email not in page
+
+    empty = client.get("/admin/users?q=khong-ton-tai")
+    empty_page = empty.get_data(as_text=True)
+    assert empty.status_code == 200
+    assert "Không tìm thấy tài khoản" in empty_page
+    assert "khong-ton-tai" in empty_page
+
+
+def test_admin_users_filters_each_role_and_existing_status(app, client):
+    admin = create_user(app, email="filter-admin@example.com", role=UserRole.ADMIN)
+    player = create_user(app, email="filter-player@example.com")
+    owner = create_user(
+        app,
+        email="filter-owner@example.com",
+        role=UserRole.OWNER,
+        status=UserStatus.LOCKED,
+    )
+    inactive = create_user(
+        app,
+        email="filter-inactive@example.com",
+        status=UserStatus.INACTIVE,
+    )
+    login(client, email=admin.email)
+
+    expectations = (
+        ({"role": "USER", "status": "ACTIVE"}, player.email),
+        ({"role": "OWNER", "status": "LOCKED"}, owner.email),
+        ({"role": "ADMIN", "status": "ACTIVE"}, admin.email),
+        ({"role": "USER", "status": "INACTIVE"}, inactive.email),
+    )
+    for filters, expected_email in expectations:
+        response = client.get("/admin/users", query_string=filters)
+        page = response.get_data(as_text=True)
+        assert response.status_code == 200
+        assert expected_email in page
+
+
+def test_admin_users_paginates_at_database_and_keeps_filters(app, client):
+    admin = create_user(
+        app,
+        email="pagination-admin@example.com",
+        role=UserRole.ADMIN,
+    )
+    users = [
+        create_user(
+            app,
+            email=f"locked-{index:02d}@example.com",
+            status=UserStatus.LOCKED,
+        )
+        for index in range(21)
+    ]
+    login(client, email=admin.email)
+
+    first_page = client.get(
+        "/admin/users?role=USER&status=LOCKED&page=1"
+    ).get_data(as_text=True)
+    second_page = client.get(
+        "/admin/users?role=USER&status=LOCKED&page=2"
+    ).get_data(as_text=True)
+
+    assert "Trang 1/2" in first_page
+    assert "Trang 2/2" in second_page
+    assert users[0].email not in first_page
+    assert users[0].email in second_page
+    assert "role=USER" in first_page
+    assert "status=LOCKED" in first_page
+
+
+def test_admin_user_detail_shows_profile_and_related_data(app, client):
+    admin = create_user(app, email="detail-admin@example.com", role=UserRole.ADMIN)
+    owner = create_user(app, email="detail-owner@example.com", role=UserRole.OWNER)
+    player = create_user(app, email="detail-player@example.com")
+    seed_monitoring_data(app, user_id=player.id, owner_id=owner.id)
+    with app.app_context():
+        db.session.add(
+            OwnerApplication(
+                user_id=owner.id,
+                business_name="Hồ sơ chủ sân gần nhất",
+                contact_phone="0901234567",
+                status=OwnerApplicationStatus.PENDING.value,
+            )
+        )
+        db.session.commit()
+    login(client, email=admin.email)
+
+    owner_response = client.get(f"/admin/users/{owner.id}")
+    owner_page = owner_response.get_data(as_text=True)
+    assert owner_response.status_code == 200
+    assert owner.email in owner_page
+    assert "Cập nhật gần nhất" in owner_page
+    assert "Hồ sơ chủ sân gần nhất" in owner_page
+    assert "Số cơ sở sở hữu" in owner_page
+    assert "Chờ duyệt" in owner_page
+
+    player_page = client.get(f"/admin/users/{player.id}").get_data(as_text=True)
+    assert player.email in player_page
+    assert "Số lịch đã đặt" in player_page
+    assert "Dữ liệu liên quan" in player_page
+
+
 def test_admin_locks_and_unlocks_account_without_deleting_history(app, client):
     admin = create_user(app, email="status-admin@example.com", role=UserRole.ADMIN)
     target = create_user(app, email="status-player@example.com")
     login(client, email=admin.email)
 
     locked = client.post(
-        f"/admin/accounts/{target.id}/status",
+        f"/admin/users/{target.id}/status",
         data={"status": UserStatus.LOCKED.value},
     )
     assert locked.status_code == 302
@@ -374,7 +504,7 @@ def test_admin_locks_and_unlocks_account_without_deleting_history(app, client):
 
     login(client, email=admin.email)
     unlocked = client.post(
-        f"/admin/accounts/{target.id}/status",
+        f"/admin/users/{target.id}/status",
         data={"status": UserStatus.ACTIVE.value},
     )
     assert unlocked.status_code == 302
@@ -388,14 +518,14 @@ def test_admin_cannot_lock_current_account_or_submit_invalid_status(app, client)
     login(client, email=admin.email)
 
     self_lock = client.post(
-        f"/admin/accounts/{admin.id}/status",
+        f"/admin/users/{admin.id}/status",
         data={"status": UserStatus.LOCKED.value},
         follow_redirects=True,
     )
     assert "không thể tự khóa" in self_lock.get_data(as_text=True)
 
     invalid = client.post(
-        f"/admin/accounts/{target.id}/status",
+        f"/admin/users/{target.id}/status",
         data={"status": UserStatus.INACTIVE.value},
         follow_redirects=True,
     )
@@ -404,6 +534,109 @@ def test_admin_cannot_lock_current_account_or_submit_invalid_status(app, client)
     with app.app_context():
         assert db.session.get(User, admin.id).status == UserStatus.ACTIVE.value
         assert db.session.get(User, target.id).status == UserStatus.ACTIVE.value
+
+
+def test_admin_cannot_change_another_admin_status(app, client):
+    admin = create_user(app, email="actor-admin@example.com", role=UserRole.ADMIN)
+    other_admin = create_user(
+        app,
+        email="readonly-admin@example.com",
+        role=UserRole.ADMIN,
+    )
+    login(client, email=admin.email)
+
+    response = client.post(
+        f"/admin/users/{other_admin.id}/status",
+        data={"status": UserStatus.LOCKED.value},
+        follow_redirects=True,
+    )
+    page = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "chỉ được xem" in page
+    with app.app_context():
+        account = db.session.get(User, other_admin.id)
+        assert account.status == UserStatus.ACTIVE.value
+        assert account.role == UserRole.ADMIN.value
+
+
+def test_non_admin_cannot_change_account_status(app, client):
+    target = create_user(app, email="protected-player@example.com")
+    user = create_user(app, email="unauthorized-player@example.com")
+    login(client, email=user.email)
+
+    response = client.post(
+        f"/admin/users/{target.id}/status",
+        data={"status": UserStatus.LOCKED.value},
+    )
+    assert response.status_code == 403
+
+    client.post("/auth/logout")
+    owner = create_user(
+        app,
+        email="unauthorized-owner@example.com",
+        role=UserRole.OWNER,
+    )
+    login(client, email=owner.email)
+    response = client.post(
+        f"/admin/users/{target.id}/status",
+        data={"status": UserStatus.LOCKED.value},
+    )
+    assert response.status_code == 403
+
+    with app.app_context():
+        assert db.session.get(User, target.id).status == UserStatus.ACTIVE.value
+
+
+def test_get_cannot_change_account_status_and_post_requires_csrf(app, client):
+    admin = create_user(app, email="method-admin@example.com", role=UserRole.ADMIN)
+    target = create_user(app, email="method-player@example.com")
+    login(client, email=admin.email)
+
+    get_response = client.get(f"/admin/users/{target.id}/status")
+    assert get_response.status_code == 405
+    with app.app_context():
+        assert db.session.get(User, target.id).status == UserStatus.ACTIVE.value
+
+    app.config["WTF_CSRF_ENABLED"] = True
+    try:
+        csrf_response = client.post(
+            f"/admin/users/{target.id}/status",
+            data={"status": UserStatus.LOCKED.value},
+        )
+    finally:
+        app.config["WTF_CSRF_ENABLED"] = False
+    assert csrf_response.status_code == 400
+    with app.app_context():
+        assert db.session.get(User, target.id).status == UserStatus.ACTIVE.value
+
+
+def test_account_status_action_keeps_current_filters_and_role(app, client):
+    admin = create_user(app, email="return-admin@example.com", role=UserRole.ADMIN)
+    target = create_user(app, email="return-player@example.com")
+    login(client, email=admin.email)
+
+    response = client.post(
+        f"/admin/users/{target.id}/status",
+        data={
+            "status": UserStatus.LOCKED.value,
+            "q": "return-player",
+            "role": UserRole.USER.value,
+            "filter_status": UserStatus.ACTIVE.value,
+            "page": "1",
+            "selected_id": str(target.id),
+        },
+    )
+
+    assert response.status_code == 302
+    assert f"/admin/users/{target.id}" in response.headers["Location"]
+    assert "q=return-player" in response.headers["Location"]
+    assert "role=USER" in response.headers["Location"]
+    assert "status=ACTIVE" in response.headers["Location"]
+    with app.app_context():
+        account = db.session.get(User, target.id)
+        assert account.status == UserStatus.LOCKED.value
+        assert account.role == UserRole.USER.value
 
 
 def test_admin_monitoring_lists_all_mvp_records(app, client):
