@@ -20,8 +20,8 @@
         const provinceCode = provinceSelect.value;
         replaceWardOptions("Đang tải danh sách...", true);
         if (!provinceCode) {
-            replaceWardOptions("Chọn phường, xã hoặc đặc khu", true);
-            statusElement.textContent = "Hãy chọn tỉnh/thành phố trước.";
+            replaceWardOptions("Chọn phường, xã", true);
+            statusElement.textContent = "";
             return;
         }
 
@@ -36,11 +36,11 @@
                 throw new Error(payload.error || "Không thể tải danh sách phường/xã.");
             }
 
-            replaceWardOptions("Chọn phường, xã hoặc đặc khu", false);
+            replaceWardOptions("Chọn phường, xã", false);
             for (const ward of payload.wards) {
                 wardSelect.add(new Option(ward.name, ward.code));
             }
-            statusElement.textContent = `Có ${payload.wards.length} phường/xã/đặc khu để lựa chọn.`;
+            statusElement.textContent = "";
         } catch (error) {
             replaceWardOptions("Không tải được danh sách", true);
             statusElement.textContent = error.message;

@@ -13,8 +13,6 @@
     }
 
     const fieldTypeOptions = Array.from(fieldTypeInput.options);
-    fieldTypeInput.classList.add("d-none");
-    fieldTypeOptionsElement.classList.remove("d-none");
 
     const submitFilters = () => {
         if (typeof form.requestSubmit === "function") {
@@ -41,31 +39,34 @@
             fieldTypeInput.value = "";
         }
 
+        const showSportSpecificOptions = Boolean(selectedSport);
+        fieldTypeInput.classList.toggle("d-none", showSportSpecificOptions);
+        fieldTypeOptionsElement.classList.toggle("d-none", !showSportSpecificOptions);
         fieldTypeOptionsElement.replaceChildren();
-        fieldTypeOptions
-            .filter((option) => option.value && !option.disabled)
-            .forEach((option) => {
-                const optionButton = document.createElement("button");
-                const isSelected = option.value === fieldTypeInput.value;
-                const optionLabel = option.value && selectedSport
-                    ? option.textContent.split("—").pop().trim()
-                    : option.textContent.trim();
-                optionButton.type = "button";
-                optionButton.className = `venue-field-type-option${isSelected ? " is-selected" : ""}`;
-                optionButton.textContent = optionLabel;
-                optionButton.dataset.value = option.value;
-                optionButton.setAttribute("aria-pressed", String(isSelected));
-                optionButton.addEventListener("click", () => {
-                    fieldTypeInput.value = isSelected ? "" : option.value;
-                    submitFilters();
+        if (showSportSpecificOptions) {
+            fieldTypeOptions
+                .filter((option) => option.value && !option.disabled)
+                .forEach((option) => {
+                    const optionButton = document.createElement("button");
+                    const isSelected = option.value === fieldTypeInput.value;
+                    const optionLabel = option.textContent.split("—").pop().trim();
+                    optionButton.type = "button";
+                    optionButton.className = `venue-field-type-option${isSelected ? " is-selected" : ""}`;
+                    optionButton.textContent = optionLabel;
+                    optionButton.dataset.value = option.value;
+                    optionButton.setAttribute("aria-pressed", String(isSelected));
+                    optionButton.addEventListener("click", () => {
+                        fieldTypeInput.value = isSelected ? "" : option.value;
+                        submitFilters();
+                    });
+                    fieldTypeOptionsElement.appendChild(optionButton);
                 });
-                fieldTypeOptionsElement.appendChild(optionButton);
-            });
+        }
 
         if (helpElement) {
             helpElement.textContent = selectedSport
                 ? `Các loại sân thuộc ${selectedSportLabel}. Bấm lại loại đang chọn để bỏ lọc chi tiết.`
-                : "Chọn bộ môn để chỉ hiển thị những loại sân tương ứng.";
+                : "Có thể chọn loại sân trực tiếp hoặc chọn bộ môn để thu gọn danh sách.";
         }
     };
 
@@ -73,5 +74,6 @@
         syncFieldTypes();
         submitFilters();
     });
+    fieldTypeInput.addEventListener("change", submitFilters);
     syncFieldTypes();
 })();

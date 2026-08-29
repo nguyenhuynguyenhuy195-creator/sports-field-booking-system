@@ -3,68 +3,70 @@
 {% block title %}Tìm sân thể thao · Sân Thể Thao{% endblock %}
 
 {% block content %}
-<section class="venue-hero venue-search-hero py-4">
+<section class="venue-search-intro">
     <div class="container">
-        <span class="eyebrow">TÌM SÂN THỂ THAO</span>
-        <h1 class="venue-page-title fw-bold mt-2 mb-2">Chọn sân phù hợp với bạn</h1>
-        <p class="text-secondary mb-0">Tìm bóng đá, cầu lông, pickleball hoặc tennis theo khu vực và giá.</p>
+        <h1 class="venue-page-title mb-2">Tìm sân thể thao</h1>
+        <p class="mb-0">Tìm sân phù hợp theo khu vực, bộ môn và mức giá.</p>
     </div>
 </section>
 
-<section class="container venue-search-content py-4 py-lg-5">
+<section class="container venue-search-content py-4 pb-lg-5">
     <form id="venue-search-form" class="venue-search-panel" method="get" action="{{ url_for('venues.index') }}" role="search">
-        <div class="venue-search-heading">
-            <div>
-                <h2 class="h5 fw-bold mb-1">Bạn muốn chơi ở đâu?</h2>
-                <p class="small text-secondary mb-0">Nhập tên cơ sở hoặc chọn khu vực bạn muốn chơi.</p>
-            </div>
-        </div>
-
         <div class="venue-search-primary">
-            <div class="venue-search-input-wrap">
+            <div class="venue-search-primary-field venue-search-keyword-field">
+                {{ form.q.label(class_="visually-hidden") }}
+                <div class="venue-search-input-wrap">
                 <svg class="venue-search-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none">
                     <circle cx="11" cy="11" r="6.5"></circle>
                     <path d="m16 16 4 4"></path>
                 </svg>
                 {{ form.q(
                     class_="form-control venue-search-input" + (" is-invalid" if form.q.errors else ""),
-                    placeholder="Tên cơ sở, phường/xã hoặc tỉnh/thành phố",
+                    placeholder="Tên sân hoặc khu vực",
                     autocomplete="off",
                     aria_label="Tên sân hoặc khu vực"
                 ) }}
+                </div>
+                {% for error in form.q.errors %}<div class="invalid-feedback d-block mt-2">{{ error }}</div>{% endfor %}
             </div>
-        </div>
-        {% for error in form.q.errors %}<div class="invalid-feedback d-block mt-2">{{ error }}</div>{% endfor %}
 
-        <div class="venue-location-filter-grid">
-            <div>
-                {{ form.province_code.label(class_="form-label fw-semibold") }}
-                {{ form.province_code(
-                    class_="form-select" + (" is-invalid" if form.province_code.errors else ""),
-                    data_wards_url=wards_api_url
-                ) }}
+            <div class="venue-search-primary-field">
+                {{ form.province_code.label(class_="visually-hidden") }}
+                <div class="venue-search-select-wrap">
+                    <i class="bi bi-geo-alt" aria-hidden="true"></i>
+                    {{ form.province_code(
+                        class_="form-select venue-search-select" + (" is-invalid" if form.province_code.errors else ""),
+                        data_wards_url=wards_api_url
+                    ) }}
+                </div>
                 {% for error in form.province_code.errors %}<div class="invalid-feedback">{{ error }}</div>{% endfor %}
             </div>
-            <div>
-                {{ form.ward_code.label(class_="form-label fw-semibold") }}
-                {{ form.ward_code(
-                    class_="form-select" + (" is-invalid" if form.ward_code.errors else ""),
-                    disabled=not form.province_code.data
-                ) }}
-                {% for error in form.ward_code.errors %}<div class="invalid-feedback">{{ error }}</div>{% endfor %}
-                <div id="administrative-unit-status" class="form-text" role="status">
-                    {% if form.province_code.data %}Có thể chọn phường, xã hoặc đặc khu để thu hẹp kết quả.{% else %}Chọn tỉnh/thành phố trước nếu muốn lọc theo phường/xã.{% endif %}
+
+            <div class="venue-search-primary-field">
+                {{ form.ward_code.label(class_="visually-hidden") }}
+                <div class="venue-search-select-wrap">
+                    <i class="bi bi-pin-map" aria-hidden="true"></i>
+                    {{ form.ward_code(
+                        class_="form-select venue-search-select" + (" is-invalid" if form.ward_code.errors else ""),
+                        disabled=not form.province_code.data
+                    ) }}
                 </div>
+                {% for error in form.ward_code.errors %}<div class="invalid-feedback">{{ error }}</div>{% endfor %}
+                <div id="administrative-unit-status" class="form-text" role="status"></div>
             </div>
-            <div class="venue-sport-filter">
-                {{ form.sport.label(class_="form-label fw-semibold") }}
-                {{ form.sport(class_="form-select" + (" is-invalid" if form.sport.errors else "")) }}
+
+            <div class="venue-search-primary-field venue-sport-filter">
+                {{ form.sport.label(class_="visually-hidden") }}
+                <div class="venue-search-select-wrap">
+                    <i class="bi bi-trophy" aria-hidden="true"></i>
+                    {{ form.sport(class_="form-select venue-search-select" + (" is-invalid" if form.sport.errors else "")) }}
+                </div>
                 {% for error in form.sport.errors %}<div class="invalid-feedback">{{ error }}</div>{% endfor %}
             </div>
-        </div>
 
-        <div class="venue-search-actions">
-            <button class="btn btn-primary venue-search-submit" type="submit"><i class="bi bi-search" aria-hidden="true"></i> Tìm sân</button>
+            <div class="venue-search-actions">
+                <button class="btn btn-primary venue-search-submit" type="submit"><i class="bi bi-search" aria-hidden="true"></i> Tìm sân</button>
+            </div>
         </div>
 
         <button
@@ -134,37 +136,43 @@
         {% endif %}
     </form>
 
-    {% if search_is_valid %}
-        <div class="venue-results-heading">
-            <div>
-                <span class="eyebrow">KẾT QUẢ TÌM KIẾM</span>
-                <h2 class="h4 fw-bold mt-1 mb-0">{{ search_page.total }} cơ sở phù hợp</h2>
+        {% if search_is_valid %}
+            <div class="venue-results-heading">
+                <div>
+                    <h2 class="h4 fw-bold mb-1">Kết quả tìm kiếm</h2>
+                    <p class="venue-results-count mb-0"><i class="bi bi-buildings" aria-hidden="true"></i> {{ search_page.total }} cơ sở phù hợp</p>
+                </div>
             </div>
-        </div>
 
         {% if venue_results %}
-            <div class="venue-grid">
+            <div class="venue-grid{% if venue_results|length == 1 %} venue-grid-single{% endif %}">
                 {% for result in venue_results %}
                     {% set venue = result.venue %}
                     <article class="venue-card h-100" data-venue-card="{{ venue.id }}">
-                        <div class="d-flex justify-content-between align-items-start gap-3">
-                            <div class="venue-card-icon" aria-hidden="true"><i class="bi bi-geo-alt"></i></div>
+                        <div class="venue-card-header">
+                            <div class="venue-card-title-group">
+                                <span class="venue-card-visual" aria-hidden="true"><i class="bi bi-building"></i></span>
+                                <div>
+                                    <h3 class="mb-1">{{ venue.name }}</h3>
+                                    <p class="venue-card-area mb-0"><i class="bi bi-pin-map" aria-hidden="true"></i> {{ venue.ward_name or venue.district or 'Chưa rõ phường/xã' }} · {{ venue.province_name or venue.city or 'Chưa rõ tỉnh/thành phố' }}</p>
+                                </div>
+                            </div>
                             <div class="venue-starting-price text-end">
-                                {% if result.starting_price is not none %}<span>Giá từ</span><strong>{{ result.starting_price|vnd_currency }}/giờ</strong>{% endif %}
+                                {% if result.starting_price is not none %}<span>Giá theo giờ</span><strong aria-label="Từ {{ result.starting_price|vnd_currency }}/giờ"><small aria-hidden="true">Từ</small> <span aria-hidden="true">{{ result.starting_price|vnd_currency }} <em>/ giờ</em></span><span class="visually-hidden">{{ result.starting_price|vnd_currency }}/giờ</span></strong>{% endif %}
                             </div>
                         </div>
-                        <p class="venue-card-area mb-2"><i class="bi bi-pin-map" aria-hidden="true"></i> {{ venue.ward_name or venue.district or 'Chưa rõ phường/xã' }} · {{ venue.province_name or venue.city or 'Chưa rõ tỉnh/thành phố' }}</p>
-                        <h3 class="h5 fw-bold mb-2">{{ venue.name }}</h3>
-                        <p class="venue-location text-secondary mb-3"><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ venue.full_address }}</p>
-                        <div class="venue-type-list mb-3" aria-label="Các loại sân đang hoạt động">
-                            {% for active_field_type in result.field_types %}
-                                <span class="venue-type-chip">{{ active_field_type.sport_name }} · {{ active_field_type.name }}</span>
-                            {% endfor %}
+                        <p class="venue-location mb-3"><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ venue.full_address }}</p>
+                        <div class="venue-card-information">
+                            <div class="venue-type-list" aria-label="Các loại sân đang hoạt động">
+                                {% for active_field_type in result.field_types %}
+                                    <span class="venue-type-chip">{{ active_field_type.sport_name }} · {{ active_field_type.name }}</span>
+                                {% endfor %}
+                            </div>
+                            <p class="venue-card-hours mb-0"><i class="bi bi-clock" aria-hidden="true"></i><span><strong>Giờ hoạt động</strong> {{ venue.opening_time.strftime('%H:%M') }}–{{ venue.closing_time.strftime('%H:%M') }}</span></p>
                         </div>
-                        <p class="venue-card-hours mb-3"><i class="bi bi-clock" aria-hidden="true"></i><span><strong>Giờ hoạt động</strong><br>{{ venue.opening_time.strftime('%H:%M') }}–{{ venue.closing_time.strftime('%H:%M') }}</span></p>
-                        <div class="d-grid gap-2 mt-auto">
+                        <div class="venue-card-actions mt-auto">
                             <a class="btn btn-primary" href="{{ url_for('venues.detail', venue_id=venue.id) }}">{% if result.starting_price is none %}Xem giá từng sân{% else %}Xem sân &amp; lịch trống{% endif %}</a>
-                            <a class="btn btn-link venue-directions-link" href="{{ result.directions_url }}" target="_blank" rel="noopener noreferrer"><i class="bi bi-sign-turn-right" aria-hidden="true"></i> Mở chỉ đường trên Google Maps</a>
+                            <a class="btn btn-link venue-directions-link" href="{{ result.directions_url }}" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">Mở Google Maps</span><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i><span class="visually-hidden">Mở chỉ đường trên Google Maps</span></a>
                         </div>
                     </article>
                 {% endfor %}
@@ -184,7 +192,8 @@
             <div class="venue-search-empty">
                 <div class="venue-empty-icon" aria-hidden="true"><i class="bi bi-search"></i></div>
                 <h2 class="h5 fw-bold">Chưa tìm thấy sân phù hợp</h2>
-                <p class="text-secondary mb-0">Hãy thử đổi khu vực, bộ môn hoặc bỏ bớt điều kiện lọc.</p>
+                <p class="text-secondary mb-0">Hãy thử đổi khu vực, bộ môn hoặc khoảng giá.</p>
+                {% if has_active_filters %}<a class="btn btn-outline-primary btn-sm mt-3" href="{{ url_for('venues.index') }}">Xóa bộ lọc</a>{% endif %}
             </div>
         {% endif %}
     {% else %}

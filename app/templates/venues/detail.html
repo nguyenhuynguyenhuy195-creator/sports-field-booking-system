@@ -3,73 +3,91 @@
 {% block title %}{{ venue.name }} · Sân Thể Thao{% endblock %}
 
 {% block content %}
-<section class="container py-5">
+<section class="container venue-search-content venue-detail-page py-4 pb-lg-5">
     <a class="venue-back-link" href="{{ url_for('venues.index') }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Quay lại danh sách sân</a>
-    <div class="venue-detail mt-4">
-        <div class="row g-4 align-items-start">
-            <div class="col-lg-8">
-                <p class="venue-detail-area mb-2"><i class="bi bi-pin-map" aria-hidden="true"></i> {{ venue.ward_name or venue.district or 'Chưa rõ phường/xã' }} · {{ venue.province_name or venue.city or 'Chưa rõ tỉnh/thành phố' }}</p>
-                <h1 class="display-6 fw-bold mb-3">{{ venue.name }}</h1>
-                <p class="lead venue-location text-secondary"><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ venue.full_address }}</p>
-                {% if venue.description %}
-                    <p class="venue-description mb-0 mt-3">{{ venue.description }}</p>
-                {% endif %}
-            </div>
-            <div class="col-lg-4">
-                <aside class="venue-info-panel">
-                    <h2 class="h5 fw-bold"><i class="bi bi-info-circle me-1" aria-hidden="true"></i> Thông tin cơ sở</h2>
-                    <dl class="mb-0">
-                        <dt>Giờ hoạt động</dt>
-                        <dd>{{ venue.opening_time.strftime('%H:%M') }}–{{ venue.closing_time.strftime('%H:%M') }}</dd>
-                        <dt>Điện thoại</dt>
-                        <dd>{{ venue.phone or 'Chưa cung cấp' }}</dd>
-                        <dt>Đơn vị quản lý</dt>
-                        <dd class="mb-0">{{ venue.owner.full_name }}</dd>
-                    </dl>
-                </aside>
-            </div>
-        </div>
-        <section class="venue-detail-directions-section mt-4" aria-labelledby="venue-directions-heading">
-            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-                <div>
-                    <h2 id="venue-directions-heading" class="h4 fw-bold mb-1">Đường đi đến cơ sở</h2>
-                    <p class="text-secondary mb-0">Mở địa chỉ này trực tiếp trên Google Maps.</p>
-                </div>
-                <a class="btn btn-outline-primary" href="{{ directions_url }}" target="_blank" rel="noopener noreferrer"><i class="bi bi-sign-turn-right" aria-hidden="true"></i> Mở chỉ đường trên Google Maps</a>
-            </div>
-        </section>
-    </div>
 
-    <div class="mt-5">
-        <div class="mb-3">
-            <span class="eyebrow">SÂN ĐANG NHẬN ĐẶT LỊCH</span>
-            <h2 class="h3 fw-bold mt-2">Danh sách sân</h2>
+    <article class="venue-detail venue-detail-hero mt-3">
+        <div class="venue-detail-hero-main">
+            <p class="venue-detail-area mb-2"><i class="bi bi-pin-map" aria-hidden="true"></i> {{ venue.ward_name or venue.district or 'Chưa rõ phường/xã' }} · {{ venue.province_name or venue.city or 'Chưa rõ tỉnh/thành phố' }}</p>
+            <h1 class="venue-detail-title mb-3">{{ venue.name }}</h1>
+            <p class="venue-location venue-detail-address mb-0"><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ venue.full_address }}</p>
         </div>
+
+        <aside class="venue-info-panel venue-detail-facts" aria-label="Thông tin cơ sở">
+            <dl class="mb-0">
+                <div>
+                    <dt><i class="bi bi-clock" aria-hidden="true"></i> Giờ hoạt động</dt>
+                    <dd>{{ venue.opening_time.strftime('%H:%M') }}–{{ venue.closing_time.strftime('%H:%M') }}</dd>
+                </div>
+                <div>
+                    <dt><i class="bi bi-telephone" aria-hidden="true"></i> Điện thoại</dt>
+                    <dd>{{ venue.phone or 'Chưa cung cấp' }}</dd>
+                </div>
+                <div class="venue-detail-owner">
+                    <dt>Đơn vị quản lý</dt>
+                    <dd>{{ venue.owner.full_name }}</dd>
+                </div>
+            </dl>
+            <a class="btn btn-outline-primary venue-detail-directions-link" href="{{ directions_url }}" target="_blank" rel="noopener noreferrer"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> Mở Google Maps<span class="visually-hidden">Mở chỉ đường trên Google Maps</span></a>
+        </aside>
+    </article>
+
+    {% if venue.description %}
+        <section class="venue-description-section" aria-labelledby="venue-description-heading">
+            <h2 id="venue-description-heading" class="h5">Giới thiệu về cơ sở</h2>
+            <p class="venue-description mb-0">{{ venue.description }}</p>
+        </section>
+    {% endif %}
+
+    <section class="venue-field-section" aria-labelledby="venue-fields-heading">
+        <div class="venue-section-heading">
+            <div>
+                <span class="eyebrow">SÂN ĐANG NHẬN ĐẶT LỊCH</span>
+                <h2 id="venue-fields-heading" class="mb-0">Danh sách sân</h2>
+            </div>
+        </div>
+
         {% if fields %}
             <div class="field-grid">
                 {% for field in fields %}
                     <article class="field-card">
-                        <div class="field-card-heading"><span class="field-card-icon" aria-hidden="true"><i class="bi bi-grid-3x3-gap"></i></span><div><h3 class="h5 fw-bold mb-1">{{ field.name }}</h3><p class="text-secondary mb-0">{{ field.field_type.sport.name }} · {{ field.field_type.name }}</p></div></div>
+                        <div class="field-card-heading">
+                            <span class="field-card-icon" aria-hidden="true"><i class="bi bi-grid-3x3-gap"></i></span>
+                            <div>
+                                <h3 class="mb-1">{{ field.name }}</h3>
+                                <p class="field-card-sport mb-0">{{ field.field_type.sport.name }} · {{ field.field_type.name }}</p>
+                            </div>
+                        </div>
+
                         <dl class="field-meta mb-0">
                             <dt>Mặt sân</dt>
                             <dd>{{ field.surface_type or 'Chưa cung cấp' }}</dd>
                             <dt>Sức chứa</dt>
                             <dd>{{ field.capacity }} người</dd>
                         </dl>
+
                         {% if field.price_slots %}
-                            <div class="border-top mt-3 pt-3">
-                                <h4 class="h6 fw-bold">Khung giá đang áp dụng</h4>
+                            {% set starting_price = field.price_slots | map(attribute='hourly_price') | min %}
+                            <div class="field-price-summary">
+                                <span>Giá từ</span>
+                                <strong aria-label="Từ {{ starting_price|vnd_currency }} mỗi giờ"><small aria-hidden="true">Từ</small> {{ starting_price|vnd_currency }} <em>/ giờ</em></strong>
+                            </div>
+                            <button class="btn btn-outline-primary field-price-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#field-price-schedule-{{ field.id }}" aria-expanded="false" aria-controls="field-price-schedule-{{ field.id }}"><i class="bi bi-calendar3" aria-hidden="true"></i> Xem bảng giá</button>
+                            <div class="collapse field-price-collapse" id="field-price-schedule-{{ field.id }}">
                                 <div class="venue-price-slot-list">
                                     {% for slot in field.price_slots %}
                                         <div class="venue-price-slot small">
                                             <span>{{ day_labels[slot.day_of_week] }} · {{ slot.start_time.strftime('%H:%M') }}–{{ slot.end_time.strftime('%H:%M') }}</span>
-                                            <strong class="text-success">{{ slot.hourly_price|vnd_currency }}/giờ</strong>
+                                            <strong>{{ slot.hourly_price|vnd_currency }}/giờ</strong>
                                         </div>
                                     {% endfor %}
                                 </div>
                             </div>
+                        {% else %}
+                            <p class="field-price-unavailable mb-0">Chưa có khung giá công khai.</p>
                         {% endif %}
-                        <a class="btn btn-primary w-100 mt-4" href="{{ url_for('bookings.create', venue_id=venue.id, field_id=field.id) }}">Đặt sân này</a>
+
+                        <a class="btn btn-primary field-booking-cta mt-auto" href="{{ url_for('bookings.create', venue_id=venue.id, field_id=field.id) }}">Xem lịch &amp; đặt sân</a>
                     </article>
                 {% endfor %}
             </div>
@@ -80,6 +98,6 @@
                 <p class="text-secondary mb-0">Các sân sẽ xuất hiện khi chủ sân hoàn tất thông tin và khung giá.</p>
             </div>
         {% endif %}
-    </div>
+    </section>
 </section>
 {% endblock %}

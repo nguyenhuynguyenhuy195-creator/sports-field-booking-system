@@ -130,8 +130,8 @@ def reset_and_seed_demo_business_data() -> DemoDataResetSummary:
             city=None,
             phone="02835102762",
             description=(
-                "Dữ liệu demo có cấu trúc để Chủ sân quản lý cơ sở "
-                "và gửi Quản trị viên kiểm duyệt."
+                "Không gian thể thao tại Phú Nhuận, phù hợp cho tập luyện "
+                "và thi đấu hằng ngày với các khung giờ linh hoạt."
             ),
             opening_time=time(6, 0),
             closing_time=time(22, 0),

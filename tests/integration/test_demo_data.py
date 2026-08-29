@@ -117,8 +117,8 @@ def test_demo_reset_preserves_accounts_and_catalogs_and_seeds_structured_data(
         assert venue.latitude is None
         assert venue.longitude is None
         assert venue.description == (
-            "Dữ liệu demo có cấu trúc để Chủ sân quản lý cơ sở "
-            "và gửi Quản trị viên kiểm duyệt."
+            "Không gian thể thao tại Phú Nhuận, phù hợp cho tập luyện "
+            "và thi đấu hằng ngày với các khung giờ linh hoạt."
         )
         assert "vị trí Google" not in venue.description
         assert venue.status == VenueStatus.PENDING.value

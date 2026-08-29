@@ -118,11 +118,11 @@ Hoàn thiện Admin theo phong cách SaaS Operations Dashboard.
 **Trạng thái: HOÀN THÀNH**
 
 - Catalog hai cấp gồm 34 tỉnh/thành phố và 3.321 phường/xã/đặc khu.
-- Venue lưu `province_code/province_name/ward_code/ward_name`; giữ `district/city` để đọc dữ liệu legacy.
+- Venue lưu địa chỉ có cấu trúc Province/City và Ward/Commune/Special zone; giữ `district/city` để đọc dữ liệu legacy.
 - Migration mới không map đoán district cũ sang ward mới và không thay đổi dữ liệu Place ID/tọa độ legacy.
 - Form Owner dùng dropdown phụ thuộc; backend kiểm tra ward thuộc province.
 - Tìm kiếm/hiển thị dùng `venue.full_address`, có fallback legacy.
-- Luồng hiện tại không yêu cầu Place ID/tọa độ; dữ liệu cũ được giữ và liên kết Google Maps chỉ dùng để mở chỉ đường.
+- Luồng hiện tại không yêu cầu Google Place ID hoặc tọa độ; dữ liệu cũ được giữ. Hệ thống chỉ hỗ trợ mở Google Maps bên ngoài để xem vị trí/chỉ đường theo `full_address`, không nhúng Maps API.
 
 Step 4.0 chỉ là foundation dữ liệu; **không đồng nghĩa Step 4 Admin UI đã hoàn thành**.
 
@@ -133,8 +133,8 @@ Step 4.0 chỉ là foundation dữ liệu; **không đồng nghĩa Step 4 Admin 
 - Venue list.
 - Selected venue.
 - Detail panel.
-- Liên kết chỉ đường Google Maps ngoài hệ thống.
-- Kiểm tra dữ liệu địa chỉ.
+- Kiểm tra dữ liệu địa chỉ Province/Ward có cấu trúc; không bắt Google Place ID hoặc tọa độ.
+- Liên kết chỉ đường Google Maps ngoài hệ thống theo `full_address`.
 - Approve/reject/hide theo workflow hiện tại.
 
 ### Step 5 – Quản lý tài khoản
@@ -162,15 +162,45 @@ Step 4.0 chỉ là foundation dữ liệu; **không đồng nghĩa Step 4 Admin 
 
 ## PHASE 1.2 – USER UI FOUNDATION + FIND VENUE
 
-**Trạng thái: CHƯA LÀM**
+**Trạng thái: ĐANG THỰC HIỆN**
 
-- User UI foundation.
-- Find Venue.
-- Địa chỉ hành chính và liên kết chỉ đường Google Maps.
-- Venue cards.
-- Distance.
-- Sport / field type filters.
-- Venue detail.
+### Đã hoàn thành
+
+- Public Find Venue foundation.
+- Search theo keyword.
+- Search theo Province / City.
+- Dependent Ward / Commune / Special zone filter.
+- Backend validation ward thuộc province.
+- Search theo Sport.
+- Search theo Field Type.
+- Search theo min/max price.
+- Pagination giữ nguyên filters.
+- Chỉ hiển thị Venue ACTIVE hợp lệ.
+- Starting price lấy từ FieldPriceSlot.
+- Venue / Field / FieldType / PriceSlot dùng cùng source of truth giữa USER / OWNER / ADMIN.
+- Owner tạo/sửa Venue bằng structured administrative address.
+- Admin duyệt Venue không yêu cầu Google Place ID hoặc tọa độ.
+- External "Mở Google Maps" bằng `full_address`.
+- Venue Detail foundation.
+- Legacy Google Place ID / latitude / longitude vẫn giữ trong schema/data nhưng không còn dùng trong flow hiện tại.
+- Google Maps API / Places / Nearby đã được loại khỏi MVP.
+- Tests đã được cập nhật theo scope không Maps API.
+
+### Đang thực hiện
+
+- Find Venue UX redesign.
+- Venue cards UX polish.
+- Responsive desktop/mobile.
+- Venue Detail light visual consistency.
+
+### Còn lại trước khi đóng Phase 1.2
+
+- Prompt 3.1 – Find Venue UX redesign.
+- Visual QA desktop 1440x900.
+- Visual QA mobile 390x844.
+- Full regression tests.
+- Final Phase 1.2 audit.
+- Roadmap close / acceptance review.
 
 ---
 
@@ -273,32 +303,11 @@ Step 4.0 chỉ là foundation dữ liệu; **không đồng nghĩa Step 4 Admin 
 
 ## PHASE 4 – MATCH BUSINESS LOGIC
 
-**Trạng thái: CHƯA LÀM**
+**Trạng thái: CHƯA NGHIỆM THU THEO ROADMAP**
 
-- Tạo kèo.
-- Join match.
-
-### Creator chọn
-
-- AUTO ACCEPT nếu còn chỗ.
-- Hoặc MANUAL APPROVAL.
-
-### Participant
-
-- Được rút tự do trước khi match bắt đầu.
-
-### Creator
-
-- Có thể Đóng tuyển người.
-- Participant hiện tại vẫn giữ nguyên.
-- Booking không thay đổi.
-
-### Chia tiền
-
-- Hệ thống tính số tiền dự kiến/người.
-- Creator trả tiền cọc online.
-- Phần còn lại chia và thanh toán trực tiếp tại sân.
-- Không thu online từng participant.
+- Source hiện đã có một phần đáng kể Match/booking-related business logic.
+- Chưa thực hiện Phase 4 audit riêng theo roadmap.
+- Chỉ mark DONE sau khi audit source, business rules, tests và UI flow.
 
 ---
 
@@ -348,7 +357,8 @@ Step 4.0 chỉ là foundation dữ liệu; **không đồng nghĩa Step 4 Admin 
 - Permissions.
 - Booking E2E.
 - Payment/refund/settlement E2E.
-- Kiểm tra liên kết chỉ đường Google Maps và không tải Maps/Places API.
+- Kiểm tra external Google Maps directions link.
+- Xác minh app không tải Maps JavaScript API / Places API và không yêu cầu API key.
 - Owner flow.
 - Match flow.
 - Demo data.
@@ -385,6 +395,13 @@ Hiện tại:
 
 - Phase 1A: DONE.
 - Phase 1B: DONE.
+- Phase 1.2: IN PROGRESS.
+- Phase 2: NOT STARTED.
+- Phase 3: NOT STARTED.
+- Phase 4: NOT YET AUDITED / ACCEPTED.
+- Phase 4.1: NOT STARTED.
+- Phase 5: NOT STARTED.
+- Phase 6: NOT STARTED.
 
 ### Phase 1B
 
@@ -396,11 +413,35 @@ Hiện tại:
 - Step 5: DONE.
 - Step 6: DONE.
 
+### Phase 1.2 progress
+
+DONE:
+
+- Structured location search.
+- Province/Ward.
+- Sport.
+- Field Type.
+- Price.
+- Pagination.
+- External Google Maps directions.
+- Remove Maps API / Places / Nearby.
+- USER/OWNER/ADMIN Venue data consistency foundation.
+
+CURRENT:
+
+- Prompt 3.1 – Find Venue UX redesign.
+
+NEXT:
+
+- Prompt 4 – Phase 1.2 final audit / tests / acceptance / roadmap close.
+
 ### TASK TIẾP THEO
 
-**PHASE 1.2 – USER UI FOUNDATION + FIND VENUE: NEXT.**
+**PHASE 1.2 – PROMPT 3.1: FIND VENUE UX REDESIGN**
 
-Phase 1.2 chưa được triển khai trong task này.
+Sau khi Prompt 3.1 được người dùng chấp thuận:
+
+**PHASE 1.2 – PROMPT 4: FINAL AUDIT + CLOSE PHASE**
 
 ---
 
@@ -413,6 +454,7 @@ Trước mỗi task:
 3. Xác định Phase/Step hiện tại.
 4. Chỉ sửa file thuộc scope task.
 5. Không tự làm trước các Phase tương lai.
+6. Trạng thái roadmap phải phản ánh mức nghiệm thu, không chỉ sự tồn tại của code.
 
 Sau khi một Step hoàn tất và đã được người dùng chấp thuận:
 

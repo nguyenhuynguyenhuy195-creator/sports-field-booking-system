@@ -360,7 +360,7 @@ def _configure_catalog_choices(form: VenueSearchForm):
     sports = list_active_sports()
     field_types = list_active_field_types()
     provinces = list_provinces()
-    form.sport.choices = [("", "Tất cả bộ môn")] + [
+    form.sport.choices = [("", "Bộ môn")] + [
         (sport.code, sport.name) for sport in sports
     ]
     form.field_type.choices = [
@@ -373,7 +373,7 @@ def _configure_catalog_choices(form: VenueSearchForm):
         )
         for field_type in field_types
     ]
-    form.province_code.choices = [("", "Tất cả tỉnh và thành phố")] + [
+    form.province_code.choices = [("", "Tỉnh / Thành phố")] + [
         (province.code, province.name) for province in provinces
     ]
     selected_province_code = (form.province_code.data or "").strip()
@@ -383,7 +383,7 @@ def _configure_catalog_choices(form: VenueSearchForm):
             wards = list_wards(province_code=selected_province_code)
         except AdministrativeUnitError:
             wards = ()
-    form.ward_code.choices = [("", "Tất cả phường, xã và đặc khu")] + [
+    form.ward_code.choices = [("", "Phường / Xã")] + [
         (ward.code, ward.full_name) for ward in wards
     ]
     return sports, field_types, provinces, wards
@@ -400,6 +400,6 @@ def _configure_administrative_choices(form: VenueForm) -> None:
             wards = list_wards(province_code=selected_province_code)
         except AdministrativeUnitError:
             wards = ()
-    form.ward_code.choices = [("", "Chọn phường, xã hoặc đặc khu")] + [
+    form.ward_code.choices = [("", "Chọn phường, xã")] + [
         (ward.code, ward.full_name) for ward in wards
     ]
