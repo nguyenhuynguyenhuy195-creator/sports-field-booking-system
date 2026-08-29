@@ -3,56 +3,74 @@
 {% block title %}Kèo của tôi · Sân Thể Thao{% endblock %}
 
 {% block content %}
-<section class="container py-5">
-    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end gap-3 mb-4">
+<section class="container marketplace-page marketplace-workspace-page py-4 py-lg-5">
+    <div class="marketplace-page-header d-flex flex-column flex-md-row justify-content-between align-items-md-end gap-3 mb-4">
         <div>
-            <span class="eyebrow">TRUNG TÂM KÈO</span>
-            <h1 class="h2 fw-bold mt-2 mb-1">Kèo và yêu cầu của tôi</h1>
-            <p class="text-secondary mb-0">Theo dõi riêng kèo bạn đăng và những kèo bạn xin tham gia.</p>
+            <span class="marketplace-eyebrow"><i class="bi bi-person-workspace" aria-hidden="true"></i> TRUNG TÂM KÈO</span>
+            <h1 class="marketplace-page-title mt-2 mb-1">Kèo của tôi</h1>
+            <p class="marketplace-page-subtitle mb-0">Theo dõi kèo bạn đăng, yêu cầu đang chờ và những kèo bạn đã tham gia.</p>
         </div>
-        <a class="btn btn-outline-primary" href="{{ url_for('matches.index') }}">Xem tất cả kèo đang mở</a>
+        <a class="btn btn-outline-primary marketplace-secondary-action" href="{{ url_for('matches.index') }}"><i class="bi bi-search" aria-hidden="true"></i> Xem kèo đang mở</a>
     </div>
 
-    <div class="booking-detail-card mb-4">
-        <h2 class="h5 fw-bold mb-3">Kèo tôi đã đăng</h2>
-        <div class="table-responsive">
-            <table class="table align-middle mb-0">
-                <thead><tr><th>Kèo</th><th>Lịch đá</th><th>Trạng thái</th><th></th></tr></thead>
-                <tbody>
-                    {% for match in created_matches %}
-                        <tr>
-                            <td><strong>{{ match.title }}</strong><small class="d-block text-secondary">{{ match_type_labels[match.match_type] }}</small></td>
-                            <td>{{ match.booking.booking_date.strftime('%d/%m/%Y') }} · {{ match.booking.start_time.strftime('%H:%M') }}</td>
-                            <td><span class="match-status match-status-{{ match.status|lower }}">{{ match_status_labels[match.status] }}</span></td>
-                            <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{{ url_for('matches.detail', match_id=match.id) }}">Quản lý</a></td>
-                        </tr>
-                    {% else %}
-                        <tr><td colspan="4" class="text-center text-secondary py-4">Bạn chưa đăng kèo nào.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
+    <div class="match-workspace-grid">
+        <section class="match-workspace-panel marketplace-card">
+            <div class="match-workspace-panel-heading">
+                <div>
+                    <span class="marketplace-panel-kicker"><i class="bi bi-megaphone" aria-hidden="true"></i> NGƯỜI ĐĂNG</span>
+                    <h2 class="h5 fw-bold mb-1">Kèo tôi đã đăng</h2>
+                    <p class="mb-0">Theo dõi trạng thái và quản lý từng kèo.</p>
+                </div>
+                <span class="marketplace-count-badge">{{ created_matches|length }}</span>
+            </div>
+            <div class="match-workspace-list">
+                {% for match in created_matches %}
+                    <article class="match-workspace-item">
+                        <div class="match-workspace-item-main">
+                            <span class="match-status match-status-{{ match.status|lower }}">{{ match_status_labels[match.status] }}</span>
+                            <h3 class="h6 fw-bold mt-2 mb-1">{{ match.title }}</h3>
+                            <p class="mb-0">{{ match_type_labels[match.match_type] }}</p>
+                        </div>
+                        <div class="match-workspace-item-meta">
+                            <span><i class="bi bi-calendar3" aria-hidden="true"></i> {{ match.booking.booking_date.strftime('%d/%m/%Y') }} · {{ match.booking.start_time.strftime('%H:%M') }}</span>
+                            <span><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ match.booking.field.venue.name }}</span>
+                        </div>
+                        <a class="btn btn-sm btn-outline-primary" href="{{ url_for('matches.detail', match_id=match.id) }}">Quản lý</a>
+                    </article>
+                {% else %}
+                    <div class="marketplace-inline-empty"><i class="bi bi-megaphone" aria-hidden="true"></i><span>Bạn chưa đăng kèo nào.</span></div>
+                {% endfor %}
+            </div>
+        </section>
 
-    <div class="booking-detail-card">
-        <h2 class="h5 fw-bold mb-3">Yêu cầu tôi đã gửi</h2>
-        <div class="table-responsive">
-            <table class="table align-middle mb-0">
-                <thead><tr><th>Kèo</th><th>Sân</th><th>Trạng thái</th><th></th></tr></thead>
-                <tbody>
-                    {% for request in requests %}
-                        <tr>
-                            <td><strong>{{ request.match.title }}</strong><small class="d-block text-secondary">{{ match_type_labels[request.match.match_type] }}</small></td>
-                            <td>{{ request.match.booking.field.venue.name }}</td>
-                            <td><span class="participant-status participant-status-{{ request.status|lower|replace('_', '-') }}">{{ participant_status_labels[request.status] }}</span></td>
-                            <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{{ url_for('matches.detail', match_id=request.match_id) }}">Xem</a></td>
-                        </tr>
-                    {% else %}
-                        <tr><td colspan="4" class="text-center text-secondary py-4">Bạn chưa gửi yêu cầu tham gia nào.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+        <section class="match-workspace-panel marketplace-card">
+            <div class="match-workspace-panel-heading">
+                <div>
+                    <span class="marketplace-panel-kicker"><i class="bi bi-send" aria-hidden="true"></i> NGƯỜI THAM GIA</span>
+                    <h2 class="h5 fw-bold mb-1">Kèo tôi tham gia và yêu cầu</h2>
+                    <p class="mb-0">Xem kèo đã tham gia và tiến độ những yêu cầu còn lại.</p>
+                </div>
+                <span class="marketplace-count-badge">{{ requests|length }}</span>
+            </div>
+            <div class="match-workspace-list">
+                {% for request in requests %}
+                    <article class="match-workspace-item">
+                        <div class="match-workspace-item-main">
+                            <span class="participant-status participant-status-{{ request.status|lower|replace('_', '-') }}">{{ participant_status_labels[request.status] }}</span>
+                            <h3 class="h6 fw-bold mt-2 mb-1">{{ request.match.title }}</h3>
+                            <p class="mb-0">{{ match_type_labels[request.match.match_type] }}</p>
+                        </div>
+                        <div class="match-workspace-item-meta">
+                            <span><i class="bi bi-calendar3" aria-hidden="true"></i> {{ request.match.booking.booking_date.strftime('%d/%m/%Y') }} · {{ request.match.booking.start_time.strftime('%H:%M') }}</span>
+                            <span><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ request.match.booking.field.venue.name }}</span>
+                        </div>
+                        <a class="btn btn-sm btn-outline-primary" href="{{ url_for('matches.detail', match_id=request.match_id) }}">Xem</a>
+                    </article>
+                {% else %}
+                    <div class="marketplace-inline-empty"><i class="bi bi-send" aria-hidden="true"></i><span>Bạn chưa có hoạt động kèo nào.</span></div>
+                {% endfor %}
+            </div>
+        </section>
     </div>
 </section>
 {% endblock %}

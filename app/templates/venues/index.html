@@ -3,15 +3,16 @@
 {% block title %}Tìm sân thể thao · Sân Thể Thao{% endblock %}
 
 {% block content %}
-<section class="venue-search-intro">
+<section class="venue-search-intro marketplace-page-intro marketplace-venue-intro">
     <div class="container">
+        <span class="marketplace-eyebrow"><i class="bi bi-compass" aria-hidden="true"></i> KHÁM PHÁ SÂN</span>
         <h1 class="venue-page-title mb-2">Tìm sân thể thao</h1>
         <p class="mb-0">Tìm sân phù hợp theo khu vực, bộ môn và mức giá.</p>
     </div>
 </section>
 
-<section class="container venue-search-content py-4 pb-lg-5">
-    <form id="venue-search-form" class="venue-search-panel" method="get" action="{{ url_for('venues.index') }}" role="search">
+<section class="container venue-search-content marketplace-page marketplace-venue-page py-4 pb-lg-5">
+    <form id="venue-search-form" class="venue-search-panel marketplace-card" method="get" action="{{ url_for('venues.index') }}" role="search">
         <div class="venue-search-primary">
             <div class="venue-search-primary-field venue-search-keyword-field">
                 {{ form.q.label(class_="visually-hidden") }}
@@ -137,7 +138,7 @@
     </form>
 
         {% if search_is_valid %}
-            <div class="venue-results-heading">
+            <div class="venue-results-heading marketplace-section-heading">
                 <div>
                     <h2 class="h4 fw-bold mb-1">Kết quả tìm kiếm</h2>
                     <p class="venue-results-count mb-0"><i class="bi bi-buildings" aria-hidden="true"></i> {{ search_page.total }} cơ sở phù hợp</p>
@@ -148,7 +149,7 @@
             <div class="venue-grid{% if venue_results|length == 1 %} venue-grid-single{% endif %}">
                 {% for result in venue_results %}
                     {% set venue = result.venue %}
-                    <article class="venue-card h-100" data-venue-card="{{ venue.id }}">
+                    <article class="venue-card marketplace-card h-100" data-venue-card="{{ venue.id }}">
                         <div class="venue-card-header">
                             <div class="venue-card-title-group">
                                 <span class="venue-card-visual" aria-hidden="true"><i class="bi bi-building"></i></span>

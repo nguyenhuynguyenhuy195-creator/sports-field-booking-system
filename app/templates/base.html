@@ -44,7 +44,10 @@
                     </li>
                     {% if current_user.is_authenticated and current_user.role in ['USER', 'OWNER'] %}
                         <li class="nav-item">
-                            <a class="nav-link{% if request.endpoint == 'bookings.index' %} active{% endif %}" href="{{ url_for('bookings.index') }}"{% if request.endpoint == 'bookings.index' %} aria-current="page"{% endif %}>Lịch &amp; kèo của tôi</a>
+                            <a class="nav-link{% if request.endpoint in ['bookings.index', 'bookings.detail'] %} active{% endif %}" href="{{ url_for('bookings.index') }}"{% if request.endpoint in ['bookings.index', 'bookings.detail'] %} aria-current="page"{% endif %}>Lịch sân</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link{% if request.endpoint == 'matches.mine' %} active{% endif %}" href="{{ url_for('matches.mine') }}"{% if request.endpoint == 'matches.mine' %} aria-current="page"{% endif %}>Kèo của tôi</a>
                         </li>
                     {% endif %}
                 </ul>
@@ -126,7 +129,8 @@
                 <a href="{{ url_for('venues.index') }}">Tìm sân</a>
                 <a href="{{ url_for('matches.index') }}">Tìm kèo</a>
                 {% if current_user.is_authenticated and current_user.role in ['USER', 'OWNER'] %}
-                    <a href="{{ url_for('bookings.index') }}">Lịch của tôi</a>
+                    <a href="{{ url_for('bookings.index') }}">Lịch sân</a>
+                    <a href="{{ url_for('matches.mine') }}">Kèo của tôi</a>
                 {% else %}
                     <a href="{{ url_for('auth.register') }}">Tạo tài khoản</a>
                 {% endif %}

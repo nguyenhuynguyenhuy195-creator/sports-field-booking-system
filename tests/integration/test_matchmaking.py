@@ -98,6 +98,8 @@ def test_empty_match_list_guides_user_to_booking_flow(app, client):
     assert "Chưa có kèo đang mở" in html
     assert 'href="/venues"' in html
     assert 'href="/matches/mine"' in html
+    assert ">Lịch sân</a>" in html
+    assert ">Kèo của tôi</a>" in html
 
 
 def test_opponent_request_payment_confirms_match_and_booking(app):
@@ -488,7 +490,9 @@ def test_match_pages_show_open_match_and_request_state(app, client):
 
     response = client.get("/matches")
     assert response.status_code == 200
-    assert "Kèo giao hữu cuối tuần" in response.get_data(as_text=True)
+    html = response.get_data(as_text=True)
+    assert "Kèo giao hữu cuối tuần" in html
+    assert "123 Đường Thể Thao, TP. Hồ Chí Minh" in html
 
     login(client, email=player.email)
     response = client.post(
@@ -507,7 +511,7 @@ def test_match_pages_show_open_match_and_request_state(app, client):
     assert "Đội mình muốn tham gia." not in page
 
 
-def test_paid_opponent_appears_in_schedule_and_contacts_stay_private(app, client):
+def test_paid_opponent_appears_in_match_workspace_and_contacts_stay_private(app, client):
     owner = create_user(app, email="owner@example.com", role=UserRole.OWNER)
     creator = create_user(app, email="creator@example.com")
     opponent = create_user(app, email="opponent@example.com")
@@ -540,10 +544,20 @@ def test_paid_opponent_appears_in_schedule_and_contacts_stay_private(app, client
             payer=db.session.get(User, opponent.id),
         )
 
-    schedule_page = client.get("/bookings").get_data(as_text=True)
-    assert "Kèo tôi đã tham gia" in schedule_page
-    assert "Kèo giao hữu cuối tuần" in schedule_page
-    assert "Xem và liên hệ" in schedule_page
+    schedule_response = client.get("/bookings")
+    assert schedule_response.status_code == 200
+    schedule_page = schedule_response.get_data(as_text=True)
+    assert "Kèo tôi đã tham gia" not in schedule_page
+    assert "Kèo giao hữu cuối tuần" not in schedule_page
+    assert f'href="/matches/{match_id}"' not in schedule_page
+    assert "Xem và liên hệ" not in schedule_page
+
+    match_workspace_response = client.get("/matches/mine")
+    assert match_workspace_response.status_code == 200
+    match_workspace_page = match_workspace_response.get_data(as_text=True)
+    assert "Kèo giao hữu cuối tuần" in match_workspace_page
+    assert "Đã tham gia" in match_workspace_page
+    assert f'href="/matches/{match_id}"' in match_workspace_page
 
     opponent_page = client.get(f"/matches/{match_id}").get_data(as_text=True)
     assert "Liên hệ người đăng kèo" in opponent_page
