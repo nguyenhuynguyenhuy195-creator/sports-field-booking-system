@@ -44,15 +44,22 @@
     form.querySelectorAll("[data-next-step]").forEach((button) => {
         button.addEventListener("click", async () => {
             clearErrors();
-            if (Number(button.dataset.nextStep) === 3 && !hasValidSelection()) {
+            const nextStep = Number(button.dataset.nextStep);
+            if (nextStep === 3 && !hasValidSelection()) {
                 showError("Vui lòng chọn giờ bắt đầu và kết thúc cách nhau ít nhất 60 phút.");
                 return;
             }
             button.disabled = true;
             try {
-                latestQuote = await requestQuote();
-                renderReview(latestQuote);
-                setStep(Number(button.dataset.nextStep));
+                if (nextStep === 3) {
+                    const timeQuote = await requestTimeQuote();
+                    latestQuote = null;
+                    renderPriceQuote(timeQuote);
+                } else {
+                    latestQuote = await requestQuote();
+                    renderReview(latestQuote);
+                }
+                setStep(nextStep);
             } catch (error) {
                 showError(error.message || "Không thể kiểm tra lịch sân lúc này.");
             } finally {
@@ -322,10 +329,10 @@
         const requestId = ++quoteRequestId;
         setText("[data-selection-total]", "Đang tính giá…");
         try {
-            const quote = await requestQuote();
+            const quote = await requestTimeQuote();
             if (requestId !== quoteRequestId) return;
-            latestQuote = quote;
-            renderReview(quote);
+            latestQuote = null;
+            renderPriceQuote(quote);
             setText("[data-selection-total]", moneyFormatter.format(Number(quote.total)));
         } catch (error) {
             if (requestId !== quoteRequestId) return;
@@ -454,8 +461,16 @@
         });
     }
 
+    async function requestTimeQuote() {
+        return requestQuoteFrom(form.dataset.timeQuoteUrl);
+    }
+
     async function requestQuote() {
-        const response = await fetch(form.dataset.quoteUrl, {
+        return requestQuoteFrom(form.dataset.quoteUrl);
+    }
+
+    async function requestQuoteFrom(url) {
+        const response = await fetch(url, {
             method: "POST",
             body: new FormData(form),
             headers: { "X-Requested-With": "XMLHttpRequest" },
@@ -472,37 +487,15 @@
         return payload;
     }
 
-    function renderReview(quote) {
+    function renderPriceQuote(quote) {
         const bookingDate = form.elements.booking_date.value;
         const start = `${form.elements.start_hour.value}:${form.elements.start_minute.value}`;
         const end = `${form.elements.end_hour.value}:${form.elements.end_minute.value}`;
-        const selectedMode = form.querySelector("input[name='booking_mode']:checked");
-        const selectedModeLabel = selectedMode
-            ?.closest("label")
-            ?.querySelector("strong")
-            ?.textContent?.trim() || "—";
 
         setText("[data-review-date]", formatDate(bookingDate));
         setText("[data-review-time]", `${start}–${end}`);
-        setText("[data-review-mode]", selectedModeLabel);
         setText("[data-review-total]", moneyFormatter.format(Number(quote.total)));
         setText("[data-summary-total]", moneyFormatter.format(Number(quote.total)));
-        setText(
-            "[data-review-creator-amount]",
-            moneyFormatter.format(Number(quote.contribution_plan.creator_amount)),
-        );
-        setText(
-            "[data-review-external-amount]",
-            moneyFormatter.format(Number(quote.contribution_plan.external_amount)),
-        );
-        setText(
-            "[data-review-venue-balance]",
-            moneyFormatter.format(Number(quote.venue_balance)),
-        );
-        setText(
-            "[data-review-contribution-note]",
-            contributionNote(quote.contribution_plan),
-        );
 
         const body = form.querySelector("[data-review-segments]");
         if (!body) return;
@@ -519,6 +512,33 @@
             row.append(interval, duration, subtotal);
             body.append(row);
         });
+    }
+
+    function renderReview(quote) {
+        renderPriceQuote(quote);
+        const selectedMode = form.querySelector("input[name='booking_mode']:checked");
+        const selectedModeLabel = selectedMode
+            ?.closest("label")
+            ?.querySelector("strong")
+            ?.textContent?.trim() || "—";
+
+        setText("[data-review-mode]", selectedModeLabel);
+        setText(
+            "[data-review-creator-amount]",
+            moneyFormatter.format(Number(quote.contribution_plan.creator_amount)),
+        );
+        setText(
+            "[data-review-external-amount]",
+            moneyFormatter.format(Number(quote.contribution_plan.external_amount)),
+        );
+        setText(
+            "[data-review-venue-balance]",
+            moneyFormatter.format(Number(quote.venue_balance)),
+        );
+        setText(
+            "[data-review-contribution-note]",
+            contributionNote(quote.contribution_plan),
+        );
     }
 
     function syncPlayerSplitFields() {

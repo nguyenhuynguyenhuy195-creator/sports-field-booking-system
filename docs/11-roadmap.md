@@ -12,6 +12,7 @@ Các nhóm nghiệp vụ chính:
 - Tìm sân theo địa chỉ và mở Google Maps để chỉ đường.
 - Xem chi tiết sân.
 - Đặt sân.
+- Booking mới chỉ chọn DIRECT_BOOKING, FIND_OPPONENT hoặc FIND_PLAYERS; không dùng Singles/Doubles.
 - Thanh toán tiền cọc.
 - Theo dõi booking.
 - Tạo / tìm / tham gia kèo chơi.
@@ -306,6 +307,7 @@ Step 4.0 chỉ là foundation dữ liệu; **không đồng nghĩa Step 4 Admin 
 **Trạng thái: CHƯA NGHIỆM THU THEO ROADMAP**
 
 - Source hiện đã có một phần đáng kể Match/booking-related business logic.
+- Quyết định MVP hiện tại: booking mới không dùng `play_format`; FIND_PLAYERS giới hạn theo `field.capacity`, cột cũ chỉ giữ cho legacy.
 - Chưa thực hiện Phase 4 audit riêng theo roadmap.
 - Chỉ mark DONE sau khi audit source, business rules, tests và UI flow.
 

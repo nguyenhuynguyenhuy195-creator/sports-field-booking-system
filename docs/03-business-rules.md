@@ -114,13 +114,12 @@ User phải đăng nhập trước khi tạo booking, tạo kèo, gửi yêu c�
 - FIND_OPPONENT phải tạo trước giờ bắt đầu ít nhất 24 giờ.
 - Bài FIND_OPPONENT được nhận yêu cầu đến giờ booking bắt đầu; không có deadline riêng trước 12 giờ.
 
-### BR-017: Hình thức thi đấu
+### BR-017: Cấu hình booking hiện tại
 
-- Booking bóng đá không chọn play format; loại sân xác định quy mô thi đấu chính.
-- Booking cầu lông, pickleball hoặc tennis bắt buộc chọn SINGLES hoặc DOUBLES.
-- SINGLES có tối đa 2 người và chỉ hỗ trợ DIRECT_BOOKING hoặc FIND_OPPONENT.
-- DOUBLES có tối đa 4 người và hỗ trợ cả ba booking mode.
-- FIND_PLAYERS cho bóng đá cho phép creator chọn số vị trí cần tìm trong giới hạn capacity của field.
+- Booking mới không hỏi, không validate và không suy diễn `play_format`; service luôn lưu `NULL`.
+- Cột và enum `play_format` tiếp tục tồn tại ở schema để đọc dữ liệu legacy, không được dùng để quyết định booking mode mới.
+- Mọi field hỗ trợ DIRECT_BOOKING, FIND_OPPONENT và FIND_PLAYERS nếu các rule thời gian tương ứng hợp lệ.
+- FIND_PLAYERS yêu cầu `1 <= requested_players < field.capacity`.
 
 ### BR-018: Trùng lịch
 
@@ -256,7 +255,7 @@ Booking PAID hoặc FIND_OPPONENT PARTIALLY_PAID hợp lệ được chuyển CO
 - Đối thủ chỉ chính thức JOINED/CONFIRMED sau khi payment cọc SUCCESS, trừ khi phần đối thủ đã được một người rút trước đó để lại và booking không còn nghĩa vụ cọc chưa thanh toán.
 - Booking legacy có deadline tiếp tục dùng bước creator duyệt để không đổi hồi tố dữ liệu đang diễn ra.
 - Đối thủ đã cọc mà chủ động rút chuyển WITHDRAWN/FORFEITED, bài mở lại và người thay thế không thanh toán lại cùng phần cọc.
-- FIND_OPPONENT dùng được cho bóng đá, SINGLES và DOUBLES của môn dùng vợt.
+- FIND_OPPONENT dùng được cho mọi field thuộc bộ môn đang được MVP hỗ trợ.
 - Đại diện đối thủ phải nhập số Zalo và đồng ý chia sẻ trước khi giữ suất thanh toán; số được lưu snapshot trên participant.
 - Chỉ khi participant `JOINED` và booking chưa kết thúc/hủy, creator và participant mới xem được số của nhau; khách và user không liên quan không được nhận dữ liệu này.
 - Participant `JOINED` thấy kèo trong lịch cá nhân nhưng không trở thành chủ booking và không có quyền sửa/hủy booking.
@@ -264,7 +263,7 @@ Booking PAID hoặc FIND_OPPONENT PARTIALLY_PAID hợp lệ được chuyển CO
 ### BR-033: Tìm thêm người
 
 - required_players là số vị trí creator muốn tìm và không tính creator.
-- Không chấp nhận vượt required_players hoặc giới hạn của field/play format.
+- Không chấp nhận vượt required_players; giá trị snapshot phải thỏa `1 <= required_players < field.capacity`.
 - Người ghép không có contribution, payment_due_at hoặc refund online.
 - Khi creator chấp nhận, participant chuyển thẳng JOINED.
 - Người ghép thanh toán trực tiếp cho creator tại sân.

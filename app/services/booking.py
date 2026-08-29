@@ -26,8 +26,6 @@ from app.models import (
     MatchParticipantStatus,
     MatchStatus,
     Refund,
-    PlayFormat,
-    SportCode,
     User,
     UserRole,
     VenueStatus,
@@ -81,7 +79,6 @@ def create_booking(
     start_time: time,
     end_time: time,
     booking_mode: str,
-    play_format: str | None = None,
     requested_players: int | None = None,
     note: str | None = None,
     now: datetime | None = None,
@@ -94,13 +91,10 @@ def create_booking(
 
     field = _get_bookable_field(field_id=field_id, lock=True)
     _validate_field_is_active(field)
-    normalized_play_format, normalized_requested_players = (
-        _validate_booking_configuration(
-            field=field,
-            booking_mode=normalized_mode,
-            play_format=play_format,
-            requested_players=requested_players,
-        )
+    normalized_requested_players = _validate_booking_configuration(
+        field=field,
+        booking_mode=normalized_mode,
+        requested_players=requested_players,
     )
     _validate_booking_time(
         field=field,
@@ -159,7 +153,8 @@ def create_booking(
         start_time=start_time,
         end_time=end_time,
         booking_mode=normalized_mode,
-        play_format=normalized_play_format,
+        # ADR-033: the nullable column remains only for legacy records.
+        play_format=None,
         requested_players=normalized_requested_players,
         payment_policy=BookingPaymentPolicy.DEPOSIT_30.value,
         total_amount=quote.total,
@@ -199,6 +194,37 @@ def create_booking(
     return booking
 
 
+def quote_booking_time(
+    *,
+    user: User,
+    field_id: int,
+    booking_date: date,
+    start_time: time,
+    end_time: time,
+    now: datetime | None = None,
+) -> PriceQuote:
+    """Validate only Step 2 interval availability and calculate its price."""
+    _validate_booker(user)
+    current_local = _normalize_local_datetime(now)
+    current_utc = _local_to_utc(current_local)
+    field = _get_bookable_field(field_id=field_id)
+    _validate_field_is_active(field)
+    _validate_booking_interval(
+        field=field,
+        booking_date=booking_date,
+        start_time=start_time,
+        end_time=end_time,
+        current_local=current_local,
+    )
+    return _quote_available_interval(
+        field=field,
+        booking_date=booking_date,
+        start_time=start_time,
+        end_time=end_time,
+        current_utc=current_utc,
+    )
+
+
 def quote_booking(
     *,
     user: User,
@@ -207,7 +233,6 @@ def quote_booking(
     start_time: time,
     end_time: time,
     booking_mode: str,
-    play_format: str | None = None,
     requested_players: int | None = None,
     now: datetime | None = None,
 ) -> PriceQuote:
@@ -222,10 +247,9 @@ def quote_booking(
     current_utc = _local_to_utc(current_local)
     field = _get_bookable_field(field_id=field_id)
     _validate_field_is_active(field)
-    _, normalized_requested_players = _validate_booking_configuration(
+    normalized_requested_players = _validate_booking_configuration(
         field=field,
         booking_mode=normalized_mode,
-        play_format=play_format,
         requested_players=requested_players,
     )
     _validate_booking_time(
@@ -236,6 +260,32 @@ def quote_booking(
         booking_mode=normalized_mode,
         current_local=current_local,
     )
+    quote = _quote_available_interval(
+        field=field,
+        booking_date=booking_date,
+        start_time=start_time,
+        end_time=end_time,
+        current_utc=current_utc,
+    )
+    try:
+        build_contribution_plan(
+            booking_mode=normalized_mode,
+            deposit_amount=calculate_deposit_amount(quote.total),
+            requested_players=normalized_requested_players,
+        )
+    except ContributionError as exc:
+        raise BookingError(str(exc)) from exc
+    return quote
+
+
+def _quote_available_interval(
+    *,
+    field: Field,
+    booking_date: date,
+    start_time: time,
+    end_time: time,
+    current_utc: datetime,
+) -> PriceQuote:
     if _maintenance_overlap_exists(
         field_id=field.id,
         booking_date=booking_date,
@@ -256,7 +306,7 @@ def quote_booking(
             "Khoảng giờ này đã có người đặt hoặc đang được giữ chỗ."
         )
     try:
-        quote = calculate_price_quote(
+        return calculate_price_quote(
             field_id=field.id,
             day_of_week=booking_date.weekday(),
             start_time=start_time,
@@ -264,15 +314,6 @@ def quote_booking(
         )
     except PricingError as exc:
         raise BookingError(str(exc)) from exc
-    try:
-        build_contribution_plan(
-            booking_mode=normalized_mode,
-            deposit_amount=calculate_deposit_amount(quote.total),
-            requested_players=normalized_requested_players,
-        )
-    except ContributionError as exc:
-        raise BookingError(str(exc)) from exc
-    return quote
 
 
 def get_booking_field(*, venue_id: int, field_id: int) -> Field:
@@ -624,6 +665,46 @@ def _validate_booking_time(
     booking_mode: str,
     current_local: datetime,
 ) -> None:
+    _validate_booking_interval(
+        field=field,
+        booking_date=booking_date,
+        start_time=start_time,
+        end_time=end_time,
+        current_local=current_local,
+    )
+    start_at = datetime.combine(booking_date, start_time)
+    minimum_lead = (
+        timedelta(hours=1)
+        if booking_mode
+        in {
+            BookingMode.DIRECT_BOOKING.value,
+            BookingMode.FIND_PLAYERS.value,
+        }
+        else timedelta(hours=24)
+    )
+    if start_at - current_local < minimum_lead:
+        hours = (
+            1
+            if booking_mode
+            in {
+                BookingMode.DIRECT_BOOKING.value,
+                BookingMode.FIND_PLAYERS.value,
+            }
+            else 24
+        )
+        raise BookingError(
+            f"Hình thức này phải được đặt trước ít nhất {hours} giờ."
+        )
+
+
+def _validate_booking_interval(
+    *,
+    field: Field,
+    booking_date: date,
+    start_time: time,
+    end_time: time,
+    current_local: datetime,
+) -> None:
     if not isinstance(booking_date, date):
         raise BookingError("Ngày đặt sân không hợp lệ.")
     if not isinstance(start_time, time) or not isinstance(end_time, time):
@@ -651,29 +732,6 @@ def _validate_booking_time(
         raise BookingError("Thời gian đặt sân phải ở trong tương lai.")
     if start_at > current_local + timedelta(days=30):
         raise BookingError("Chỉ được đặt sân trước tối đa 30 ngày.")
-
-    minimum_lead = (
-        timedelta(hours=1)
-        if booking_mode
-        in {
-            BookingMode.DIRECT_BOOKING.value,
-            BookingMode.FIND_PLAYERS.value,
-        }
-        else timedelta(hours=24)
-    )
-    if start_at - current_local < minimum_lead:
-        hours = (
-            1
-            if booking_mode
-            in {
-                BookingMode.DIRECT_BOOKING.value,
-                BookingMode.FIND_PLAYERS.value,
-            }
-            else 24
-        )
-        raise BookingError(
-            f"Hình thức này phải được đặt trước ít nhất {hours} giờ."
-        )
 
 
 def _maintenance_overlap_exists(
@@ -859,29 +917,9 @@ def _validate_booking_configuration(
     *,
     field: Field,
     booking_mode: str,
-    play_format: str | None,
     requested_players: int | None,
-) -> tuple[str | None, int | None]:
-    normalized_play_format = (play_format or "").strip().upper() or None
-    sport_code = field.field_type.sport.code
-
-    if sport_code == SportCode.FOOTBALL.value:
-        if normalized_play_format is not None:
-            raise BookingError("Lịch sân bóng đá không dùng hình thức đánh đơn hoặc đánh đôi.")
-        maximum_players = max(field.capacity - 1, 0)
-    else:
-        if normalized_play_format not in {item.value for item in PlayFormat}:
-            raise BookingError("Vui lòng chọn đánh đơn hoặc đánh đôi.")
-        if (
-            normalized_play_format == PlayFormat.SINGLES.value
-            and booking_mode == BookingMode.FIND_PLAYERS.value
-        ):
-            raise BookingError("Đánh đơn chỉ hỗ trợ đặt trực tiếp hoặc tìm đối thủ.")
-        maximum_players = (
-            1
-            if normalized_play_format == PlayFormat.SINGLES.value
-            else 3
-        )
+) -> int | None:
+    maximum_players = max(field.capacity - 1, 0)
 
     if booking_mode == BookingMode.FIND_PLAYERS.value:
         if (
@@ -894,12 +932,12 @@ def _validate_booking_configuration(
             raise BookingError(
                 f"Số người muốn tìm không được vượt quá {maximum_players}."
             )
-        return normalized_play_format, requested_players
+        return requested_players
     if requested_players is not None:
         raise BookingError(
             "Số người muốn tìm chỉ dùng cho hình thức tìm thêm người."
         )
-    return normalized_play_format, None
+    return None
 
 
 def _normalize_optional_text(value: str | None, *, field_name: str) -> str | None:

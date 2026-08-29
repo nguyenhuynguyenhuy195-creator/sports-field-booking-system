@@ -16,7 +16,7 @@ from wtforms.validators import (
     ValidationError,
 )
 
-from app.models import BookingMode, PlayFormat
+from app.models import BookingMode
 
 
 BOOKING_HOUR_CHOICES = [(f"{hour:02d}", f"{hour:02d}") for hour in range(24)]
@@ -37,7 +37,9 @@ BOOKING_MODE_CHOICES = [
 ]
 
 
-class BookingForm(FlaskForm):
+class BookingTimeQuoteForm(FlaskForm):
+    """Validate only the date and interval used by booking Step 2."""
+
     booking_date = DateField(
         "Ngày đặt sân",
         format="%Y-%m-%d",
@@ -67,28 +69,6 @@ class BookingForm(FlaskForm):
         default="00",
         validators=[DataRequired(message="Vui lòng chọn phút kết thúc.")],
     )
-    play_format = RadioField(
-        "Hình thức thi đấu",
-        choices=[
-            (PlayFormat.SINGLES.value, "Đánh đơn"),
-            (PlayFormat.DOUBLES.value, "Đánh đôi"),
-        ],
-        validate_choice=False,
-    )
-    booking_mode = RadioField(
-        "Mục đích đặt sân",
-        choices=BOOKING_MODE_CHOICES,
-        default=BookingMode.DIRECT_BOOKING.value,
-        validators=[DataRequired(message="Vui lòng chọn mục đích đặt sân.")],
-    )
-    requested_players = IntegerField(
-        "Số người muốn tìm thêm",
-    )
-    note = TextAreaField(
-        "Ghi chú cho chủ sân",
-        validators=[Length(max=500, message="Ghi chú tối đa 500 ký tự.")],
-    )
-    submit = SubmitField("Giữ chỗ và tiếp tục thanh toán")
 
     @property
     def start_time_value(self) -> time:
@@ -110,6 +90,23 @@ class BookingForm(FlaskForm):
             return
         if start_time >= end_time:
             raise ValidationError("Giờ kết thúc phải sau giờ bắt đầu.")
+
+
+class BookingForm(BookingTimeQuoteForm):
+    booking_mode = RadioField(
+        "Mục đích đặt sân",
+        choices=BOOKING_MODE_CHOICES,
+        default=BookingMode.DIRECT_BOOKING.value,
+        validators=[DataRequired(message="Vui lòng chọn mục đích đặt sân.")],
+    )
+    requested_players = IntegerField(
+        "Số người muốn tìm thêm",
+    )
+    note = TextAreaField(
+        "Ghi chú cho chủ sân",
+        validators=[Length(max=500, message="Ghi chú tối đa 500 ký tự.")],
+    )
+    submit = SubmitField("Giữ chỗ và tiếp tục thanh toán")
 
     def validate_requested_players(self, field) -> None:
         if self.booking_mode.data == BookingMode.FIND_PLAYERS.value:

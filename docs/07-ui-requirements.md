@@ -54,14 +54,12 @@ Yêu cầu:
 - Dải ngày 7 ngày và lưới mốc 30 phút theo giờ hoạt động.
 - Phân biệt còn trống, đã chọn, đã đặt, bảo trì, thiếu giá và đã qua.
 - Chọn khoảng liên tục tối thiểu 60 phút.
-- Với cầu lông, pickleball và tennis: chọn Đánh đơn hoặc Đánh đôi.
-- Với bóng đá: không hiển thị lựa chọn đơn/đôi.
+- Không hiển thị hoặc yêu cầu lựa chọn đánh đơn/đôi ở mọi bộ môn.
 - Ba booking mode:
   - Đặt sân cho nhóm của tôi.
   - Tìm đối thủ.
   - Tìm thêm người chơi.
-- SINGLES không hiển thị FIND_PLAYERS.
-- FIND_PLAYERS hiển thị ô số vị trí muốn tìm và giải thích người ghép trả tại sân.
+- FIND_PLAYERS hiển thị ô số vị trí muốn tìm, giới hạn nhỏ hơn capacity của field và giải thích người ghép trả tại sân.
 - Số vị trí FIND_PLAYERS được lưu cùng booking trước khi creator thanh toán cọc/mở match.
 - FIND_OPPONENT ghi rõ phải đặt trước 24 giờ; creator cọc 15% để giữ sân, bài tìm đối thủ mở đến giờ bắt đầu và đối thủ cọc thêm 15% nếu tham gia.
 - Trước submit hiển thị các đoạn giá, total, mức cọc mục tiêu, creator cần trả ngay và số dự kiến trả tại sân. FIND_OPPONENT chưa có đối thủ phải hiển thị 85%, không mặc định 70%.

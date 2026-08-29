@@ -58,7 +58,6 @@
                     <div><dt>Người đặt</dt><dd>{{ booking.user.full_name }}</dd></div>
                     <div><dt>Bộ môn</dt><dd>{{ booking.field.field_type.sport.name }}</dd></div>
                     <div><dt>Loại sân</dt><dd>{{ booking.field.field_type.name }}</dd></div>
-                    {% if booking.play_format %}<div><dt>Hình thức thi đấu</dt><dd>{{ play_format_labels[booking.play_format] }}</dd></div>{% endif %}
                     <div><dt>Mục đích đặt sân</dt><dd>{{ booking_mode_labels[booking.booking_mode] }}</dd></div>
                     {% if booking.payment_policy == 'LEGACY_FULL_ONLINE' %}
                         <div class="booking-detail-full"><dt>Hình thức thanh toán</dt><dd>Thanh toán toàn bộ trực tuyến</dd></div>

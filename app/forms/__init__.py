@@ -2,7 +2,12 @@
 
 from .auth import LoginForm, RegistrationForm
 from .admin import AdminAccountStatusForm
-from .booking import BookingActionForm, BookingForm, BookingReasonForm
+from .booking import (
+    BookingActionForm,
+    BookingForm,
+    BookingReasonForm,
+    BookingTimeQuoteForm,
+)
 from .field import FieldForm
 from .maintenance import MaintenanceActionForm, MaintenanceForm
 from .matchmaking import MatchActionForm, MatchContactForm, MatchForm, MatchJoinForm
@@ -15,6 +20,7 @@ __all__ = [
     "BookingActionForm",
     "BookingForm",
     "BookingReasonForm",
+    "BookingTimeQuoteForm",
     "FieldForm",
     "LoginForm",
     "MaintenanceActionForm",

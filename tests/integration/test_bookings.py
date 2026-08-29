@@ -85,6 +85,7 @@ def create_bookable_field(
     venue_status: VenueStatus = VenueStatus.ACTIVE,
     field_status: FieldStatus = FieldStatus.ACTIVE,
     split_prices: bool = False,
+    field_type_code: FieldTypeCode = FieldTypeCode.FOOTBALL_5,
 ) -> tuple[int, int]:
     selected_date = target_date or booking_day()
     with app.app_context():
@@ -104,7 +105,7 @@ def create_bookable_field(
             name="Sân booking",
             field_type_id=db.session.scalar(
                 db.select(FieldType.id).where(
-                    FieldType.code == FieldTypeCode.FOOTBALL_5.value
+                    FieldType.code == field_type_code.value
                 )
             ),
             capacity=10,
@@ -156,6 +157,18 @@ def booking_form_data(target_date: date, **overrides):
         "end_minute": "00",
         "booking_mode": BookingMode.DIRECT_BOOKING.value,
         "note": "Đặt sân giao hữu",
+    }
+    data.update(overrides)
+    return data
+
+
+def time_quote_form_data(target_date: date, **overrides):
+    data = {
+        "booking_date": target_date.isoformat(),
+        "start_hour": "18",
+        "start_minute": "00",
+        "end_hour": "20",
+        "end_minute": "00",
     }
     data.update(overrides)
     return data
@@ -266,6 +279,310 @@ def test_quote_endpoint_returns_backend_price_without_creating_booking(app, clie
     ]
     with app.app_context():
         assert db.session.scalar(db.select(db.func.count(Booking.id))) == 0
+
+
+@pytest.mark.parametrize(
+    "field_type_code",
+    [
+        FieldTypeCode.FOOTBALL_5,
+        FieldTypeCode.BADMINTON_STANDARD,
+        FieldTypeCode.TENNIS_STANDARD,
+        FieldTypeCode.PICKLEBALL_STANDARD,
+    ],
+)
+def test_time_quote_validates_price_without_booking_configuration(
+    app,
+    client,
+    field_type_code,
+):
+    owner = create_user(
+        app,
+        email=f"owner-{field_type_code.value.lower()}@example.com",
+        role=UserRole.OWNER,
+    )
+    player = create_user(
+        app,
+        email=f"player-{field_type_code.value.lower()}@example.com",
+    )
+    target_date = booking_day()
+    venue_id, field_id = create_bookable_field(
+        app,
+        owner_id=owner.id,
+        target_date=target_date,
+        split_prices=True,
+        field_type_code=field_type_code,
+    )
+    login(client, email=player.email)
+
+    response = client.post(
+        f"/venues/{venue_id}/fields/{field_id}/bookings/time-quote",
+        data=time_quote_form_data(
+            target_date,
+            start_hour="17",
+            start_minute="30",
+            end_hour="19",
+            end_minute="00",
+        ),
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["ok"] is True
+    assert payload["total"] == "400000.00"
+    assert [segment["subtotal"] for segment in payload["segments"]] == [
+        "100000.00",
+        "300000.00",
+    ]
+    assert "contribution_plan" not in payload
+
+
+@pytest.mark.parametrize(
+    "field_type_code",
+    [
+        FieldTypeCode.FOOTBALL_5,
+        FieldTypeCode.BADMINTON_STANDARD,
+        FieldTypeCode.TENNIS_STANDARD,
+        FieldTypeCode.PICKLEBALL_STANDARD,
+    ],
+)
+@pytest.mark.parametrize(
+    ("booking_mode", "requested_players", "creator_amount", "external_amount"),
+    [
+        (BookingMode.DIRECT_BOOKING, None, "120000.00", "0.00"),
+        (BookingMode.FIND_OPPONENT, None, "60000.00", "60000.00"),
+        (BookingMode.FIND_PLAYERS, "2", "120000.00", "0.00"),
+    ],
+)
+def test_all_sports_and_modes_quote_and_create_without_play_format(
+    app,
+    client,
+    field_type_code,
+    booking_mode,
+    requested_players,
+    creator_amount,
+    external_amount,
+):
+    suffix = f"{field_type_code.value}-{booking_mode.value}".lower()
+    owner = create_user(
+        app,
+        email=f"owner-{suffix}@example.com",
+        role=UserRole.OWNER,
+    )
+    player = create_user(app, email=f"player-{suffix}@example.com")
+    target_date = booking_day()
+    venue_id, field_id = create_bookable_field(
+        app,
+        owner_id=owner.id,
+        target_date=target_date,
+        field_type_code=field_type_code,
+    )
+    login(client, email=player.email)
+    form_data = booking_form_data(
+        target_date,
+        booking_mode=booking_mode.value,
+    )
+    if requested_players is not None:
+        form_data["requested_players"] = requested_players
+
+    quote_response = client.post(
+        f"/venues/{venue_id}/fields/{field_id}/bookings/quote",
+        data=form_data,
+    )
+
+    assert quote_response.status_code == 200
+    quote_payload = quote_response.get_json()
+    assert quote_payload["ok"] is True
+    assert quote_payload["total"] == "400000.00"
+    assert Decimal(quote_payload["deposit_amount"]) == Decimal("120000.00")
+    assert Decimal(
+        quote_payload["contribution_plan"]["creator_amount"]
+    ) == Decimal(creator_amount)
+    assert Decimal(
+        quote_payload["contribution_plan"]["external_amount"]
+    ) == Decimal(external_amount)
+
+    create_response = client.post(
+        f"/venues/{venue_id}/fields/{field_id}/bookings/new",
+        data=form_data,
+    )
+
+    assert create_response.status_code == 302
+    with app.app_context():
+        booking = db.session.scalar(db.select(Booking))
+        assert booking.play_format is None
+        assert booking.booking_mode == booking_mode.value
+        assert booking.requested_players == (
+            int(requested_players) if requested_players is not None else None
+        )
+
+
+@pytest.mark.parametrize(
+    ("requested_players", "message"),
+    [
+        (None, "Vui lòng nhập số người bạn muốn tìm thêm."),
+        ("0", "Số người muốn tìm phải từ 1 trở lên."),
+        ("-1", "Số người muốn tìm phải từ 1 trở lên."),
+        ("10", "Số người muốn tìm không được vượt quá 9."),
+    ],
+)
+def test_find_players_enforces_field_capacity(
+    app,
+    client,
+    requested_players,
+    message,
+):
+    owner = create_user(app, email="capacity-owner@example.com", role=UserRole.OWNER)
+    player = create_user(app, email="capacity-player@example.com")
+    target_date = booking_day()
+    venue_id, field_id = create_bookable_field(
+        app,
+        owner_id=owner.id,
+        target_date=target_date,
+        field_type_code=FieldTypeCode.BADMINTON_STANDARD,
+    )
+    login(client, email=player.email)
+
+    form_data = booking_form_data(
+        target_date,
+        booking_mode=BookingMode.FIND_PLAYERS.value,
+    )
+    if requested_players is not None:
+        form_data["requested_players"] = requested_players
+    response = client.post(
+        f"/venues/{venue_id}/fields/{field_id}/bookings/quote",
+        data=form_data,
+    )
+
+    assert response.status_code == 422
+    assert response.get_json()["message"] == message
+
+
+@pytest.mark.parametrize("requested_players", ["1", "9"])
+def test_find_players_accepts_field_capacity_boundaries(
+    app,
+    client,
+    requested_players,
+):
+    owner = create_user(app, email="boundary-owner@example.com", role=UserRole.OWNER)
+    player = create_user(app, email="boundary-player@example.com")
+    target_date = booking_day()
+    venue_id, field_id = create_bookable_field(
+        app,
+        owner_id=owner.id,
+        target_date=target_date,
+        field_type_code=FieldTypeCode.PICKLEBALL_STANDARD,
+    )
+    login(client, email=player.email)
+
+    response = client.post(
+        f"/venues/{venue_id}/fields/{field_id}/bookings/quote",
+        data=booking_form_data(
+            target_date,
+            booking_mode=BookingMode.FIND_PLAYERS.value,
+            requested_players=requested_players,
+        ),
+    )
+
+    assert response.status_code == 200
+    assert response.get_json()["contribution_plan"]["requested_players"] == int(
+        requested_players
+    )
+
+
+def test_legacy_play_format_is_ignored_for_new_booking_and_hidden_in_detail(
+    app,
+    client,
+):
+    owner = create_user(app, email="legacy-owner@example.com", role=UserRole.OWNER)
+    player = create_user(app, email="legacy-player@example.com")
+    target_date = booking_day()
+    venue_id, field_id = create_bookable_field(
+        app,
+        owner_id=owner.id,
+        target_date=target_date,
+        field_type_code=FieldTypeCode.TENNIS_STANDARD,
+    )
+    login(client, email=player.email)
+
+    response = client.post(
+        f"/venues/{venue_id}/fields/{field_id}/bookings/new",
+        data=booking_form_data(target_date, play_format="SINGLES"),
+    )
+
+    assert response.status_code == 302
+    with app.app_context():
+        booking = db.session.scalar(db.select(Booking))
+        assert booking.play_format is None
+        booking.play_format = "SINGLES"
+        booking_code = booking.booking_code
+        db.session.commit()
+
+    detail_response = client.get(f"/bookings/{booking_code}")
+    assert detail_response.status_code == 200
+    assert "Hình thức thi đấu" not in detail_response.text
+    assert "Đánh đơn" not in detail_response.text
+
+
+def test_time_quote_still_rejects_booking_and_maintenance_conflicts(
+    app,
+    client,
+):
+    owner = create_user(
+        app,
+        email="time-guard-owner@example.com",
+        role=UserRole.OWNER,
+    )
+    player = create_user(app, email="time-guard-player@example.com")
+    target_date = booking_day()
+    venue_id, field_id = create_bookable_field(
+        app,
+        owner_id=owner.id,
+        target_date=target_date,
+    )
+    create_booking_record(
+        app,
+        user_id=player.id,
+        field_id=field_id,
+        target_date=target_date,
+        start_time=time(18, 0),
+        end_time=time(20, 0),
+    )
+    with app.app_context():
+        db.session.add(
+            FieldMaintenance(
+                field_id=field_id,
+                maintenance_date=target_date,
+                start_time=time(20, 0),
+                end_time=time(21, 0),
+                reason="Bảo trì sau lịch đặt",
+                status=FieldMaintenanceStatus.ACTIVE.value,
+                created_by=owner.id,
+            )
+        )
+        db.session.commit()
+    login(client, email=player.email)
+
+    conflict_response = client.post(
+        f"/venues/{venue_id}/fields/{field_id}/bookings/time-quote",
+        data=time_quote_form_data(
+            target_date,
+            start_hour="18",
+            end_hour="19",
+        ),
+    )
+    maintenance_response = client.post(
+        f"/venues/{venue_id}/fields/{field_id}/bookings/time-quote",
+        data=time_quote_form_data(
+            target_date,
+            start_hour="20",
+            end_hour="21",
+        ),
+    )
+
+    assert conflict_response.status_code == 422
+    assert "đã có người đặt" in conflict_response.get_json()["message"]
+    assert maintenance_response.status_code == 422
+    assert "bảo trì" in maintenance_response.get_json()["message"]
 
 
 def test_availability_endpoint_marks_booked_maintenance_and_missing_price(

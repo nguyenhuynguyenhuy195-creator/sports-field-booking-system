@@ -61,13 +61,12 @@
 - Submit kiểm tra lại trùng lịch/giá/bảo trì trong transaction.
 - Booking tạo CONFIRMED, giữ chỗ 15 phút và có price snapshot.
 
-## AC-008: Play format
+## AC-008: Cấu hình booking không dùng play format
 
-- Bóng đá không nhận SINGLES/DOUBLES.
-- Cầu lông, pickleball và tennis bắt buộc SINGLES hoặc DOUBLES.
-- SINGLES không chấp nhận FIND_PLAYERS.
-- DOUBLES cho phép DIRECT_BOOKING, FIND_OPPONENT hoặc FIND_PLAYERS.
-- Validation nằm ở backend, không chỉ ẩn option frontend.
+- UI và BookingForm không có lựa chọn đánh đơn/đôi ở mọi bộ môn.
+- Quote/create service không nhận hoặc phụ thuộc `play_format`.
+- DIRECT_BOOKING, FIND_OPPONENT và FIND_PLAYERS hoạt động cho mọi bộ môn được hỗ trợ.
+- Booking mới luôn lưu `play_format = NULL`; bản ghi legacy có giá trị vẫn đọc được an toàn.
 
 ## AC-009: Tính cọc 30%
 
@@ -105,7 +104,7 @@
 ## AC-013: FIND_PLAYERS
 
 - Creator thanh toán toàn bộ deposit_amount trước khi mở match.
-- required_players do creator chọn nhưng không vượt giới hạn field/play format.
+- required_players do creator chọn và phải thỏa `1 <= required_players < field.capacity`.
 - Lựa chọn được snapshot ở `bookings.requested_players` và copy chính xác sang match sau khi creator cọc thành công.
 - Người xin ghép bắt buộc nhập số Zalo và đồng ý chia sẻ có điều kiện.
 - Creator không xem được số trước khi chấp nhận; user khác không xem được.

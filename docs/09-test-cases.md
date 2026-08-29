@@ -126,13 +126,13 @@ DIRECT_BOOKING/FIND_PLAYERS dưới 60 phút bị từ chối; FIND_OPPONENT dư
 
 CONFIRMED quá initial_payment_due_at chưa có payment không tiếp tục chặn lưới; job chuyển EXPIRED idempotent.
 
-### TC-FORMAT-001: Bóng đá
+### TC-CONFIG-001: Booking mới không dùng play format
 
-Từ chối SINGLES/DOUBLES trên field FOOTBALL; cho phép ba booking mode.
+Với bóng đá, cầu lông, tennis và pickleball, quote/create cho phép cả ba booking mode mà không cần play format; booking mới lưu `NULL`. Payload legacy có `play_format` không được dùng để thay đổi rule hoặc dữ liệu mới.
 
-### TC-FORMAT-002: Môn dùng vợt
+### TC-CONFIG-002: Giới hạn FIND_PLAYERS
 
-Thiếu play_format bị từ chối; SINGLES + FIND_PLAYERS bị từ chối; DOUBLES cho phép cả ba mode.
+Chấp nhận `1 <= requested_players < field.capacity`; từ chối 0, số âm, thiếu giá trị hoặc giá trị lớn hơn hay bằng capacity.
 
 ## 9.6. Cọc và contribution
 

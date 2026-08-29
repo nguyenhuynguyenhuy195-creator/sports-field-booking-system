@@ -68,6 +68,7 @@ from .booking import (
     list_owner_bookings,
     list_user_bookings,
     quote_booking,
+    quote_booking_time,
 )
 from .contribution import (
     DEPOSIT_RATE,
@@ -371,6 +372,7 @@ __all__ = [
     "update_match_contact",
     "validate_match_creation",
     "quote_booking",
+    "quote_booking_time",
     "pay_contribution_with_mock",
     "inspect_momo_return",
     "process_momo_payment_notification",

@@ -40,8 +40,7 @@
 ### Booking
 
 - User chọn ngày, giờ bắt đầu và kết thúc theo bước 30 phút; tối thiểu 60 phút.
-- Cầu lông, pickleball và tennis bắt buộc chọn SINGLES hoặc DOUBLES.
-- Bóng đá không chọn đơn/đôi; loại sân xác định quy mô thi đấu chính.
+- Không hỏi hoặc yêu cầu hình thức đánh đơn/đôi ở bất kỳ bộ môn nào; booking mới lưu `play_format = NULL`.
 - User chọn DIRECT_BOOKING, FIND_OPPONENT hoặc FIND_PLAYERS.
 - DIRECT_BOOKING và FIND_PLAYERS đặt trước tối thiểu 60 phút.
 - FIND_OPPONENT chỉ được tạo trước giờ bắt đầu ít nhất 24 giờ.
@@ -63,7 +62,7 @@
 
 ### Tìm đối thủ
 
-- Áp dụng cho bóng đá và các booking đánh đơn/đôi của môn dùng vợt.
+- Áp dụng cho mọi field thuộc bộ môn đang được MVP hỗ trợ.
 - Một đại diện bấm nhận kèo; hệ thống khóa để chỉ một phía đối thủ được giữ suất thanh toán tại một thời điểm.
 - Bài tìm đối thủ tồn tại đến giờ trận bắt đầu, trừ khi creator chủ động đóng hoặc đã có đối thủ thanh toán thành công.
 - Đối thủ tự chuyển `ACCEPTED_AWAITING_PAYMENT`, có tối đa 15 phút thanh toán nhưng payment_due_at không được vượt giờ trận bắt đầu; không có bước creator duyệt.

@@ -15,7 +15,12 @@ from flask import (
 from flask_login import current_user
 
 from app.decorators import roles_required
-from app.forms import BookingActionForm, BookingForm, BookingReasonForm
+from app.forms import (
+    BookingActionForm,
+    BookingForm,
+    BookingReasonForm,
+    BookingTimeQuoteForm,
+)
 from app.models import (
     Booking,
     BookingMode,
@@ -24,7 +29,6 @@ from app.models import (
     ContributionType,
     PaymentProvider,
     PaymentStatus,
-    PlayFormat,
     RefundStatus,
     MatchParticipantStatus,
     UserRole,
@@ -50,6 +54,7 @@ from app.services import (
     list_user_match_requests,
     list_user_bookings,
     quote_booking,
+    quote_booking_time,
 )
 
 
@@ -71,11 +76,6 @@ BOOKING_MODE_LABELS = {
     BookingMode.DIRECT_BOOKING.value: "Đặt sân cho nhóm",
     BookingMode.FIND_OPPONENT.value: "Tìm đối thủ",
     BookingMode.FIND_PLAYERS.value: "Tìm thêm người",
-}
-
-PLAY_FORMAT_LABELS = {
-    PlayFormat.SINGLES.value: "Đánh đơn",
-    PlayFormat.DOUBLES.value: "Đánh đôi",
 }
 
 CONTRIBUTION_TYPE_LABELS = {
@@ -167,7 +167,6 @@ def create(venue_id: int, field_id: int):
                 start_time=form.start_time_value,
                 end_time=form.end_time_value,
                 booking_mode=form.booking_mode.data,
-                play_format=form.play_format.data,
                 requested_players=form.requested_players.data,
                 note=form.note.data,
             )
@@ -196,6 +195,53 @@ def create(venue_id: int, field_id: int):
 
 
 @bookings_bp.post(
+    "/venues/<int:venue_id>/fields/<int:field_id>/bookings/time-quote"
+)
+@roles_required(UserRole.USER, UserRole.OWNER)
+def time_quote(venue_id: int, field_id: int):
+    try:
+        field = get_booking_field(venue_id=venue_id, field_id=field_id)
+    except BookingNotFoundError:
+        abort(404)
+    except BookingError as exc:
+        return jsonify(ok=False, message=str(exc)), 422
+
+    form = BookingTimeQuoteForm()
+    if not form.validate_on_submit():
+        return jsonify(ok=False, message=_first_form_error(form)), 422
+
+    try:
+        price_quote = quote_booking_time(
+            user=current_user,
+            field_id=field.id,
+            booking_date=form.booking_date.data,
+            start_time=form.start_time_value,
+            end_time=form.end_time_value,
+        )
+    except BookingPermissionError:
+        abort(403)
+    except BookingNotFoundError:
+        abort(404)
+    except BookingError as exc:
+        return jsonify(ok=False, message=str(exc)), 422
+
+    return jsonify(
+        ok=True,
+        total=str(price_quote.total),
+        segments=[
+            {
+                "start_time": segment.start_time.strftime("%H:%M"),
+                "end_time": segment.end_time.strftime("%H:%M"),
+                "duration_minutes": segment.duration_minutes,
+                "hourly_price": str(segment.hourly_price),
+                "subtotal": str(segment.subtotal),
+            }
+            for segment in price_quote.segments
+        ],
+    )
+
+
+@bookings_bp.post(
     "/venues/<int:venue_id>/fields/<int:field_id>/bookings/quote"
 )
 @roles_required(UserRole.USER, UserRole.OWNER)
@@ -219,7 +265,6 @@ def quote(venue_id: int, field_id: int):
             start_time=form.start_time_value,
             end_time=form.end_time_value,
             booking_mode=form.booking_mode.data,
-            play_format=form.play_format.data,
             requested_players=form.requested_players.data,
         )
     except BookingPermissionError:
@@ -327,7 +372,6 @@ def index():
         booking_groups=_group_bookings_for_display(bookings),
         status_labels=BOOKING_STATUS_LABELS,
         booking_mode_labels=BOOKING_MODE_LABELS,
-        play_format_labels=PLAY_FORMAT_LABELS,
     )
 
 
@@ -349,7 +393,6 @@ def detail(booking_code: str):
         effective_status=get_effective_booking_status(booking),
         status_labels=BOOKING_STATUS_LABELS,
         booking_mode_labels=BOOKING_MODE_LABELS,
-        play_format_labels=PLAY_FORMAT_LABELS,
         contribution_type_labels=CONTRIBUTION_TYPE_LABELS,
         contribution_status_labels=CONTRIBUTION_STATUS_LABELS,
         payment_status_labels=PAYMENT_STATUS_LABELS,
@@ -411,7 +454,6 @@ def owner_detail(booking_code: str):
         effective_status=get_effective_booking_status(booking),
         status_labels=BOOKING_STATUS_LABELS,
         booking_mode_labels=BOOKING_MODE_LABELS,
-        play_format_labels=PLAY_FORMAT_LABELS,
         contribution_type_labels=CONTRIBUTION_TYPE_LABELS,
         contribution_status_labels=CONTRIBUTION_STATUS_LABELS,
         payment_status_labels=PAYMENT_STATUS_LABELS,

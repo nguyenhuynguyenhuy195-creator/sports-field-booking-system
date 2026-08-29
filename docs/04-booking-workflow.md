@@ -4,15 +4,14 @@
 
 1. User đăng nhập và chọn field ACTIVE thuộc venue ACTIVE.
 2. Hệ thống biết sport qua field type của field.
-3. Với cầu lông, pickleball hoặc tennis, user chọn SINGLES hoặc DOUBLES; bóng đá không có bước này.
-4. User chọn ngày và xem lưới availability 30 phút.
-5. User chọn khoảng liên tục tối thiểu 60 phút.
-6. User chọn DIRECT_BOOKING, FIND_OPPONENT hoặc FIND_PLAYERS.
-7. Với FIND_PLAYERS, user nhập số vị trí cần tìm; backend snapshot vào `bookings.requested_players`.
-8. Backend kiểm tra thời gian đặt trước, giờ hoạt động, bảo trì, trùng lịch và độ phủ giá.
-9. Backend tính total_amount và deposit_amount mục tiêu bằng 30%. Số trả tại sân được hiển thị từ số cọc thực thu: 70% với DIRECT_BOOKING/FIND_PLAYERS, còn FIND_OPPONENT có thể là 85% hoặc 70%.
-10. Backend lưu booking, snapshot giá, khoản cọc và contribution trong một transaction.
-11. Booking ở CONFIRMED và giữ chỗ 15 phút để creator thanh toán phần cọc đầu tiên.
+3. User chọn ngày và xem lưới availability 30 phút.
+4. User chọn khoảng liên tục tối thiểu 60 phút.
+5. User chọn DIRECT_BOOKING, FIND_OPPONENT hoặc FIND_PLAYERS; không có bước chọn đánh đơn/đôi.
+6. Với FIND_PLAYERS, user nhập số vị trí cần tìm; backend snapshot vào `bookings.requested_players`.
+7. Backend kiểm tra thời gian đặt trước, giờ hoạt động, bảo trì, trùng lịch và độ phủ giá.
+8. Backend tính total_amount và deposit_amount mục tiêu bằng 30%. Số trả tại sân được hiển thị từ số cọc thực thu: 70% với DIRECT_BOOKING/FIND_PLAYERS, còn FIND_OPPONENT có thể là 85% hoặc 70%.
+9. Backend lưu booking, snapshot giá, khoản cọc và contribution trong một transaction.
+10. Booking ở CONFIRMED và giữ chỗ 15 phút để creator thanh toán phần cọc đầu tiên.
 
 ## 4.2. Luồng DIRECT_BOOKING
 
@@ -60,7 +59,7 @@ Quy trình:
 8. Nếu hết hạn chưa trả, participant chuyển EXPIRED, contribution được giải phóng và bài mở lại. Nếu không có đối thủ, booking vẫn PARTIALLY_PAID hợp lệ và creator trả 85% tại sân; nếu có đối thủ, phần còn lại tại sân là 70%.
 9. Sau khi JOINED, kèo xuất hiện trong “Lịch & kèo của tôi” của đại diện đối thủ; trang chi tiết cho hai bên xem số Zalo của nhau. Trước đó và sau khi booking kết thúc/hủy, số liên hệ không được hiển thị.
 
-FIND_OPPONENT áp dụng cho bóng đá, đánh đơn và đánh đôi. Với đánh đôi, đại diện đối thủ chịu trách nhiệm cho cặp của mình.
+FIND_OPPONENT áp dụng cho mọi field thuộc bộ môn đang được MVP hỗ trợ. Một user đại diện phía đối thủ nhận kèo và thực hiện nghĩa vụ cọc.
 
 ## 4.5. Thời gian tồn tại của bài tìm đối thủ
 
@@ -73,19 +72,13 @@ FIND_OPPONENT áp dụng cho bóng đá, đánh đơn và đánh đôi. Với đ
 
 ## 4.6. Hình thức thi đấu theo bộ môn
 
-### Bóng đá
+### Tất cả bộ môn được hỗ trợ
 
-- Field type là sân 5, 7 hoặc 11 người.
-- Creator không chọn SINGLES/DOUBLES.
+- Không có bước chọn hoặc validate đánh đơn/đôi.
 - Có thể DIRECT_BOOKING, FIND_OPPONENT hoặc FIND_PLAYERS.
-- Với FIND_PLAYERS, creator tự chọn required_players trong giới hạn capacity của field.
-
-### Cầu lông, pickleball và tennis
-
-- Bắt buộc chọn SINGLES hoặc DOUBLES.
-- SINGLES: tối đa 2 người; DIRECT_BOOKING hoặc FIND_OPPONENT.
-- DOUBLES: tối đa 4 người; cho phép cả ba booking mode.
-- FIND_PLAYERS trong DOUBLES dùng để tìm thêm đồng đội/người chơi, không thu cọc từ người ghép.
+- Với FIND_PLAYERS, creator chọn `requested_players` thỏa `1 <= requested_players < field.capacity`.
+- Người ghép không đóng cọc online và thanh toán trực tiếp tại sân theo thỏa thuận với creator.
+- Booking mới lưu `play_format = NULL`; giá trị cũ chỉ được giữ để đọc lịch sử.
 
 ## 4.7. Hủy và hoàn tiền
 
@@ -188,7 +181,7 @@ Luồng MoMo Sandbox mục tiêu:
 ## 4.13. Trường hợp biên chính
 
 - Field type không thuộc sport hợp lệ hoặc field/venue chưa ACTIVE.
-- Booking môn dùng vợt thiếu play format; SINGLES chọn FIND_PLAYERS.
+- FIND_PLAYERS thiếu số người, nhỏ hơn 1 hoặc không nhỏ hơn capacity của field.
 - Tỉnh/thành phố, phường/xã hoặc địa chỉ chi tiết không hợp lệ.
 - Thời gian ngoài giờ, trùng bảo trì/booking hoặc thiếu giá.
 - Creator/đối thủ thanh toán sai nghĩa vụ, quá hạn hoặc IPN lặp.

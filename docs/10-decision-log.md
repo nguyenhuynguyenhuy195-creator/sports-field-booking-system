@@ -361,3 +361,18 @@ ADR này mở rộng ADR-006 về sandbox và làm rõ phần đối soát chưa
 - Không có migration và không xóa dữ liệu venue hiện có.
 
 ADR này thay thế hành vi runtime của ADR-025 và phần Google Maps trong ADR-030; các ADR cũ được giữ để ghi lại lịch sử quyết định.
+
+## ADR-033: Bỏ Singles/Doubles khỏi booking flow MVP hiện tại
+
+**Ngày quyết định:** 29/08/2026
+**Trạng thái:** Đã áp dụng cho form, quote/create service, UI, test và tài liệu.
+
+- User chỉ chọn một trong ba mục đích: `DIRECT_BOOKING`, `FIND_OPPONENT` hoặc `FIND_PLAYERS`.
+- Không hỏi, không validate và không suy diễn `SINGLES`/`DOUBLES` ở bất kỳ bộ môn nào.
+- Booking mới luôn lưu `play_format = NULL`; không dùng giá trị mặc định giả để vượt validation.
+- Cột nullable, enum và constraint hiện có được giữ nguyên để đọc dữ liệu legacy; không migration, không xóa hoặc sửa hồi tố bản ghi cũ.
+- `FIND_PLAYERS` yêu cầu `1 <= requested_players < field.capacity`; không còn phụ thuộc play format.
+- Step 2 chỉ kiểm tra ngày/giờ, availability, maintenance, conflict và pricing. Step 3 kiểm tra booking mode/requested_players/note. Step 4 báo full quote, contribution/deposit và xác nhận cuối.
+- `create_booking()` vẫn lặp lại toàn bộ guardrail liên quan trước khi commit; pricing, contribution, deposit, payment, match, cancellation và refund không đổi.
+
+ADR này thay thế phần quy định play format mới trong ADR-022 và ADR-024. Các ADR cũ và dữ liệu cũ được giữ để ghi lại lịch sử quyết định.

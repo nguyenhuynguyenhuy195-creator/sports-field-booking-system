@@ -258,7 +258,7 @@ Index cần có: `(field_id, maintenance_date, status, start_time, end_time)`.
 
 Booking mode: `DIRECT_BOOKING`, `FIND_OPPONENT`, `FIND_PLAYERS`.
 
-Play format: `SINGLES`, `DOUBLES` hoặc `NULL`. Booking của field thuộc bóng đá bắt buộc `NULL`; booking cầu lông, pickleball và tennis bắt buộc có giá trị. Quy tắc liên bảng này được kiểm tra trong service.
+Play format: `SINGLES`, `DOUBLES` hoặc `NULL`. Cột nullable và enum được giữ nguyên để đọc dữ liệu legacy; booking mới không nhận cấu hình này và luôn lưu `NULL`. Không có migration xóa hay sửa dữ liệu cũ.
 
 `requested_players` snapshot số vị trí creator muốn tìm trước khi match được mở. Cột bắt buộc dương với `FIND_PLAYERS` và bắt buộc `NULL` với mode khác.
 
@@ -424,8 +424,8 @@ Với `FIND_OPPONENT`, `required_players` được hiểu là một vị trí đ
 
 Validation có điều kiện:
 - `FIND_OPPONENT`: `required_players = 1`.
-- `FIND_PLAYERS`: `required_players` do creator chọn nhưng không vượt capacity/play format.
-- Booking `SINGLES` không được tạo `FIND_PLAYERS`; booking `DOUBLES` tối đa 4 người.
+- `FIND_PLAYERS`: `required_players` do creator chọn và phải thỏa `1 <= required_players < field.capacity`.
+- Play format legacy không tham gia validation hoặc tính capacity của booking/match mới.
 
 FIND_OPPONENT có effective state “đã đóng” từ giờ booking bắt đầu dù job chưa kịp cập nhật status lưu trữ. Query danh sách mở và service nhận kèo/thanh toán phải luôn đối chiếu ngày giờ booking, không chỉ dựa vào `matches.status`.
 

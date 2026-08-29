@@ -58,18 +58,18 @@ Duyệt owner/venue, giám sát tài khoản, booking, payment, refund và nội
 
 ## 1.6. Bộ môn và hình thức thi đấu
 
-| Bộ môn | Loại sân MVP | Hình thức thi đấu |
+| Bộ môn | Loại sân MVP | Cấu hình đặt sân |
 |---|---|---|
 | Bóng đá | 5 người, 7 người, 11 người | Loại sân xác định số người thi đấu chính |
-| Cầu lông | Sân tiêu chuẩn | Đánh đơn hoặc đánh đôi |
-| Pickleball | Sân tiêu chuẩn | Đánh đơn hoặc đánh đôi |
-| Tennis | Sân tiêu chuẩn | Đánh đơn hoặc đánh đôi |
+| Cầu lông | Sân tiêu chuẩn | Chọn một trong ba booking mode |
+| Pickleball | Sân tiêu chuẩn | Chọn một trong ba booking mode |
+| Tennis | Sân tiêu chuẩn | Chọn một trong ba booking mode |
 
-Đánh đơn/đôi là thuộc tính của booking, không phải một loại sân. Các loại mặt sân tennis, cho thuê dụng cụ và luật thi đấu riêng không thuộc MVP.
+MVP hiện tại không yêu cầu người dùng khai báo đánh đơn/đôi. Cột `play_format` nullable chỉ được giữ để đọc dữ liệu legacy; booking mới luôn lưu `NULL`. Các loại mặt sân tennis, cho thuê dụng cụ và luật thi đấu riêng không thuộc MVP.
 
 ## 1.7. Luồng nghiệp vụ chính
 
-> Đăng nhập → tìm cơ sở → chọn sân con → chọn thời gian và hình thức thi đấu → chọn đặt cho nhóm, tìm đối thủ hoặc tìm thêm người → hệ thống giữ chỗ 15 phút → thanh toán cọc qua MoMo Sandbox → diễn ra hoạt động → thanh toán phần còn lại tại sân.
+> Đăng nhập → tìm cơ sở → chọn sân con → chọn thời gian → chọn đặt cho nhóm, tìm đối thủ hoặc tìm thêm người → hệ thống giữ chỗ 15 phút → thanh toán cọc qua MoMo Sandbox → diễn ra hoạt động → thanh toán phần còn lại tại sân.
 
 Ba hình thức booking:
 

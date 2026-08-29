@@ -33,7 +33,7 @@
         <ol class="booking-stepper mt-4" aria-label="Tiến trình đặt sân">
             <li class="is-complete"><span>✓</span><strong>Chọn sân</strong></li>
             <li class="is-active" data-step-indicator="2"><span>2</span><strong>Chọn giờ</strong></li>
-            <li data-step-indicator="3"><span>3</span><strong>Hình thức</strong></li>
+            <li data-step-indicator="3"><span>3</span><strong>Mục đích</strong></li>
             <li data-step-indicator="4"><span>4</span><strong>Xác nhận</strong></li>
         </ol>
 
@@ -42,6 +42,7 @@
                 method="post"
                 novalidate
                 class="auth-card booking-form-card booking-flow-form"
+                data-time-quote-url="{{ url_for('bookings.time_quote', venue_id=field.venue_id, field_id=field.id) }}"
                 data-quote-url="{{ url_for('bookings.quote', venue_id=field.venue_id, field_id=field.id) }}"
                 data-availability-url="{{ url_for('bookings.availability', venue_id=field.venue_id, field_id=field.id) }}"
                 data-field-name="{{ field.name }}"
@@ -128,7 +129,7 @@
 
                 <section class="booking-step-panel" data-booking-step="3">
                     <span class="eyebrow">BƯỚC 3</span>
-                    <h2 class="h3 fw-bold mt-2 mb-1">Chọn hình thức đặt sân</h2>
+                    <h2 class="h3 fw-bold mt-2 mb-1">Bạn muốn đặt sân theo cách nào?</h2>
                     <p class="text-secondary mb-4">Thông tin người đặt được lấy từ tài khoản đang đăng nhập.</p>
 
                     <div class="booking-contact-card mb-4">
@@ -145,23 +146,6 @@
                             <strong>{{ current_user.phone or 'Chưa cung cấp' }}</strong>
                         </div>
                     </div>
-
-                    {% if field.field_type.sport.code != 'FOOTBALL' %}
-                        <fieldset class="mb-4">
-                            <legend class="form-label fw-semibold">{{ form.play_format.label.text }}</legend>
-                            <div class="booking-mode-grid">
-                                {% for option in form.play_format %}
-                                    <label class="booking-mode-option" for="{{ option.id }}">
-                                        {{ option(class="form-check-input") }}
-                                        <span><strong>{{ option.label.text }}</strong></span>
-                                    </label>
-                                {% endfor %}
-                            </div>
-                            {% for error in form.play_format.errors %}
-                                <div class="invalid-feedback d-block">{{ error }}</div>
-                            {% endfor %}
-                        </fieldset>
-                    {% endif %}
 
                     <fieldset class="mb-4">
                         <legend class="form-label fw-semibold">{{ form.booking_mode.label.text }}</legend>
