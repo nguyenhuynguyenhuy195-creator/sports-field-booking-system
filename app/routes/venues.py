@@ -80,7 +80,7 @@ ADMIN_VENUE_STATUS_FILTERS = {
 @venues_bp.get("/venues")
 def index():
     form = VenueSearchForm(request.args)
-    sports, field_types = _configure_catalog_choices(form)
+    sports, field_types, provinces, wards = _configure_catalog_choices(form)
     venue_results = []
     search_page = None
     search_is_valid = form.validate()
@@ -88,6 +88,8 @@ def index():
         try:
             search_page = search_public_venues(
                 query=form.q.data,
+                province_code=form.province_code.data,
+                ward_code=form.ward_code.data,
                 sport=form.sport.data,
                 field_type=form.field_type.data,
                 min_price=form.min_price.data,
@@ -108,9 +110,14 @@ def index():
         venue_results=venue_results,
         sport_labels={item.code: item.name for item in sports},
         field_type_labels={item.code: item.name for item in field_types},
+        province_labels={item.code: item.name for item in provinces},
+        ward_labels={item.code: item.full_name for item in wards},
+        wards_api_url=url_for("venues.administrative_wards"),
         search_page=search_page,
         pagination_params={
             "q": form.q.data or None,
+            "province_code": form.province_code.data or None,
+            "ward_code": form.ward_code.data or None,
             "sport": form.sport.data or None,
             "field_type": form.field_type.data or None,
             "min_price": form.min_price.data,
@@ -123,7 +130,18 @@ def index():
             request.args.get(name, "").strip()
             for name in (
                 "q",
+                "province_code",
+                "ward_code",
                 "sport",
+                "field_type",
+                "min_price",
+                "max_price",
+                "radius_km",
+            )
+        ),
+        has_advanced_filters=any(
+            request.args.get(name, "").strip()
+            for name in (
                 "field_type",
                 "min_price",
                 "max_price",
@@ -414,6 +432,7 @@ def admin_moderate(venue_id: int):
 def _configure_catalog_choices(form: VenueSearchForm):
     sports = list_active_sports()
     field_types = list_active_field_types()
+    provinces = list_provinces()
     form.sport.choices = [("", "Tất cả bộ môn")] + [
         (sport.code, sport.name) for sport in sports
     ]
@@ -427,7 +446,20 @@ def _configure_catalog_choices(form: VenueSearchForm):
         )
         for field_type in field_types
     ]
-    return sports, field_types
+    form.province_code.choices = [("", "Tất cả tỉnh và thành phố")] + [
+        (province.code, province.name) for province in provinces
+    ]
+    selected_province_code = (form.province_code.data or "").strip()
+    wards = ()
+    if selected_province_code:
+        try:
+            wards = list_wards(province_code=selected_province_code)
+        except AdministrativeUnitError:
+            wards = ()
+    form.ward_code.choices = [("", "Tất cả phường, xã và đặc khu")] + [
+        (ward.code, ward.full_name) for ward in wards
+    ]
+    return sports, field_types, provinces, wards
 
 
 def _configure_administrative_choices(form: VenueForm) -> None:

@@ -17,6 +17,7 @@ def create_app(config_name: str | None = None) -> Flask:
         raise ValueError(f"Unsupported APP_ENV: {selected_config}")
 
     app.config.from_object(config_class)
+    app.config["APP_ENV_NAME"] = selected_config
     _validate_required_config(app)
     _initialize_extensions(app)
     _register_blueprints(app)

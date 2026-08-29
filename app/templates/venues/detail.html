@@ -4,21 +4,20 @@
 
 {% block content %}
 <section class="container py-5">
-    <a class="text-decoration-none" href="{{ url_for('venues.index') }}">← Quay lại danh sách sân</a>
+    <a class="venue-back-link" href="{{ url_for('venues.index') }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Quay lại danh sách sân</a>
     <div class="venue-detail mt-4">
         <div class="row g-4 align-items-start">
             <div class="col-lg-8">
-                <span class="status-badge status-active">Đang hoạt động</span>
-                <h1 class="display-6 fw-bold mt-3">{{ venue.name }}</h1>
-                <p class="lead text-secondary">{{ venue.full_address }}</p>
-                <a class="btn btn-outline-primary mb-3" href="{{ directions_url }}" target="_blank" rel="noopener noreferrer">Mở chỉ đường trên Google Maps</a>
+                <p class="venue-detail-area mb-2"><i class="bi bi-pin-map" aria-hidden="true"></i> {{ venue.ward_name or venue.district or 'Chưa rõ phường/xã' }} · {{ venue.province_name or venue.city or 'Chưa rõ tỉnh/thành phố' }}</p>
+                <h1 class="display-6 fw-bold mb-3">{{ venue.name }}</h1>
+                <p class="lead venue-location text-secondary"><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ venue.full_address }}</p>
                 {% if venue.description %}
-                    <p class="venue-description mb-0">{{ venue.description }}</p>
+                    <p class="venue-description mb-0 mt-3">{{ venue.description }}</p>
                 {% endif %}
             </div>
             <div class="col-lg-4">
                 <aside class="venue-info-panel">
-                    <h2 class="h5 fw-bold">Thông tin cơ sở</h2>
+                    <h2 class="h5 fw-bold"><i class="bi bi-info-circle me-1" aria-hidden="true"></i> Thông tin cơ sở</h2>
                     <dl class="mb-0">
                         <dt>Giờ hoạt động</dt>
                         <dd>{{ venue.opening_time.strftime('%H:%M') }}–{{ venue.closing_time.strftime('%H:%M') }}</dd>
@@ -30,23 +29,29 @@
                 </aside>
             </div>
         </div>
+        <section class="venue-detail-map-section mt-4" aria-labelledby="venue-map-heading">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+                <h2 id="venue-map-heading" class="h4 fw-bold mb-0">Vị trí cơ sở</h2>
+                <a class="btn btn-outline-primary" href="{{ directions_url }}" target="_blank" rel="noopener noreferrer"><i class="bi bi-sign-turn-right" aria-hidden="true"></i> Mở chỉ đường trên Google Maps</a>
+            </div>
         {% if venue.has_coordinates %}
             <div
                 id="venue-public-map"
-                class="venue-public-map mt-4{% if not google_maps_api_key %} d-none{% endif %}"
+                class="venue-public-map{% if not google_maps_api_key %} d-none{% endif %}"
                 data-markers='{{ map_markers|tojson }}'
                 data-map-api-enabled="{{ 'true' if google_maps_api_key else 'false' }}"
             ></div>
             <div
-                class="venue-map-fallback mt-4{% if google_maps_api_key %} d-none{% endif %}"
+                class="venue-map-fallback{% if google_maps_api_key %} d-none{% endif %}"
                 data-venue-map-fallback
                 role="status"
             >
                 Bản đồ hiện chưa khả dụng. Bạn vẫn có thể dùng nút mở chỉ đường ở phía trên.
             </div>
         {% elif not venue.has_coordinates %}
-            <div class="alert alert-light border mt-4 mb-0">Cơ sở này chưa bổ sung tọa độ nên chưa hiển thị được bản đồ.</div>
+            <div class="alert alert-light border mb-0">Cơ sở này chưa bổ sung tọa độ nên chưa hiển thị được bản đồ.</div>
         {% endif %}
+        </section>
     </div>
 
     <div class="mt-5">
@@ -58,9 +63,7 @@
             <div class="field-grid">
                 {% for field in fields %}
                     <article class="field-card">
-                        <span class="status-badge status-active">Đang hoạt động</span>
-                        <h3 class="h5 fw-bold mt-3 mb-2">{{ field.name }}</h3>
-                        <p class="text-secondary mb-2">{{ field.field_type.sport.name }} · {{ field.field_type.name }}</p>
+                        <div class="field-card-heading"><span class="field-card-icon" aria-hidden="true"><i class="bi bi-grid-3x3-gap"></i></span><div><h3 class="h5 fw-bold mb-1">{{ field.name }}</h3><p class="text-secondary mb-0">{{ field.field_type.sport.name }} · {{ field.field_type.name }}</p></div></div>
                         <dl class="field-meta mb-0">
                             <dt>Mặt sân</dt>
                             <dd>{{ field.surface_type or 'Chưa cung cấp' }}</dd>
@@ -70,9 +73,9 @@
                         {% if field.price_slots %}
                             <div class="border-top mt-3 pt-3">
                                 <h4 class="h6 fw-bold">Khung giá đang áp dụng</h4>
-                                <div class="d-grid gap-2">
+                                <div class="venue-price-slot-list">
                                     {% for slot in field.price_slots %}
-                                        <div class="d-flex flex-wrap justify-content-between gap-2 small">
+                                        <div class="venue-price-slot small">
                                             <span>{{ day_labels[slot.day_of_week] }} · {{ slot.start_time.strftime('%H:%M') }}–{{ slot.end_time.strftime('%H:%M') }}</span>
                                             <strong class="text-success">{{ slot.hourly_price|vnd_currency }}/giờ</strong>
                                         </div>
@@ -86,7 +89,7 @@
             </div>
         {% else %}
             <div class="empty-state text-center">
-                <div class="empty-state-icon" aria-hidden="true">⚽</div>
+                <div class="empty-state-icon" aria-hidden="true"><i class="bi bi-calendar-x"></i></div>
                 <h3 class="h5 fw-bold">Chưa có sân đang nhận đặt lịch</h3>
                 <p class="text-secondary mb-0">Các sân sẽ xuất hiện khi chủ sân hoàn tất thông tin và khung giá.</p>
             </div>

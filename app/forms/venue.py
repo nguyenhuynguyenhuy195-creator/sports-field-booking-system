@@ -38,6 +38,18 @@ class VenueSearchForm(FlaskForm):
             Length(max=150, message="Nội dung tìm kiếm tối đa 150 ký tự."),
         ],
     )
+    province_code = SelectField(
+        "Tỉnh / Thành phố",
+        choices=[("", "Tất cả tỉnh và thành phố")],
+        validate_choice=False,
+        validators=[Optional()],
+    )
+    ward_code = SelectField(
+        "Phường / Xã / Đặc khu",
+        choices=[("", "Tất cả phường, xã và đặc khu")],
+        validate_choice=False,
+        validators=[Optional()],
+    )
     sport = SelectField(
         "Bộ môn",
         choices=[("", "Tất cả bộ môn")],
@@ -109,6 +121,12 @@ class VenueSearchForm(FlaskForm):
         ):
             raise ValidationError(
                 "Giá tối thiểu không được lớn hơn giá tối đa."
+            )
+
+    def validate_ward_code(self, field) -> None:
+        if field.data and not self.province_code.data:
+            raise ValidationError(
+                "Hãy chọn tỉnh hoặc thành phố trước khi chọn phường, xã."
             )
 
     def validate_radius_km(self, field) -> None:

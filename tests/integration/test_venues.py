@@ -24,6 +24,7 @@ from app.services import (
     create_venue,
     list_provinces,
     list_wards,
+    moderate_venue,
     register_user,
 )
 
@@ -400,6 +401,195 @@ def test_public_venue_search_matches_structured_province_and_ward(
 
     assert response.status_code == 200
     assert "Cơ sở địa chỉ chuẩn hóa" in response.get_data(as_text=True)
+
+
+def test_public_venue_search_filters_exact_structured_province_and_ward(
+    app,
+    client,
+):
+    owner = create_user(
+        app,
+        email="exact-structured-owner@example.com",
+        role=UserRole.OWNER,
+    )
+    create_searchable_venue(
+        app,
+        owner_id=owner.id,
+        name="Cơ sở đúng phường",
+        address="123 Nguyễn Hữu Thọ",
+        district=None,
+        city=None,
+        province_code=HCMC_PROVINCE_CODE,
+        province_name="Thành phố Hồ Chí Minh",
+        ward_code=HCMC_WARD_CODE,
+        ward_name="Phường Tân Hưng",
+        field_name="Sân đúng khu vực",
+        field_type=FieldTypeCode.FOOTBALL_5,
+        hourly_price=Decimal("250000"),
+    )
+    create_searchable_venue(
+        app,
+        owner_id=owner.id,
+        name="Cơ sở dữ liệu cũ cùng thành phố",
+        address="456 Đường Legacy",
+        district="Quận 7",
+        city="Thành phố Hồ Chí Minh",
+            field_name="Sân dữ liệu cũ",
+        field_type=FieldTypeCode.FOOTBALL_5,
+        hourly_price=Decimal("200000"),
+    )
+
+    province_response = client.get(
+        "/venues", query_string={"province_code": HCMC_PROVINCE_CODE}
+    )
+    ward_response = client.get(
+        "/venues",
+        query_string={
+            "province_code": HCMC_PROVINCE_CODE,
+            "ward_code": HCMC_WARD_CODE,
+        },
+    )
+
+    for response in (province_response, ward_response):
+        page = response.get_data(as_text=True)
+        assert response.status_code == 200
+        assert "Cơ sở đúng phường" in page
+        assert "Cơ sở dữ liệu cũ cùng thành phố" not in page
+        assert "Thành phố Hồ Chí Minh" in page
+        assert f'venue-type-chip">{HCMC_WARD_CODE}</span>' not in page
+    assert "Phường Tân Hưng" in ward_response.get_data(as_text=True)
+
+
+def test_public_venue_search_rejects_ward_without_matching_province(
+    app,
+    client,
+):
+    missing_province = client.get(
+        "/venues", query_string={"ward_code": HCMC_WARD_CODE}
+    )
+    mismatched = client.get(
+        "/venues",
+        query_string={
+            "province_code": HCMC_PROVINCE_CODE,
+            "ward_code": "00004",
+        },
+    )
+
+    assert missing_province.status_code == 200
+    assert "Hãy chọn tỉnh hoặc thành phố trước" in missing_province.get_data(
+        as_text=True
+    )
+    assert mismatched.status_code == 200
+    assert "không thuộc tỉnh/thành phố đã chọn" in mismatched.get_data(
+        as_text=True
+    )
+
+
+def test_structured_filters_are_preserved_in_venue_pagination(app, client):
+    owner = create_user(
+        app,
+        email="structured-pagination-owner@example.com",
+        role=UserRole.OWNER,
+    )
+    for number in range(1, 11):
+        create_searchable_venue(
+            app,
+            owner_id=owner.id,
+            name=f"Cơ sở cấu trúc {number:02d}",
+            address=f"{number} Nguyễn Hữu Thọ",
+            district=None,
+            city=None,
+            province_code=HCMC_PROVINCE_CODE,
+            province_name="Thành phố Hồ Chí Minh",
+            ward_code=HCMC_WARD_CODE,
+            ward_name="Phường Tân Hưng",
+            field_name=f"Sân cấu trúc {number:02d}",
+            field_type=FieldTypeCode.FOOTBALL_5,
+            hourly_price=Decimal("250000"),
+        )
+
+    response = client.get(
+        "/venues",
+        query_string={
+            "province_code": HCMC_PROVINCE_CODE,
+            "ward_code": HCMC_WARD_CODE,
+        },
+    )
+    page = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "10 cơ sở phù hợp" in page
+    assert f"province_code={HCMC_PROVINCE_CODE}" in page
+    assert f"ward_code={HCMC_WARD_CODE}" in page
+
+
+def test_owner_admin_user_share_one_structured_venue_field_and_price(
+    app,
+    client,
+):
+    owner = create_user(
+        app,
+        email="consistent-owner@example.com",
+        role=UserRole.OWNER,
+    )
+    admin = create_user(
+        app,
+        email="consistent-admin@example.com",
+        role=UserRole.ADMIN,
+    )
+    venue_id = create_venue_for_owner(
+        app,
+        owner.id,
+        name="Cơ sở xuyên suốt",
+        address="88 Nguyễn Hữu Thọ",
+    )
+    with app.app_context():
+        field = Field(
+            venue_id=venue_id,
+            name="Sân xuyên suốt",
+            field_type_id=db.session.scalar(
+                db.select(FieldType.id).where(
+                    FieldType.code == FieldTypeCode.FOOTBALL_5.value
+                )
+            ),
+            capacity=10,
+            status=FieldStatus.ACTIVE.value,
+        )
+        db.session.add(field)
+        db.session.flush()
+        db.session.add(
+            FieldPriceSlot(
+                field_id=field.id,
+                day_of_week=0,
+                start_time=time(6, 0),
+                end_time=time(22, 0),
+                hourly_price=Decimal("275000"),
+                status=PriceSlotStatus.ACTIVE.value,
+            )
+        )
+        db.session.commit()
+        reviewer = db.session.get(User, admin.id)
+        moderate_venue(
+            venue_id=venue_id,
+            reviewer=reviewer,
+            decision=VenueStatus.ACTIVE.value,
+            moderation_note="Đã đối chiếu dữ liệu xuyên suốt.",
+        )
+
+    results = client.get(
+        "/venues",
+        query_string={
+            "province_code": HCMC_PROVINCE_CODE,
+            "ward_code": HCMC_WARD_CODE,
+        },
+    ).get_data(as_text=True)
+    detail = client.get(f"/venues/{venue_id}").get_data(as_text=True)
+
+    assert "Cơ sở xuyên suốt" in results
+    assert "275.000 đ/giờ" in results
+    assert "Sân xuyên suốt" in detail
+    assert "275.000 đ/giờ" in detail
+    assert 'class="nav-link active" href="/venues" aria-current="page"' in detail
 
 
 def test_public_venue_filters_combine_field_type_and_matching_type_price(

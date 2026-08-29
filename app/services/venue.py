@@ -34,6 +34,7 @@ from app.services.sport_catalog import (
 from app.services.administrative_unit import (
     AdministrativeUnitError,
     resolve_administrative_address,
+    resolve_province,
 )
 
 
@@ -112,6 +113,8 @@ def list_public_venues() -> list[Venue]:
 def search_public_venues(
     *,
     query: str | None = None,
+    province_code: str | None = None,
+    ward_code: str | None = None,
     sport: str | None = None,
     field_type: str | None = None,
     min_price: Decimal | None = None,
@@ -124,8 +127,29 @@ def search_public_venues(
 ) -> PublicVenueSearchPage:
     """Return bookable public venues matching the validated search filters."""
     normalized_query = " ".join((query or "").split())
+    normalized_province_code = (province_code or "").strip() or None
+    normalized_ward_code = (ward_code or "").strip() or None
     normalized_sport = (sport or "").strip().upper() or None
     normalized_field_type = (field_type or "").strip() or None
+    if normalized_ward_code and not normalized_province_code:
+        raise VenueError(
+            "Hãy chọn tỉnh hoặc thành phố trước khi chọn phường, xã."
+        )
+    selected_province = None
+    selected_ward = None
+    try:
+        if normalized_province_code:
+            selected_province = resolve_province(
+                province_code=normalized_province_code
+            )
+        if normalized_ward_code:
+            administrative_address = resolve_administrative_address(
+                province_code=normalized_province_code,
+                ward_code=normalized_ward_code,
+            )
+            selected_ward = administrative_address.ward
+    except AdministrativeUnitError as exc:
+        raise VenueError(str(exc)) from exc
     try:
         selected_sport = (
             get_active_sport(normalized_sport) if normalized_sport else None
@@ -218,6 +242,12 @@ def search_public_venues(
                 ).like(pattern, escape="\\"),
             )
         )
+    if selected_province is not None:
+        statement = statement.where(
+            Venue.province_code == selected_province.code
+        )
+    if selected_ward is not None:
+        statement = statement.where(Venue.ward_code == selected_ward.code)
     if min_price is not None:
         statement = statement.where(starting_price >= min_price)
     if max_price is not None:

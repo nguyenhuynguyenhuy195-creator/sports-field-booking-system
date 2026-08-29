@@ -93,6 +93,14 @@ def list_provinces() -> tuple[Province, ...]:
     )
 
 
+def resolve_province(*, province_code: str) -> Province:
+    normalized_province_code = (province_code or "").strip()
+    province = db.session.get(Province, normalized_province_code)
+    if province is None:
+        raise AdministrativeUnitError("Tỉnh hoặc thành phố không hợp lệ.")
+    return province
+
+
 def list_wards(*, province_code: str) -> tuple[Ward, ...]:
     normalized_province_code = (province_code or "").strip()
     if not normalized_province_code:
@@ -115,9 +123,7 @@ def resolve_administrative_address(
 ) -> AdministrativeAddress:
     normalized_province_code = (province_code or "").strip()
     normalized_ward_code = (ward_code or "").strip()
-    province = db.session.get(Province, normalized_province_code)
-    if province is None:
-        raise AdministrativeUnitError("Tỉnh hoặc thành phố không hợp lệ.")
+    province = resolve_province(province_code=normalized_province_code)
     ward = db.session.get(Ward, normalized_ward_code)
     if ward is None:
         raise AdministrativeUnitError("Phường, xã hoặc đặc khu không hợp lệ.")
