@@ -558,6 +558,13 @@ def test_paid_opponent_appears_in_match_workspace_and_contacts_stay_private(app,
     assert "Kèo giao hữu cuối tuần" in match_workspace_page
     assert "Đã tham gia" in match_workspace_page
     assert f'href="/matches/{match_id}"' in match_workspace_page
+    assert match_workspace_page.count('data-bs-toggle="pill"') == 3
+    assert 'id="match-created-tab"' in match_workspace_page
+    assert 'id="match-joined-tab"' in match_workspace_page
+    assert 'id="match-requests-tab"' in match_workspace_page
+    assert 'id="match-created-panel"' in match_workspace_page
+    assert 'id="match-joined-panel"' in match_workspace_page
+    assert 'id="match-requests-panel"' in match_workspace_page
 
     opponent_page = client.get(f"/matches/{match_id}").get_data(as_text=True)
     assert "Liên hệ người đăng kèo" in opponent_page

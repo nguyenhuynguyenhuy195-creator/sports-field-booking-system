@@ -7,7 +7,6 @@
     const fieldTypeOptionsElement = document.getElementById(
         "field-type-filter-options"
     );
-    const helpElement = document.getElementById("field-type-filter-help");
     if (!form || !sportInput || !fieldTypeInput || !fieldTypeOptionsElement) {
         return;
     }
@@ -24,7 +23,6 @@
 
     const syncFieldTypes = () => {
         const selectedSport = sportInput.value;
-        const selectedSportLabel = sportInput.selectedOptions[0]?.textContent?.trim();
         fieldTypeOptions.forEach((option) => {
             const belongsToSelectedSport = (
                 !option.value
@@ -63,11 +61,6 @@
                 });
         }
 
-        if (helpElement) {
-            helpElement.textContent = selectedSport
-                ? `Các loại sân thuộc ${selectedSportLabel}. Bấm lại loại đang chọn để bỏ lọc chi tiết.`
-                : "Có thể chọn loại sân trực tiếp hoặc chọn bộ môn để thu gọn danh sách.";
-        }
     };
 
     sportInput.addEventListener("change", () => {

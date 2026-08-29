@@ -3457,20 +3457,18 @@ body {
 }
 
 .app-navbar {
-    backdrop-filter: blur(18px);
-    background: rgba(9, 26, 48, 0.94);
+    background-color: rgba(9, 26, 48, 0.985);
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     min-height: 76px;
     position: sticky;
     top: 0;
-    transition: background 220ms ease, box-shadow 220ms ease, min-height 220ms ease;
+    transition: background-color 180ms ease, box-shadow 180ms ease;
     z-index: 1030;
 }
 
 .app-navbar.is-scrolled {
-    background: rgba(9, 26, 48, 0.985);
+    background-color: #091a30;
     box-shadow: 0 12px 38px rgba(4, 14, 29, 0.2);
-    min-height: 68px;
 }
 
 .app-navbar .navbar-brand,
@@ -6375,7 +6373,7 @@ body {
     }
 }
 
-/* Professional booking marketplace: scoped to public/user workspaces only. */
+/* Player marketplace system: scoped away from Admin and Owner workspaces. */
 .marketplace-page,
 .marketplace-page-intro {
     --marketplace-ink: #102b4a;
@@ -6384,17 +6382,28 @@ body {
     --marketplace-line: #dfe8e3;
     --marketplace-green-soft: #edf7f1;
     --marketplace-green-line: #c9e4d3;
-    --marketplace-shadow: 0 10px 26px rgba(15, 39, 71, 0.055);
-    --marketplace-shadow-hover: 0 16px 34px rgba(15, 39, 71, 0.1);
+    --marketplace-shadow: 0 10px 28px rgba(15, 39, 71, 0.06);
+    --marketplace-shadow-hover: 0 14px 32px rgba(15, 39, 71, 0.09);
+}
+
+.marketplace-shell {
+    max-width: 1200px;
 }
 
 .marketplace-page-intro {
     background: #ffffff;
     border-bottom: 1px solid var(--marketplace-line);
+    padding: 1.35rem 0 1.25rem;
 }
 
-.marketplace-eyebrow,
-.marketplace-panel-kicker {
+.marketplace-page-header {
+    align-items: flex-end;
+    display: flex;
+    gap: 1.5rem;
+    justify-content: space-between;
+}
+
+.marketplace-eyebrow {
     align-items: center;
     color: var(--app-primary-dark);
     display: inline-flex;
@@ -6405,8 +6414,7 @@ body {
     text-transform: uppercase;
 }
 
-.marketplace-eyebrow i,
-.marketplace-panel-kicker i {
+.marketplace-eyebrow i {
     align-items: center;
     background: var(--marketplace-green-soft);
     border: 1px solid var(--marketplace-green-line);
@@ -6419,7 +6427,8 @@ body {
     width: 1.45rem;
 }
 
-.marketplace-page-title {
+.marketplace-page-title,
+.marketplace-venue-intro .venue-page-title {
     color: var(--marketplace-ink);
     font-size: clamp(1.75rem, 3vw, 2.25rem);
     font-weight: 800;
@@ -6427,15 +6436,17 @@ body {
     line-height: 1.16;
 }
 
-.marketplace-page-subtitle {
+.marketplace-page-subtitle,
+.marketplace-page-intro p {
     color: var(--marketplace-muted);
-    max-width: 45rem;
+    max-width: 46rem;
 }
 
 .marketplace-card {
     background: #ffffff;
     border: 1px solid var(--marketplace-line);
     border-radius: 16px;
+    box-shadow: var(--marketplace-shadow);
 }
 
 .marketplace-page .btn-primary,
@@ -6446,20 +6457,20 @@ body {
     font-weight: 800;
     gap: 0.45rem;
     justify-content: center;
-    transition: background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+    transition: background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
 .marketplace-page .btn-primary:hover,
 .marketplace-page .btn-primary:focus-visible,
 .marketplace-primary-action:hover,
 .marketplace-primary-action:focus-visible {
-    box-shadow: 0 10px 20px rgba(20, 108, 67, 0.23);
-    transform: translateY(-1px);
+    box-shadow: 0 10px 20px rgba(20, 108, 67, 0.22);
 }
 
 .marketplace-secondary-action {
     align-items: center;
     display: inline-flex;
+    flex: 0 0 auto;
     font-weight: 700;
     gap: 0.45rem;
 }
@@ -6470,39 +6481,134 @@ body {
     letter-spacing: -0.02em;
 }
 
-.marketplace-section-heading p {
+.marketplace-section-heading p,
+.marketplace-panel-note {
     color: var(--marketplace-muted);
-    font-size: 0.9rem;
+    font-size: 0.88rem;
 }
 
-.marketplace-count-badge {
+.marketplace-tabs {
+    border-bottom: 1px solid var(--marketplace-line);
+    display: flex;
+    gap: 0.35rem;
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+
+.marketplace-tab,
+.marketplace-booking-page .booking-tab {
     align-items: center;
-    background: var(--marketplace-green-soft);
-    border: 1px solid var(--marketplace-green-line);
-    border-radius: 999px;
-    color: var(--app-primary-dark);
+    background: transparent;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    color: var(--marketplace-muted);
     display: inline-flex;
     flex: 0 0 auto;
-    font-size: 0.78rem;
-    font-weight: 800;
-    justify-content: center;
-    min-width: 2rem;
-    padding: 0.35rem 0.62rem;
+    font-size: 0.88rem;
+    font-weight: 700;
+    gap: 0.48rem;
+    padding: 0.7rem 0.8rem;
+    transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease;
 }
 
-/* Find venue: keep the existing flow, but align its visual grammar with user workspaces. */
+.marketplace-tab:hover,
+.marketplace-booking-page .booking-tab:hover {
+    background: var(--marketplace-green-soft);
+    color: var(--app-primary-dark);
+}
+
+.marketplace-tab:focus-visible,
+.marketplace-booking-page .booking-tab:focus-visible {
+    box-shadow: 0 0 0 0.2rem rgba(20, 108, 67, 0.15);
+    outline: 0;
+}
+
+.marketplace-tab.active,
+.marketplace-booking-page .booking-tab.active {
+    background: transparent;
+    border-bottom-color: var(--app-primary);
+    box-shadow: none;
+    color: var(--app-primary-dark);
+}
+
+.marketplace-tab-count,
+.marketplace-booking-page .booking-tab-count {
+    align-items: center;
+    background: #edf1ef;
+    border-radius: 999px;
+    color: #536a5e;
+    display: inline-flex;
+    font-size: 0.7rem;
+    justify-content: center;
+    min-width: 1.55rem;
+    padding: 0.12rem 0.42rem;
+}
+
+.marketplace-tab.active .marketplace-tab-count,
+.marketplace-booking-page .booking-tab.active .booking-tab-count {
+    background: var(--marketplace-green-soft);
+    color: var(--app-primary-dark);
+}
+
+.marketplace-empty-state {
+    align-items: center;
+    border-style: dashed;
+    box-shadow: none;
+    display: flex;
+    gap: 0.9rem;
+    min-height: 92px;
+    padding: 1rem 1.1rem;
+}
+
+.marketplace-empty-state > i,
+.marketplace-empty-state .empty-state-icon,
+.marketplace-empty-state .booking-panel-empty-icon {
+    align-items: center;
+    background: var(--marketplace-green-soft);
+    border-radius: 50%;
+    color: var(--app-primary);
+    display: inline-flex;
+    flex: 0 0 42px;
+    font-size: 1rem;
+    height: 42px;
+    justify-content: center;
+    margin: 0;
+    width: 42px;
+}
+
+.marketplace-empty-state > div:not(.empty-state-icon):not(.booking-panel-empty-icon) {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.marketplace-empty-state h2 {
+    color: var(--marketplace-ink);
+    font-size: 0.95rem;
+    margin: 0 0 0.22rem;
+}
+
+.marketplace-empty-state p {
+    color: var(--marketplace-muted);
+    font-size: 0.83rem;
+    margin: 0;
+}
+
+.marketplace-empty-state .btn {
+    flex: 0 0 auto;
+}
+
+/* Venue discovery keeps its working filters while sharing the player shell. */
 .marketplace-venue-intro {
-    padding: 1.45rem 0 1.2rem;
+    padding: 1.35rem 0 1.25rem;
 }
 
 .marketplace-venue-intro .venue-page-title {
-    color: var(--marketplace-ink);
     margin-top: 0.45rem;
 }
 
 .marketplace-venue-page .venue-search-panel {
     border-color: var(--marketplace-line);
-    border-radius: 18px;
+    border-radius: 16px;
     box-shadow: var(--marketplace-shadow);
 }
 
@@ -6517,332 +6623,279 @@ body {
 .marketplace-venue-page .venue-card {
     border-color: var(--marketplace-line);
     box-shadow: var(--marketplace-shadow);
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
 .marketplace-venue-page .venue-card:hover {
     border-color: #abd4ba;
     box-shadow: var(--marketplace-shadow-hover);
+    transform: none;
 }
 
 .marketplace-venue-page .venue-card-actions {
     gap: 0.7rem;
+    justify-content: center;
 }
 
 .marketplace-venue-page .venue-card-actions .btn-primary {
     min-width: 0;
 }
 
-/* Open matches: dense list cards optimized for fast scanning. */
-.marketplace-match-intro {
-    background: #ffffff;
-}
-
-.marketplace-match-intro .marketplace-page-header {
-    max-width: 1120px;
-}
-
-.marketplace-match-page {
-    max-width: 1200px;
-}
-
+/* Shared matchmaking marketplace card. */
 .marketplace-match-page .match-browse-heading {
     margin-bottom: 1rem;
 }
 
-.marketplace-match-page .match-list-grid {
-    gap: 0.85rem;
-    grid-template-columns: minmax(0, 1fr);
-    margin: 0 auto;
-    max-width: 1120px;
-}
-
-.marketplace-match-page .match-card {
-    align-items: center;
-    border-color: var(--marketplace-line);
-    box-shadow: var(--marketplace-shadow);
-    display: grid;
-    gap: 1.15rem;
-    grid-template-columns: minmax(250px, 1.08fr) minmax(360px, 1.45fr) auto;
-    padding: 1.15rem 1.25rem;
-    transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
-}
-
-.marketplace-match-page .match-card:hover {
-    border-color: #abd4ba;
-    box-shadow: var(--marketplace-shadow-hover);
-    transform: translateY(-2px);
-}
-
-.match-card-heading {
-    align-items: flex-start;
-    display: flex;
-    gap: 0.9rem;
-    justify-content: space-between;
-    min-width: 0;
-}
-
-.match-card-title-block {
-    min-width: 0;
-}
-
-.marketplace-match-page .match-card h2 {
-    color: var(--marketplace-ink);
-    line-height: 1.3;
-}
-
-.match-card-location {
-    align-items: center;
-    color: var(--marketplace-muted);
-    display: flex;
-    font-size: 0.82rem;
-    gap: 0.4rem;
-    line-height: 1.35;
-}
-
-.match-card-location i {
-    color: var(--app-primary);
-    flex: 0 0 auto;
-}
-
-.match-card-address {
-    align-items: flex-start;
-    color: var(--marketplace-muted);
-    display: flex;
-    font-size: 0.82rem;
-    gap: 0.4rem;
-    line-height: 1.45;
-    overflow-wrap: anywhere;
-}
-
-.match-card-address i {
-    color: var(--app-primary);
-    flex: 0 0 auto;
-    margin-top: 0.12rem;
-}
-
-.match-card-address span {
-    min-width: 0;
-}
-
-.marketplace-match-page .match-card-description {
-    -webkit-line-clamp: 1;
-    min-height: 0;
-}
-
-.match-card-date {
-    align-items: center;
-    background: var(--marketplace-subtle);
-    border: 1px solid #e5ece8;
-    border-radius: 10px;
-    color: var(--marketplace-muted);
-    display: grid;
-    flex: 0 0 auto;
-    font-size: 0.7rem;
-    gap: 0.08rem 0.35rem;
-    grid-template-columns: auto 1fr;
-    line-height: 1.2;
-    padding: 0.55rem 0.6rem;
-}
-
-.match-card-date i {
-    color: var(--app-primary);
-    grid-row: span 2;
-}
-
-.match-card-date strong {
-    color: var(--marketplace-ink);
-    font-size: 0.78rem;
-}
-
-.marketplace-match-page .match-card-meta {
-    gap: 0.55rem 0.9rem;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.marketplace-match-page .match-card-meta > div {
-    background: transparent;
-    border-left: 1px solid #e8eeea;
-    border-radius: 0;
-    min-width: 0;
-    padding: 0.1rem 0 0.1rem 0.8rem;
-}
-
-.marketplace-match-page .match-card-meta span {
-    align-items: center;
-    display: flex;
-    gap: 0.32rem;
-}
-
-.marketplace-match-page .match-card-meta span i {
-    color: var(--app-primary);
-    font-size: 0.72rem;
-}
-
-.marketplace-match-page .match-card-meta strong {
-    color: #243b54;
-    font-size: 0.84rem;
-    line-height: 1.35;
-    overflow-wrap: anywhere;
-}
-
-.match-card-action {
-    min-width: 138px;
-    white-space: nowrap;
-}
-
-.marketplace-match-page .match-empty-state {
-    border-style: dashed;
-    box-shadow: none;
-}
-
-.marketplace-match-page .match-empty-state .hero-ball {
-    align-items: center;
-    background: var(--marketplace-green-soft);
-    border: 1px solid var(--marketplace-green-line);
-    border-radius: 50%;
-    color: var(--app-primary);
-    display: inline-flex;
-    font-size: 1.35rem;
-    height: 3rem;
-    justify-content: center;
-    width: 3rem;
-}
-
-/* My matches: two focused workspace panels, without the old horizontal tables. */
-.marketplace-workspace-page .marketplace-page-header {
-    margin-bottom: 1.25rem !important;
-}
-
-.match-workspace-grid {
+.match-list-grid {
     display: grid;
     gap: 1rem;
     grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.match-workspace-panel {
-    box-shadow: var(--marketplace-shadow);
-    padding: 1.2rem;
-}
-
-.match-workspace-panel-heading {
-    align-items: flex-start;
-    border-bottom: 1px solid #e9efeb;
+.match-market-card {
     display: flex;
-    gap: 0.85rem;
-    justify-content: space-between;
-    margin-bottom: 0.85rem;
-    padding-bottom: 0.9rem;
-}
-
-.match-workspace-panel-heading h2 {
-    color: var(--marketplace-ink);
-    letter-spacing: -0.012em;
-    margin-top: 0.48rem;
-}
-
-.match-workspace-panel-heading p {
-    color: var(--marketplace-muted);
-    font-size: 0.82rem;
-}
-
-.match-workspace-list {
-    display: grid;
-    gap: 0.7rem;
-}
-
-.match-workspace-item {
-    align-items: center;
-    background: #ffffff;
-    border: 1px solid #e4ebe7;
-    border-radius: 12px;
-    display: grid;
-    gap: 0.7rem;
-    grid-template-columns: minmax(0, 1fr) auto;
-    padding: 0.85rem;
-}
-
-.match-workspace-item-main {
+    flex-direction: column;
     min-width: 0;
+    padding: 1.15rem;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
-.match-workspace-item-main h3 {
+.match-market-card:hover {
+    border-color: #abd4ba;
+    box-shadow: var(--marketplace-shadow-hover);
+}
+
+.match-market-card-topline {
+    align-items: center;
+    display: flex;
+    gap: 0.75rem;
+    justify-content: space-between;
+}
+
+.match-market-date {
+    align-items: center;
+    color: var(--marketplace-muted);
+    display: inline-flex;
+    flex: 0 0 auto;
+    font-size: 0.78rem;
+    font-weight: 700;
+    gap: 0.38rem;
+}
+
+.match-market-date i {
+    color: var(--app-primary);
+}
+
+.match-market-status {
+    align-self: flex-start;
+    border-radius: 999px;
+    display: inline-flex;
+    font-size: 0.72rem;
+    font-weight: 800;
+    margin-top: 0.75rem;
+    padding: 0.3rem 0.6rem;
+}
+
+.match-market-copy {
+    margin-top: 0.9rem;
+}
+
+.match-market-copy h3 {
     color: var(--marketplace-ink);
-    line-height: 1.3;
+    font-size: 1.08rem;
+    font-weight: 800;
+    line-height: 1.35;
+    margin: 0 0 0.55rem;
     overflow-wrap: anywhere;
 }
 
-.match-workspace-item-main p,
-.match-workspace-item-meta {
+.match-market-venue,
+.match-market-location,
+.match-market-description {
+    align-items: flex-start;
+    color: var(--marketplace-muted);
+    display: flex;
+    font-size: 0.82rem;
+    gap: 0.42rem;
+    line-height: 1.45;
+    margin: 0;
+}
+
+.match-market-venue {
+    color: #3d5369;
+    font-weight: 700;
+}
+
+.match-market-location {
+    margin-top: 0.2rem;
+}
+
+.match-market-description {
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    display: -webkit-box;
+    margin-top: 0.55rem;
+    overflow: hidden;
+}
+
+.match-market-copy i,
+.match-market-location i {
+    color: var(--app-primary);
+    flex: 0 0 auto;
+    margin-top: 0.1rem;
+}
+
+.match-market-meta {
+    border-bottom: 1px solid #e9efeb;
+    border-top: 1px solid #e9efeb;
+    display: grid;
+    gap: 0.65rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin: 1rem 0;
+    padding: 0.85rem 0;
+}
+
+.match-market-meta > div {
+    min-width: 0;
+}
+
+.match-market-meta span,
+.match-market-meta strong {
+    display: block;
+}
+
+.match-market-meta span {
+    color: var(--marketplace-muted);
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.match-market-meta span i {
+    color: var(--app-primary);
+    margin-right: 0.25rem;
+}
+
+.match-market-meta strong {
+    color: #243b54;
+    font-size: 0.82rem;
+    line-height: 1.35;
+    margin-top: 0.28rem;
+    overflow-wrap: anywhere;
+}
+
+.match-market-footer {
+    align-items: flex-end;
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+    margin-top: auto;
+}
+
+.match-market-progress {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.match-market-progress-label {
+    align-items: center;
+    display: flex;
+    gap: 0.65rem;
+    justify-content: space-between;
+}
+
+.match-market-progress-label span {
     color: var(--marketplace-muted);
     font-size: 0.78rem;
 }
 
-.match-workspace-item-meta {
-    display: grid;
-    gap: 0.32rem;
+.match-market-progress-label span i {
+    color: var(--app-primary);
+}
+
+.match-market-progress-label strong {
+    color: var(--app-primary-dark);
+    font-size: 0.75rem;
+    text-align: right;
+}
+
+.match-progress-track {
+    background: #e8eeea;
+    border-radius: 999px;
+    height: 5px;
+    margin-top: 0.45rem;
+    overflow: hidden;
+}
+
+.match-progress-track span {
+    background: var(--app-primary);
+    border-radius: inherit;
+    display: block;
+    height: 100%;
+}
+
+.match-market-action {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
+.match-empty-state {
     grid-column: 1 / -1;
 }
 
-.match-workspace-item-meta span {
-    align-items: center;
-    display: flex;
-    gap: 0.38rem;
-    min-width: 0;
-    overflow-wrap: anywhere;
-}
-
-.match-workspace-item-meta i {
-    color: var(--app-primary);
-    flex: 0 0 auto;
-}
-
-.match-workspace-item .btn {
-    align-self: start;
-}
-
-.marketplace-inline-empty {
-    align-items: center;
-    background: var(--marketplace-subtle);
-    border: 1px dashed #cfdcd5;
-    border-radius: 12px;
-    color: var(--marketplace-muted);
-    display: flex;
-    font-size: 0.85rem;
-    gap: 0.55rem;
-    padding: 1rem;
-}
-
-.marketplace-inline-empty i {
-    color: var(--app-primary);
-    font-size: 1rem;
-}
-
-/* My schedule: namespace every override so Owner and Home surfaces stay unchanged. */
-.marketplace-booking-page .booking-tabs {
-    border-bottom: 1px solid var(--marketplace-line);
-    gap: 0.45rem;
+/* Personal matchmaking workspace. */
+.match-workspace-summary {
+    background: #ffffff;
+    border: 1px solid var(--marketplace-line);
+    border-radius: 14px;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     margin-bottom: 1rem;
-    padding: 0 0 0.75rem;
 }
 
-.marketplace-booking-page .booking-tab {
-    background: transparent;
-    border-color: transparent;
-    border-radius: 9px;
+.match-workspace-summary > div {
+    align-items: center;
+    display: flex;
+    gap: 0.75rem;
+    justify-content: space-between;
+    padding: 0.78rem 1rem;
+}
+
+.match-workspace-summary > div + div {
+    border-left: 1px solid var(--marketplace-line);
+}
+
+.match-workspace-summary span {
     color: var(--marketplace-muted);
-    padding: 0.55rem 0.72rem;
+    font-size: 0.78rem;
+    font-weight: 700;
 }
 
-.marketplace-booking-page .booking-tab:hover {
-    background: var(--marketplace-green-soft);
-    border-color: var(--marketplace-green-line);
-    color: var(--app-primary-dark);
+.match-workspace-summary strong {
+    color: var(--marketplace-ink);
+    font-size: 1.05rem;
 }
 
-.marketplace-booking-page .booking-tab.active {
-    background: var(--app-primary-dark);
-    border-color: var(--app-primary-dark);
-    box-shadow: 0 5px 12px rgba(14, 79, 49, 0.16);
+.match-workspace-tabs {
+    margin-bottom: 1rem;
+}
+
+.match-personal-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.match-workspace-panels .marketplace-empty-state {
+    margin-top: 0.25rem;
+}
+
+.marketplace-panel-note {
+    margin-bottom: 0.75rem;
+}
+
+/* Personal booking schedule. */
+.marketplace-booking-page .booking-tabs {
+    margin-bottom: 1rem;
+    padding: 0;
 }
 
 .marketplace-booking-page .booking-tab-panels {
@@ -6851,7 +6904,8 @@ body {
 
 .marketplace-booking-page .booking-group-description {
     color: var(--marketplace-muted);
-    margin: 0 0 0.85rem;
+    font-size: 0.86rem;
+    margin: 0 0 0.8rem;
 }
 
 .marketplace-list-stack {
@@ -6859,23 +6913,22 @@ body {
 }
 
 .marketplace-booking-page .booking-list-card {
+    align-items: stretch;
     border-color: var(--marketplace-line);
-    box-shadow: var(--marketplace-shadow);
+    display: grid;
     gap: 1rem;
-    grid-template-columns: 76px minmax(180px, 1.35fr) minmax(135px, 0.68fr) minmax(150px, 0.76fr) auto;
+    grid-template-columns: 74px minmax(0, 1fr) minmax(260px, 0.7fr);
     padding: 1rem;
-    transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
 .marketplace-booking-page .booking-list-card:hover {
     border-color: #abd4ba;
     box-shadow: var(--marketplace-shadow-hover);
-    transform: translateY(-1px);
 }
 
 .booking-date-tile {
     align-items: center;
-    align-self: stretch;
     background: var(--marketplace-green-soft);
     border: 1px solid var(--marketplace-green-line);
     border-radius: 12px;
@@ -6896,17 +6949,17 @@ body {
 }
 
 .booking-date-tile span {
-    font-size: 0.68rem;
+    font-size: 0.67rem;
     font-weight: 700;
-    margin-top: 0.16rem;
+    margin-top: 0.18rem;
+    text-transform: uppercase;
 }
 
 .marketplace-booking-page .booking-list-main {
     min-width: 0;
 }
 
-.marketplace-booking-page .booking-list-main h2,
-.marketplace-booking-page .booking-list-main h3 {
+.marketplace-booking-page .booking-list-main h2 {
     color: var(--marketplace-ink);
     line-height: 1.28;
     overflow-wrap: anywhere;
@@ -6918,25 +6971,47 @@ body {
     overflow-wrap: anywhere;
 }
 
-.marketplace-booking-page .booking-code {
-    color: #8391a0;
-    margin-top: 0.45rem;
+.booking-mode {
+    align-items: center;
+    color: #526c60;
+    display: inline-flex;
+    font-size: 0.76rem;
+    gap: 0.35rem;
+    margin-right: 0.8rem;
+    margin-top: 0.5rem;
 }
 
-.marketplace-booking-page .booking-list-time,
-.marketplace-booking-page .booking-list-price {
+.booking-mode i {
+    color: var(--app-primary);
+}
+
+.marketplace-booking-page .booking-code {
+    color: #8391a0;
+    margin-top: 0.5rem;
+}
+
+.booking-list-aside {
+    align-items: center;
     border-left: 1px solid #e8eeea;
+    display: grid;
+    gap: 0.65rem 0.85rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     min-width: 0;
-    padding-left: 0.9rem;
+    padding-left: 1rem;
+}
+
+.booking-list-time,
+.booking-list-price {
+    min-width: 0;
 }
 
 .booking-list-meta-label {
     align-items: center;
     color: var(--marketplace-muted) !important;
     display: flex;
-    font-size: 0.71rem !important;
+    font-size: 0.68rem !important;
     font-weight: 700;
-    gap: 0.36rem;
+    gap: 0.32rem;
     text-transform: uppercase;
 }
 
@@ -6947,57 +7022,70 @@ body {
 .marketplace-booking-page .booking-list-time strong,
 .marketplace-booking-page .booking-list-price strong {
     color: #243b54;
-    font-size: 0.95rem;
+    display: block;
+    font-size: 0.9rem;
     line-height: 1.35;
+    margin-top: 0.2rem;
     overflow-wrap: anywhere;
 }
 
-.marketplace-booking-page .booking-list-time > span:not(.booking-list-meta-label),
-.marketplace-booking-page .booking-list-price > span:not(.booking-list-meta-label) {
+.marketplace-booking-page .booking-list-time > span:not(.booking-list-meta-label) {
     color: var(--marketplace-muted);
-    font-size: 0.8rem;
-    line-height: 1.35;
+    display: block;
+    font-size: 0.76rem;
+    margin-top: 0.1rem;
 }
 
-.marketplace-booking-page .booking-list-card > .btn {
-    min-width: 122px;
+.booking-list-aside > .btn {
+    grid-column: 1 / -1;
+    justify-self: end;
     white-space: nowrap;
 }
 
-.marketplace-booking-page .booking-panel-empty,
-.marketplace-booking-page .empty-state {
-    border-color: #cfdcd5;
-    box-shadow: none;
-}
-
-.marketplace-booking-page .booking-panel-empty-icon,
-.marketplace-booking-page .empty-state-icon {
-    align-items: center;
-    color: var(--app-primary);
-    display: inline-flex;
-    justify-content: center;
-}
-
-@media (max-width: 1199.98px) {
-    .marketplace-match-page .match-card {
-        grid-template-columns: minmax(230px, 1fr) minmax(280px, 1.2fr);
+@media (max-width: 991.98px) {
+    .marketplace-page-header {
+        align-items: flex-start;
+        flex-direction: column;
     }
 
-    .marketplace-match-page .match-card-action {
+    .marketplace-venue-page .venue-search-primary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .marketplace-venue-page .venue-search-keyword-field {
         grid-column: 1 / -1;
-        justify-self: stretch;
+    }
+
+    .marketplace-venue-page .venue-search-actions {
+        align-self: stretch;
+    }
+
+    .marketplace-venue-page .venue-search-submit {
+        width: 100%;
+    }
+
+    .match-list-grid,
+    .match-personal-grid {
+        grid-template-columns: 1fr;
     }
 
     .marketplace-booking-page .booking-list-card {
-        grid-template-columns: 70px minmax(180px, 1.25fr) minmax(130px, 0.8fr) auto;
+        grid-template-columns: 70px minmax(0, 1fr);
     }
 
-    .marketplace-booking-page .booking-list-price {
-        grid-column: 3;
+    .booking-list-aside {
+        border-left: 0;
+        border-top: 1px solid #e8eeea;
+        grid-column: 2;
+        padding: 0.75rem 0 0;
     }
 }
 
 @media (max-width: 767.98px) {
+    .marketplace-page-intro {
+        padding: 1.1rem 0;
+    }
+
     .marketplace-page-title {
         font-size: 1.72rem;
     }
@@ -7007,103 +7095,106 @@ body {
         width: 100%;
     }
 
-    .marketplace-venue-intro {
-        padding: 1.15rem 0 1rem;
-    }
-
     .marketplace-venue-page .venue-results-heading {
-        margin-top: 1.35rem;
+        margin-top: 1.3rem;
     }
 
-    .marketplace-match-page .match-card {
-        align-items: stretch;
-        grid-template-columns: 1fr;
-        padding: 1rem;
-    }
-
-    .match-card-heading {
-        align-items: flex-start;
-    }
-
-    .match-card-date {
-        min-width: 0;
-    }
-
-    .marketplace-match-page .match-card-meta {
+    .match-workspace-summary {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .marketplace-match-page .match-card-meta > div {
+    .match-workspace-summary > div:nth-child(3) {
         border-left: 0;
-        border-top: 1px solid #e8eeea;
-        padding: 0.62rem 0 0;
+        border-top: 1px solid var(--marketplace-line);
     }
 
-    .match-workspace-grid {
-        grid-template-columns: 1fr;
+    .match-workspace-summary > div:nth-child(4) {
+        border-top: 1px solid var(--marketplace-line);
     }
 
-    .match-workspace-panel {
-        padding: 1rem;
+    .marketplace-empty-state {
+        align-items: flex-start;
+        flex-wrap: wrap;
     }
 
-    .marketplace-booking-page .booking-list-card {
-        align-items: start;
-        grid-template-columns: 68px minmax(0, 1fr);
-        padding: 0.9rem;
+    .marketplace-empty-state .btn {
+        margin-left: 3.25rem;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .match-market-meta {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .marketplace-booking-page .booking-list-time,
-    .marketplace-booking-page .booking-list-price {
-        border-left: 0;
-        border-top: 1px solid #e8eeea;
-        padding: 0.68rem 0 0;
-    }
-
-    .marketplace-booking-page .booking-list-time {
-        grid-column: 1;
-    }
-
-    .marketplace-booking-page .booking-list-price {
-        grid-column: 2;
-        grid-row: 2;
-    }
-
-    .marketplace-booking-page .booking-list-card > .btn {
+    .match-market-meta > div:last-child {
         grid-column: 1 / -1;
+    }
+
+    .match-market-footer {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .match-market-action {
         width: 100%;
     }
 
+    .marketplace-booking-page .booking-list-card {
+        grid-template-columns: 62px minmax(0, 1fr);
+        padding: 0.85rem;
+    }
+
     .booking-date-tile {
-        min-height: 72px;
+        min-height: 70px;
+    }
+
+    .booking-list-aside {
+        grid-column: 1 / -1;
+    }
+
+    .booking-list-aside > .btn {
+        justify-self: stretch;
+        width: 100%;
     }
 }
 
 @media (max-width: 420px) {
-    .marketplace-match-page .match-card-meta {
-        grid-template-columns: 1fr;
+    .marketplace-tabs {
+        margin-left: -0.75rem;
+        margin-right: -0.75rem;
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
     }
 
-    .match-card-heading {
+    .match-market-card {
+        padding: 1rem;
+    }
+
+    .match-market-card-topline {
+        align-items: flex-start;
+    }
+
+    .match-market-date {
+        font-size: 0.72rem;
+    }
+
+    .match-workspace-summary > div {
+        align-items: flex-start;
         flex-direction: column;
+        gap: 0.2rem;
     }
 
-    .match-card-date {
+    .marketplace-empty-state .btn {
+        margin-left: 0;
         width: 100%;
-    }
-
-    .marketplace-booking-page .booking-list-time,
-    .marketplace-booking-page .booking-list-price {
-        grid-column: 1 / -1;
-        grid-row: auto;
     }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .marketplace-page .btn-primary,
-    .marketplace-venue-page .venue-card,
-    .marketplace-match-page .match-card,
-    .marketplace-booking-page .booking-list-card {
-        transition: none;
+    .marketplace-page *,
+    .marketplace-page-intro * {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
     }
 }

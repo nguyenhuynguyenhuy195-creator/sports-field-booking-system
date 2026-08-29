@@ -4,14 +4,14 @@
 
 {% block content %}
 <section class="venue-search-intro marketplace-page-intro marketplace-venue-intro">
-    <div class="container">
+    <div class="container marketplace-shell">
         <span class="marketplace-eyebrow"><i class="bi bi-compass" aria-hidden="true"></i> KHÁM PHÁ SÂN</span>
         <h1 class="venue-page-title mb-2">Tìm sân thể thao</h1>
         <p class="mb-0">Tìm sân phù hợp theo khu vực, bộ môn và mức giá.</p>
     </div>
 </section>
 
-<section class="container venue-search-content marketplace-page marketplace-venue-page py-4 pb-lg-5">
+<section class="container marketplace-shell venue-search-content marketplace-page marketplace-venue-page py-4 pb-lg-5">
     <form id="venue-search-form" class="venue-search-panel marketplace-card" method="get" action="{{ url_for('venues.index') }}" role="search">
         <div class="venue-search-primary">
             <div class="venue-search-primary-field venue-search-keyword-field">
@@ -93,7 +93,6 @@
                         role="group"
                         aria-labelledby="field-type-filter-label"
                     ></div>
-                    <div id="field-type-filter-help" class="form-text">Chọn bộ môn để thu gọn danh sách loại sân.</div>
                     {% for error in form.field_type.errors %}<div class="invalid-feedback">{{ error }}</div>{% endfor %}
                 </div>
                 <fieldset class="venue-price-filter">

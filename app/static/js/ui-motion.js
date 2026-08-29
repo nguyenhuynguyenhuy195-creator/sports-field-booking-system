@@ -3,15 +3,26 @@ document.documentElement.classList.add("js");
 document.addEventListener("DOMContentLoaded", () => {
     const navbar = document.querySelector("[data-app-navbar]");
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let navbarScrolled = null;
+    let navbarFrame = null;
 
     const updateNavbar = () => {
-        if (navbar) {
-            navbar.classList.toggle("is-scrolled", window.scrollY > 12);
+        navbarFrame = null;
+        const nextScrolled = window.scrollY > 12;
+        if (navbar && nextScrolled !== navbarScrolled) {
+            navbar.classList.toggle("is-scrolled", nextScrolled);
+            navbarScrolled = nextScrolled;
+        }
+    };
+
+    const scheduleNavbarUpdate = () => {
+        if (navbarFrame === null) {
+            navbarFrame = window.requestAnimationFrame(updateNavbar);
         }
     };
 
     updateNavbar();
-    window.addEventListener("scroll", updateNavbar, { passive: true });
+    window.addEventListener("scroll", scheduleNavbarUpdate, { passive: true });
 
     const revealElements = document.querySelectorAll("[data-reveal]");
     if (reduceMotion || !("IntersectionObserver" in window)) {

@@ -3,15 +3,20 @@
 {% block title %}Lịch đặt sân của tôi · Sân Thể Thao{% endblock %}
 
 {% block content %}
-<section class="container marketplace-page marketplace-booking-page py-4 py-lg-5">
-    <div class="marketplace-page-header d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
-        <div>
-            <span class="marketplace-eyebrow"><i class="bi bi-calendar2-week" aria-hidden="true"></i> LỊCH CỦA TÔI</span>
-            <h1 class="marketplace-page-title mt-2 mb-1">Lịch đặt sân của tôi</h1>
-            <p class="marketplace-page-subtitle mb-0">Theo dõi lịch sân bạn đã đặt, trạng thái và khoản cọc.</p>
+<section class="marketplace-page-intro">
+    <div class="container marketplace-shell">
+        <div class="marketplace-page-header">
+            <div>
+                <span class="marketplace-eyebrow"><i class="bi bi-calendar2-week" aria-hidden="true"></i> LỊCH CỦA TÔI</span>
+                <h1 class="marketplace-page-title mt-2 mb-1">Lịch đặt sân</h1>
+                <p class="marketplace-page-subtitle mb-0">Theo dõi các sân sắp chơi, trạng thái đặt sân và khoản cọc.</p>
+            </div>
+            <a class="btn btn-primary marketplace-primary-action" href="{{ url_for('venues.index') }}"><i class="bi bi-search" aria-hidden="true"></i> Tìm sân mới</a>
         </div>
-        <a class="btn btn-primary marketplace-primary-action" href="{{ url_for('venues.index') }}"><i class="bi bi-search" aria-hidden="true"></i> Tìm sân mới</a>
     </div>
+</section>
+
+<section class="container marketplace-shell marketplace-page marketplace-booking-page py-4 pb-lg-5">
 
     {% if bookings %}
         <div class="booking-tabs marketplace-tabs" role="tablist" aria-label="Lọc lịch đặt sân">
@@ -50,7 +55,7 @@
                             {% for entry in group.entries %}
                                 {% set booking = entry.booking %}
                                 {% set status = entry.status %}
-                                <article class="booking-list-card marketplace-list-row">
+                                <article class="booking-list-card marketplace-card">
                                     <div class="booking-date-tile" aria-label="Ngày sử dụng {{ booking.booking_date.strftime('%d/%m/%Y') }}">
                                         <strong>{{ booking.booking_date.strftime('%d') }}</strong>
                                         <span>Tháng {{ booking.booking_date.strftime('%m') }}</span>
@@ -59,24 +64,26 @@
                                         <span class="status-badge status-{{ status|lower|replace('_', '-') }}">{{ status_labels[status] }}</span>
                                         <h2 class="h5 fw-bold mt-3 mb-1">{{ booking.field.name }}</h2>
                                         <p class="text-secondary mb-0">{{ booking.field.venue.name }}</p>
+                                        <span class="booking-mode"><i class="bi bi-people" aria-hidden="true"></i> {{ booking_mode_labels[booking.booking_mode] }}</span>
                                         <span class="booking-code">Mã {{ booking.booking_code }}</span>
                                     </div>
-                                    <div class="booking-list-time">
-                                        <span class="booking-list-meta-label"><i class="bi bi-calendar3" aria-hidden="true"></i> Thời gian</span>
-                                        <strong>{{ booking.start_time.strftime('%H:%M') }}–{{ booking.end_time.strftime('%H:%M') }}</strong>
-                                        <span>{{ booking.booking_date.strftime('%d/%m/%Y') }}</span>
+                                    <div class="booking-list-aside">
+                                        <div class="booking-list-time">
+                                            <span class="booking-list-meta-label"><i class="bi bi-clock" aria-hidden="true"></i> Thời gian</span>
+                                            <strong>{{ booking.start_time.strftime('%H:%M') }}–{{ booking.end_time.strftime('%H:%M') }}</strong>
+                                            <span>{{ booking.booking_date.strftime('%d/%m/%Y') }}</span>
+                                        </div>
+                                        <div class="booking-list-price">
+                                            <span class="booking-list-meta-label"><i class="bi bi-receipt" aria-hidden="true"></i> Tổng tiền</span>
+                                            <strong>{{ booking.total_amount|vnd_currency }}</strong>
+                                        </div>
+                                        <a class="btn btn-outline-primary" href="{{ url_for('bookings.detail', booking_code=booking.booking_code) }}">Chi tiết <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
                                     </div>
-                                    <div class="booking-list-price">
-                                        <span class="booking-list-meta-label"><i class="bi bi-receipt" aria-hidden="true"></i> Giá trị</span>
-                                        <strong>{{ booking.total_amount|vnd_currency }}</strong>
-                                        <span>{{ booking_mode_labels[booking.booking_mode] }}</span>
-                                    </div>
-                                    <a class="btn btn-outline-primary" href="{{ url_for('bookings.detail', booking_code=booking.booking_code) }}">Xem chi tiết</a>
                                 </article>
                             {% endfor %}
                         </div>
                     {% else %}
-                        <div class="booking-panel-empty">
+                        <div class="marketplace-empty-state marketplace-card">
                             <div class="booking-panel-empty-icon" aria-hidden="true"><i class="bi bi-calendar3"></i></div>
                             <div>
                                 <h2 class="h6 fw-bold mb-1">Chưa có lịch trong mục này</h2>
@@ -88,10 +95,9 @@
             {% endfor %}
         </div>
     {% else %}
-        <div class="empty-state text-center marketplace-card">
+        <div class="marketplace-empty-state marketplace-card">
             <div class="empty-state-icon" aria-hidden="true"><i class="bi bi-calendar3"></i></div>
-            <h2 class="h5 fw-bold">Bạn chưa có lịch đặt sân</h2>
-            <p class="text-secondary">Hãy tìm một sân phù hợp để bắt đầu đặt lịch.</p>
+            <div><h2 class="h5 fw-bold">Bạn chưa có lịch đặt sân</h2><p class="text-secondary mb-0">Hãy tìm một sân phù hợp để bắt đầu đặt lịch.</p></div>
             <a class="btn btn-primary" href="{{ url_for('venues.index') }}">Tìm sân</a>
         </div>
     {% endif %}

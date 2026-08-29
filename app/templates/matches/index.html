@@ -1,15 +1,16 @@
 {% extends "base.html" %}
+{% from "matches/_marketplace_card.html" import match_marketplace_card with context %}
 
 {% block title %}Tìm kèo · Sân Thể Thao{% endblock %}
 
 {% block content %}
-<section class="match-hero marketplace-page-intro marketplace-match-intro py-4 py-lg-5">
-    <div class="container">
+<section class="marketplace-page-intro marketplace-match-intro">
+    <div class="container marketplace-shell">
         <div class="marketplace-page-header d-flex flex-column flex-lg-row align-items-lg-end justify-content-between gap-4">
             <div>
                 <span class="marketplace-eyebrow"><i class="bi bi-people" aria-hidden="true"></i> KÈO ĐANG MỞ</span>
                 <h1 class="marketplace-page-title mt-2 mb-2">Tìm đối thủ hoặc ghép vào đội</h1>
-                <p class="marketplace-page-subtitle mb-0">Mỗi kèo đã gắn với một lịch sân cụ thể, ngày giờ rõ ràng và phần tiền minh bạch.</p>
+                <p class="marketplace-page-subtitle mb-0">Chọn một kèo phù hợp theo sân, thời gian và số người còn thiếu.</p>
             </div>
             {% if current_user.is_authenticated and current_user.role in ['USER', 'OWNER'] %}
                 <a class="btn btn-outline-primary marketplace-secondary-action" href="{{ url_for('matches.mine') }}"><i class="bi bi-person-workspace" aria-hidden="true"></i> Kèo của tôi</a>
@@ -18,7 +19,7 @@
     </div>
 </section>
 
-<section class="container marketplace-page marketplace-match-page py-4 pb-lg-5">
+<section class="container marketplace-shell marketplace-page marketplace-match-page py-4 pb-lg-5">
     <div class="marketplace-section-heading match-browse-heading">
         <div>
             <h2 class="h4 mb-1">Kèo phù hợp đang chờ</h2>
@@ -27,41 +28,7 @@
     </div>
     <div class="match-list-grid marketplace-match-list">
         {% for match in matches %}
-            {% set joined_count = match.participants|selectattr('status', 'equalto', 'JOINED')|list|length %}
-            <article class="match-card marketplace-card">
-                <div class="match-card-heading">
-                    <div class="match-card-title-block">
-                        <span class="match-type-badge match-type-{{ match.match_type|lower|replace('_', '-') }}">
-                            {{ match_type_labels[match.match_type] }}
-                        </span>
-                        <h2 class="h5 fw-bold mt-3 mb-2">{{ match.title }}</h2>
-                        <p class="match-card-location mb-0"><i class="bi bi-building" aria-hidden="true"></i> {{ match.booking.field.venue.name }} · {{ match.booking.field.field_type.sport.name }}</p>
-                        <p class="match-card-address mb-0 mt-1"><i class="bi bi-geo-alt-fill" aria-hidden="true"></i><span><span class="visually-hidden">Địa chỉ sân: </span>{{ match.booking.field.venue.full_address or 'Địa chỉ sân đang cập nhật' }}</span></p>
-                        {% if match.description %}<p class="text-secondary small mb-0 mt-2 match-card-description">{{ match.description }}</p>{% endif %}
-                    </div>
-                    <div class="match-card-date" aria-label="Ngày chơi {{ match.booking.booking_date.strftime('%d/%m/%Y') }}">
-                        <i class="bi bi-calendar3" aria-hidden="true"></i>
-                        <span>Ngày chơi</span>
-                        <strong>{{ match.booking.booking_date.strftime('%d/%m/%Y') }}</strong>
-                    </div>
-                </div>
-                <div class="match-card-meta">
-                    <div><span><i class="bi bi-person" aria-hidden="true"></i> Người đăng</span><strong>{{ match.creator.full_name }}</strong></div>
-                    <div><span><i class="bi bi-grid-3x3-gap" aria-hidden="true"></i> Sân</span><strong>{{ match.booking.field.name }}</strong></div>
-                    <div><span><i class="bi bi-clock" aria-hidden="true"></i> Thời gian</span><strong>{{ match.booking.start_time.strftime('%H:%M') }}–{{ match.booking.end_time.strftime('%H:%M') }}</strong></div>
-                    <div>
-                        <span><i class="bi bi-people" aria-hidden="true"></i> Tiến độ</span>
-                        <strong>
-                            {% if match.match_type == 'FIND_OPPONENT' %}
-                                Chưa có đối thủ
-                            {% else %}
-                                {{ joined_count }}/{{ match.required_players }} người
-                            {% endif %}
-                        </strong>
-                    </div>
-                </div>
-                <a class="btn btn-primary match-card-action" href="{{ url_for('matches.detail', match_id=match.id) }}">Xem chi tiết <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
-            </article>
+            {{ match_marketplace_card(match, 'Xem chi tiết', url_for('matches.detail', match_id=match.id), show_description=True) }}
         {% else %}
             <div class="empty-state match-empty-state marketplace-card">
                 <div class="hero-ball mb-3" aria-hidden="true"><i class="bi bi-people"></i></div>
