@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import time
 from decimal import Decimal
-from math import asin, ceil, cos, radians, sin, sqrt
+from math import ceil
 from urllib.parse import urlencode
 
 from sqlalchemy import or_
@@ -67,7 +67,6 @@ class PublicVenueSearchResult:
     venue: Venue
     starting_price: Decimal | None
     field_types: tuple[PublicFieldTypeSummary, ...]
-    distance_km: float | None
     directions_url: str
 
 
@@ -119,9 +118,6 @@ def search_public_venues(
     field_type: str | None = None,
     min_price: Decimal | None = None,
     max_price: Decimal | None = None,
-    latitude: Decimal | None = None,
-    longitude: Decimal | None = None,
-    radius_km: int | None = None,
     page: int = 1,
     per_page: int = 9,
 ) -> PublicVenueSearchPage:
@@ -181,12 +177,6 @@ def search_public_venues(
         page = 1
     if per_page < 1 or per_page > 50:
         raise VenueError("Số kết quả mỗi trang không hợp lệ.")
-    coordinates = _validate_coordinates(latitude, longitude)
-    if coordinates is None and radius_km is not None:
-        raise VenueError("Cần có vị trí hiện tại để tìm sân theo bán kính.")
-    if coordinates is not None and radius_km not in {3, 5, 10}:
-        raise VenueError("Bán kính tìm kiếm chỉ nhận 3 km, 5 km hoặc 10 km.")
-
     active_field_conditions = [
         Field.venue_id == Venue.id,
         Field.status == FieldStatus.ACTIVE.value,
@@ -252,35 +242,17 @@ def search_public_venues(
         statement = statement.where(starting_price >= min_price)
     if max_price is not None:
         statement = statement.where(starting_price <= max_price)
-    if coordinates is not None:
-        statement = statement.where(
-            Venue.latitude.is_not(None),
-            Venue.longitude.is_not(None),
-        )
-
     rows = db.session.execute(statement.order_by(Venue.name.asc())).all()
-    rows_with_distance: list[tuple[Venue, Decimal | None, float | None]] = []
+    filtered_rows: list[tuple[Venue, Decimal | None]] = []
     for venue, price in rows:
-        distance = None
-        if coordinates is not None:
-            distance = _haversine_km(
-                coordinates[0],
-                coordinates[1],
-                Decimal(venue.latitude),
-                Decimal(venue.longitude),
-            )
-            if distance > radius_km:
-                continue
-        rows_with_distance.append((venue, price, distance))
+        filtered_rows.append((venue, price))
 
-    if coordinates is not None:
-        rows_with_distance.sort(key=lambda row: (row[2], row[0].name.lower()))
-    total = len(rows_with_distance)
+    total = len(filtered_rows)
     total_pages = ceil(total / per_page) if total else 0
     if total_pages and page > total_pages:
         page = total_pages
 
-    page_rows = rows_with_distance[(page - 1) * per_page : page * per_page]
+    page_rows = filtered_rows[(page - 1) * per_page : page * per_page]
     if not page_rows:
         return PublicVenueSearchPage(
             items=(),
@@ -289,7 +261,7 @@ def search_public_venues(
             total=total,
         )
 
-    venue_ids = [venue.id for venue, _, _ in page_rows]
+    venue_ids = [venue.id for venue, _ in page_rows]
     visible_field_type_conditions = [
         Field.venue_id.in_(venue_ids),
         Field.status == FieldStatus.ACTIVE.value,
@@ -340,10 +312,9 @@ def search_public_venues(
                         key=lambda item: (item.sport_name, item.name),
                     )
                 ),
-                distance_km=distance,
                 directions_url=build_google_maps_directions_url(venue),
             )
-            for venue, price, distance in page_rows
+            for venue, price in page_rows
         ),
         page=page,
         per_page=per_page,
@@ -351,46 +322,8 @@ def search_public_venues(
     )
 
 
-def _validate_coordinates(
-    latitude: Decimal | None,
-    longitude: Decimal | None,
-) -> tuple[Decimal, Decimal] | None:
-    if latitude is None and longitude is None:
-        return None
-    if latitude is None or longitude is None:
-        raise VenueError("Vĩ độ và kinh độ phải được cung cấp cùng nhau.")
-    if latitude < Decimal("-90") or latitude > Decimal("90"):
-        raise VenueError("Vĩ độ không hợp lệ.")
-    if longitude < Decimal("-180") or longitude > Decimal("180"):
-        raise VenueError("Kinh độ không hợp lệ.")
-    return latitude, longitude
-
-
-def _haversine_km(
-    origin_latitude: Decimal,
-    origin_longitude: Decimal,
-    venue_latitude: Decimal,
-    venue_longitude: Decimal,
-) -> float:
-    origin_lat = radians(float(origin_latitude))
-    venue_lat = radians(float(venue_latitude))
-    delta_lat = venue_lat - origin_lat
-    delta_lng = radians(float(venue_longitude - origin_longitude))
-    haversine = (
-        sin(delta_lat / 2) ** 2
-        + cos(origin_lat) * cos(venue_lat) * sin(delta_lng / 2) ** 2
-    )
-    return 6371.0088 * 2 * asin(sqrt(haversine))
-
-
 def build_google_maps_directions_url(venue: Venue) -> str:
-    if venue.has_coordinates:
-        destination = f"{venue.latitude},{venue.longitude}"
-    else:
-        destination = venue.full_address
-    parameters = {"api": "1", "destination": destination}
-    if venue.google_place_id:
-        parameters["destination_place_id"] = venue.google_place_id
+    parameters = {"api": "1", "destination": venue.full_address}
     return "https://www.google.com/maps/dir/?" + urlencode(parameters)
 
 
@@ -457,9 +390,6 @@ def create_venue(
     description: str | None,
     opening_time: time,
     closing_time: time,
-    google_place_id: str | None = None,
-    latitude: Decimal | None = None,
-    longitude: Decimal | None = None,
 ) -> Venue:
     if owner.role != UserRole.OWNER.value:
         raise VenuePermissionError("Chỉ chủ sân được tạo cơ sở thể thao.")
@@ -471,12 +401,6 @@ def create_venue(
         )
     except AdministrativeUnitError as exc:
         raise VenueError(str(exc)) from exc
-    normalized_location = _normalize_venue_location(
-        google_place_id=google_place_id,
-        latitude=latitude,
-        longitude=longitude,
-    )
-
     venue = Venue(
         owner_id=owner.id,
         name=_normalize_required_text(name),
@@ -485,9 +409,6 @@ def create_venue(
         province_name=administrative_address.province.name,
         ward_code=administrative_address.ward.code,
         ward_name=administrative_address.ward.full_name,
-        google_place_id=normalized_location[0],
-        latitude=normalized_location[1],
-        longitude=normalized_location[2],
         phone=normalize_phone(phone),
         description=(description or "").strip() or None,
         opening_time=opening_time,
@@ -511,9 +432,6 @@ def update_venue(
     description: str | None,
     opening_time: time,
     closing_time: time,
-    google_place_id: str | None = None,
-    latitude: Decimal | None = None,
-    longitude: Decimal | None = None,
 ) -> Venue:
     if owner.role != UserRole.OWNER.value:
         raise VenuePermissionError("Chỉ chủ sân được sửa cơ sở thể thao.")
@@ -525,12 +443,6 @@ def update_venue(
         )
     except AdministrativeUnitError as exc:
         raise VenueError(str(exc)) from exc
-    normalized_location = _normalize_venue_location(
-        google_place_id=google_place_id,
-        latitude=latitude,
-        longitude=longitude,
-    )
-
     venue = db.session.scalar(
         db.select(Venue).where(Venue.id == venue_id).with_for_update()
     )
@@ -547,9 +459,6 @@ def update_venue(
             venue.address != normalized_address,
             venue.province_code != administrative_address.province.code,
             venue.ward_code != administrative_address.ward.code,
-            venue.google_place_id != normalized_location[0],
-            venue.latitude != normalized_location[1],
-            venue.longitude != normalized_location[2],
         )
     )
 
@@ -559,9 +468,6 @@ def update_venue(
     venue.province_name = administrative_address.province.name
     venue.ward_code = administrative_address.ward.code
     venue.ward_name = administrative_address.ward.full_name
-    venue.google_place_id = normalized_location[0]
-    venue.latitude = normalized_location[1]
-    venue.longitude = normalized_location[2]
     venue.phone = normalize_phone(phone)
     venue.description = (description or "").strip() or None
     venue.opening_time = opening_time
@@ -609,13 +515,6 @@ def moderate_venue(
         raise InvalidVenueStateError(
             "Không thể thực hiện chuyển trạng thái kiểm duyệt này."
         )
-    if decision == VenueStatus.ACTIVE.value and (
-        not venue.google_place_id or not venue.has_coordinates
-    ):
-        raise InvalidVenueStateError(
-            "Cơ sở cần chọn vị trí Google đầy đủ trước khi được công khai."
-        )
-
     venue.status = decision
     venue.reviewed_by = reviewer.id
     venue.reviewed_at = utc_now()
@@ -625,25 +524,6 @@ def moderate_venue(
         "Không thể lưu kết quả kiểm duyệt lúc này. Vui lòng thử lại."
     )
     return venue
-
-
-def _normalize_venue_location(
-    *,
-    google_place_id: str | None,
-    latitude: Decimal | None,
-    longitude: Decimal | None,
-) -> tuple[str | None, Decimal | None, Decimal | None]:
-    normalized_place_id = (google_place_id or "").strip() or None
-    coordinates = _validate_coordinates(latitude, longitude)
-    if normalized_place_id is None and coordinates is None:
-        return None, None, None
-    if normalized_place_id is None or coordinates is None:
-        raise VenueError(
-            "Vị trí Google chưa đầy đủ. Hãy chọn lại một gợi ý địa chỉ."
-        )
-    if len(normalized_place_id) > 255:
-        raise VenueError("Google Place ID không hợp lệ.")
-    return normalized_place_id, coordinates[0], coordinates[1]
 
 
 def _commit_or_raise(message: str) -> None:

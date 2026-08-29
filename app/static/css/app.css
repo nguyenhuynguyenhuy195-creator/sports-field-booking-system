@@ -408,71 +408,7 @@ body .admin-monitoring-main .admin-booking-monitor-list {
     }
 }
 
-/* Multisport catalog and Google Maps */
-.venue-location-picker {
-    padding: 1rem;
-    border: 1px solid #d8e2eb;
-    border-radius: 14px;
-    background: #f8fafc;
-}
-
-.venue-place-autocomplete gmp-place-autocomplete {
-    width: 100%;
-}
-
-.venue-location-map,
-.venue-public-map {
-    width: 100%;
-    min-height: 320px;
-    overflow: hidden;
-    border: 1px solid #d8e2eb;
-    border-radius: 14px;
-    background: #e9eef3;
-}
-
-.venue-map-panel {
-    padding: 1rem;
-    border: 1px solid #d8e2eb;
-    border-radius: 16px;
-    background: #fff;
-}
-
-.venue-map-panel summary {
-    color: var(--app-secondary, #0f2747);
-    cursor: pointer;
-}
-
-.venue-map-fallback {
-    background: #f8fafc;
-    border: 1px dashed #b8c7d3;
-    border-radius: 14px;
-    color: #526578;
-    padding: 1rem;
-}
-
-.venue-map-info {
-    display: grid;
-    gap: 0.35rem;
-    max-width: min(260px, 70vw);
-    padding: 0.25rem;
-}
-
-.venue-map-info-meta {
-    color: #526578;
-    display: block;
-    font-size: 0.85rem;
-}
-
-.venue-map-info-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.65rem;
-    margin-top: 0.25rem;
-}
-
-.venue-map-info-actions a {
-    font-weight: 700;
-}
+/* Multisport catalog */
 
 .venue-filter-grid-multisport {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -510,7 +446,6 @@ body .admin-monitoring-main .admin-booking-monitor-list {
     color: var(--app-primary-dark);
 }
 
-.venue-radius-filter,
 .venue-price-filter {
     min-width: 0;
 }
@@ -520,14 +455,6 @@ body .admin-monitoring-main .admin-booking-monitor-list {
         grid-template-columns: 1fr;
     }
 
-    .venue-location-map,
-    .venue-public-map {
-        min-height: 260px;
-    }
-
-    .venue-radius-filter .d-flex {
-        flex-direction: column;
-    }
 }
 
 html,

@@ -48,7 +48,6 @@ class BaseConfig:
     SECRET_KEY = os.getenv("SECRET_KEY")
     SQLALCHEMY_DATABASE_URI = build_database_uri()
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    GOOGLE_MAPS_BROWSER_API_KEY = os.getenv("GOOGLE_MAPS_BROWSER_API_KEY", "")
     MOMO_ENABLED = env_flag("MOMO_ENABLED")
     MOMO_PARTNER_CODE = os.getenv("MOMO_PARTNER_CODE", "")
     MOMO_ACCESS_KEY = os.getenv("MOMO_ACCESS_KEY", "")

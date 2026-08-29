@@ -66,7 +66,6 @@ class AdminDashboardSummary:
     locked_accounts: int
     pending_owner_applications: int
     pending_venues: int
-    venues_missing_coordinates: int
     total_bookings: int
     today_bookings: int
     active_bookings: int
@@ -148,10 +147,6 @@ def get_admin_dashboard_summary() -> AdminDashboardSummary:
         Venue,
         Venue.status == VenueStatus.PENDING.value,
     )
-    venues_missing_coordinates = _count(
-        Venue,
-        or_(Venue.latitude.is_(None), Venue.longitude.is_(None)),
-    )
     pending_payments = _count(
         Payment,
         Payment.status == PaymentStatus.PENDING.value,
@@ -173,7 +168,6 @@ def get_admin_dashboard_summary() -> AdminDashboardSummary:
         locked_accounts=_count(User, User.status == UserStatus.LOCKED.value),
         pending_owner_applications=pending_owner_applications,
         pending_venues=pending_venues,
-        venues_missing_coordinates=venues_missing_coordinates,
         total_bookings=_count(Booking),
         today_bookings=_count(Booking, Booking.booking_date == date.today()),
         active_bookings=_count(
@@ -193,7 +187,6 @@ def get_admin_dashboard_summary() -> AdminDashboardSummary:
         issues_requiring_attention=(
             pending_owner_applications
             + pending_venues
-            + venues_missing_coordinates
             + pending_payments
             + failed_payments
             + pending_refunds

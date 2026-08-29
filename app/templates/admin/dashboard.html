@@ -102,20 +102,6 @@
                             </article>
                         {% endif %}
 
-                        {% if summary.venues_missing_coordinates %}
-                            <article class="admin-priority-item admin-priority-item--warning">
-                                <div class="admin-priority-signal">
-                                    <span class="admin-priority-icon" aria-hidden="true"><i class="bi bi-geo-alt"></i></span>
-                                    <strong>{{ summary.venues_missing_coordinates }}</strong>
-                                </div>
-                                <div class="admin-priority-content">
-                                    <h3>Cơ sở chưa khai báo vị trí đầy đủ</h3>
-                                    <p>Cần bổ sung vị trí trên bản đồ trước khi có thể kiểm duyệt đầy đủ.</p>
-                                </div>
-                                <a class="admin-priority-action" href="{{ url_for('venues.admin_index') }}">Xem cơ sở<i class="bi bi-arrow-right-short" aria-hidden="true"></i></a>
-                            </article>
-                        {% endif %}
-
                         {% if summary.pending_owner_applications %}
                             <article class="admin-priority-item admin-priority-item--neutral">
                                 <div class="admin-priority-signal">
@@ -145,13 +131,12 @@
                         {% endif %}
                     </div>
 
-                    {% if not payment_issue_count or not summary.pending_refunds or not summary.venues_missing_coordinates or not summary.pending_owner_applications or not summary.pending_venues %}
+                    {% if not payment_issue_count or not summary.pending_refunds or not summary.pending_owner_applications or not summary.pending_venues %}
                         <div class="admin-priority-resolved" aria-label="Nhóm không có mục đang chờ">
                             <span class="admin-priority-resolved-label"><i class="bi bi-check2-circle" aria-hidden="true"></i>Không có mục đang chờ</span>
                             <div>
                                 {% if not payment_issue_count %}<span>Thanh toán cần kiểm tra</span>{% endif %}
                                 {% if not summary.pending_refunds %}<span>Hoàn tiền chưa hoàn tất</span>{% endif %}
-                                {% if not summary.venues_missing_coordinates %}<span>Vị trí cơ sở cần bổ sung</span>{% endif %}
                                 {% if not summary.pending_owner_applications %}<span>Yêu cầu chủ sân đang chờ duyệt</span>{% endif %}
                                 {% if not summary.pending_venues %}<span>Cơ sở đang chờ duyệt</span>{% endif %}
                             </div>

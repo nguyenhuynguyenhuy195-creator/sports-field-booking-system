@@ -36,7 +36,7 @@ FIVE_A_SIDE/SEVEN_A_SIDE/ELEVEN_A_SIDE được map sang FOOTBALL_5/7/11; bookin
 
 Booking cũ được backfill LEGACY_FULL_ONLINE/rate 1/deposit bằng total; không tự diễn giải payment toàn bộ cũ thành tiền cọc 30%.
 
-## 9.3. Venue, Google Maps và tìm kiếm
+## 9.3. Venue, địa chỉ và tìm kiếm
 
 ### TC-VENUE-001: Venue mới
 
@@ -54,29 +54,21 @@ Tạo/sửa venue với province/ward hợp lệ lưu đúng code và tên chín
 
 `venue.full_address` ưu tiên địa chỉ chi tiết + ward_name + province_name; venue chỉ có district/city vẫn hiển thị và tìm được. Tìm riêng theo ward hoặc province trả đúng venue chuẩn hóa.
 
-### TC-MAP-001: Lưu place hợp lệ
+### TC-DIRECTIONS-001: Liên kết chỉ đường
 
-Chọn Places prediction → lưu address/place_id/latitude/longitude, render đúng marker.
+Danh sách, chi tiết và Admin đều có nút mở Google Maps ở tab mới; URL luôn dùng `full_address` hiện tại, không phụ thuộc tọa độ legacy.
 
-### TC-MAP-002: Tọa độ sai
+### TC-DIRECTIONS-002: Không nhúng Google Maps
 
-Từ chối latitude 91, longitude -181 hoặc chỉ có một tọa độ; rollback.
+HTML không tải `maps.googleapis.com`, không chứa map container, Places Autocomplete, API key hoặc script bản đồ.
 
-### TC-MAP-003: Venue cũ thiếu tọa độ
+### TC-DIRECTIONS-003: Giữ dữ liệu legacy
 
-Vẫn tìm theo tên/địa chỉ, không xuất hiện trong tìm bán kính và UI có cảnh báo owner.
+Owner sửa địa chỉ hoặc thông tin khác không làm mất Place ID/tọa độ legacy; form mới không hiển thị các trường này.
 
-### TC-MAP-004: Tìm bán kính
+### TC-DIRECTIONS-004: Duyệt không phụ thuộc tọa độ
 
-Với user location xác định, 3/5/10 km trả đúng venue ACTIVE nội bộ và sắp theo khoảng cách tăng dần.
-
-### TC-MAP-005: Từ chối Geolocation
-
-Không gọi tìm gần, trang không lỗi và tìm văn bản vẫn hoạt động.
-
-### TC-MAP-006: Không nhập venue ngoài hệ thống
-
-Kết quả không chứa địa điểm chỉ tồn tại trên Google nhưng không có trong bảng venues.
+Admin có thể duyệt venue có địa chỉ hành chính hợp lệ mà không cần Place ID/tọa độ.
 
 ### TC-SEARCH-001: Kết hợp bộ lọc
 

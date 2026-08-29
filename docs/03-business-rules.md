@@ -61,8 +61,8 @@ User phải đăng nhập trước khi tạo booking, tạo kèo, gửi yêu c�
 - Venue mới có trạng thái PENDING.
 - Chỉ venue ACTIVE mới hiển thị công khai.
 - Admin có thể chuyển venue thành ACTIVE hoặc HIDDEN.
-- Venue mới phải có địa chỉ, Google Place ID và cặp latitude/longitude hợp lệ trước khi được duyệt ACTIVE.
-- Venue cũ chưa có tọa độ vẫn có thể tìm bằng văn bản nhưng không tham gia tìm theo bán kính cho đến khi owner bổ sung vị trí.
+- Venue mới phải có tỉnh/thành phố, phường/xã và địa chỉ chi tiết hợp lệ trước khi được duyệt ACTIVE.
+- Place ID và tọa độ cũ không còn là điều kiện duyệt; dữ liệu legacy vẫn được giữ nguyên.
 
 ### BR-010: Tìm kiếm và lọc venue
 
@@ -73,14 +73,11 @@ User phải đăng nhập trước khi tạo booking, tạo kèo, gửi yêu c�
 - “Giá từ” là hourly_price thấp nhất của price slot ACTIVE trên field ACTIVE còn phù hợp với bộ lọc.
 - Giá tối thiểu không được lớn hơn giá tối đa; điều kiện được giữ khi chuyển trang.
 
-### BR-011: Tìm quanh vị trí
+### BR-011: Chỉ đường ngoài hệ thống
 
-- Chỉ chấp nhận bán kính 3 km, 5 km hoặc 10 km.
-- Vị trí user lấy từ Browser Geolocation sau khi được đồng ý; backend phải validate latitude/longitude.
-- Kết quả chỉ gồm venue nội bộ đã ACTIVE và có tọa độ.
-- Khoảng cách là đường chim bay gần đúng; nút chỉ đường mở Google Maps, hệ thống không tự tính tuyến đường.
-- User từ chối quyền vị trí không làm hỏng tìm kiếm văn bản.
-- Không dùng Google Nearby Search để đưa cơ sở ngoài hệ thống vào kết quả.
+- Nút chỉ đường mở Google Maps bằng địa chỉ đầy đủ hiện tại.
+- Hệ thống không nhúng bản đồ, không tự tính tuyến đường và không dùng Maps/Places API.
+- Kết quả tìm kiếm chỉ gồm venue nội bộ đã ACTIVE.
 
 ### BR-012: Khung giá
 
@@ -286,17 +283,15 @@ Booking PAID hoặc FIND_OPPONENT PARTIALLY_PAID hợp lệ được chuyển CO
 - Người ghép FIND_PLAYERS không cọc online nên no-show không phát sinh thu/hoàn tiền tự động.
 - Website không bảo đảm participant sẽ đến; creator dùng số Zalo được chia sẻ sau khi chấp nhận để liên hệ.
 
-## 3.7. Quy tắc Google Maps và bảo mật
+## 3.7. Quy tắc địa chỉ và liên kết chỉ đường
 
-### BR-036: Google Places và tọa độ
+### BR-036: Địa chỉ venue
 
-- Owner chọn một dự đoán từ Places Autocomplete rồi kiểm tra ghim.
-- Backend không tin tọa độ ẩn từ frontend nếu thiếu validation.
-- latitude nằm trong [-90, 90], longitude trong [-180, 180] và phải cùng NULL hoặc cùng có giá trị.
-- google_place_id không thay thế primary key nội bộ.
+- Owner chọn tỉnh/thành phố và phường/xã từ catalog rồi nhập địa chỉ chi tiết.
+- Backend tự tra tên đơn vị hành chính từ mã và không nhận tên snapshot do frontend tự gửi.
+- `google_place_id`, `latitude` và `longitude` chỉ là dữ liệu legacy; luồng mới không tạo hoặc yêu cầu các giá trị này.
 
-### BR-037: API key
+### BR-037: Liên kết Google Maps
 
-- Key frontend phải giới hạn theo HTTP referrer và chỉ bật API cần thiết.
-- Server key, nếu có, phải nằm trong biến môi trường và giới hạn theo API/IP phù hợp.
-- Không commit key vào Git, không log secret và phải cấu hình quota/cảnh báo ngân sách.
+- Liên kết chỉ đường không chứa API key và mở ở tab mới với `noopener noreferrer`.
+- Ứng dụng không tải Maps JavaScript API hoặc Places API.

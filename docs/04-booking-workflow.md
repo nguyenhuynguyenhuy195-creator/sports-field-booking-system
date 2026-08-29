@@ -150,25 +150,22 @@ Hai khoảng thời gian giao nhau khi:
 
 Availability và quote không khóa chỗ. Transaction tạo booking phải kiểm tra lại toàn bộ dữ liệu. Booking 18:00–20:00 từ chối mọi khoảng giao nhau nhưng cho phép kết thúc đúng 18:00 hoặc bắt đầu đúng 20:00.
 
-## 4.11. Google Maps
+## 4.11. Địa chỉ và chỉ đường
 
 ### Owner khai báo venue
 
-1. Owner nhập địa chỉ.
-2. Places Autocomplete trả gợi ý.
-3. Owner chọn một địa điểm và kiểm tra ghim.
-4. Form gửi place ID, address, latitude và longitude.
-5. Backend validate và lưu cùng venue.
+1. Owner chọn tỉnh/thành phố và phường/xã từ catalog.
+2. Owner nhập địa chỉ chi tiết.
+3. Backend validate catalog và lưu tên đơn vị hành chính từ mã đã chọn.
+4. Venue mới ở PENDING; Admin kiểm tra địa chỉ trước khi duyệt ACTIVE.
 
-### User tìm sân gần đây
+### User mở chỉ đường
 
-1. User bấm “Dùng vị trí của tôi”.
-2. Browser xin quyền Geolocation.
-3. User chọn bán kính 3/5/10 km.
-4. Backend lọc venue ACTIVE có tọa độ và tính khoảng cách gần đúng.
-5. Kết quả sắp xếp theo khoảng cách và có nút mở Google Maps.
+1. User tìm venue ACTIVE bằng từ khóa, khu vực, bộ môn, loại sân hoặc giá.
+2. User bấm “Mở chỉ đường trên Google Maps”.
+3. Trình duyệt mở Google Maps ở tab mới bằng địa chỉ đầy đủ hiện tại.
 
-Nếu không cấp quyền vị trí, user tiếp tục tìm theo từ khóa/bộ lọc. Hệ thống không nhập venue bên ngoài từ Google Nearby Search.
+Ứng dụng không nhúng bản đồ, không xin quyền Geolocation và không gọi Maps/Places API.
 
 ## 4.12. Xử lý MoMo Sandbox
 
@@ -192,8 +189,7 @@ Luồng MoMo Sandbox mục tiêu:
 
 - Field type không thuộc sport hợp lệ hoặc field/venue chưa ACTIVE.
 - Booking môn dùng vợt thiếu play format; SINGLES chọn FIND_PLAYERS.
-- Vị trí, bán kính hoặc tọa độ không hợp lệ.
-- User từ chối Geolocation hoặc venue cũ chưa có tọa độ.
+- Tỉnh/thành phố, phường/xã hoặc địa chỉ chi tiết không hợp lệ.
 - Thời gian ngoài giờ, trùng bảo trì/booking hoặc thiếu giá.
 - Creator/đối thủ thanh toán sai nghĩa vụ, quá hạn hoặc IPN lặp.
 - Đối thủ nhận kèo sát giờ và thời hạn giữ suất 15 phút bị cắt tại giờ booking bắt đầu.

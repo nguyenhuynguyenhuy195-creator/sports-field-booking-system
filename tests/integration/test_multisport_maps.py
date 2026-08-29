@@ -1,9 +1,5 @@
 from datetime import date, time, timedelta
 from decimal import Decimal
-from html import unescape
-import json
-import re
-
 import pytest
 
 from app.extensions import db
@@ -27,8 +23,6 @@ from app.models import (
 )
 from app.services import (
     ImmutableFieldTypeError,
-    InvalidVenueStateError,
-    VenueError,
     create_field,
     create_venue,
     moderate_venue,
@@ -39,12 +33,6 @@ from app.services import (
 
 
 PASSWORD = "MatKhauAnToan123"
-
-
-def extract_map_markers(page: str) -> list[dict]:
-    match = re.search(r"data-markers='([^']*)'", page)
-    assert match is not None
-    return json.loads(unescape(match.group(1)))
 
 
 def create_user(app, *, email: str, role: UserRole) -> int:
@@ -302,7 +290,7 @@ def test_field_type_cannot_change_after_booking_history_exists(app):
             )
 
 
-def test_venue_location_requires_complete_place_and_coordinate_pair(app):
+def test_new_venue_uses_structured_address_without_google_location(app):
     owner_id = create_user(
         app,
         email="location-owner@example.com",
@@ -310,24 +298,24 @@ def test_venue_location_requires_complete_place_and_coordinate_pair(app):
     )
     with app.app_context():
         owner = db.session.get(User, owner_id)
-        with pytest.raises(VenueError):
-            create_venue(
-                owner=owner,
-                name="Cơ sở sai vị trí",
-                address="20 Đường C",
-                province_code="92",
-                ward_code="31135",
-                phone=None,
-                description=None,
-                opening_time=time(6, 0),
-                closing_time=time(22, 0),
-                google_place_id="place-only",
-                latitude=Decimal("10.000000"),
-                longitude=None,
-            )
+        venue = create_venue(
+            owner=owner,
+            name="Cơ sở không dùng bản đồ nhúng",
+            address="20 Đường C",
+            province_code="92",
+            ward_code="31135",
+            phone=None,
+            description=None,
+            opening_time=time(6, 0),
+            closing_time=time(22, 0),
+        )
+
+        assert venue.google_place_id is None
+        assert venue.latitude is None
+        assert venue.longitude is None
 
 
-def test_admin_cannot_activate_new_venue_without_google_location(app):
+def test_admin_can_activate_new_venue_without_google_location(app):
     owner_id = create_user(
         app,
         email="pending-owner@example.com",
@@ -353,22 +341,23 @@ def test_admin_cannot_activate_new_venue_without_google_location(app):
             closing_time=time(22, 0),
         )
 
-        with pytest.raises(InvalidVenueStateError):
-            moderate_venue(
-                venue_id=venue.id,
-                reviewer=admin,
-                decision=VenueStatus.ACTIVE.value,
-                moderation_note=None,
-            )
+        moderate_venue(
+            venue_id=venue.id,
+            reviewer=admin,
+            decision=VenueStatus.ACTIVE.value,
+            moderation_note=None,
+        )
+
+        assert venue.status == VenueStatus.ACTIVE.value
 
 
-def test_radius_search_filters_internal_venues_and_sorts_by_distance(app):
+def test_search_does_not_require_coordinates_or_radius(app):
     owner_id = create_user(
         app,
         email="radius-owner@example.com",
         role=UserRole.OWNER,
     )
-    near_id = create_public_venue_with_field(
+    create_public_venue_with_field(
         app,
         owner_id=owner_id,
         name="Sân gần",
@@ -394,18 +383,16 @@ def test_radius_search_filters_internal_venues_and_sorts_by_distance(app):
     )
 
     with app.app_context():
-        result = search_public_venues(
-            sport=SportCode.BADMINTON.value,
-            latitude=Decimal("10.776900"),
-            longitude=Decimal("106.700900"),
-            radius_km=3,
-        )
+        result = search_public_venues(sport=SportCode.BADMINTON.value)
 
-        assert result.total == 1
-        assert result.items[0].venue.id == near_id
-        assert result.items[0].distance_km is not None
-        assert result.items[0].distance_km < 1
-        assert "destination_place_id=" in result.items[0].directions_url
+        assert result.total == 3
+        assert all(
+            not hasattr(item, "distance_km") for item in result.items
+        )
+        assert all(
+            item.directions_url.startswith("https://www.google.com/maps/dir/")
+            for item in result.items
+        )
 
 
 def test_text_search_still_includes_legacy_venue_without_coordinates(app):
@@ -428,10 +415,12 @@ def test_text_search_still_includes_legacy_venue_without_coordinates(app):
 
         assert result.total == 1
         assert result.items[0].venue.id == legacy_id
-        assert result.items[0].distance_km is None
+        assert result.items[0].directions_url.startswith(
+            "https://www.google.com/maps/dir/"
+        )
 
 
-def test_public_map_marker_payload_uses_server_search_results(app, client):
+def test_public_listing_keeps_directions_without_embedded_maps(app, client):
     owner_id = create_user(
         app,
         email="public-marker-owner@example.com",
@@ -445,33 +434,18 @@ def test_public_map_marker_payload_uses_server_search_results(app, client):
         longitude=Decimal("106.701500"),
         field_type_code=FieldTypeCode.BADMINTON_STANDARD.value,
     )
-    app.config["GOOGLE_MAPS_BROWSER_API_KEY"] = "test-browser-key"
-
-    response = client.get(
-        "/venues",
-        query_string={
-            "latitude": "10.776900",
-            "longitude": "106.700900",
-            "radius_km": "3",
-        },
-    )
+    response = client.get("/venues")
     page = response.get_data(as_text=True)
-    markers = extract_map_markers(page)
 
     assert response.status_code == 200
-    assert len(markers) == 1
-    assert markers[0]["venue_id"] == venue_id
-    assert markers[0]["detail_url"] == f"/venues/{venue_id}"
-    assert markers[0]["directions_url"].startswith(
-        "https://www.google.com/maps/dir/"
-    )
-    assert markers[0]["starting_price"] == 200000.0
-    assert markers[0]["distance_km"] is not None
-    assert markers[0]["distance_km"] < 1
-    assert f'data-venue-map-target="{venue_id}"' in page
+    assert f'href="/venues/{venue_id}"' in page
+    assert "https://www.google.com/maps/dir/" in page
+    assert "Mở chỉ đường trên Google Maps" in page
+    assert "data-markers=" not in page
+    assert "maps.googleapis.com" not in page
 
 
-def test_public_maps_show_fallback_without_browser_api_key(app, client):
+def test_public_pages_do_not_render_embedded_map_or_fallback(app, client):
     owner_id = create_user(
         app,
         email="public-map-fallback-owner@example.com",
@@ -485,8 +459,6 @@ def test_public_maps_show_fallback_without_browser_api_key(app, client):
         longitude=Decimal("106.701500"),
         field_type_code=FieldTypeCode.FOOTBALL_5.value,
     )
-    app.config["GOOGLE_MAPS_BROWSER_API_KEY"] = ""
-
     listing_response = client.get("/venues")
     detail_response = client.get(f"/venues/{venue_id}")
     listing_page = listing_response.get_data(as_text=True)
@@ -494,17 +466,17 @@ def test_public_maps_show_fallback_without_browser_api_key(app, client):
 
     assert listing_response.status_code == 200
     assert detail_response.status_code == 200
-    assert "Bản đồ hiện chưa khả dụng" in listing_page
-    assert "Bản đồ hiện chưa khả dụng" in detail_page
-    assert "/static/js/venue-public-map.js" in listing_page
-    assert "/static/js/venue-public-map.js" in detail_page
+    assert "Bản đồ hiện chưa khả dụng" not in listing_page
+    assert "Bản đồ hiện chưa khả dụng" not in detail_page
+    assert "/static/js/venue-public-map.js" not in listing_page
+    assert "/static/js/venue-public-map.js" not in detail_page
     assert "maps.googleapis.com" not in listing_page
     assert "maps.googleapis.com" not in detail_page
     assert "Mở chỉ đường" in listing_page
     assert "Mở chỉ đường trên Google Maps" in detail_page
 
 
-def test_public_detail_marker_keeps_directions_separate_from_detail_url(
+def test_public_detail_keeps_only_external_google_maps_directions(
     app,
     client,
 ):
@@ -521,23 +493,17 @@ def test_public_detail_marker_keeps_directions_separate_from_detail_url(
         longitude=Decimal("106.701500"),
         field_type_code=FieldTypeCode.TENNIS_STANDARD.value,
     )
-    app.config["GOOGLE_MAPS_BROWSER_API_KEY"] = "test-browser-key"
-
     response = client.get(f"/venues/{venue_id}")
     page = response.get_data(as_text=True)
-    markers = extract_map_markers(page)
 
     assert response.status_code == 200
-    assert len(markers) == 1
-    assert markers[0]["venue_id"] == venue_id
-    assert markers[0]["detail_url"] is None
-    assert markers[0]["directions_url"].startswith(
-        "https://www.google.com/maps/dir/"
-    )
-    assert "Xem chi tiết" not in page
+    assert "https://www.google.com/maps/dir/" in page
+    assert "Mở chỉ đường trên Google Maps" in page
+    assert "data-markers=" not in page
+    assert "maps.googleapis.com" not in page
 
 
-def test_nearby_search_paginates_and_keeps_location_filters(app, client):
+def test_text_search_paginates_without_location_filters(app, client):
     owner_id = create_user(
         app,
         email="nearby-pagination-owner@example.com",
@@ -557,9 +523,6 @@ def test_nearby_search_paginates_and_keeps_location_filters(app, client):
         "/venues",
         query_string={
             "q": "gần phân trang",
-            "latitude": "10.776900",
-            "longitude": "106.700900",
-            "radius_km": "3",
             "page": "2",
         },
     )
@@ -568,6 +531,7 @@ def test_nearby_search_paginates_and_keeps_location_filters(app, client):
     assert response.status_code == 200
     assert "10 cơ sở phù hợp" in page
     assert "Trang 2/2" in page
-    assert "latitude=10.776900" in page
-    assert "longitude=106.700900" in page
-    assert "radius_km=3" in page
+    assert "q=g%E1%BA%A7n+ph%C3%A2n+trang" in page
+    assert "latitude=" not in page
+    assert "longitude=" not in page
+    assert "radius_km=" not in page

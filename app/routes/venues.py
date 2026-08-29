@@ -1,7 +1,6 @@
 from flask import (
     Blueprint,
     abort,
-    current_app,
     flash,
     jsonify,
     redirect,
@@ -94,9 +93,6 @@ def index():
                 field_type=form.field_type.data,
                 min_price=form.min_price.data,
                 max_price=form.max_price.data,
-                latitude=form.latitude.data,
-                longitude=form.longitude.data,
-                radius_km=int(form.radius_km.data) if form.radius_km.data else None,
                 page=request.args.get("page", 1, type=int) or 1,
             )
             venue_results = search_page.items
@@ -122,9 +118,6 @@ def index():
             "field_type": form.field_type.data or None,
             "min_price": form.min_price.data,
             "max_price": form.max_price.data,
-            "latitude": form.latitude.data,
-            "longitude": form.longitude.data,
-            "radius_km": form.radius_km.data or None,
         },
         has_active_filters=any(
             request.args.get(name, "").strip()
@@ -136,7 +129,6 @@ def index():
                 "field_type",
                 "min_price",
                 "max_price",
-                "radius_km",
             )
         ),
         has_advanced_filters=any(
@@ -145,37 +137,9 @@ def index():
                 "field_type",
                 "min_price",
                 "max_price",
-                "radius_km",
             )
         ),
         search_is_valid=search_is_valid,
-        google_maps_api_key=current_app.config.get(
-            "GOOGLE_MAPS_BROWSER_API_KEY", ""
-        ),
-        map_markers=[
-            {
-                "venue_id": result.venue.id,
-                "name": result.venue.name,
-                "latitude": float(result.venue.latitude),
-                "longitude": float(result.venue.longitude),
-                "detail_url": url_for(
-                    "venues.detail", venue_id=result.venue.id
-                ),
-                "directions_url": result.directions_url,
-                "starting_price": (
-                    float(result.starting_price)
-                    if result.starting_price is not None
-                    else None
-                ),
-                "distance_km": (
-                    round(result.distance_km, 1)
-                    if result.distance_km is not None
-                    else None
-                ),
-            }
-            for result in venue_results
-            if result.venue.has_coordinates
-        ],
     )
 
 
@@ -186,31 +150,12 @@ def detail(venue_id: int):
     except VenueNotFoundError:
         abort(404)
     directions_url = build_google_maps_directions_url(venue)
-    map_markers = []
-    if venue.has_coordinates:
-        map_markers.append(
-            {
-                "venue_id": venue.id,
-                "name": venue.name,
-                "latitude": float(venue.latitude),
-                "longitude": float(venue.longitude),
-                "detail_url": None,
-                "directions_url": directions_url,
-                "starting_price": None,
-                "distance_km": None,
-            }
-        )
-
     return render_template(
         "venues/detail.html",
         venue=venue,
         fields=list_public_fields(venue.id),
         day_labels=DAY_OF_WEEK_LABELS,
         directions_url=directions_url,
-        map_markers=map_markers,
-        google_maps_api_key=current_app.config.get(
-            "GOOGLE_MAPS_BROWSER_API_KEY", ""
-        ),
     )
 
 
@@ -237,9 +182,6 @@ def owner_create():
                 address=form.address.data,
                 province_code=form.province_code.data,
                 ward_code=form.ward_code.data,
-                google_place_id=form.google_place_id.data,
-                latitude=form.latitude.data,
-                longitude=form.longitude.data,
                 phone=form.phone.data,
                 description=form.description.data,
                 opening_time=form.opening_time_value,
@@ -259,9 +201,6 @@ def owner_create():
         form=form,
         page_title="Thêm cơ sở",
         submit_label="Tạo cơ sở",
-        google_maps_api_key=current_app.config.get(
-            "GOOGLE_MAPS_BROWSER_API_KEY", ""
-        ),
         wards_api_url=url_for("venues.administrative_wards"),
     )
 
@@ -295,9 +234,6 @@ def owner_edit(venue_id: int):
                 address=form.address.data,
                 province_code=form.province_code.data,
                 ward_code=form.ward_code.data,
-                google_place_id=form.google_place_id.data,
-                latitude=form.latitude.data,
-                longitude=form.longitude.data,
                 phone=form.phone.data,
                 description=form.description.data,
                 opening_time=form.opening_time_value,
@@ -319,9 +255,6 @@ def owner_edit(venue_id: int):
         page_title="Chỉnh sửa cơ sở",
         submit_label="Lưu thay đổi",
         venue=venue,
-        google_maps_api_key=current_app.config.get(
-            "GOOGLE_MAPS_BROWSER_API_KEY", ""
-        ),
         wards_api_url=url_for("venues.administrative_wards"),
     )
 
@@ -359,12 +292,6 @@ def admin_index():
             venue.id: build_google_maps_directions_url(venue)
             for venue in venues
         },
-        google_maps_api_key=current_app.config.get(
-            "GOOGLE_MAPS_BROWSER_API_KEY", ""
-        ),
-        has_mappable_venues=any(
-            venue.google_place_id and venue.has_coordinates for venue in venues
-        ),
     )
 
 

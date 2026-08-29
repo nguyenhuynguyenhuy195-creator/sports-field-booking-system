@@ -15,9 +15,8 @@
 
 - Ô tìm theo tên, địa chỉ chi tiết, phường/xã/đặc khu hoặc tỉnh/thành phố.
 - Bộ lọc sport, field type và khoảng giá; khi user đổi sport, trang tự áp dụng bộ lọc để hiển thị toàn bộ venue có field thuộc sport đó. Chỉ các field type thực tế thuộc sport đã chọn được hiển thị trực tiếp thành nút, không có nút “Tất cả”; khi chưa chọn nút field type nào thì sport vẫn bao gồm mọi loại sân của chính nó. Bấm lại field type đang chọn để bỏ lọc chi tiết. Card kết quả chỉ liệt kê field type thuộc sport/field type đang lọc.
-- Nút “Dùng vị trí của tôi” và bán kính 3/5/10 km.
-- Nếu browser từ chối vị trí, hiển thị hướng dẫn ngắn và giữ tìm kiếm văn bản hoạt động.
-- Hai chế độ xem: danh sách và bản đồ; mobile ưu tiên danh sách và cho mở bản đồ riêng.
+- Kết quả hiển thị dạng danh sách/card; không có bản đồ nhúng hoặc bộ lọc bán kính.
+- Mỗi card có nút mở chỉ đường trên Google Maps ở tab mới.
 - Card venue hiển thị địa chỉ, sport/field type đang hoạt động, giờ hoạt động, giá từ và khoảng cách nếu có.
 - Marker hiển thị tên, khoảng cách, giá từ và nút xem chi tiết.
 - Điều kiện đang lọc hiển thị thành chip; phân trang giữ nguyên query.
@@ -28,18 +27,15 @@
 - Nhập tên, số liên hệ, mô tả và giờ hoạt động.
 - Owner chọn `Tỉnh/Thành phố`, sau đó chỉ chọn được `Phường/Xã/Đặc khu` thuộc địa phương đó; danh mục không cho nhập tự do.
 - Owner nhập địa chỉ chi tiết riêng. Backend tự tra catalog và lưu snapshot tên theo mã đã chọn.
-- Places Autocomplete chỉ hỗ trợ đối chiếu địa chỉ Google, place ID và tọa độ; không tự quyết định tỉnh/phường.
-- Sau khi chọn gợi ý Google, hiển thị địa chỉ đối chiếu, bản đồ và marker để owner kiểm tra.
-- Lưu place ID và tọa độ trong hidden fields nhưng backend vẫn validate.
-- Nếu owner sửa chữ trong địa chỉ sau khi chọn place, yêu cầu chọn/xác nhận lại vị trí.
-- Không hiển thị API key server hoặc chi tiết billing.
+- Không hiển thị Places Autocomplete, bản đồ hoặc trường tọa độ.
+- Dữ liệu Place ID/tọa độ legacy không xuất hiện trong form và không bị xóa khi Owner sửa thông tin khác.
 
-Venue cũ chưa có tọa độ phải có cảnh báo riêng: vẫn hoạt động theo tìm kiếm văn bản nhưng chưa xuất hiện trong “gần tôi”.
+Venue cũ và venue mới đều tìm kiếm theo địa chỉ hành chính; tọa độ không phải điều kiện công khai.
 
 ## 7.4. Trang chi tiết venue/field
 
 - Hiển thị venue, địa chỉ, giờ hoạt động và các field theo từng sport.
-- Bản đồ có marker và nút “Mở chỉ đường trên Google Maps”.
+- Có nút “Mở chỉ đường trên Google Maps”; không nhúng bản đồ.
 - Field hiển thị sport, field type, capacity, trạng thái và khung giá.
 - Nút đặt sân chỉ bật với field ACTIVE.
 - Không hiển thị đánh giá Google hoặc cơ sở bên ngoài trong MVP.
@@ -136,7 +132,7 @@ Hiển thị:
 
 ## 7.9. Dashboard owner
 
-- Venue chờ duyệt/đang hoạt động/bị ẩn và cảnh báo thiếu tọa độ.
+- Venue chờ duyệt/đang hoạt động/bị ẩn và địa chỉ hành chính.
 - Field nhóm theo sport, khung giá và bảo trì.
 - Booking hôm nay, đang giữ chỗ/chờ cọc/chờ đối thủ.
 - Tiền cọc thực thu, phần dự kiến trả tại sân, khoản bị giữ, refund ngoại lệ và lý do hủy.
@@ -167,8 +163,7 @@ Hiển thị:
 
 ## 7.12. Empty state và lỗi bắt buộc
 
-- Không có venue theo bộ lọc hoặc bán kính.
-- Không cấp quyền vị trí hoặc venue chưa có tọa độ.
+- Không có venue theo bộ lọc văn bản/khu vực.
 - Field/venue chưa hoạt động.
 - Play format không hợp lệ với sport/booking mode.
 - Khung giờ bận, bảo trì, thiếu giá hoặc quá hạn.

@@ -77,7 +77,7 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-Sao chép `.env.example` thành `.env` và cập nhật thông tin SQL Server. Không commit `.env` hoặc secret key. Nếu dùng bản đồ, điền `GOOGLE_MAPS_BROWSER_API_KEY` đã giới hạn theo HTTP referrer và Maps JavaScript/Places API.
+Sao chép `.env.example` thành `.env` và cập nhật thông tin SQL Server. Không commit `.env` hoặc secret key. Ứng dụng chỉ mở liên kết chỉ đường Google Maps và không cần Maps API key.
 
 Mặc định `MOMO_ENABLED=false`, nên môi trường local tiếp tục dùng provider `MOCK` và không trừ tiền thật. Để kiểm thử MoMo Sandbox, cần bộ khóa M4B Sandbox và hai URL HTTPS công khai, sau đó cấu hình `MOMO_PARTNER_CODE`, `MOMO_ACCESS_KEY`, `MOMO_SECRET_KEY`, `MOMO_REDIRECT_URL`, `MOMO_IPN_URL` và đổi `MOMO_ENABLED=true`.
 
@@ -113,7 +113,7 @@ GET http://127.0.0.1:5000/venues
 
 ## 7. Trạng thái triển khai
 
-Ba giai đoạn đã được triển khai vào model, migration, service, route, giao diện và test: danh mục đa môn + Google Maps; booking theo chính sách cọc 30%; MoMo Sandbox với HMAC, redirect, IPN, query và refund. Dữ liệu payment cũ được giữ nhãn `LEGACY_FULL_ONLINE`, không đổi nghĩa thành cọc 30%. Kết nối MoMo thật trên Sandbox chỉ hoạt động khi người triển khai cung cấp credential M4B và URL HTTPS công khai; nếu chưa có, hệ thống chủ động giữ `MOCK`.
+Ba giai đoạn đã được triển khai vào model, migration, service, route, giao diện và test: danh mục đa môn + địa chỉ hành chính; booking theo chính sách cọc 30%; MoMo Sandbox với HMAC, redirect, IPN, query và refund. Dữ liệu vị trí Google cũ được giữ để tương thích nhưng luồng hiện tại không tải Maps/Places API. Dữ liệu payment cũ được giữ nhãn `LEGACY_FULL_ONLINE`, không đổi nghĩa thành cọc 30%. Kết nối MoMo thật trên Sandbox chỉ hoạt động khi người triển khai cung cấp credential M4B và URL HTTPS công khai; nếu chưa có, hệ thống chủ động giữ `MOCK`.
 
 **Cập nhật ngày 14/08/2026:** chính sách `FIND_OPPONENT` mới theo ADR-027 đã được triển khai: cọc 15% của creator đủ giữ sân, bài tìm đối thủ tồn tại đến giờ bắt đầu, không có top-up bắt buộc và người chủ động hủy không được hoàn cọc. Booking legacy có deadline vẫn được diễn giải theo chính sách cũ.
 
@@ -167,7 +167,7 @@ Ba giai đoạn đã được triển khai vào model, migration, service, route
 - Danh mục `sports` và `field_types` hỗ trợ bóng đá, cầu lông, pickleball và tennis.
 - Mỗi field thuộc đúng một loại sân và qua đó thuộc đúng một bộ môn.
 - Cầu lông, pickleball và tennis chọn `SINGLES` hoặc `DOUBLES` khi booking.
-- Venue lưu Google Place ID và tọa độ để ghim bản đồ, mở chỉ đường và tìm sân trong bán kính 3/5/10 km.
+- Venue dùng địa chỉ hành chính để tìm kiếm; nút chỉ đường mở Google Maps ở tab mới mà không dùng Maps API. Place ID/tọa độ cũ chỉ được giữ làm dữ liệu legacy.
 - DIRECT_BOOKING/FIND_PLAYERS thu cọc 30%; FIND_OPPONENT thu 15% từ creator và thêm 15% nếu có đối thủ.
 - Số còn lại tại sân bằng tổng tiền trừ số cọc online thực thu: 85% khi FIND_OPPONENT chưa có đối thủ, 70% khi đã đủ hai phía.
 - Kèo tìm đối thủ chia đôi khoản cọc; kèo tìm thêm người chỉ thu cọc từ người tạo.

@@ -14,9 +14,9 @@ Payment Service
 → MoMo Client → MoMo Sandbox API (bật bằng cấu hình môi trường)
 
 Browser
-→ Google Maps JavaScript / Places Autocomplete
-→ Flask nhận place ID và tọa độ đã validate
-→ Location Service lọc venue nội bộ theo bán kính
+→ Flask nhận bộ lọc văn bản/khu vực
+→ Venue Service truy vấn venue nội bộ
+→ Liên kết ngoài mở Google Maps khi user yêu cầu chỉ đường
 ```
 
 Flask render giao diện bằng Jinja2. Nghiệp vụ không được đặt toàn bộ trong route.
@@ -31,18 +31,18 @@ Trách nhiệm:
 - Gửi request đến backend.
 - Render lưới mốc giờ từ dữ liệu availability và gửi khoảng đã chọn sang endpoint quote.
 - Hiển thị countdown thanh toán đầu tiên, mức cọc mục tiêu 30%, số đã cọc và số còn lại tại sân từ dữ liệu backend. FIND_OPPONENT có thể còn 85% hoặc 70% tại sân tùy cọc thực thu.
-- Hiển thị Places Autocomplete, bản đồ/marker và xin quyền Geolocation khi user chủ động yêu cầu.
+- Hiển thị địa chỉ hành chính và liên kết chỉ đường ngoài hệ thống.
 
 Frontend không quyết định quyền, trạng thái availability cuối cùng, giá, tiền cọc, khoảng cách tin cậy, trạng thái payment hoặc refund.
 
 ## 6.3. Route Layer
 
-Các blueprint hiện có gồm `auth`, `owner_applications`, `venues`, `fields`, `pricing`, `maintenance`, `bookings`, `payments`, `matches` và health checks. Code hiện hỗ trợ danh mục đa môn, vị trí Google Maps, ba booking mode, cọc 30%, `MOCK` và MoMo Sandbox; booking lịch sử được giữ riêng bằng `LEGACY_FULL_ONLINE`.
+Các blueprint hiện có gồm `auth`, `owner_applications`, `venues`, `fields`, `pricing`, `maintenance`, `bookings`, `payments`, `matches` và health checks. Code hiện hỗ trợ danh mục đa môn, địa chỉ hành chính và liên kết chỉ đường Google Maps, ba booking mode, cọc 30%, `MOCK` và MoMo Sandbox; booking lịch sử được giữ riêng bằng `LEGACY_FULL_ONLINE`.
 
 Thiết kế đích của các blueprint thanh toán:
 - `auth`: đăng ký, đăng nhập, đăng xuất.
 - `owner_applications`: gửi và xét duyệt yêu cầu owner.
-- `venues`: tìm/lọc theo sport, field type, giá, vị trí và hiển thị venue.
+- `venues`: tìm/lọc theo sport, field type, giá, địa chỉ hành chính và hiển thị venue.
 - `fields`: quản lý field theo danh mục sport/field type.
 - `bookings`: trả lịch trống theo ngày, báo giá, tạo giữ chỗ tự động, xem và hủy booking.
 - `payments`: bắt đầu thanh toán, redirect và IPN MoMo.
@@ -63,7 +63,7 @@ Các service chính:
 - `pricing_service`: kiểm tra khung giá, tách thời lượng và tính snapshot giá.
 - `availability_service`: sinh các đoạn 30 phút theo giờ hoạt động và phân loại từ booking, bảo trì, độ phủ giá, thời điểm hiện tại.
 - `sport_catalog_service`: đọc danh mục sport/field type và validate quan hệ.
-- `location_service`: validate tọa độ, tạo bounding box/tính khoảng cách và sắp xếp venue nội bộ.
+- `venue_service`: validate địa chỉ hành chính, tìm/lọc venue và tạo liên kết chỉ đường.
 - `booking_service`: validate play format, tính mức cọc mục tiêu 30%, tạo booking, xử lý hủy/mất cọc và chuyển trạng thái.
 - `contribution_service`: phân bổ tiền cọc creator/opponent; không tạo nghĩa vụ online cho người ghép.
 - `payment_service`: tạo payment attempt, xử lý IPN và tổng tiền đã thu.
@@ -87,15 +87,13 @@ Trách nhiệm:
 
 Credential và endpoint phải đọc từ biến môi trường. Sandbox và production phải tách cấu hình; MVP chỉ bật sandbox.
 
-## 6.6. Google Maps và Places
+## 6.6. Địa chỉ và liên kết chỉ đường
 
-- Maps JavaScript API hiển thị bản đồ/marker ở frontend.
-- Places API (New) hỗ trợ autocomplete địa chỉ của owner.
-- Browser Geolocation chỉ chạy khi user bấm cho phép.
-- Backend chỉ tìm trong bảng `venues`; không dùng Nearby Search để nhập địa điểm ngoài hệ thống.
-- Tọa độ từ request được validate trước khi lưu hoặc tính khoảng cách.
-- Danh sách theo bán kính phải lọc/sắp xếp trước khi phân trang; MVP có thể dùng bounding box rồi Haversine trong service.
-- API key browser được giới hạn HTTP referrer và API; server key nếu có dùng biến môi trường.
+- Owner chọn tỉnh/thành phố và phường/xã từ catalog rồi nhập địa chỉ chi tiết.
+- Backend chỉ tìm trong bảng `venues` theo văn bản/khu vực; không gọi dịch vụ địa điểm bên ngoài.
+- Nút chỉ đường tạo URL Google Maps từ địa chỉ đầy đủ hiện tại.
+- Frontend không tải Maps JavaScript API, Places API hoặc yêu cầu Geolocation.
+- Không cần Maps API key trong cấu hình môi trường.
 
 ## 6.7. Model Layer
 
@@ -126,7 +124,7 @@ tests/
 └── integration/
 ```
 
-Google Maps client-side nằm trong `static/js`; logic validate/tìm khoảng cách nằm trong service, không đặt trong template hoặc route.
+JavaScript venue client-side chỉ quản lý bộ lọc phụ thuộc; logic validate địa chỉ và truy vấn nằm trong service, không đặt trong template hoặc route.
 
 ## 6.9. API lịch trống và báo giá
 
@@ -190,7 +188,7 @@ Availability service cũng phải bỏ qua dữ liệu đã quá hạn theo time
 - Bật CSRF cho form người dùng.
 - IPN không dùng CSRF nhưng phải xác minh HMAC.
 - Secret, connection string và MoMo key chỉ nằm trong biến môi trường.
-- Google Maps browser key phải bị giới hạn theo referrer/API; server key không được đưa vào template hoặc Git.
+- Liên kết Google Maps không chứa API key; dữ liệu Place ID/tọa độ legacy không được đưa vào form chỉnh sửa mới.
 - Không log password, secret key hoặc toàn bộ payload nhạy cảm.
 - Không log/công khai số điện thoại của hai bên. Service lưu snapshot có sự đồng ý và template chỉ trả số khi participant `JOINED`, booking còn hiệu lực và user hiện tại là creator hoặc chính participant đó.
 - Trang lịch cá nhân hợp nhất booking do user tạo với match user đã `JOINED`; match tham gia là liên kết chỉ xem, không làm thay đổi kiểm tra quyền sở hữu booking ở service.

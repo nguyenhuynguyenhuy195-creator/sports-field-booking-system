@@ -6,19 +6,17 @@
 <section class="venue-hero venue-search-hero py-4">
     <div class="container">
         <span class="eyebrow">TÌM SÂN THỂ THAO</span>
-        <h1 class="venue-page-title fw-bold mt-2 mb-2">Chọn sân phù hợp và gần bạn</h1>
-        <p class="text-secondary mb-0">Tìm bóng đá, cầu lông, pickleball hoặc tennis theo khu vực, giá và khoảng cách.</p>
+        <h1 class="venue-page-title fw-bold mt-2 mb-2">Chọn sân phù hợp với bạn</h1>
+        <p class="text-secondary mb-0">Tìm bóng đá, cầu lông, pickleball hoặc tennis theo khu vực và giá.</p>
     </div>
 </section>
 
 <section class="container venue-search-content py-4 py-lg-5">
     <form id="venue-search-form" class="venue-search-panel" method="get" action="{{ url_for('venues.index') }}" role="search">
-        {{ form.latitude() }}
-        {{ form.longitude() }}
         <div class="venue-search-heading">
             <div>
                 <h2 class="h5 fw-bold mb-1">Bạn muốn chơi ở đâu?</h2>
-                <p class="small text-secondary mb-0">Nhập tên/khu vực hoặc dùng vị trí hiện tại để tìm sân gần nhất.</p>
+                <p class="small text-secondary mb-0">Nhập tên cơ sở hoặc chọn khu vực bạn muốn chơi.</p>
             </div>
         </div>
 
@@ -67,11 +65,6 @@
 
         <div class="venue-search-actions">
             <button class="btn btn-primary venue-search-submit" type="submit"><i class="bi bi-search" aria-hidden="true"></i> Tìm sân</button>
-            <span class="venue-search-alternative">hoặc</span>
-            <button id="use-current-location" class="btn btn-outline-primary" type="button"><i class="bi bi-crosshair" aria-hidden="true"></i> Dùng vị trí của tôi</button>
-            <p id="location-search-status" class="form-text mb-0" role="status">
-                {% if form.latitude.data is not none and form.longitude.data is not none %}Đang dùng vị trí đã chọn.{% else %}Trình duyệt chỉ hỏi quyền khi bạn bấm nút.{% endif %}
-            </p>
         </div>
 
         <button
@@ -99,13 +92,6 @@
                     ></div>
                     <div id="field-type-filter-help" class="form-text">Chọn bộ môn để thu gọn danh sách loại sân.</div>
                     {% for error in form.field_type.errors %}<div class="invalid-feedback">{{ error }}</div>{% endfor %}
-                </div>
-                <div class="venue-radius-filter">
-                    {{ form.radius_km.label(class_="form-label fw-semibold") }}
-                    {{ form.radius_km(class_="form-select" + (" is-invalid" if form.radius_km.errors else "")) }}
-                    {% for error in form.radius_km.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
-                    {% for error in form.latitude.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
-                    {% for error in form.longitude.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
                 </div>
                 <fieldset class="venue-price-filter">
                     <legend class="form-label fw-semibold">Khoảng giá mỗi giờ</legend>
@@ -135,7 +121,6 @@
                     {% if form.ward_code.data %}<span class="venue-type-chip">{{ ward_labels.get(form.ward_code.data, form.ward_code.data) }}</span>{% endif %}
                     {% if form.sport.data %}<span class="venue-type-chip">{{ sport_labels[form.sport.data] }}</span>{% endif %}
                     {% if form.field_type.data %}<span class="venue-type-chip">{{ field_type_labels[form.field_type.data] }}</span>{% endif %}
-                    {% if form.radius_km.data %}<span class="venue-type-chip">Trong {{ form.radius_km.data }} km</span>{% endif %}
                     {% if form.min_price.data is not none or form.max_price.data is not none %}
                         <span class="venue-type-chip">
                             {% if form.min_price.data is not none and form.max_price.data is not none %}{{ form.min_price.data|vnd_currency }}–{{ form.max_price.data|vnd_currency }}
@@ -158,24 +143,6 @@
         </div>
 
         {% if venue_results %}
-            {% if map_markers %}
-                <details id="venue-map-panel" class="venue-map-panel mb-4">
-                    <summary class="fw-semibold">Xem {{ map_markers|length }} cơ sở trên bản đồ</summary>
-                    <div
-                        id="venue-public-map"
-                        class="venue-public-map mt-3{% if not google_maps_api_key %} d-none{% endif %}"
-                        data-markers='{{ map_markers|tojson }}'
-                        data-map-api-enabled="{{ 'true' if google_maps_api_key else 'false' }}"
-                    ></div>
-                    <div
-                        class="venue-map-fallback mt-3{% if google_maps_api_key %} d-none{% endif %}"
-                        data-venue-map-fallback
-                        role="status"
-                    >
-                        Bản đồ hiện chưa khả dụng. Bạn vẫn có thể mở chỉ đường từ từng cơ sở bên dưới.
-                    </div>
-                </details>
-            {% endif %}
             <div class="venue-grid">
                 {% for result in venue_results %}
                     {% set venue = result.venue %}
@@ -183,7 +150,6 @@
                         <div class="d-flex justify-content-between align-items-start gap-3">
                             <div class="venue-card-icon" aria-hidden="true"><i class="bi bi-geo-alt"></i></div>
                             <div class="venue-starting-price text-end">
-                                {% if result.distance_km is not none %}<span class="d-block text-success fw-semibold">Cách {{ '%.1f'|format(result.distance_km) }} km</span>{% endif %}
                                 {% if result.starting_price is not none %}<span>Giá từ</span><strong>{{ result.starting_price|vnd_currency }}/giờ</strong>{% endif %}
                             </div>
                         </div>
@@ -198,10 +164,7 @@
                         <p class="venue-card-hours mb-3"><i class="bi bi-clock" aria-hidden="true"></i><span><strong>Giờ hoạt động</strong><br>{{ venue.opening_time.strftime('%H:%M') }}–{{ venue.closing_time.strftime('%H:%M') }}</span></p>
                         <div class="d-grid gap-2 mt-auto">
                             <a class="btn btn-primary" href="{{ url_for('venues.detail', venue_id=venue.id) }}">{% if result.starting_price is none %}Xem giá từng sân{% else %}Xem sân &amp; lịch trống{% endif %}</a>
-                            {% if venue.has_coordinates %}
-                                <button class="btn btn-outline-secondary venue-map-focus-button" type="button" data-venue-map-target="{{ venue.id }}"><i class="bi bi-map" aria-hidden="true"></i> Xem trên bản đồ</button>
-                            {% endif %}
-                            <a class="btn btn-link venue-directions-link" href="{{ result.directions_url }}" target="_blank" rel="noopener noreferrer"><i class="bi bi-sign-turn-right" aria-hidden="true"></i> Mở chỉ đường</a>
+                            <a class="btn btn-link venue-directions-link" href="{{ result.directions_url }}" target="_blank" rel="noopener noreferrer"><i class="bi bi-sign-turn-right" aria-hidden="true"></i> Mở chỉ đường trên Google Maps</a>
                         </div>
                     </article>
                 {% endfor %}
@@ -209,11 +172,11 @@
             {% if search_page.pages > 1 %}
                 <nav class="venue-pagination" aria-label="Phân trang kết quả tìm sân">
                     {% if search_page.has_previous %}
-                        <a class="btn btn-outline-primary" href="{{ url_for('venues.index', q=pagination_params.q, province_code=pagination_params.province_code, ward_code=pagination_params.ward_code, sport=pagination_params.sport, field_type=pagination_params.field_type, min_price=pagination_params.min_price, max_price=pagination_params.max_price, latitude=pagination_params.latitude, longitude=pagination_params.longitude, radius_km=pagination_params.radius_km, page=search_page.page - 1) }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Trang trước</a>
+                        <a class="btn btn-outline-primary" href="{{ url_for('venues.index', q=pagination_params.q, province_code=pagination_params.province_code, ward_code=pagination_params.ward_code, sport=pagination_params.sport, field_type=pagination_params.field_type, min_price=pagination_params.min_price, max_price=pagination_params.max_price, page=search_page.page - 1) }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Trang trước</a>
                     {% else %}<span class="btn btn-outline-secondary disabled" aria-disabled="true"><i class="bi bi-arrow-left" aria-hidden="true"></i> Trang trước</span>{% endif %}
                     <span class="venue-pagination-status">Trang {{ search_page.page }}/{{ search_page.pages }}</span>
                     {% if search_page.has_next %}
-                        <a class="btn btn-outline-primary" href="{{ url_for('venues.index', q=pagination_params.q, province_code=pagination_params.province_code, ward_code=pagination_params.ward_code, sport=pagination_params.sport, field_type=pagination_params.field_type, min_price=pagination_params.min_price, max_price=pagination_params.max_price, latitude=pagination_params.latitude, longitude=pagination_params.longitude, radius_km=pagination_params.radius_km, page=search_page.page + 1) }}">Trang sau <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+                        <a class="btn btn-outline-primary" href="{{ url_for('venues.index', q=pagination_params.q, province_code=pagination_params.province_code, ward_code=pagination_params.ward_code, sport=pagination_params.sport, field_type=pagination_params.field_type, min_price=pagination_params.min_price, max_price=pagination_params.max_price, page=search_page.page + 1) }}">Trang sau <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
                     {% else %}<span class="btn btn-outline-secondary disabled" aria-disabled="true">Trang sau <i class="bi bi-arrow-right" aria-hidden="true"></i></span>{% endif %}
                 </nav>
             {% endif %}
@@ -221,7 +184,7 @@
             <div class="venue-search-empty">
                 <div class="venue-empty-icon" aria-hidden="true"><i class="bi bi-search"></i></div>
                 <h2 class="h5 fw-bold">Chưa tìm thấy sân phù hợp</h2>
-                <p class="text-secondary mb-0">Hãy thử tăng bán kính, đổi bộ môn hoặc bỏ bớt điều kiện lọc.</p>
+                <p class="text-secondary mb-0">Hãy thử đổi khu vực, bộ môn hoặc bỏ bớt điều kiện lọc.</p>
             </div>
         {% endif %}
     {% else %}
@@ -236,11 +199,5 @@
 
 {% block scripts %}
     <script src="{{ url_for('static', filename='js/administrative-unit-picker.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/venue-search-location.js') }}"></script>
-    {% if map_markers %}
-        <script src="{{ url_for('static', filename='js/venue-public-map.js') }}"></script>
-    {% endif %}
-    {% if map_markers and google_maps_api_key %}
-        <script async src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key|urlencode }}&loading=async&callback=initVenuePublicMap&language=vi&region=VN" onerror="handleVenuePublicMapError()"></script>
-    {% endif %}
+    <script src="{{ url_for('static', filename='js/venue-search-filters.js') }}"></script>
 {% endblock %}

@@ -43,7 +43,4 @@ def reset_business_data(yes: bool) -> None:
         "Created one demo Venue with normalized Province/Ward: "
         f"#{summary.venue_id}."
     )
-    click.echo(
-        "Venue is PENDING without Google Maps data; the owner must select "
-        "a valid location before Admin activation."
-    )
+    click.echo("Venue is PENDING and ready for Admin review.")

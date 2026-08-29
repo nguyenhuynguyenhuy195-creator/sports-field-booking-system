@@ -347,3 +347,17 @@ Tài liệu tham chiếu:
 - Owner cấu hình tài khoản nhận tiền trong Owner Console. Thông tin tài khoản nhận tiền không thuộc Owner Application.
 
 ADR này mở rộng ADR-006 về sandbox và làm rõ phần đối soát chưa được triển khai. ADR-016 vẫn giữ nguyên nguyên tắc booking không chờ Owner xác nhận; việc ánh xạ trạng thái chi tiết trong code hiện hữu chỉ được điều chỉnh khi Phase 2 được yêu cầu riêng.
+
+## ADR-032: Bỏ Maps/Places API, chỉ giữ liên kết chỉ đường Google Maps
+
+**Ngày quyết định:** 29/08/2026
+**Trạng thái:** Đã triển khai trong code, UI, test và tài liệu.
+
+- Không tải Google Maps JavaScript API hoặc Places API trong bất kỳ giao diện nào.
+- Bỏ bản đồ/marker nhúng, Places Autocomplete, Browser Geolocation và tìm venue theo bán kính 3/5/10 km.
+- Owner khai báo venue bằng tỉnh/thành phố, phường/xã và địa chỉ chi tiết; Admin không yêu cầu Place ID/tọa độ để duyệt ACTIVE.
+- Danh sách, trang chi tiết và Admin vẫn có liên kết “Mở chỉ đường trên Google Maps”; đây là URL ngoài hệ thống, không chứa API key.
+- `google_place_id`, `latitude` và `longitude` vẫn nằm trong schema để giữ dữ liệu legacy; form mới không hiển thị hoặc ghi đè các cột này.
+- Không có migration và không xóa dữ liệu venue hiện có.
+
+ADR này thay thế hành vi runtime của ADR-025 và phần Google Maps trong ADR-030; các ADR cũ được giữ để ghi lại lịch sử quyết định.

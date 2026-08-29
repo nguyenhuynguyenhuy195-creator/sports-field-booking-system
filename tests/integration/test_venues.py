@@ -21,6 +21,7 @@ from app.models import (
 )
 from app.services import (
     VenueError,
+    build_google_maps_directions_url,
     create_venue,
     list_provinces,
     list_wards,
@@ -97,9 +98,6 @@ def create_venue_for_owner(app, owner_id: int, **overrides) -> int:
             "description": "Có bãi giữ xe.",
             "opening_time": time(6, 0),
             "closing_time": time(23, 0),
-            "google_place_id": "test-place-minh-anh",
-            "latitude": Decimal("10.776900"),
-            "longitude": Decimal("106.700900"),
         }
         values.update(overrides)
         venue = create_venue(owner=owner, **values)
@@ -877,7 +875,7 @@ def test_owner_noncritical_update_keeps_active_venue_approval(app, client):
         assert venue.moderation_note == "Duy trì công khai."
 
 
-def test_owner_form_loads_location_consistency_script_without_maps_key(
+def test_owner_form_has_address_fields_without_embedded_maps(
     app,
     client,
 ):
@@ -891,12 +889,14 @@ def test_owner_form_loads_location_consistency_script_without_maps_key(
     response = client.get("/owner/venues/new")
 
     assert response.status_code == 200
-    assert 'src="/static/js/venue-location-picker.js"' in response.get_data(
-        as_text=True
-    )
+    page = response.get_data(as_text=True)
+    assert "Địa chỉ này sẽ được dùng để tìm kiếm" in page
+    assert "venue-location-picker.js" not in page
+    assert "maps.googleapis.com" not in page
+    assert "google_place_id" not in page
 
 
-def test_owner_update_persists_cleared_google_location_after_address_change(
+def test_owner_update_preserves_legacy_location_data_after_address_change(
     app,
     client,
 ):
@@ -906,27 +906,31 @@ def test_owner_update_persists_cleared_google_location_after_address_change(
         role=UserRole.OWNER,
     )
     venue_id = create_venue_for_owner(app, owner.id)
+    with app.app_context():
+        venue = db.session.get(Venue, venue_id)
+        venue.google_place_id = "legacy-place-id"
+        venue.latitude = Decimal("10.776900")
+        venue.longitude = Decimal("106.700900")
+        db.session.commit()
     login(client, email=owner.email)
 
     response = client.post(
         f"/owner/venues/{venue_id}/edit",
-        data=venue_form_data(
-            address="456 Nguyễn Hữu Thọ",
-            google_place_id="",
-            latitude="",
-            longitude="",
-        ),
+        data=venue_form_data(address="456 Nguyễn Hữu Thọ"),
     )
 
     assert response.status_code == 302
     with app.app_context():
         venue = db.session.get(Venue, venue_id)
         assert venue.address == "456 Nguyễn Hữu Thọ"
-        assert venue.google_place_id is None
-        assert venue.latitude is None
-        assert venue.longitude is None
+        assert venue.google_place_id == "legacy-place-id"
+        assert venue.latitude == Decimal("10.776900")
+        assert venue.longitude == Decimal("106.700900")
         assert venue.district is None
         assert venue.city is None
+        directions_url = build_google_maps_directions_url(venue)
+        assert "destination=456+Nguy%E1%BB%85n+H%E1%BB%AFu+Th%E1%BB%8D" in directions_url
+        assert "destination_place_id" not in directions_url
 
 
 def test_owner_edit_form_keeps_structured_province_and_ward_selection(app, client):
@@ -1029,9 +1033,9 @@ def test_admin_page_lists_pending_venue_and_moderation_form(app, client):
     assert "Sân bóng Minh Anh" in page
     assert "Chờ duyệt" in page
     assert "Duyệt và công khai" in page
-    assert "Đủ dữ liệu vị trí" in page
-    assert "Dữ liệu Google Maps" in page
-    assert "Google Place ID" in page
+    assert "Kiểm tra đường đi" in page
+    assert "Mở chỉ đường trên Google Maps" in page
+    assert "Dữ liệu Google Maps" not in page
     assert "admin-venue-workspace" in page
 
 
@@ -1078,7 +1082,7 @@ def test_admin_venue_status_filter_shows_only_selected_status(app, client):
     assert f"admin-venue-panel-{pending_id}" not in page
 
 
-def test_admin_cannot_activate_pending_venue_without_complete_maps_data(
+def test_admin_can_activate_pending_venue_without_maps_data(
     app,
     client,
 ):
@@ -1092,13 +1096,7 @@ def test_admin_cannot_activate_pending_venue_without_complete_maps_data(
         email="missing-location-admin@example.com",
         role=UserRole.ADMIN,
     )
-    venue_id = create_venue_for_owner(
-        app,
-        owner.id,
-        google_place_id=None,
-        latitude=None,
-        longitude=None,
-    )
+    venue_id = create_venue_for_owner(app, owner.id)
     login(client, email=admin.email)
 
     response = client.post(
@@ -1108,10 +1106,10 @@ def test_admin_cannot_activate_pending_venue_without_complete_maps_data(
 
     assert response.status_code == 302
     with app.app_context():
-        assert db.session.get(Venue, venue_id).status == VenueStatus.PENDING.value
+        assert db.session.get(Venue, venue_id).status == VenueStatus.ACTIVE.value
 
 
-def test_admin_reactivates_hidden_venue_with_complete_maps_data(app, client):
+def test_admin_reactivates_hidden_venue_without_maps_data(app, client):
     owner = create_user(
         app,
         email="hidden-owner@example.com",
@@ -1146,8 +1144,7 @@ def test_admin_reactivates_hidden_venue_with_complete_maps_data(app, client):
         assert venue.moderation_note == "Đã đối chiếu lại vị trí."
 
 
-def test_admin_venue_map_uses_one_selected_map_component(app, client):
-    app.config["GOOGLE_MAPS_BROWSER_API_KEY"] = "browser-key-for-test"
+def test_admin_venue_workspace_has_directions_without_embedded_map(app, client):
     owner = create_user(
         app,
         email="map-component-owner@example.com",
@@ -1158,21 +1155,22 @@ def test_admin_venue_map_uses_one_selected_map_component(app, client):
         email="map-component-admin@example.com",
         role=UserRole.ADMIN,
     )
-    create_venue_for_owner(app, owner.id, name="Cơ sở có bản đồ 1")
-    create_venue_for_owner(app, owner.id, name="Cơ sở có bản đồ 2")
+    create_venue_for_owner(app, owner.id, name="Cơ sở 1")
+    create_venue_for_owner(app, owner.id, name="Cơ sở 2")
     login(client, email=admin.email)
 
     response = client.get("/admin/venues?status=PENDING")
     page = response.get_data(as_text=True)
 
     assert response.status_code == 200
-    assert page.count('id="admin-venue-selected-map"') == 1
-    assert page.count("data-admin-venue-map-slot") == 2
-    assert "/static/js/admin-venue-map.js" in page
-    assert "callback=initAdminVenueMap" in page
+    assert page.count("Mở chỉ đường trên Google Maps") == 2
+    assert 'id="admin-venue-selected-map"' not in page
+    assert "data-admin-venue-map-slot" not in page
+    assert "/static/js/admin-venue-map.js" not in page
+    assert "maps.googleapis.com" not in page
 
 
-def test_admin_venue_workspace_handles_legacy_venue_without_maps_data(
+def test_admin_venue_workspace_handles_legacy_address_without_maps_data(
     app,
     client,
 ):
@@ -1207,7 +1205,8 @@ def test_admin_venue_workspace_handles_legacy_venue_without_maps_data(
     assert response.status_code == 200
     assert "Cơ sở dữ liệu cũ" in page
     assert "10 Đường Legacy, Quận 7, TP. Hồ Chí Minh" in page
-    assert "Thiếu dữ liệu Google Maps" in page
+    assert "Mở chỉ đường trên Google Maps" in page
+    assert "Dữ liệu Google Maps" not in page
 
 
 def test_admin_hides_active_venue_from_public_listing(app, client):

@@ -9,7 +9,7 @@ Các nhóm nghiệp vụ chính:
 ### 1. USER
 
 - Tìm sân theo loại hình thể thao và vị trí.
-- Google Maps / tìm sân gần người dùng.
+- Tìm sân theo địa chỉ và mở Google Maps để chỉ đường.
 - Xem chi tiết sân.
 - Đặt sân.
 - Thanh toán tiền cọc.
@@ -60,7 +60,7 @@ Bao gồm:
 - Admin dashboard data.
 - Owner application moderation foundation.
 - Venue moderation foundation.
-- Google Maps foundation.
+- Foundation địa chỉ venue và liên kết chỉ đường.
 - Admin monitoring foundation.
 - Tests.
 
@@ -109,7 +109,7 @@ Hoàn thiện Admin theo phong cách SaaS Operations Dashboard.
 - Trạng thái tài khoản.
 - Ngày tạo tài khoản.
 
-### Step 4 – Kiểm duyệt cơ sở + Google Maps
+### Step 4 – Kiểm duyệt cơ sở + địa chỉ
 
 **Trạng thái: HOÀN THÀNH**
 
@@ -119,22 +119,22 @@ Hoàn thiện Admin theo phong cách SaaS Operations Dashboard.
 
 - Catalog hai cấp gồm 34 tỉnh/thành phố và 3.321 phường/xã/đặc khu.
 - Venue lưu `province_code/province_name/ward_code/ward_name`; giữ `district/city` để đọc dữ liệu legacy.
-- Migration mới không map đoán district cũ sang ward mới và không thay đổi Place ID/tọa độ.
+- Migration mới không map đoán district cũ sang ward mới và không thay đổi dữ liệu Place ID/tọa độ legacy.
 - Form Owner dùng dropdown phụ thuộc; backend kiểm tra ward thuộc province.
 - Tìm kiếm/hiển thị dùng `venue.full_address`, có fallback legacy.
-- Google Maps tiếp tục chỉ hỗ trợ place ID, tọa độ, marker và đối chiếu formatted address.
+- Luồng hiện tại không yêu cầu Place ID/tọa độ; dữ liệu cũ được giữ và liên kết Google Maps chỉ dùng để mở chỉ đường.
 
 Step 4.0 chỉ là foundation dữ liệu; **không đồng nghĩa Step 4 Admin UI đã hoàn thành**.
 
-#### Step 4.1 – Kiểm duyệt cơ sở + Google Maps (Admin UI)
+#### Step 4.1 – Kiểm duyệt cơ sở + địa chỉ (Admin UI)
 
 **Trạng thái: HOÀN THÀNH**
 
 - Venue list.
 - Selected venue.
 - Detail panel.
-- Map integration.
-- Kiểm tra dữ liệu vị trí.
+- Liên kết chỉ đường Google Maps ngoài hệ thống.
+- Kiểm tra dữ liệu địa chỉ.
 - Approve/reject/hide theo workflow hiện tại.
 
 ### Step 5 – Quản lý tài khoản
@@ -166,8 +166,7 @@ Step 4.0 chỉ là foundation dữ liệu; **không đồng nghĩa Step 4 Admin 
 
 - User UI foundation.
 - Find Venue.
-- Google Maps.
-- Nearby venues.
+- Địa chỉ hành chính và liên kết chỉ đường Google Maps.
 - Venue cards.
 - Distance.
 - Sport / field type filters.
@@ -349,7 +348,7 @@ Step 4.0 chỉ là foundation dữ liệu; **không đồng nghĩa Step 4 Admin 
 - Permissions.
 - Booking E2E.
 - Payment/refund/settlement E2E.
-- Google Maps.
+- Kiểm tra liên kết chỉ đường Google Maps và không tải Maps/Places API.
 - Owner flow.
 - Match flow.
 - Demo data.

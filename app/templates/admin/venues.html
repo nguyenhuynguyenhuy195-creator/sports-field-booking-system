@@ -32,7 +32,7 @@
         <div>
             <span class="eyebrow">KIỂM DUYỆT</span>
             <h1 class="h2 fw-bold mt-2 mb-1">Kiểm duyệt cơ sở</h1>
-            <p class="text-secondary mb-0">Đối chiếu chủ sân, địa chỉ, vị trí Google và dấu vết kiểm duyệt trước khi công khai.</p>
+            <p class="text-secondary mb-0">Đối chiếu chủ sân, địa chỉ và dấu vết kiểm duyệt trước khi công khai.</p>
         </div>
         <span class="admin-readonly-note"><i class="bi bi-buildings" aria-hidden="true"></i>{{ venues|length }} {{ selected_filter.label|lower }}</span>
     </div>
@@ -85,7 +85,6 @@
             <div class="tab-content admin-venue-detail-stack">
                 {% for venue in venues %}
                     {% set form = moderation_forms[venue.id] %}
-                    {% set location_complete = venue.google_place_id and venue.has_coordinates %}
                     <section
                         class="tab-pane fade{% if loop.first %} show active{% endif %} admin-venue-detail"
                         id="admin-venue-panel-{{ venue.id }}"
@@ -122,24 +121,10 @@
 
                         <div class="admin-venue-detail-section">
                             <div class="admin-venue-section-heading">
-                                <i class="bi bi-map" aria-hidden="true"></i>
-                                <div><h3>Dữ liệu Google Maps</h3><p>Chỉ hiển thị bản đồ cho cơ sở đang được chọn.</p></div>
+                                <i class="bi bi-sign-turn-right" aria-hidden="true"></i>
+                                <div><h3>Kiểm tra đường đi</h3><p>Mở địa chỉ do Chủ sân khai báo trên Google Maps để đối chiếu khi cần.</p></div>
                             </div>
-                            <div class="admin-venue-location-state{% if not location_complete %} is-missing{% endif %}">
-                                <i class="bi bi-{{ 'check-circle-fill' if location_complete else 'exclamation-triangle-fill' }}" aria-hidden="true"></i>
-                                <div><strong>{{ 'Đủ dữ liệu vị trí' if location_complete else 'Thiếu dữ liệu Google Maps' }}</strong><span>{% if location_complete %}Đã có Google Place ID cùng vĩ độ và kinh độ.{% else %}Cần Google Place ID, vĩ độ và kinh độ trước khi công khai.{% endif %}</span></div>
-                            </div>
-                            <dl class="admin-venue-info-grid admin-venue-location-grid">
-                                <div class="admin-venue-info-grid-wide"><dt>Google Place ID</dt><dd>{{ venue.google_place_id or 'Chưa có' }}</dd></div>
-                                <div><dt>Vĩ độ</dt><dd>{{ venue.latitude if venue.latitude is not none else 'Chưa có' }}</dd></div>
-                                <div><dt>Kinh độ</dt><dd>{{ venue.longitude if venue.longitude is not none else 'Chưa có' }}</dd></div>
-                            </dl>
-                            <a class="admin-venue-directions-link" href="{{ directions_urls[venue.id] }}" target="_blank" rel="noopener noreferrer"><i class="bi bi-sign-turn-right" aria-hidden="true"></i>Mở Google Maps/Directions</a>
-                            {% if location_complete and google_maps_api_key %}
-                                <div class="admin-venue-map-slot" data-admin-venue-map-slot data-venue-name="{{ venue.name }}" data-latitude="{{ venue.latitude }}" data-longitude="{{ venue.longitude }}"></div>
-                            {% elif location_complete %}
-                                <div class="admin-venue-map-unavailable"><i class="bi bi-map" aria-hidden="true"></i>Bản đồ sẽ hiển thị khi cấu hình khóa Google Maps Browser API.</div>
-                            {% endif %}
+                            <a class="admin-venue-directions-link" href="{{ directions_urls[venue.id] }}" target="_blank" rel="noopener noreferrer"><i class="bi bi-sign-turn-right" aria-hidden="true"></i>Mở chỉ đường trên Google Maps</a>
                         </div>
 
                         <div class="admin-venue-detail-section admin-venue-audit-section">
@@ -162,12 +147,12 @@
                                 </div>
                                 <div class="admin-venue-actions{% if venue.status == 'PENDING' %} admin-venue-actions--two{% endif %}">
                                     {% if venue.status == 'PENDING' %}
-                                        {{ moderation_action(venue, form, 'ACTIVE', 'btn-primary', 'check2-circle', 'Duyệt và công khai', 'Cơ sở sẽ xuất hiện trong danh sách công khai nếu dữ liệu vị trí đầy đủ.', 'Cơ sở ' ~ venue.name ~ ' sẽ được duyệt và công khai. Bạn muốn tiếp tục?', not location_complete) }}
+                                        {{ moderation_action(venue, form, 'ACTIVE', 'btn-primary', 'check2-circle', 'Duyệt và công khai', 'Cơ sở sẽ xuất hiện trong danh sách công khai.', 'Cơ sở ' ~ venue.name ~ ' sẽ được duyệt và công khai. Bạn muốn tiếp tục?') }}
                                         {{ moderation_action(venue, form, 'HIDDEN', 'btn-outline-danger', 'eye-slash', 'Ẩn cơ sở', 'Giữ cơ sở ngoài danh sách công khai để tiếp tục xử lý.', 'Cơ sở ' ~ venue.name ~ ' sẽ bị ẩn khỏi danh sách công khai. Bạn muốn tiếp tục?') }}
                                     {% elif venue.status == 'ACTIVE' %}
                                         {{ moderation_action(venue, form, 'HIDDEN', 'btn-outline-danger', 'eye-slash', 'Ẩn cơ sở', 'Cơ sở sẽ không còn hiển thị với người dùng.', 'Cơ sở ' ~ venue.name ~ ' sẽ bị ẩn khỏi danh sách công khai. Bạn muốn tiếp tục?') }}
                                     {% elif venue.status == 'HIDDEN' %}
-                                        {{ moderation_action(venue, form, 'ACTIVE', 'btn-primary', 'check2-circle', 'Công khai lại', 'Chỉ có thể công khai lại khi dữ liệu vị trí Google đã đầy đủ.', 'Cơ sở ' ~ venue.name ~ ' sẽ được công khai lại. Bạn muốn tiếp tục?', not location_complete) }}
+                                        {{ moderation_action(venue, form, 'ACTIVE', 'btn-primary', 'check2-circle', 'Công khai lại', 'Cơ sở sẽ xuất hiện lại trong danh sách công khai.', 'Cơ sở ' ~ venue.name ~ ' sẽ được công khai lại. Bạn muốn tiếp tục?') }}
                                     {% endif %}
                                 </div>
                             </div>
@@ -176,9 +161,6 @@
                 {% endfor %}
             </div>
         </div>
-        {% if google_maps_api_key and has_mappable_venues %}
-            <div id="admin-venue-selected-map" class="admin-venue-map" hidden></div>
-        {% endif %}
     {% else %}
         <div class="admin-empty-card admin-venue-empty-state">
             <div class="admin-venue-empty-icon" aria-hidden="true"><i class="bi bi-{{ 'clipboard-check' if selected_status == 'PENDING' else 'buildings' }}"></i></div>
@@ -187,11 +169,4 @@
         </div>
     {% endif %}
 </section>
-{% endblock %}
-
-{% block scripts %}
-    {% if google_maps_api_key and has_mappable_venues %}
-        <script src="{{ url_for('static', filename='js/admin-venue-map.js') }}"></script>
-        <script async src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key|urlencode }}&amp;loading=async&amp;callback=initAdminVenueMap&amp;language=vi&amp;region=VN"></script>
-    {% endif %}
 {% endblock %}

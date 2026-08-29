@@ -29,28 +29,14 @@
                 </aside>
             </div>
         </div>
-        <section class="venue-detail-map-section mt-4" aria-labelledby="venue-map-heading">
+        <section class="venue-detail-directions-section mt-4" aria-labelledby="venue-directions-heading">
             <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-                <h2 id="venue-map-heading" class="h4 fw-bold mb-0">Vị trí cơ sở</h2>
+                <div>
+                    <h2 id="venue-directions-heading" class="h4 fw-bold mb-1">Đường đi đến cơ sở</h2>
+                    <p class="text-secondary mb-0">Mở địa chỉ này trực tiếp trên Google Maps.</p>
+                </div>
                 <a class="btn btn-outline-primary" href="{{ directions_url }}" target="_blank" rel="noopener noreferrer"><i class="bi bi-sign-turn-right" aria-hidden="true"></i> Mở chỉ đường trên Google Maps</a>
             </div>
-        {% if venue.has_coordinates %}
-            <div
-                id="venue-public-map"
-                class="venue-public-map{% if not google_maps_api_key %} d-none{% endif %}"
-                data-markers='{{ map_markers|tojson }}'
-                data-map-api-enabled="{{ 'true' if google_maps_api_key else 'false' }}"
-            ></div>
-            <div
-                class="venue-map-fallback{% if google_maps_api_key %} d-none{% endif %}"
-                data-venue-map-fallback
-                role="status"
-            >
-                Bản đồ hiện chưa khả dụng. Bạn vẫn có thể dùng nút mở chỉ đường ở phía trên.
-            </div>
-        {% elif not venue.has_coordinates %}
-            <div class="alert alert-light border mb-0">Cơ sở này chưa bổ sung tọa độ nên chưa hiển thị được bản đồ.</div>
-        {% endif %}
         </section>
     </div>
 
@@ -96,13 +82,4 @@
         {% endif %}
     </div>
 </section>
-{% endblock %}
-
-{% block scripts %}
-    {% if venue.has_coordinates %}
-        <script src="{{ url_for('static', filename='js/venue-public-map.js') }}"></script>
-    {% endif %}
-    {% if venue.has_coordinates and google_maps_api_key %}
-        <script async src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key|urlencode }}&loading=async&callback=initVenuePublicMap&language=vi&region=VN" onerror="handleVenuePublicMapError()"></script>
-    {% endif %}
 {% endblock %}

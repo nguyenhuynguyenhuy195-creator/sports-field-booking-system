@@ -6,7 +6,7 @@
 - Tên bảng dùng `snake_case` và số nhiều.
 - Tiền lưu bằng `DECIMAL(12,2)`; số tiền gửi MoMo phải là số nguyên VND.
 - Khoản cọc, tỷ lệ cọc và tổng tiền được snapshot trên booking; không suy lại từ cấu hình hiện hành.
-- Tọa độ venue lưu bằng `DECIMAL(9,6)`; khoảng cách là giá trị tính toán, không phải giá do Google gửi để tin tuyệt đối.
+- Tọa độ venue legacy lưu bằng `DECIMAL(9,6)` và không bị xóa khi cập nhật địa chỉ trong luồng mới.
 - Các cột giờ dùng `TIME(0)`; booking, khung giá và bảo trì không đi qua nửa đêm trong MVP.
 - Timestamp hệ thống lưu theo UTC bằng `DATETIME2`; `booking_date` và `TIME` được hiểu theo múi giờ `Asia/Ho_Chi_Minh`.
 - Trạng thái phải có `CHECK CONSTRAINT` hoặc validation tương đương trong migration.
@@ -157,7 +157,7 @@ Check constraint:
 
 Backend phải tra catalog để xác nhận province tồn tại, ward tồn tại và `ward.province_code == province.code`; frontend không được tự gửi tên snapshot. Index `(status, province_code, ward_code)` phục vụ tìm kiếm và phạm vi quản trị.
 
-`full_address` ưu tiên `address + ward_name + province_name`; nếu venue chưa chuẩn hóa thì fallback `address + district + city`. Venue mới phải có `google_place_id` và tọa độ trước khi được duyệt `ACTIVE`. Migration không sửa `google_place_id/latitude/longitude`, không map đoán district cũ sang ward mới và giữ nguyên hai cột legacy để đọc dữ liệu cũ.
+`full_address` ưu tiên `address + ward_name + province_name`; nếu venue chưa chuẩn hóa thì fallback `address + district + city`. Venue mới không yêu cầu `google_place_id` hoặc tọa độ trước khi được duyệt `ACTIVE`. Không sửa/xóa `google_place_id/latitude/longitude`, không map đoán district cũ sang ward mới và giữ nguyên các cột legacy để đọc dữ liệu cũ.
 
 ## 5.9. Bảng `fields`
 
@@ -498,7 +498,7 @@ Filtered unique index hoặc cơ chế khóa tương đương cần áp dụng c
 - Không cascade delete dữ liệu lịch sử; dữ liệu đã được tham chiếu phải chuyển trạng thái.
 - Không trả `matches.creator_contact_phone` hoặc `match_participants.contact_phone` cho user không liên quan, trước khi participant `JOINED`, hoặc sau khi booking kết thúc/hủy.
 - Việc participant xuất hiện trong lịch cá nhân được suy ra từ `match_participants.user_id/status`; không tạo booking thứ hai và không thay đổi `bookings.user_id`.
-- Tìm theo bán kính chỉ dùng venue `ACTIVE` có cặp tọa độ hợp lệ.
+- Tìm kiếm công khai chỉ dùng venue `ACTIVE`; không lọc theo bán kính.
 - Không lưu venue mới với province/ward không tồn tại hoặc ward không thuộc province đã chọn.
 
 ## 5.21. Tương thích dữ liệu khi triển khai ADR-027

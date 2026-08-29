@@ -21,20 +21,18 @@
 - owner_id lấy từ current_user.
 - Venue mới PENDING và chưa công khai.
 - Province phải tồn tại; ward phải tồn tại và thuộc đúng province. Backend lưu cả code và tên từ catalog, không tin tên do frontend gửi.
-- Venue mới phải có địa chỉ/place ID/tọa độ hợp lệ trước khi admin duyệt ACTIVE.
+- Venue mới phải có tỉnh/thành phố, phường/xã và địa chỉ chi tiết hợp lệ trước khi admin duyệt ACTIVE.
 - Admin duyệt lưu người/thời điểm/ghi chú.
 - Field thuộc venue của owner, mặc định INACTIVE và không trùng tên trong cùng venue.
 - Chỉ field ACTIVE thuộc venue ACTIVE xuất hiện để đặt.
 
-## AC-004: Google Places và tìm vị trí
+## AC-004: Địa chỉ và chỉ đường
 
 - Owner chọn tỉnh rồi chỉ thấy phường/xã/đặc khu trực thuộc; edit load đúng lựa chọn hiện tại.
-- Owner chọn gợi ý Google, xem được địa chỉ đối chiếu/marker và lưu place ID/latitude/longitude; Google không ghi đè catalog hành chính.
-- Backend từ chối latitude ngoài [-90,90], longitude ngoài [-180,180] hoặc cặp tọa độ thiếu một phía.
-- Venue cũ không tọa độ vẫn tìm theo từ khóa nhưng không xuất hiện trong kết quả bán kính.
-- User chọn 3/5/10 km và nhận đúng venue ACTIVE nội bộ nằm trong bán kính, sắp theo khoảng cách.
-- Từ chối vị trí browser không làm lỗi trang; tìm kiếm văn bản vẫn dùng được.
-- Nút chỉ đường mở Google Maps; hệ thống không tự xây tuyến đường.
+- Owner nhập địa chỉ chi tiết; backend lưu tên tỉnh/phường từ catalog và không yêu cầu Place ID/tọa độ.
+- Form không tải Maps/Places API, không hiển thị bản đồ và không xin quyền vị trí.
+- Dữ liệu Place ID/tọa độ legacy được giữ khi Owner sửa thông tin khác.
+- Nút chỉ đường mở Google Maps ở tab mới; hệ thống không tự xây tuyến đường.
 - Không có venue ngoài database xuất hiện do Nearby Search.
 
 ## AC-005: Tìm kiếm và lọc
@@ -45,7 +43,7 @@
 - Field type phải thuộc sport đã chọn.
 - “Giá từ” lấy từ price slot ACTIVE phù hợp.
 - Kết quả tối đa 9 venue/trang và giữ query khi chuyển trang.
-- Bộ lọc/tọa độ sai hiển thị lỗi tiếng Việt, không làm lỗi server.
+- Bộ lọc sai hiển thị lỗi tiếng Việt, không làm lỗi server.
 
 ## AC-006: Giá và bảo trì
 

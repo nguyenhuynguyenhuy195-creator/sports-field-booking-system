@@ -277,7 +277,6 @@ def test_admin_dashboard_uses_database_counts_for_phase_one_kpis(app, client):
     assert "Cơ sở đang chờ duyệt" in page
     assert "Lịch đặt sân hôm nay" in page
     assert "Các vấn đề cần xử lý" in page
-    assert "Cơ sở chưa khai báo vị trí đầy đủ" in page
     assert "Thanh toán cần kiểm tra" in page
     assert "Hoàn tiền chưa hoàn tất" in page
     assert "PENDING" not in page
@@ -292,10 +291,8 @@ def test_admin_dashboard_uses_database_counts_for_phase_one_kpis(app, client):
     assert "Chờ duyệt" in owner_applications_page
 
     venues_page = client.get("/admin/venues").get_data(as_text=True)
-    assert "Thiếu dữ liệu Google Maps" in venues_page
-    assert "Dữ liệu Google Maps" in venues_page
-    assert "Vĩ độ" in venues_page
-    assert "latitude hoặc longitude đang null" not in venues_page
+    assert "Kiểm tra đường đi" in venues_page
+    assert "Mở chỉ đường trên Google Maps" in venues_page
 
 
 def test_admin_status_labels_use_vietnamese_business_language():
