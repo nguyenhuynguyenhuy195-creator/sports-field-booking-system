@@ -116,6 +116,11 @@ def test_demo_reset_preserves_accounts_and_catalogs_and_seeds_structured_data(
         assert venue.google_place_id is None
         assert venue.latitude is None
         assert venue.longitude is None
+        assert venue.description == (
+            "Dữ liệu demo có cấu trúc để Chủ sân quản lý cơ sở "
+            "và gửi Quản trị viên kiểm duyệt."
+        )
+        assert "vị trí Google" not in venue.description
         assert venue.status == VenueStatus.PENDING.value
         assert db.session.scalar(db.select(db.func.count(Field.id))) == 2
         assert db.session.scalar(db.select(db.func.count(FieldPriceSlot.id))) == 21

@@ -130,7 +130,7 @@ def reset_and_seed_demo_business_data() -> DemoDataResetSummary:
             city=None,
             phone="02835102762",
             description=(
-                "Dữ liệu demo có cấu trúc để Chủ sân hoàn thiện vị trí Google "
+                "Dữ liệu demo có cấu trúc để Chủ sân quản lý cơ sở "
                 "và gửi Quản trị viên kiểm duyệt."
             ),
             opening_time=time(6, 0),

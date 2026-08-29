@@ -23,9 +23,6 @@
                             <h2 class="h5 fw-bold mt-3 mb-2">{{ venue.name }}</h2>
                             <p class="text-secondary mb-1">{{ venue.full_address }}</p>
                             <p class="mb-0"><strong>Giờ hoạt động:</strong> {{ venue.opening_time.strftime('%H:%M') }}–{{ venue.closing_time.strftime('%H:%M') }}</p>
-                            {% if not venue.has_coordinates %}
-                                <div class="alert alert-warning mt-3 mb-0">Cơ sở chưa có vị trí Google nên chưa xuất hiện trong tìm kiếm gần tôi và chưa thể được duyệt mới.</div>
-                            {% endif %}
                             {% if venue.moderation_note %}
                                 <div class="alert alert-light border mt-3 mb-0"><strong>Ghi chú kiểm duyệt:</strong> {{ venue.moderation_note }}</div>
                             {% endif %}

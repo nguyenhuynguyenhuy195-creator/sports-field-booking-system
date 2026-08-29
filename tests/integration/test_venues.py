@@ -896,6 +896,26 @@ def test_owner_form_has_address_fields_without_embedded_maps(
     assert "google_place_id" not in page
 
 
+def test_owner_venue_list_does_not_show_legacy_google_location_warning(
+    app,
+    client,
+):
+    owner = create_user(
+        app,
+        email="owner-list-without-maps@example.com",
+        role=UserRole.OWNER,
+    )
+    create_venue_for_owner(app, owner.id)
+    login(client, email=owner.email)
+
+    response = client.get("/owner/venues")
+
+    assert response.status_code == 200
+    page = response.get_data(as_text=True)
+    assert "Cơ sở chưa có vị trí Google" not in page
+    assert "tìm kiếm gần tôi" not in page
+
+
 def test_owner_update_preserves_legacy_location_data_after_address_change(
     app,
     client,
