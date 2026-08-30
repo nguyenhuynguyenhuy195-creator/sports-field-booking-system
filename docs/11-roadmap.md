@@ -276,63 +276,67 @@ Theo quyết định của người dùng ngày 31/08/2026:
 - Dedicated `/owner` workspace dùng sidebar/topbar riêng, không dùng navbar ngang dài như giao diện User.
 - Một tài khoản `OWNER` vẫn có thể chuyển giữa Trang người chơi và Quản lý sân.
 - Dropdown tài khoản Owner gồm: Trang người chơi, Quản lý sân, Hồ sơ và Đăng xuất.
+- Owner sidebar target: Tổng quan → Lịch sân → Booking → Cơ sở & Sân → Bảng giá → Bảo trì → Tài chính.
+- Cơ sở và Sân được gộp ở tầng UX vì Field luôn thuộc Venue; vẫn giữ nguyên route, service, domain và ownership validation riêng cho Venue/Field.
+- Ảnh được quản lý theo entity Venue/Field; không có menu hoặc trang Hình ảnh riêng.
 
 ### Step 3.1 – Owner Shell + Dashboard — NEXT
 
 - Sidebar/topbar riêng cho Owner Console.
 - Hỗ trợ chuyển User ↔ Owner trong cùng một tài khoản `OWNER`.
 - Dashboard tổng quan cho chủ sân.
+- Tổng quan, Booking và Cơ sở & Sân có entry hoạt động.
+- Bảng giá/Bảo trì tiếp tục dùng nested field route hiện có khi Owner đi vào từ một sân; không tạo global Field route chỉ để phục vụ sidebar.
+- Lịch sân và Tài chính chưa triển khai trước hạn.
 
-### Step 3.2 – Lịch sân — NOT STARTED
+### Step 3.2 – Schedule & Booking Operations — NOT STARTED
 
-- Primary view = time × field matrix.
-- Secondary view = list view.
+- Lịch sân time × field.
+- List view.
+- Booking Owner.
+- Booking detail.
+- Trạng thái booking.
+- Owner cancellation và operational actions trong scope.
 
-### Step 3.3 – Quản lý cơ sở — NOT STARTED
+### Step 3.3 – Venue & Field Management + Media — NOT STARTED
 
-- Tạo và sửa cơ sở.
-- Xem trạng thái duyệt venue.
+- Danh sách cơ sở.
+- Tạo/sửa cơ sở; giờ hoạt động và trạng thái.
+- Ảnh đại diện và gallery cơ sở.
+- Xem sân theo từng cơ sở; chỉ hiển thị Field thuộc Venue được chọn.
+- Tạo/sửa sân trong cơ sở.
+- Field type, capacity và trạng thái sân.
+- Ảnh đại diện và gallery sân.
+- Không gộp backend Venue/Field; giữ route/service/domain và ownership validation hiện có.
 
-### Step 3.4 – Quản lý sân — NOT STARTED
+### Step 3.4 – Pricing & Maintenance Operations — NOT STARTED
 
-- Field type.
-- Capacity.
-- Trạng thái sân.
+- Bảng giá theo ngày trong tuần và khung giờ.
+- Overlap validation.
+- Bảo trì.
+- Current/upcoming maintenance.
+- Booking conflict validation.
 
-### Step 3.5 – Ảnh cơ sở & ảnh sân — NOT STARTED
+### Step 3.5 – Owner Finance Foundation — NOT STARTED
 
-- Upload ảnh.
-- Chọn ảnh đại diện.
-- Quản lý gallery.
-
-### Step 3.6 – Bảng giá — NOT STARTED
-
-- Giá theo ngày trong tuần.
-- Giá theo khung giờ.
-
-### Step 3.7 – Bảo trì — NOT STARTED
-
-- Tạo lịch bảo trì.
-- Kiểm tra conflict với booking trước khi lưu.
-
-### Step 3.8 – Booking Owner — NOT STARTED
-
-- Theo dõi booking của các sân thuộc Owner.
-
-### Step 3.9 – Owner Finance Foundation — NOT STARTED
-
-- Hiển thị tiền cọc.
-- Hiển thị khoản chờ đối soát và khoản đã đối soát.
-- Quản lý thông tin tài khoản nhận tiền.
-- Phase này chỉ chuẩn bị giao diện và dữ liệu Owner cần nhìn thấy; không triển khai sâu actual settlement/payout.
+- Tổng quan tài chính Owner.
+- Payment liên quan.
+- Settlement status nếu source hỗ trợ.
+- Lịch sử.
+- Tài khoản nhận tiền.
+- Không triển khai payout/settlement engine thực tế.
 - Actual payment, refund và settlement/payout engine được giữ lại cho Phase 2.4 – Thanh toán, Phase 2.5 – Hoàn tiền và Phase 2.6 – Settlement / đối soát chủ sân.
 
-### Step 3.10 – Owner Console Polish — NOT STARTED
+### Step 3.6 – Owner Console Final Polish & Audit — NOT STARTED
 
 - Responsive.
-- Consistency.
+- UX consistency.
+- Permissions.
+- Empty states.
 - UX wording.
-- Final audit.
+- Browser QA.
+- Full regression.
+- Phase 3 acceptance.
 
 ---
 
