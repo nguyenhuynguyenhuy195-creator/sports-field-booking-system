@@ -163,7 +163,7 @@ Step 4.0 chỉ là foundation dữ liệu; **không đồng nghĩa Step 4 Admin 
 
 ## PHASE 1.2 – USER UI FOUNDATION + FIND VENUE
 
-**Trạng thái: ĐANG THỰC HIỆN**
+**Trạng thái: HOÀN THÀNH – ĐÃ NGHIỆM THU NGÀY 30/08/2026**
 
 ### Đã hoàn thành
 
@@ -187,21 +187,16 @@ Step 4.0 chỉ là foundation dữ liệu; **không đồng nghĩa Step 4 Admin 
 - Google Maps API / Places / Nearby đã được loại khỏi MVP.
 - Tests đã được cập nhật theo scope không Maps API.
 
-### Đang thực hiện
+### Kết quả nghiệm thu Prompt 3.1 / Prompt 4
 
-- Find Venue UX redesign.
-- Venue cards UX polish.
-- Responsive desktop/mobile.
-- Venue Detail light visual consistency.
-
-### Còn lại trước khi đóng Phase 1.2
-
-- Prompt 3.1 – Find Venue UX redesign.
-- Visual QA desktop 1440x900.
-- Visual QA mobile 390x844.
-- Full regression tests.
-- Final Phase 1.2 audit.
-- Roadmap close / acceptance review.
+- Find Venue UX redesign, Venue cards UX polish và Venue Detail light visual consistency: ĐẠT.
+- Visual QA desktop 1440x900: ĐẠT; form tìm kiếm, bộ lọc nâng cao, danh sách kết quả và venue cards hiển thị đúng, không tràn ngang.
+- Visual QA mobile 390x844: ĐẠT; navigation thu gọn, form/bộ lọc/card responsive và không tràn ngang.
+- Search theo keyword và dependent Province/Ward filter hoạt động đúng trên UI thực tế.
+- Browser console không ghi nhận lỗi JavaScript trong luồng kiểm tra.
+- Full regression: 258 passed, 0 failed, 0 errors, 0 skipped trong 94.05 giây.
+- Final Phase 1.2 audit: ĐẠT; không mở rộng phạm vi Maps API/Places/Nearby, chỉ giữ liên kết chỉ đường ngoài hệ thống từ `full_address`.
+- Phase 1.2 được chấp thuận và đóng; không bổ sung tính năng mới trong bước nghiệm thu này.
 
 ---
 
@@ -397,7 +392,7 @@ Hiện tại:
 
 - Phase 1A: DONE.
 - Phase 1B: DONE.
-- Phase 1.2: IN PROGRESS.
+- Phase 1.2: DONE / ACCEPTED (30/08/2026).
 - Phase 2: NOT STARTED.
 - Phase 3: NOT STARTED.
 - Phase 4: NOT YET AUDITED / ACCEPTED.
@@ -428,22 +423,16 @@ DONE:
 - External Google Maps directions.
 - Remove Maps API / Places / Nearby.
 - USER/OWNER/ADMIN Venue data consistency foundation.
-
-CURRENT:
-
 - Prompt 3.1 – Find Venue UX redesign.
-
-NEXT:
-
-- Prompt 4 – Phase 1.2 final audit / tests / acceptance / roadmap close.
+- Visual QA desktop 1440x900 và mobile 390x844.
+- Full regression: 258 passed.
+- Prompt 4 – Final audit / acceptance / roadmap close.
 
 ### TASK TIẾP THEO
 
-**PHASE 1.2 – PROMPT 3.1: FIND VENUE UX REDESIGN**
+**PHASE 2 – ADMIN OPERATIONS: CHƯA BẮT ĐẦU**
 
-Sau khi Prompt 3.1 được người dùng chấp thuận:
-
-**PHASE 1.2 – PROMPT 4: FINAL AUDIT + CLOSE PHASE**
+Phase 1.2 đã đóng. Chỉ bắt đầu Phase 2 khi có yêu cầu riêng; bước nghiệm thu này không triển khai thêm tính năng.
 
 ---
 

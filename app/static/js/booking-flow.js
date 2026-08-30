@@ -218,7 +218,7 @@
         if (selectionStart === null || selectionFinalized) {
             if (index >= availabilitySlots.length
                 || availabilitySlots[index].status !== "AVAILABLE") {
-                showError("Mốc này không thể dùng làm giờ bắt đầu. Hãy chọn một ô còn trống.");
+                showError("Khung giờ này đã có lịch hoặc không nằm trong giờ đặt sân. Vui lòng chọn một khung giờ trống khác.");
                 return;
             }
             selectionStart = index;
