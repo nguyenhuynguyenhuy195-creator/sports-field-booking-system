@@ -270,6 +270,7 @@ def process_momo_payment_notification(
 ) -> Payment:
     """Verify and apply a server-to-server IPN idempotently."""
     momo = client or MomoClient.from_app_config()
+    current_utc = _normalize_utc(now)
     payment = _verified_momo_payment(
         payload=payload,
         momo=momo,
@@ -278,7 +279,7 @@ def process_momo_payment_notification(
 
     result_code = str(payload.get("resultCode", ""))
     provider_trans_id = str(payload.get("transId", "")) or None
-    if payment.status == PaymentStatus.SUCCESS.value:
+    if _provider_success_was_recorded(payment):
         if provider_trans_id != payment.provider_trans_id:
             raise PaymentError("Mã giao dịch MoMo không khớp lần xử lý trước.")
         return payment
@@ -297,19 +298,38 @@ def process_momo_payment_notification(
         booking_id=booking.id,
         contribution_id=payment.contribution_id,
     )
-    if (
-        contribution.status != ContributionStatus.PENDING.value
+    payable_state_changed = (
+        booking.status
+        not in {
+            BookingStatus.CONFIRMED.value,
+            BookingStatus.PARTIALLY_PAID.value,
+        }
+        or contribution.status != ContributionStatus.PENDING.value
         or contribution.user_id != payment.payer_id
-    ):
-        raise InvalidPaymentStateError(
-            "Khoản cọc đã đổi trạng thái; giao dịch cần được đối soát thủ công."
+    )
+    deadline_expired = False
+    if not payable_state_changed:
+        deadline_expired = _expire_overdue_contribution(
+            booking=booking,
+            contribution=contribution,
+            current_utc=current_utc,
         )
+    if payable_state_changed or deadline_expired:
+        _record_late_momo_success_for_refund(
+            payment=payment,
+            booking=booking,
+            contribution=contribution,
+            provider_trans_id=provider_trans_id,
+            paid_at=current_utc,
+        )
+        _commit_payment()
+        return payment
     _apply_success_to_payment(
         payment=payment,
         booking=booking,
         contribution=contribution,
         provider_trans_id=provider_trans_id,
-        paid_at=_normalize_utc(now),
+        paid_at=current_utc,
     )
     _commit_payment()
     return payment
@@ -519,6 +539,46 @@ def _apply_success_to_payment(
         )
 
 
+def _record_late_momo_success_for_refund(
+    *,
+    payment: Payment,
+    booking: Booking,
+    contribution: BookingContribution,
+    provider_trans_id: str,
+    paid_at: datetime,
+) -> None:
+    """Preserve provider success without applying late money to the booking."""
+    payment.provider_trans_id = provider_trans_id
+    payment.status = PaymentStatus.EXPIRED.value
+    payment.paid_at = paid_at
+
+    from .refund import RefundError, queue_late_momo_payment_refund
+
+    try:
+        queue_late_momo_payment_refund(
+            booking=booking,
+            contribution=contribution,
+            payment=payment,
+            now=paid_at,
+        )
+    except RefundError as exc:
+        db.session.rollback()
+        raise PaymentError(
+            "Không thể ghi nhận giao dịch đến muộn để hoàn tiền."
+        ) from exc
+
+
+def _provider_success_was_recorded(payment: Payment) -> bool:
+    return bool(
+        payment.status == PaymentStatus.SUCCESS.value
+        or (
+            payment.status == PaymentStatus.EXPIRED.value
+            and payment.result_code == "0"
+            and payment.provider_trans_id
+        )
+    )
+
+
 def _validate_top_up(
     *,
     booking: Booking,
@@ -565,23 +625,61 @@ def _validate_payable_contribution(
         raise InvalidPaymentStateError("Lịch đặt sân hiện không thể nhận thanh toán.")
     if contribution.status != ContributionStatus.PENDING.value:
         raise InvalidPaymentStateError("Khoản đóng góp đã được xử lý.")
-    if contribution.expires_at is not None and contribution.expires_at <= current_utc:
-        from .matchmaking import expire_participant_for_contribution
-
-        participant_expired = expire_participant_for_contribution(
-            contribution,
-            now=current_utc,
-        )
-        if not participant_expired:
-            contribution.status = ContributionStatus.EXPIRED.value
-        if (
-            not participant_expired
-            and booking.status == BookingStatus.CONFIRMED.value
-            and Decimal(booking.paid_amount) == 0
-        ):
-            booking.status = BookingStatus.EXPIRED.value
+    if _expire_overdue_contribution(
+        booking=booking,
+        contribution=contribution,
+        current_utc=current_utc,
+    ):
         _commit_payment()
         raise PaymentExpiredError("Khoản thanh toán đã hết hạn.")
+
+
+def _expire_overdue_contribution(
+    *,
+    booking: Booking,
+    contribution: BookingContribution,
+    current_utc: datetime,
+) -> bool:
+    initial_hold_expired = bool(
+        booking.status == BookingStatus.CONFIRMED.value
+        and Decimal(booking.paid_amount) == Decimal("0.00")
+        and booking.initial_payment_due_at is not None
+        and booking.initial_payment_due_at <= current_utc
+    )
+    contribution_expired = bool(
+        contribution.expires_at is not None
+        and contribution.expires_at <= current_utc
+    )
+    if not initial_hold_expired and not contribution_expired:
+        return False
+
+    if initial_hold_expired:
+        booking.status = BookingStatus.EXPIRED.value
+        pending_contributions = list(
+            db.session.scalars(
+                with_update_lock(
+                    db.select(BookingContribution).where(
+                        BookingContribution.booking_id == booking.id,
+                        BookingContribution.status
+                        == ContributionStatus.PENDING.value,
+                    ),
+                    BookingContribution,
+                )
+            )
+        )
+        for pending in pending_contributions:
+            pending.status = ContributionStatus.EXPIRED.value
+        return True
+
+    from .matchmaking import expire_participant_for_contribution
+
+    participant_expired = expire_participant_for_contribution(
+        contribution,
+        now=current_utc,
+    )
+    if not participant_expired:
+        contribution.status = ContributionStatus.EXPIRED.value
+    return True
 
 
 def _lock_booking(booking_code: str) -> Booking:

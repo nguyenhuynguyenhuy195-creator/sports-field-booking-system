@@ -322,6 +322,7 @@ def process_pending_momo_refunds(
             booking = refund.booking
             _apply_refund_success(
                 refund=refund,
+                payment=payment,
                 booking=booking,
                 contribution=contribution,
                 provider_trans_id=provider_trans_id,
@@ -344,6 +345,39 @@ def process_pending_momo_refunds(
             _finish_cancelled_booking(booking, current_utc=current_utc)
     commit_refunds("Không thể cập nhật kết quả hoàn tiền MoMo.")
     return succeeded
+
+
+def queue_late_momo_payment_refund(
+    *,
+    booking: Booking,
+    contribution: BookingContribution,
+    payment: Payment,
+    now: datetime | None = None,
+) -> Refund:
+    """Queue a verified provider success that arrived after the obligation closed."""
+    if (
+        payment.provider != PaymentProvider.MOMO.value
+        or payment.status != PaymentStatus.EXPIRED.value
+        or payment.result_code != "0"
+        or not payment.provider_trans_id
+    ):
+        raise InvalidRefundStateError(
+            "Giao dịch đến muộn chưa có đủ dữ liệu MoMo để hoàn tiền."
+        )
+    refund, _ = _record_refund(
+        booking=booking,
+        contribution=contribution,
+        payment=payment,
+        amount=Decimal(payment.amount),
+        reason=(
+            "MoMo xác nhận thanh toán sau khi khoản cọc đã hết hiệu lực; "
+            "hoàn lại toàn bộ cho người trả."
+        ),
+        operation_key=f"LATE-PAYMENT-{payment.id}",
+        current_utc=normalize_utc(now),
+        require_recorded_balance=False,
+    )
+    return refund
 
 
 def _parse_refund_query(order_id: str, response: dict) -> tuple[str, str | None]:
@@ -429,6 +463,7 @@ def _record_refund(
     reason: str,
     operation_key: str,
     current_utc: datetime,
+    require_recorded_balance: bool = True,
 ) -> tuple[Refund, bool]:
     order_id = f"{payment.provider}-REFUND-{operation_key}"
     existing = db.session.scalar(db.select(Refund).where(Refund.order_id == order_id))
@@ -438,9 +473,9 @@ def _record_refund(
     amount = Decimal(amount).quantize(MONEY_QUANTUM)
     if amount <= 0 or amount > _remaining_refundable_amount(payment):
         raise InvalidRefundStateError("Số tiền hoàn không hợp lệ.")
-    if amount > Decimal(contribution.amount_paid):
+    if require_recorded_balance and amount > Decimal(contribution.amount_paid):
         raise InvalidRefundStateError("Số tiền hoàn vượt khoản đóng góp còn hiệu lực.")
-    if amount > Decimal(booking.paid_amount):
+    if require_recorded_balance and amount > Decimal(booking.paid_amount):
         raise InvalidRefundStateError("Số tiền hoàn vượt số tiền lịch đặt đang ghi nhận.")
 
     is_mock = payment.provider == PaymentProvider.MOCK.value
@@ -466,6 +501,7 @@ def _record_refund(
         return refund, True
     _apply_refund_success(
         refund=refund,
+        payment=payment,
         booking=booking,
         contribution=contribution,
         provider_trans_id=refund.provider_refund_trans_id,
@@ -477,23 +513,30 @@ def _record_refund(
 def _apply_refund_success(
     *,
     refund: Refund,
+    payment: Payment,
     booking: Booking,
     contribution: BookingContribution,
     provider_trans_id: str | None,
     current_utc: datetime,
 ) -> None:
     amount = Decimal(refund.amount)
-    contribution.amount_paid = (
-        Decimal(contribution.amount_paid) - amount
-    ).quantize(MONEY_QUANTUM)
-    contribution.status = (
-        ContributionStatus.REFUNDED.value
-        if Decimal(contribution.amount_paid) == 0
-        else ContributionStatus.PARTIALLY_REFUNDED.value
+    rejected_late_payment = bool(
+        payment.status == PaymentStatus.EXPIRED.value
+        and payment.result_code == "0"
+        and payment.provider_trans_id
     )
-    booking.paid_amount = (Decimal(booking.paid_amount) - amount).quantize(
-        MONEY_QUANTUM
-    )
+    if not rejected_late_payment:
+        contribution.amount_paid = (
+            Decimal(contribution.amount_paid) - amount
+        ).quantize(MONEY_QUANTUM)
+        contribution.status = (
+            ContributionStatus.REFUNDED.value
+            if Decimal(contribution.amount_paid) == 0
+            else ContributionStatus.PARTIALLY_REFUNDED.value
+        )
+        booking.paid_amount = (Decimal(booking.paid_amount) - amount).quantize(
+            MONEY_QUANTUM
+        )
     refund.provider_refund_trans_id = provider_trans_id
     refund.status = RefundStatus.SUCCESS.value
     refund.result_code = "0"
