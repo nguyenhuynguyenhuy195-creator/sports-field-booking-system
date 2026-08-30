@@ -200,9 +200,24 @@ Step 4.0 chỉ là foundation dữ liệu; **không đồng nghĩa Step 4 Admin 
 
 ---
 
+## THỨ TỰ THỰC HIỆN CHÍNH THỨC
+
+Theo quyết định của người dùng ngày 31/08/2026:
+
+> **Phase 1.2 → Phase 3 → Phase 2 → Phase 4 → Phase 4.1 → Phase 5 → Phase 6 → Final**
+
+- Phase 2 không bị loại khỏi roadmap; Phase này chỉ được tạm hoãn để ưu tiên hoàn thiện giao diện và nghiệp vụ Owner Console trước.
+- Sau Phase 3, dự án quay lại Phase 2 – Admin Operations rồi tiếp tục theo thứ tự trên.
+
+---
+
 ## PHASE 2 – ADMIN OPERATIONS
 
-**Trạng thái: CHƯA LÀM**
+**Trạng thái: NOT STARTED – DEFERRED BY USER DECISION**
+
+- Phase 2 vẫn giữ nguyên phạm vi và không bị bỏ.
+- Admin Operations được chủ động tạm hoãn vì Owner Console được ưu tiên thực hiện trước.
+- Actual payment, refund và settlement/payout engine vẫn được hoàn thiện tại Step 2.4–2.6 sau khi Phase 3 kết thúc.
 
 ### Step 2.1 – Lịch đặt sân
 
@@ -256,44 +271,68 @@ Step 4.0 chỉ là foundation dữ liệu; **không đồng nghĩa Step 4 Admin 
 
 ## PHASE 3 – OWNER CONSOLE
 
-**Trạng thái: CHƯA LÀM**
+**Trạng thái: NEXT / IN PROGRESS**
 
-- Dedicated `/owner` workspace.
-- Owner Shell.
-- Owner Dashboard.
+- Dedicated `/owner` workspace dùng sidebar/topbar riêng, không dùng navbar ngang dài như giao diện User.
+- Một tài khoản `OWNER` vẫn có thể chuyển giữa Trang người chơi và Quản lý sân.
+- Dropdown tài khoản Owner gồm: Trang người chơi, Quản lý sân, Hồ sơ và Đăng xuất.
 
-### Lịch sân
+### Step 3.1 – Owner Shell + Dashboard — NEXT
 
-- Primary = time × field matrix.
-- Secondary = list view.
+- Sidebar/topbar riêng cho Owner Console.
+- Hỗ trợ chuyển User ↔ Owner trong cùng một tài khoản `OWNER`.
+- Dashboard tổng quan cho chủ sân.
 
-### Quản lý
+### Step 3.2 – Lịch sân — NOT STARTED
 
-- Cơ sở.
-- Sân.
-- Bảng giá.
-- Bảo trì.
+- Primary view = time × field matrix.
+- Secondary view = list view.
 
-### Bảng giá
+### Step 3.3 – Quản lý cơ sở — NOT STARTED
 
-- Theo khung giờ.
-- Theo ngày trong tuần.
+- Tạo và sửa cơ sở.
+- Xem trạng thái duyệt venue.
 
-### Bảo trì
+### Step 3.4 – Quản lý sân — NOT STARTED
 
-- Date.
-- Start time.
-- End time.
-- Reason.
-- Không cho tạo nếu xung đột booking chưa xử lý.
+- Field type.
+- Capacity.
+- Trạng thái sân.
 
-### Tài chính
+### Step 3.5 – Ảnh cơ sở & ảnh sân — NOT STARTED
 
-- Tiền cọc.
-- Khoản chờ quyết toán.
-- Khoản đã quyết toán.
-- Tài khoản nhận tiền.
-- Không làm accounting phức tạp.
+- Upload ảnh.
+- Chọn ảnh đại diện.
+- Quản lý gallery.
+
+### Step 3.6 – Bảng giá — NOT STARTED
+
+- Giá theo ngày trong tuần.
+- Giá theo khung giờ.
+
+### Step 3.7 – Bảo trì — NOT STARTED
+
+- Tạo lịch bảo trì.
+- Kiểm tra conflict với booking trước khi lưu.
+
+### Step 3.8 – Booking Owner — NOT STARTED
+
+- Theo dõi booking của các sân thuộc Owner.
+
+### Step 3.9 – Owner Finance Foundation — NOT STARTED
+
+- Hiển thị tiền cọc.
+- Hiển thị khoản chờ đối soát và khoản đã đối soát.
+- Quản lý thông tin tài khoản nhận tiền.
+- Phase này chỉ chuẩn bị giao diện và dữ liệu Owner cần nhìn thấy; không triển khai sâu actual settlement/payout.
+- Actual payment, refund và settlement/payout engine được giữ lại cho Phase 2.4 – Thanh toán, Phase 2.5 – Hoàn tiền và Phase 2.6 – Settlement / đối soát chủ sân.
+
+### Step 3.10 – Owner Console Polish — NOT STARTED
+
+- Responsive.
+- Consistency.
+- UX wording.
+- Final audit.
 
 ---
 
@@ -393,12 +432,18 @@ Hiện tại:
 - Phase 1A: DONE.
 - Phase 1B: DONE.
 - Phase 1.2: DONE / ACCEPTED (30/08/2026).
-- Phase 2: NOT STARTED.
-- Phase 3: NOT STARTED.
+- Phase 2: NOT STARTED / DEFERRED BY USER DECISION.
+- Phase 3: NEXT / IN PROGRESS.
 - Phase 4: NOT YET AUDITED / ACCEPTED.
 - Phase 4.1: NOT STARTED.
 - Phase 5: NOT STARTED.
 - Phase 6: NOT STARTED.
+
+Thứ tự thực hiện hiện hành:
+
+> **Phase 1.2 → Phase 3 → Phase 2 → Phase 4 → Phase 4.1 → Phase 5 → Phase 6 → Final**
+
+Lý do: Owner Console được chủ động ưu tiên trước Admin Operations theo quyết định của người dùng.
 
 ### Phase 1B
 
@@ -430,9 +475,9 @@ DONE:
 
 ### TASK TIẾP THEO
 
-**PHASE 2 – ADMIN OPERATIONS: CHƯA BẮT ĐẦU**
+**PHASE 3 – STEP 3.1 OWNER SHELL + DASHBOARD**
 
-Phase 1.2 đã đóng. Chỉ bắt đầu Phase 2 khi có yêu cầu riêng; bước nghiệm thu này không triển khai thêm tính năng.
+Phase 1.2 đã đóng. Phase 2 được tạm hoãn và Phase 3 là Phase tiếp theo. Task cập nhật roadmap này không triển khai Step 3.1 hoặc bất kỳ mã nguồn nào.
 
 ---
 
