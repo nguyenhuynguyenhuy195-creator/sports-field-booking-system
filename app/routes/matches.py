@@ -7,6 +7,7 @@ from flask import (
     flash,
     redirect,
     render_template,
+    request,
     url_for,
 )
 from flask_login import current_user
@@ -18,6 +19,7 @@ from app.forms import (
     MatchContactForm,
     MatchForm,
     MatchJoinForm,
+    MatchSearchForm,
 )
 from app.models import (
     BookingMode,
@@ -28,6 +30,7 @@ from app.models import (
     UserRole,
 )
 from app.services import (
+    AdministrativeUnitError,
     BookingNotFoundError,
     BookingPermissionError,
     DuplicateMatchRequestError,
@@ -40,12 +43,15 @@ from app.services import (
     expire_stale_match_participants,
     get_match,
     get_user_booking,
+    list_active_sports,
     list_created_matches,
-    list_open_matches,
+    list_provinces,
+    list_wards,
     list_user_match_requests,
     opponent_join_is_automatic,
     participant_withdrawal_gets_refund,
     request_to_join_match,
+    search_open_matches,
     update_match_contact,
     validate_match_creation,
     withdraw_match_request,
@@ -84,10 +90,72 @@ SKILL_LEVEL_LABELS = {
 
 @matches_bp.get("/matches")
 def index():
-    matches = list_open_matches()
+    form = MatchSearchForm(request.args)
+    sports = list_active_sports()
+    provinces = list_provinces()
+    selected_sport = (request.args.get("sport") or "").strip().upper()
+    form.province_code.choices = [("", "Tỉnh / Thành phố")] + [
+        (province.code, province.name) for province in provinces
+    ]
+    selected_province_code = (form.province_code.data or "").strip()
+    wards = ()
+    if selected_province_code:
+        try:
+            wards = list_wards(province_code=selected_province_code)
+        except AdministrativeUnitError:
+            wards = ()
+    form.ward_code.choices = [("", "Phường / Xã")] + [
+        (ward.code, ward.full_name) for ward in wards
+    ]
+
+    search_page = None
+    search_is_valid = form.validate()
+    if search_is_valid:
+        try:
+            search_page = search_open_matches(
+                sport=selected_sport,
+                province_code=form.province_code.data,
+                ward_code=form.ward_code.data,
+                play_date=form.play_date.data,
+                match_type=form.match_type.data,
+                sort=form.sort.data,
+                page=request.args.get("page", 1, type=int) or 1,
+            )
+        except MatchmakingError as exc:
+            flash(str(exc), "danger")
+            search_is_valid = False
+
+    matches = search_page.items if search_page is not None else ()
+    pagination_params = {
+        "sport": selected_sport or None,
+        "province_code": form.province_code.data or None,
+        "ward_code": form.ward_code.data or None,
+        "play_date": (
+            form.play_date.data.isoformat() if form.play_date.data else None
+        ),
+        "match_type": form.match_type.data or None,
+        "sort": form.sort.data or "soonest",
+    }
     return render_template(
         "matches/index.html",
         matches=matches,
+        form=form,
+        sports=sports,
+        selected_sport=selected_sport,
+        wards_api_url=url_for("venues.administrative_wards"),
+        search_page=search_page,
+        search_is_valid=search_is_valid,
+        pagination_params=pagination_params,
+        has_active_filters=any(
+            request.args.get(name, "").strip()
+            for name in (
+                "sport",
+                "province_code",
+                "ward_code",
+                "play_date",
+                "match_type",
+            )
+        ),
         match_type_labels=MATCH_TYPE_LABELS,
         skill_level_labels=SKILL_LEVEL_LABELS,
     )

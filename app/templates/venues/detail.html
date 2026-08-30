@@ -52,11 +52,20 @@
                 {% for field in fields %}
                     <article class="field-card">
                         <div class="field-card-heading">
-                            <span class="field-card-icon" aria-hidden="true"><i class="bi bi-grid-3x3-gap"></i></span>
-                            <div>
-                                <h3 class="mb-1">{{ field.name }}</h3>
-                                <p class="field-card-sport mb-0">{{ field.field_type.sport.name }} · {{ field.field_type.name }}</p>
+                            <div class="field-card-title">
+                                <span class="field-card-icon" aria-hidden="true"><i class="bi bi-grid-3x3-gap"></i></span>
+                                <div>
+                                    <h3 class="mb-1">{{ field.name }}</h3>
+                                    <p class="field-card-sport mb-0">{{ field.field_type.sport.name }} · {{ field.field_type.name }}</p>
+                                </div>
                             </div>
+                            {% if field.price_slots %}
+                                {% set starting_price = field.price_slots | map(attribute='hourly_price') | min %}
+                                <div class="field-price-summary">
+                                    <span>Giá từ</span>
+                                    <strong aria-label="Giá từ {{ starting_price|vnd_currency }} mỗi giờ">{{ starting_price|vnd_currency }} <em>/ giờ</em></strong>
+                                </div>
+                            {% endif %}
                         </div>
 
                         <dl class="field-meta mb-0">
@@ -67,11 +76,6 @@
                         </dl>
 
                         {% if field.price_slots %}
-                            {% set starting_price = field.price_slots | map(attribute='hourly_price') | min %}
-                            <div class="field-price-summary">
-                                <span>Giá từ</span>
-                                <strong aria-label="Từ {{ starting_price|vnd_currency }} mỗi giờ"><small aria-hidden="true">Từ</small> {{ starting_price|vnd_currency }} <em>/ giờ</em></strong>
-                            </div>
                             <button class="btn btn-outline-primary field-price-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#field-price-schedule-{{ field.id }}" aria-expanded="false" aria-controls="field-price-schedule-{{ field.id }}"><i class="bi bi-calendar3" aria-hidden="true"></i> Xem bảng giá</button>
                             <div class="collapse field-price-collapse" id="field-price-schedule-{{ field.id }}">
                                 <div class="venue-price-slot-list">

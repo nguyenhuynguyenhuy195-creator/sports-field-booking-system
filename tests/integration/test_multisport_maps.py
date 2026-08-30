@@ -509,7 +509,7 @@ def test_text_search_paginates_without_location_filters(app, client):
         email="nearby-pagination-owner@example.com",
         role=UserRole.OWNER,
     )
-    for number in range(1, 11):
+    for number in range(1, 12):
         create_public_venue_with_field(
             app,
             owner_id=owner_id,
@@ -529,7 +529,7 @@ def test_text_search_paginates_without_location_filters(app, client):
     page = response.get_data(as_text=True)
 
     assert response.status_code == 200
-    assert "10 cơ sở phù hợp" in page
+    assert "11 cơ sở phù hợp" in page
     assert "Trang 2/2" in page
     assert "q=g%E1%BA%A7n+ph%C3%A2n+trang" in page
     assert "latitude=" not in page

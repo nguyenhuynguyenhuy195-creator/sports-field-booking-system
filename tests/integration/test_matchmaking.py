@@ -9,12 +9,15 @@ from app.models import (
     BookingMode,
     BookingStatus,
     ContributionStatus,
+    FieldTypeCode,
     Match,
     MatchParticipant,
     MatchParticipantStatus,
     MatchStatus,
     User,
     UserRole,
+    Venue,
+    Ward,
 )
 from app.services import (
     DuplicateMatchRequestError,
@@ -100,6 +103,176 @@ def test_empty_match_list_guides_user_to_booking_flow(app, client):
     assert 'href="/matches/mine"' in html
     assert ">Lịch sân</a>" in html
     assert ">Kèo của tôi</a>" in html
+
+
+def test_match_discovery_filters_sport_structured_location_date_and_type(
+    app,
+    client,
+):
+    owner = create_user(app, email="owner@example.com", role=UserRole.OWNER)
+    creator = create_user(app, email="creator@example.com")
+    football_venue_id, football_field_id = create_bookable_field(
+        app,
+        owner_id=owner.id,
+    )
+    badminton_venue_id, badminton_field_id = create_bookable_field(
+        app,
+        owner_id=owner.id,
+        field_type_code=FieldTypeCode.BADMINTON_STANDARD,
+    )
+
+    football_code = _create_split_booking(
+        app,
+        creator_id=creator.id,
+        field_id=football_field_id,
+        booking_mode=BookingMode.FIND_OPPONENT.value,
+    )
+    badminton_code = _create_split_booking(
+        app,
+        creator_id=creator.id,
+        field_id=badminton_field_id,
+        booking_mode=BookingMode.FIND_PLAYERS.value,
+        requested_players=2,
+    )
+    football_match_id = _create_match(
+        app,
+        booking_code=football_code,
+        creator_id=creator.id,
+    )
+    badminton_match_id = _create_match(
+        app,
+        booking_code=badminton_code,
+        creator_id=creator.id,
+    )
+
+    with app.app_context():
+        wards = list(db.session.scalars(db.select(Ward).order_by(Ward.code).limit(2)))
+        football_venue = db.session.get(Venue, football_venue_id)
+        badminton_venue = db.session.get(Venue, badminton_venue_id)
+        for venue, ward in zip((football_venue, badminton_venue), wards, strict=True):
+            venue.province_code = ward.province_code
+            venue.province_name = ward.province.name
+            venue.ward_code = ward.code
+            venue.ward_name = ward.name
+        db.session.get(Match, football_match_id).title = "Kèo bóng đá cần đối thủ"
+        db.session.get(Match, badminton_match_id).title = "Kèo cầu lông cần người"
+        badminton_province_code = badminton_venue.province_code
+        badminton_ward_code = badminton_venue.ward_code
+        canonical_extra_ward = db.session.scalar(
+            db.select(Ward)
+            .where(
+                Ward.province_code == badminton_province_code,
+                Ward.code.not_in([ward.code for ward in wards]),
+            )
+            .order_by(Ward.code)
+        )
+        canonical_extra_ward_name = canonical_extra_ward.full_name
+        db.session.commit()
+
+    response = client.get(
+        "/matches",
+        query_string={
+            "sport": "BADMINTON",
+            "province_code": badminton_province_code,
+            "ward_code": badminton_ward_code,
+            "play_date": booking_day().isoformat(),
+            "match_type": "FIND_PLAYERS",
+        },
+    )
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "1 kèo phù hợp" in html
+    assert "Kèo cầu lông cần người" in html
+    assert "Kèo bóng đá cần đối thủ" not in html
+    assert 'id="sport"' not in html
+    assert "match-sport-chip is-active" in html
+    assert '<input type="hidden" name="sport" value="BADMINTON">' in html
+    assert f'<option selected value="{badminton_province_code}">' in html
+    assert f'<option selected value="{badminton_ward_code}">' in html
+    assert canonical_extra_ward_name in html
+    assert '<option selected value="FIND_PLAYERS">' in html
+    assert f"province_code={badminton_province_code}" in html
+    assert f"ward_code={badminton_ward_code}" in html
+    assert "Xóa bộ lọc" in html
+
+
+def test_match_discovery_ward_options_depend_on_canonical_province(app, client):
+    with app.app_context():
+        province_code = "01"
+        province_wards = list(
+            db.session.scalars(
+                db.select(Ward)
+                .where(Ward.province_code == province_code)
+                .order_by(Ward.code)
+            )
+        )
+        expected_ward_name = province_wards[-1].full_name
+
+    no_province_page = client.get("/matches").get_data(as_text=True)
+    province_page = client.get(
+        "/matches",
+        query_string={"province_code": province_code},
+    ).get_data(as_text=True)
+
+    assert 'disabled id="ward_code" name="ward_code"' in no_province_page
+    assert expected_ward_name not in no_province_page
+    assert expected_ward_name in province_page
+    assert 'data-wards-url="/api/administrative-units/wards"' in province_page
+
+
+def test_match_discovery_rejects_invalid_filter_values(app, client):
+    response = client.get("/matches?match_type=NOT_A_MATCH_TYPE")
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "Bộ lọc chưa hợp lệ" in html
+    assert "Lựa chọn không hợp lệ." in html
+
+
+def test_match_discovery_paginates_and_sorts_newest(app, client):
+    owner = create_user(app, email="owner@example.com", role=UserRole.OWNER)
+    creator = create_user(app, email="creator@example.com")
+
+    for index in range(1, 12):
+        _, field_id = create_bookable_field(app, owner_id=owner.id)
+        booking_code = _create_split_booking(
+            app,
+            creator_id=creator.id,
+            field_id=field_id,
+            booking_mode=BookingMode.FIND_OPPONENT.value,
+        )
+        match_id = _create_match(
+            app,
+            booking_code=booking_code,
+            creator_id=creator.id,
+        )
+        with app.app_context():
+            match = db.session.get(Match, match_id)
+            match.title = f"Kèo phân trang {index:02d}"
+            match.created_at = datetime(2026, 1, 1, index, 0, tzinfo=timezone.utc)
+            db.session.commit()
+
+    first_page = client.get("/matches?sort=newest")
+    second_page = client.get("/matches?sort=newest&page=2")
+
+    assert first_page.status_code == 200
+    first_html = first_page.get_data(as_text=True)
+    assert "11 kèo phù hợp" in first_html
+    assert first_html.count('class="match-market-card marketplace-card"') == 10
+    assert first_html.index("Kèo phân trang 11") < first_html.index("Kèo phân trang 10")
+    assert "Trang 1/2" in first_html
+    assert "sort=newest&amp;page=2" in first_html
+    assert 'data-match-sort=""' in first_html
+    assert 'class="bi bi-arrow-down-up match-sort-icon"' in first_html
+    assert "match-sort-prefix" not in first_html
+    assert "Áp dụng sắp xếp" not in first_html
+
+    assert second_page.status_code == 200
+    second_html = second_page.get_data(as_text=True)
+    assert second_html.count('class="match-market-card marketplace-card"') == 1
+    assert "Kèo phân trang 01" in second_html
+    assert "Trang 2/2" in second_html
 
 
 def test_opponent_request_payment_confirms_match_and_booking(app):

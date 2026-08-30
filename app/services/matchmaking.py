@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from dataclasses import dataclass
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
+from math import ceil
 import re
 
 from sqlalchemy import and_, or_
@@ -19,18 +21,27 @@ from app.models import (
     ContributionStatus,
     ContributionType,
     Field,
+    FieldType,
     Match,
     MatchParticipant,
     MatchParticipantStatus,
     MatchParticipantType,
     MatchStatus,
     MatchType,
+    Sport,
     User,
     UserRole,
+    Venue,
 )
 
+from .administrative_unit import (
+    AdministrativeUnitError,
+    resolve_administrative_address,
+    resolve_province,
+)
 from .auth import normalize_phone
 from .locking import with_update_lock
+from .sport_catalog import SportCatalogError, get_active_sport
 
 
 PARTICIPANT_PAYMENT_MINUTES = 15
@@ -38,6 +49,30 @@ MATCHABLE_BOOKING_STATUSES = (
     BookingStatus.PARTIALLY_PAID.value,
     BookingStatus.PAID.value,
 )
+
+MATCH_SORT_SOONEST = "soonest"
+MATCH_SORT_NEWEST = "newest"
+MATCH_SORT_OPTIONS = frozenset({MATCH_SORT_SOONEST, MATCH_SORT_NEWEST})
+
+
+@dataclass(frozen=True)
+class OpenMatchSearchPage:
+    items: tuple[Match, ...]
+    page: int
+    per_page: int
+    total: int
+
+    @property
+    def pages(self) -> int:
+        return ceil(self.total / self.per_page) if self.total else 0
+
+    @property
+    def has_previous(self) -> bool:
+        return self.page > 1
+
+    @property
+    def has_next(self) -> bool:
+        return self.page < self.pages
 
 
 class MatchmakingError(ValueError):
@@ -142,20 +177,124 @@ def list_open_matches(*, now: datetime | None = None) -> list[Match]:
     statement = (
         _match_details_statement()
         .join(Match.booking)
-        .where(
-            Match.status == MatchStatus.OPEN.value,
-            Booking.status.in_(MATCHABLE_BOOKING_STATUSES),
-            or_(
-                Booking.booking_date > _utc_to_vietnam_date(current_utc),
-                and_(
-                    Booking.booking_date == _utc_to_vietnam_date(current_utc),
-                    Booking.start_time > _utc_to_vietnam_time(current_utc),
-                ),
-            ),
-        )
+        .where(*_open_match_conditions(current_utc))
         .order_by(Booking.booking_date, Booking.start_time, Match.created_at)
     )
     return list(db.session.scalars(statement).unique())
+
+
+def search_open_matches(
+    *,
+    sport: str | None = None,
+    province_code: str | None = None,
+    ward_code: str | None = None,
+    play_date: date | None = None,
+    match_type: str | None = None,
+    sort: str = MATCH_SORT_SOONEST,
+    page: int = 1,
+    per_page: int = 10,
+    now: datetime | None = None,
+) -> OpenMatchSearchPage:
+    """Return paginated open matches for the public discovery page."""
+    current_utc = _normalize_utc(now)
+    normalized_sport = (sport or "").strip().upper() or None
+    normalized_province_code = (province_code or "").strip() or None
+    normalized_ward_code = (ward_code or "").strip() or None
+    normalized_match_type = (match_type or "").strip().upper() or None
+    normalized_sort = (sort or MATCH_SORT_SOONEST).strip().lower()
+    normalized_page = max(page, 1)
+
+    if normalized_match_type and normalized_match_type not in {
+        item.value for item in MatchType
+    }:
+        raise MatchmakingError("Loại kèo không hợp lệ.")
+    if normalized_sort not in MATCH_SORT_OPTIONS:
+        raise MatchmakingError("Cách sắp xếp kèo không hợp lệ.")
+    if per_page < 1 or per_page > 50:
+        raise MatchmakingError("Số kèo mỗi trang không hợp lệ.")
+
+    selected_sport = None
+    if normalized_sport:
+        try:
+            selected_sport = get_active_sport(normalized_sport)
+        except SportCatalogError as exc:
+            raise MatchmakingError(str(exc)) from exc
+
+    if normalized_ward_code and not normalized_province_code:
+        raise MatchmakingError(
+            "Hãy chọn tỉnh hoặc thành phố trước khi chọn phường, xã."
+        )
+    selected_province = None
+    selected_ward = None
+    try:
+        if normalized_province_code:
+            selected_province = resolve_province(
+                province_code=normalized_province_code
+            )
+        if normalized_ward_code:
+            selected_ward = resolve_administrative_address(
+                province_code=normalized_province_code,
+                ward_code=normalized_ward_code,
+            ).ward
+    except AdministrativeUnitError as exc:
+        raise MatchmakingError(str(exc)) from exc
+
+    statement = (
+        _match_details_statement()
+        .join(Match.booking)
+        .join(Booking.field)
+        .join(Field.field_type)
+        .join(FieldType.sport)
+        .join(Field.venue)
+        .where(*_open_match_conditions(current_utc))
+    )
+    if selected_sport is not None:
+        statement = statement.where(Sport.id == selected_sport.id)
+    if selected_province is not None:
+        statement = statement.where(
+            Venue.province_code == selected_province.code
+        )
+    if selected_ward is not None:
+        statement = statement.where(Venue.ward_code == selected_ward.code)
+    if play_date is not None:
+        statement = statement.where(Booking.booking_date == play_date)
+    if normalized_match_type:
+        statement = statement.where(Match.match_type == normalized_match_type)
+
+    if normalized_sort == MATCH_SORT_NEWEST:
+        statement = statement.order_by(
+            Match.created_at.desc(),
+            Booking.booking_date.asc(),
+            Booking.start_time.asc(),
+            Match.id.asc(),
+        )
+    else:
+        statement = statement.order_by(
+            Booking.booking_date.asc(),
+            Booking.start_time.asc(),
+            Match.created_at.asc(),
+            Match.id.asc(),
+        )
+
+    pagination = db.paginate(
+        statement,
+        page=normalized_page,
+        per_page=per_page,
+        error_out=False,
+    )
+    if pagination.pages and normalized_page > pagination.pages:
+        pagination = db.paginate(
+            statement,
+            page=pagination.pages,
+            per_page=per_page,
+            error_out=False,
+        )
+    return OpenMatchSearchPage(
+        items=tuple(pagination.items),
+        page=pagination.page,
+        per_page=pagination.per_page,
+        total=pagination.total,
+    )
 
 
 def list_created_matches(creator_id: int) -> list[Match]:
@@ -612,9 +751,27 @@ def _match_details_statement():
         joinedload(Match.booking)
         .joinedload(Booking.field)
         .joinedload(Field.venue),
+        joinedload(Match.booking)
+        .joinedload(Booking.field)
+        .joinedload(Field.field_type)
+        .joinedload(FieldType.sport),
         selectinload(Match.participants).joinedload(MatchParticipant.user),
         selectinload(Match.participants).joinedload(
             MatchParticipant.contribution
+        ),
+    )
+
+
+def _open_match_conditions(current_utc: datetime):
+    return (
+        Match.status == MatchStatus.OPEN.value,
+        Booking.status.in_(MATCHABLE_BOOKING_STATUSES),
+        or_(
+            Booking.booking_date > _utc_to_vietnam_date(current_utc),
+            and_(
+                Booking.booking_date == _utc_to_vietnam_date(current_utc),
+                Booking.start_time > _utc_to_vietnam_time(current_utc),
+            ),
         ),
     )
 

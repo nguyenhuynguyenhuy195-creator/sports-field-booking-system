@@ -357,8 +357,13 @@ def test_public_venue_search_matches_name_and_area(app, client):
     by_area = client.get("/venues", query_string={"q": "thanh khê"})
 
     assert by_name.status_code == 200
-    assert "Sân bóng Hòa Bình" in by_name.get_data(as_text=True)
-    assert "Sân bóng Phú Mỹ" not in by_name.get_data(as_text=True)
+    by_name_page = by_name.get_data(as_text=True)
+    assert "Sân bóng Hòa Bình" in by_name_page
+    assert "Sân bóng Phú Mỹ" not in by_name_page
+    assert by_name_page.count("25 Nguyễn Tất Thành, Quận Thanh Khê, Đà Nẵng") == 1
+    assert "Quận Thanh Khê · Đà Nẵng" not in by_name_page
+    assert "Giờ hoạt động" not in by_name_page
+    assert "Google Maps" in by_name_page
     assert by_area.status_code == 200
     assert "Sân bóng Hòa Bình" in by_area.get_data(as_text=True)
     assert "Sân bóng Phú Mỹ" not in by_area.get_data(as_text=True)
@@ -489,7 +494,7 @@ def test_structured_filters_are_preserved_in_venue_pagination(app, client):
         email="structured-pagination-owner@example.com",
         role=UserRole.OWNER,
     )
-    for number in range(1, 11):
+    for number in range(1, 12):
         create_searchable_venue(
             app,
             owner_id=owner.id,
@@ -516,7 +521,7 @@ def test_structured_filters_are_preserved_in_venue_pagination(app, client):
     page = response.get_data(as_text=True)
 
     assert response.status_code == 200
-    assert "10 cơ sở phù hợp" in page
+    assert "11 cơ sở phù hợp" in page
     assert f"province_code={HCMC_PROVINCE_CODE}" in page
     assert f"ward_code={HCMC_WARD_CODE}" in page
 
@@ -663,7 +668,7 @@ def test_public_venue_filters_combine_field_type_and_matching_type_price(
     assert "Cụm sân Bị Ẩn" not in page
     assert f'/venues/{target_id}' in page
     assert "350.000 đ/giờ" in page
-    assert "Sân bóng đá 7 người" in page
+    assert "Bóng đá · Sân 7 người" in page
     assert "Xóa tất cả" in page
     assert "Xóa bộ lọc" not in page
 
@@ -769,7 +774,7 @@ def test_venue_search_paginates_and_keeps_filters(app, client):
         email="pagination-owner@example.com",
         role=UserRole.OWNER,
     )
-    for number in range(1, 11):
+    for number in range(1, 12):
         create_searchable_venue(
             app,
             owner_id=owner.id,
@@ -793,9 +798,9 @@ def test_venue_search_paginates_and_keeps_filters(app, client):
     page = response.get_data(as_text=True)
 
     assert response.status_code == 200
-    assert "10 cơ sở phù hợp" in page
+    assert "11 cơ sở phù hợp" in page
     assert "Trang 2/2" in page
-    assert "Sân Phân Trang 10" in page
+    assert "Sân Phân Trang 11" in page
     assert "Sân Phân Trang 01" not in page
     assert 'value="Phân Trang"' in page
     assert f'selected value="{FieldTypeCode.FOOTBALL_5.value}"' in page

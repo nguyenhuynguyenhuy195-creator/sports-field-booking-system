@@ -1176,6 +1176,8 @@ def test_booking_index_groups_bookings_by_user_facing_state(app, client):
         ("closed", "Đã hủy hoặc hết hạn", cancelled_code),
     ]
     assert html.count('data-bs-toggle="pill"') == 4
+    assert 'class="marketplace-tab active"' in html
+    assert 'class="marketplace-tab-count"' in html
     tab_positions = [
         html.index(f'data-booking-tab="{key}"')
         for key, _, _ in expected_sections

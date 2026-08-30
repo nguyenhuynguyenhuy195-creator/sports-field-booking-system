@@ -148,31 +148,31 @@
             <div class="venue-grid{% if venue_results|length == 1 %} venue-grid-single{% endif %}">
                 {% for result in venue_results %}
                     {% set venue = result.venue %}
+                    {% set display_address = venue.full_address|replace('Thành phố ', 'TP. ') %}
                     <article class="venue-card marketplace-card h-100" data-venue-card="{{ venue.id }}">
                         <div class="venue-card-header">
                             <div class="venue-card-title-group">
-                                <span class="venue-card-visual" aria-hidden="true"><i class="bi bi-building"></i></span>
-                                <div>
-                                    <h3 class="mb-1">{{ venue.name }}</h3>
-                                    <p class="venue-card-area mb-0"><i class="bi bi-pin-map" aria-hidden="true"></i> {{ venue.ward_name or venue.district or 'Chưa rõ phường/xã' }} · {{ venue.province_name or venue.city or 'Chưa rõ tỉnh/thành phố' }}</p>
-                                </div>
+                                <h3 class="mb-1">{{ venue.name }}</h3>
+                                <p class="venue-card-address mb-0"><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ display_address }}</p>
                             </div>
-                            <div class="venue-starting-price text-end">
-                                {% if result.starting_price is not none %}<span>Giá theo giờ</span><strong aria-label="Từ {{ result.starting_price|vnd_currency }}/giờ"><small aria-hidden="true">Từ</small> <span aria-hidden="true">{{ result.starting_price|vnd_currency }} <em>/ giờ</em></span><span class="visually-hidden">{{ result.starting_price|vnd_currency }}/giờ</span></strong>{% endif %}
+                            <div class="venue-card-price-meta">
+                                <div class="venue-starting-price">
+                                    {% if result.starting_price is not none %}<span>Giá từ</span><strong aria-label="Giá từ {{ result.starting_price|vnd_currency }}/giờ"><span aria-hidden="true">{{ result.starting_price|vnd_currency }} <em>/ giờ</em></span><span class="visually-hidden">{{ result.starting_price|vnd_currency }}/giờ</span></strong>{% endif %}
+                                </div>
+                                <p class="venue-card-hours mb-0"><i class="bi bi-clock" aria-hidden="true"></i><span>{{ venue.opening_time.strftime('%H:%M') }}–{{ venue.closing_time.strftime('%H:%M') }}</span></p>
                             </div>
                         </div>
-                        <p class="venue-location mb-3"><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ venue.full_address }}</p>
                         <div class="venue-card-information">
                             <div class="venue-type-list" aria-label="Các loại sân đang hoạt động">
                                 {% for active_field_type in result.field_types %}
-                                    <span class="venue-type-chip">{{ active_field_type.sport_name }} · {{ active_field_type.name }}</span>
+                                    {% set compact_field_name = active_field_type.name|replace('Sân bóng đá ', 'Sân ')|replace('Sân cầu lông ', 'Sân ')|replace('Sân pickleball ', 'Sân ')|replace('Sân tennis ', 'Sân ') %}
+                                    <span class="venue-type-chip">{{ active_field_type.sport_name }} · {{ compact_field_name }}</span>
                                 {% endfor %}
                             </div>
-                            <p class="venue-card-hours mb-0"><i class="bi bi-clock" aria-hidden="true"></i><span><strong>Giờ hoạt động</strong> {{ venue.opening_time.strftime('%H:%M') }}–{{ venue.closing_time.strftime('%H:%M') }}</span></p>
                         </div>
                         <div class="venue-card-actions mt-auto">
                             <a class="btn btn-primary" href="{{ url_for('venues.detail', venue_id=venue.id) }}">{% if result.starting_price is none %}Xem giá từng sân{% else %}Xem sân &amp; lịch trống{% endif %}</a>
-                            <a class="btn btn-link venue-directions-link" href="{{ result.directions_url }}" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">Mở Google Maps</span><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i><span class="visually-hidden">Mở chỉ đường trên Google Maps</span></a>
+                            <a class="btn btn-link venue-directions-link" href="{{ result.directions_url }}" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">Google Maps</span><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i><span class="visually-hidden">Mở chỉ đường trên Google Maps</span></a>
                         </div>
                     </article>
                 {% endfor %}

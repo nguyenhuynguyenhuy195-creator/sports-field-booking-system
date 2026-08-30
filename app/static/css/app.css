@@ -841,7 +841,7 @@ a:hover {
 
 .venue-grid {
     display: grid;
-    gap: 1.25rem;
+    gap: 1rem;
     grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
@@ -1220,46 +1220,26 @@ a:hover {
 
 .venue-starting-price > span {
     color: #6c7d73;
-    font-size: 0.74rem;
-    font-weight: 500;
+    font-size: 0.72rem;
+    font-weight: 700;
 }
 
 .venue-starting-price strong {
     color: var(--app-primary);
-    font-size: 1.5rem;
+    font-size: 1.32rem;
     font-weight: 800;
     letter-spacing: -0.045em;
     line-height: 1.2;
-    margin-top: 0.2rem;
+    margin-top: 0.12rem;
     white-space: nowrap;
 }
 
-.venue-starting-price strong small,
 .venue-starting-price strong em {
     color: #6c7d73;
     font-size: 0.72rem;
     font-style: normal;
     font-weight: 600;
     letter-spacing: normal;
-}
-
-.venue-location {
-    align-items: flex-start;
-    display: flex;
-    gap: 0.45rem;
-    line-height: 1.55;
-}
-
-.venue-card .venue-location {
-    color: #6d7c74;
-    font-size: 0.94rem;
-    font-weight: 400;
-}
-
-.venue-location > span:first-child {
-    color: var(--app-primary);
-    flex: 0 0 auto;
-    font-weight: 700;
 }
 
 .venue-type-list {
@@ -1344,7 +1324,7 @@ a:hover {
     box-shadow: 0 10px 26px rgba(15, 39, 71, 0.06);
     display: flex;
     flex-direction: column;
-    padding: 1.45rem;
+    padding: 1.15rem;
     transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
@@ -1357,9 +1337,9 @@ a:hover {
 .venue-card-header {
     align-items: flex-start;
     display: flex;
-    gap: 1rem;
+    gap: 0.85rem;
     justify-content: space-between;
-    margin-bottom: 0.85rem;
+    margin-bottom: 0.8rem;
 }
 
 .venue-card-header > div:first-child {
@@ -1367,27 +1347,13 @@ a:hover {
 }
 
 .venue-card-title-group {
-    align-items: flex-start;
-    display: flex;
-    gap: 0.85rem;
-}
-
-.venue-card-visual {
-    align-items: center;
-    background: #f0f6f2;
-    border: 1px solid #dce9e0;
-    border-radius: 12px;
-    color: var(--app-primary);
-    display: flex;
-    flex: 0 0 42px;
-    font-size: 1.1rem;
-    height: 42px;
-    justify-content: center;
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
 .venue-card h3 {
     color: var(--app-secondary);
-    font-size: clamp(1.25rem, 1.5vw, 1.375rem);
+    font-size: 1.2rem;
     font-weight: 700;
     line-height: 1.25;
     transition: color 0.18s ease;
@@ -1397,27 +1363,27 @@ a:hover {
     color: var(--app-primary);
 }
 
-.venue-card-kicker {
-    align-items: center;
-    color: #5b7667;
+.venue-card-address {
+    align-items: flex-start;
+    color: #6d7c74;
     display: flex;
-    flex-wrap: wrap;
-    font-size: 0.72rem;
-    font-weight: 700;
-    gap: 0.4rem 0.7rem;
-    margin-bottom: 0.65rem;
+    font-size: 0.84rem;
+    font-weight: 400;
+    gap: 0.4rem;
+    line-height: 1.45;
 }
 
-.venue-card-kicker span:first-child {
-    align-items: center;
-    color: var(--app-primary-dark);
-    display: inline-flex;
-    gap: 0.28rem;
+.venue-card-address > i {
+    color: var(--app-primary);
+    flex: 0 0 auto;
+    margin-top: 0.15rem;
 }
 
-.venue-card-kicker span:last-child {
-    border-left: 1px solid #d9e8df;
-    padding-left: 0.7rem;
+.venue-location {
+    align-items: flex-start;
+    display: flex;
+    gap: 0.45rem;
+    line-height: 1.55;
 }
 
 .venue-location > i {
@@ -1426,7 +1392,6 @@ a:hover {
     margin-top: 0.15rem;
 }
 
-.venue-card-area,
 .venue-detail-area {
     color: #718078;
     font-size: 0.9rem;
@@ -1435,8 +1400,13 @@ a:hover {
     text-transform: none;
 }
 
-.venue-card-area i {
+.venue-detail-area i {
     color: var(--app-primary);
+}
+
+.venue-card-price-meta {
+    flex: 0 0 auto;
+    text-align: right;
 }
 
 .venue-card-information {
@@ -1444,29 +1414,24 @@ a:hover {
     border-top: 1px solid #edf1ee;
     display: flex;
     flex-wrap: wrap;
-    gap: 0.85rem 1rem;
-    margin: 0.25rem 0 1.25rem;
-    padding-top: 1rem;
+    gap: 0.65rem 0.8rem;
+    margin: 0.2rem 0 0.85rem;
+    padding-top: 0.8rem;
 }
 
 .venue-card-hours {
-    align-items: flex-start;
+    align-items: center;
     color: #718078;
     display: flex;
-    font-size: 0.82rem;
-    gap: 0.55rem;
+    font-size: 0.8rem;
+    gap: 0.4rem;
+    justify-content: flex-end;
+    margin-top: 0.28rem;
     padding: 0;
 }
 
 .venue-card-hours i {
     color: var(--app-primary);
-    margin-top: 0.1rem;
-}
-
-.venue-card-hours strong {
-    color: #596b61;
-    font-weight: 600;
-    margin-right: 0.3rem;
 }
 
 .venue-directions-link {
@@ -1478,10 +1443,11 @@ a:hover {
     font-size: 0.82rem;
     font-weight: 700;
     gap: 0.4rem;
-    justify-content: flex-start;
-    padding: 0.65rem 0.8rem;
+    justify-content: center;
+    padding: 0.58rem 0.7rem;
     text-decoration: none;
     transition: background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+    white-space: nowrap;
 }
 
 .venue-directions-link:hover {
@@ -1496,15 +1462,16 @@ a:hover {
     align-items: center;
     border-top: 1px solid #edf1ee;
     display: flex;
-    gap: 0.85rem;
-    padding-top: 1rem;
+    gap: 0.7rem;
+    justify-content: center;
+    padding-top: 0.85rem;
 }
 
 .venue-card-actions .btn-primary {
     box-shadow: 0 7px 16px rgba(20, 108, 67, 0.16);
     font-weight: 800;
-    min-height: 46px;
-    min-width: 215px;
+    min-height: 42px;
+    min-width: 0;
     transition: background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
 }
 
@@ -1752,10 +1719,22 @@ a:hover {
 }
 
 .field-card-heading {
+    align-items: flex-start;
+    display: flex;
+    gap: 0.85rem;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.field-card-title {
     align-items: center;
     display: flex;
     gap: 0.85rem;
-    margin-bottom: 1rem;
+    min-width: 0;
+}
+
+.field-card-title > div {
+    min-width: 0;
 }
 
 .field-card-icon {
@@ -1862,26 +1841,27 @@ a:hover {
 }
 
 .field-price-summary {
-    border-top: 1px solid #edf1ee;
-    margin-top: 1rem;
-    padding-top: 0.9rem;
+    align-items: baseline;
+    display: flex;
+    flex: 0 0 auto;
+    gap: 0.45rem;
+    justify-content: flex-end;
+    text-align: right;
+    white-space: nowrap;
 }
 
 .field-price-summary > span {
     color: #718078;
-    display: block;
     font-size: 0.76rem;
     font-weight: 500;
 }
 
 .field-price-summary strong {
     color: var(--app-primary);
-    display: block;
     font-size: 1.45rem;
     font-weight: 800;
     letter-spacing: -0.04em;
     line-height: 1.25;
-    margin-top: 0.15rem;
 }
 
 .field-price-summary small,
@@ -3336,8 +3316,8 @@ a:hover {
         flex-direction: column;
     }
 
-    .venue-starting-price {
-        text-align: left !important;
+    .venue-card-price-meta {
+        text-align: left;
     }
 
     .venue-card {
@@ -3356,6 +3336,7 @@ a:hover {
 
     .venue-directions-link {
         justify-content: center;
+        width: 100%;
     }
 
     .venue-detail-hero,
@@ -6495,8 +6476,7 @@ body {
     scrollbar-width: thin;
 }
 
-.marketplace-tab,
-.marketplace-booking-page .booking-tab {
+.marketplace-tab {
     align-items: center;
     background: transparent;
     border: 0;
@@ -6511,28 +6491,24 @@ body {
     transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease;
 }
 
-.marketplace-tab:hover,
-.marketplace-booking-page .booking-tab:hover {
+.marketplace-tab:hover {
     background: var(--marketplace-green-soft);
     color: var(--app-primary-dark);
 }
 
-.marketplace-tab:focus-visible,
-.marketplace-booking-page .booking-tab:focus-visible {
+.marketplace-tab:focus-visible {
     box-shadow: 0 0 0 0.2rem rgba(20, 108, 67, 0.15);
     outline: 0;
 }
 
-.marketplace-tab.active,
-.marketplace-booking-page .booking-tab.active {
+.marketplace-tab.active {
     background: transparent;
     border-bottom-color: var(--app-primary);
     box-shadow: none;
     color: var(--app-primary-dark);
 }
 
-.marketplace-tab-count,
-.marketplace-booking-page .booking-tab-count {
+.marketplace-tab-count {
     align-items: center;
     background: #edf1ef;
     border-radius: 999px;
@@ -6544,8 +6520,7 @@ body {
     padding: 0.12rem 0.42rem;
 }
 
-.marketplace-tab.active .marketplace-tab-count,
-.marketplace-booking-page .booking-tab.active .booking-tab-count {
+.marketplace-tab.active .marketplace-tab-count {
     background: var(--marketplace-green-soft);
     color: var(--app-primary-dark);
 }
@@ -6612,6 +6587,17 @@ body {
     box-shadow: var(--marketplace-shadow);
 }
 
+.marketplace-venue-page .venue-search-primary .form-select,
+.marketplace-venue-page .venue-search-input,
+.marketplace-venue-page .venue-search-submit {
+    min-height: 42px;
+}
+
+.marketplace-venue-page .venue-search-primary .form-select,
+.marketplace-venue-page .venue-search-input {
+    font-size: 0.83rem;
+}
+
 .marketplace-venue-page .venue-filter-toggle {
     color: var(--marketplace-ink);
 }
@@ -6623,6 +6609,7 @@ body {
 .marketplace-venue-page .venue-card {
     border-color: var(--marketplace-line);
     box-shadow: var(--marketplace-shadow);
+    padding: 1.15rem;
     transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
@@ -6632,24 +6619,173 @@ body {
     transform: none;
 }
 
-.marketplace-venue-page .venue-card-actions {
-    gap: 0.7rem;
-    justify-content: center;
-}
-
-.marketplace-venue-page .venue-card-actions .btn-primary {
-    min-width: 0;
+@media (max-width: 1199.98px) {
+    .marketplace-venue-page .venue-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* Shared matchmaking marketplace card. */
 .marketplace-match-page .match-browse-heading {
-    margin-bottom: 1rem;
+    align-items: center;
+    display: flex;
+    justify-content: space-between;
+    margin: 1.35rem 0 1rem;
+    gap: 1rem;
+}
+
+.match-sport-chips {
+    display: flex;
+    gap: 0.55rem;
+    margin-bottom: 0.85rem;
+    overflow-x: auto;
+    padding: 0.1rem 0 0.25rem;
+    scrollbar-width: thin;
+}
+
+.match-filter-group-label {
+    color: #31485f;
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 850;
+    margin-bottom: 0.45rem;
+}
+
+.match-sport-chip {
+    background: #fff;
+    border: 1px solid var(--marketplace-line);
+    border-radius: 999px;
+    color: #365269;
+    flex: 0 0 auto;
+    font-size: 0.82rem;
+    font-weight: 750;
+    padding: 0.48rem 0.85rem;
+    text-decoration: none;
+    transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+}
+
+.match-sport-chip:hover {
+    border-color: #96c9aa;
+    color: var(--app-primary-dark);
+}
+
+.match-sport-chip.is-active {
+    background: var(--app-primary-dark);
+    border-color: var(--app-primary-dark);
+    color: #fff;
+}
+
+.match-discovery-filter {
+    border-color: #dce9e1;
+    box-shadow: 0 12px 30px rgba(29, 73, 50, 0.07);
+    padding: 0.9rem;
+}
+
+.match-discovery-filter-grid {
+    align-items: end;
+    display: grid;
+    gap: 0.8rem;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+}
+
+.match-filter-field {
+    min-width: 0;
+}
+
+.match-filter-control {
+    align-items: center;
+    display: flex;
+    position: relative;
+}
+
+.match-filter-control > i {
+    color: var(--app-primary);
+    font-size: 0.9rem;
+    left: 0.8rem;
+    pointer-events: none;
+    position: absolute;
+    z-index: 2;
+}
+
+.match-filter-control .form-control,
+.match-filter-control .form-select {
+    border-color: #dce6e0;
+    font-size: 0.83rem;
+    min-height: 42px;
+    padding-left: 2.2rem;
+}
+
+.match-filter-control .form-control:focus,
+.match-filter-control .form-select:focus {
+    border-color: #83bd99;
+    box-shadow: 0 0 0 0.2rem rgba(31, 143, 88, 0.1);
+}
+
+.match-filter-submit {
+    min-height: 42px;
+    white-space: nowrap;
+}
+
+.match-filter-clear {
+    color: var(--marketplace-muted);
+    display: inline-flex;
+    font-size: 0.78rem;
+    font-weight: 700;
+    gap: 0.35rem;
+    margin-top: 0.75rem;
+    text-decoration: none;
+}
+
+.match-filter-clear:hover {
+    color: var(--app-primary-dark);
+}
+
+.match-sort-form {
+    align-items: center;
+    background: #ffffff;
+    border: 1px solid var(--marketplace-line);
+    border-radius: 12px;
+    display: flex;
+    flex: 0 0 240px;
+    height: 42px;
+    max-width: 260px;
+    min-width: 220px;
+    padding: 0 0.7rem;
+}
+
+.match-sort-form:focus-within {
+    border-color: #83bd99;
+    box-shadow: 0 0 0 0.2rem rgba(20, 108, 67, 0.1);
+}
+
+.match-sort-icon {
+    color: var(--app-primary);
+    flex: 0 0 auto;
+    font-size: 0.9rem;
+    pointer-events: none;
+}
+
+.match-sort-form .form-select {
+    background-color: transparent;
+    border: 0;
+    box-shadow: none;
+    color: #29435a;
+    flex: 1 1 auto;
+    font-size: 0.78rem;
+    font-weight: 800;
+    height: 100%;
+    min-width: 0;
+    padding: 0 1.65rem 0 0.55rem;
+}
+
+.match-sort-form .form-select:focus {
+    box-shadow: none;
 }
 
 .match-list-grid {
     display: grid;
     gap: 1rem;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .match-market-card {
@@ -6700,16 +6836,26 @@ body {
     margin-top: 0.9rem;
 }
 
+.match-market-sport {
+    align-items: center;
+    color: var(--app-primary-dark);
+    display: flex;
+    font-size: 1rem;
+    font-weight: 850;
+    gap: 0.42rem;
+    margin: 0 0 0.32rem;
+}
+
 .match-market-copy h3 {
     color: var(--marketplace-ink);
-    font-size: 1.08rem;
-    font-weight: 800;
+    font-size: 0.9rem;
+    font-weight: 750;
     line-height: 1.35;
-    margin: 0 0 0.55rem;
+    margin: 0 0 0.65rem;
     overflow-wrap: anywhere;
 }
 
-.match-market-venue,
+.match-market-time,
 .match-market-location,
 .match-market-description {
     align-items: flex-start;
@@ -6721,13 +6867,22 @@ body {
     margin: 0;
 }
 
-.match-market-venue {
-    color: #3d5369;
+.match-market-time {
+    align-items: center;
+    color: #263f57;
+    font-size: 0.9rem;
     font-weight: 700;
 }
 
 .match-market-location {
-    margin-top: 0.2rem;
+    margin-top: 0.42rem;
+}
+
+.match-market-location span {
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    display: -webkit-box;
+    overflow: hidden;
 }
 
 .match-market-description {
@@ -6745,43 +6900,27 @@ body {
     margin-top: 0.1rem;
 }
 
-.match-market-meta {
+.match-market-venue {
+    align-items: center;
     border-bottom: 1px solid #e9efeb;
     border-top: 1px solid #e9efeb;
-    display: grid;
-    gap: 0.65rem;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    margin: 1rem 0;
-    padding: 0.85rem 0;
+    color: #3d5369;
+    display: flex;
+    font-size: 0.76rem;
+    font-weight: 750;
+    gap: 0.4rem;
+    margin: 0.85rem 0;
+    padding: 0.62rem 0;
 }
 
-.match-market-meta > div {
-    min-width: 0;
-}
-
-.match-market-meta span,
-.match-market-meta strong {
-    display: block;
-}
-
-.match-market-meta span {
-    color: var(--marketplace-muted);
-    font-size: 0.68rem;
-    font-weight: 700;
-    text-transform: uppercase;
-}
-
-.match-market-meta span i {
+.match-market-venue i {
     color: var(--app-primary);
-    margin-right: 0.25rem;
 }
 
-.match-market-meta strong {
-    color: #243b54;
-    font-size: 0.82rem;
-    line-height: 1.35;
-    margin-top: 0.28rem;
-    overflow-wrap: anywhere;
+.match-market-venue small {
+    color: var(--marketplace-muted);
+    font-size: inherit;
+    font-weight: 600;
 }
 
 .match-market-footer {
@@ -6839,41 +6978,24 @@ body {
     white-space: nowrap;
 }
 
-.match-empty-state {
-    grid-column: 1 / -1;
-}
-
-/* Personal matchmaking workspace. */
-.match-workspace-summary {
-    background: #ffffff;
-    border: 1px solid var(--marketplace-line);
-    border-radius: 14px;
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    margin-bottom: 1rem;
-}
-
-.match-workspace-summary > div {
+.match-pagination {
     align-items: center;
     display: flex;
     gap: 0.75rem;
-    justify-content: space-between;
-    padding: 0.78rem 1rem;
+    justify-content: center;
+    margin-top: 1.4rem;
 }
 
-.match-workspace-summary > div + div {
-    border-left: 1px solid var(--marketplace-line);
-}
-
-.match-workspace-summary span {
+.match-pagination-status {
     color: var(--marketplace-muted);
-    font-size: 0.78rem;
-    font-weight: 700;
+    font-size: 0.82rem;
+    font-weight: 750;
+    min-width: 84px;
+    text-align: center;
 }
 
-.match-workspace-summary strong {
-    color: var(--marketplace-ink);
-    font-size: 1.05rem;
+.match-empty-state {
+    grid-column: 1 / -1;
 }
 
 .match-workspace-tabs {
@@ -6893,9 +7015,8 @@ body {
 }
 
 /* Personal booking schedule. */
-.marketplace-booking-page .booking-tabs {
+.booking-workspace-tabs {
     margin-bottom: 1rem;
-    padding: 0;
 }
 
 .marketplace-booking-page .booking-tab-panels {
@@ -7064,9 +7185,18 @@ body {
         width: 100%;
     }
 
+    .match-discovery-filter-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .match-filter-submit {
+        grid-column: 1 / -1;
+        width: 100%;
+    }
+
     .match-list-grid,
     .match-personal-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .marketplace-booking-page .booking-list-card {
@@ -7099,17 +7229,28 @@ body {
         margin-top: 1.3rem;
     }
 
-    .match-workspace-summary {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+    .marketplace-match-page .match-browse-heading {
+        align-items: stretch;
+        flex-direction: column;
     }
 
-    .match-workspace-summary > div:nth-child(3) {
-        border-left: 0;
-        border-top: 1px solid var(--marketplace-line);
+    .match-sort-form {
+        align-items: center;
+        align-self: stretch;
+        flex-basis: auto;
+        max-width: none;
+        min-width: 0;
+        width: 100%;
     }
 
-    .match-workspace-summary > div:nth-child(4) {
-        border-top: 1px solid var(--marketplace-line);
+    .match-sort-form .form-select {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .match-list-grid,
+    .match-personal-grid {
+        grid-template-columns: 1fr;
     }
 
     .marketplace-empty-state {
@@ -7123,12 +7264,23 @@ body {
 }
 
 @media (max-width: 575.98px) {
-    .match-market-meta {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+    .match-discovery-filter-grid {
+        grid-template-columns: 1fr;
     }
 
-    .match-market-meta > div:last-child {
-        grid-column: 1 / -1;
+    .match-filter-submit {
+        grid-column: auto;
+    }
+
+    .match-sport-chips {
+        margin-left: -0.75rem;
+        margin-right: -0.75rem;
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+    }
+
+    .match-sort-form {
+        justify-content: space-between;
     }
 
     .match-market-footer {
@@ -7138,6 +7290,21 @@ body {
 
     .match-market-action {
         width: 100%;
+    }
+
+    .match-pagination {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .match-pagination .btn {
+        justify-content: center;
+        width: 100%;
+    }
+
+    .match-pagination-status {
+        grid-column: 1 / -1;
+        grid-row: 1;
     }
 
     .marketplace-booking-page .booking-list-card {
@@ -7177,12 +7344,6 @@ body {
 
     .match-market-date {
         font-size: 0.72rem;
-    }
-
-    .match-workspace-summary > div {
-        align-items: flex-start;
-        flex-direction: column;
-        gap: 0.2rem;
     }
 
     .marketplace-empty-state .btn {

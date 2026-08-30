@@ -10,7 +10,13 @@ from .booking import (
 )
 from .field import FieldForm
 from .maintenance import MaintenanceActionForm, MaintenanceForm
-from .matchmaking import MatchActionForm, MatchContactForm, MatchForm, MatchJoinForm
+from .matchmaking import (
+    MatchActionForm,
+    MatchContactForm,
+    MatchForm,
+    MatchJoinForm,
+    MatchSearchForm,
+)
 from .owner_application import OwnerApplicationForm, ReviewOwnerApplicationForm
 from .pricing import PriceSlotForm, PricingActionForm
 from .venue import ModerateVenueForm, VenueForm, VenueSearchForm
@@ -29,6 +35,7 @@ __all__ = [
     "MatchContactForm",
     "MatchForm",
     "MatchJoinForm",
+    "MatchSearchForm",
     "OwnerApplicationForm",
     "PriceSlotForm",
     "PricingActionForm",

@@ -8,9 +8,9 @@
     <div class="container marketplace-shell">
         <div class="marketplace-page-header d-flex flex-column flex-lg-row align-items-lg-end justify-content-between gap-4">
             <div>
-                <span class="marketplace-eyebrow"><i class="bi bi-people" aria-hidden="true"></i> KÈO ĐANG MỞ</span>
+                <span class="marketplace-eyebrow"><i class="bi bi-people" aria-hidden="true"></i> KHÁM PHÁ KÈO</span>
                 <h1 class="marketplace-page-title mt-2 mb-2">Tìm đối thủ hoặc ghép vào đội</h1>
-                <p class="marketplace-page-subtitle mb-0">Chọn một kèo phù hợp theo sân, thời gian và số người còn thiếu.</p>
+                <p class="marketplace-page-subtitle mb-0">Lọc theo môn, khu vực và lịch rảnh để chọn kèo phù hợp nhanh hơn.</p>
             </div>
             {% if current_user.is_authenticated and current_user.role in ['USER', 'OWNER'] %}
                 <a class="btn btn-outline-primary marketplace-secondary-action" href="{{ url_for('matches.mine') }}"><i class="bi bi-person-workspace" aria-hidden="true"></i> Kèo của tôi</a>
@@ -20,30 +20,118 @@
 </section>
 
 <section class="container marketplace-shell marketplace-page marketplace-match-page py-4 pb-lg-5">
-    <div class="marketplace-section-heading match-browse-heading">
-        <div>
-            <h2 class="h4 mb-1">Kèo phù hợp đang chờ</h2>
-            <p class="mb-0">{{ matches|length }} kèo đang mở để bạn xem và tham gia.</p>
+    <span class="match-filter-group-label">Bộ môn</span>
+    <nav class="match-sport-chips" aria-label="Lọc nhanh theo bộ môn">
+        <a class="match-sport-chip{% if not selected_sport %} is-active{% endif %}" href="{{ url_for('matches.index', province_code=pagination_params.province_code, ward_code=pagination_params.ward_code, play_date=pagination_params.play_date, match_type=pagination_params.match_type, sort=pagination_params.sort) }}"{% if not selected_sport %} aria-current="page"{% endif %}>Tất cả</a>
+        {% for sport in sports %}
+            <a class="match-sport-chip{% if selected_sport == sport.code %} is-active{% endif %}" href="{{ url_for('matches.index', sport=sport.code, province_code=pagination_params.province_code, ward_code=pagination_params.ward_code, play_date=pagination_params.play_date, match_type=pagination_params.match_type, sort=pagination_params.sort) }}"{% if selected_sport == sport.code %} aria-current="page"{% endif %}>{{ sport.name }}</a>
+        {% endfor %}
+    </nav>
+
+    <form class="match-discovery-filter marketplace-card" method="get" action="{{ url_for('matches.index') }}">
+        {% if selected_sport %}<input type="hidden" name="sport" value="{{ selected_sport }}">{% endif %}
+        <input type="hidden" name="sort" value="{{ pagination_params.sort }}">
+        <div class="match-discovery-filter-grid">
+            <div class="match-filter-field">
+                {{ form.province_code.label(class="visually-hidden") }}
+                <div class="match-filter-control">
+                    <i class="bi bi-geo-alt" aria-hidden="true"></i>
+                    {{ form.province_code(class="form-select" + (" is-invalid" if form.province_code.errors else ""), data_wards_url=wards_api_url) }}
+                </div>
+                {% for error in form.province_code.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+            </div>
+            <div class="match-filter-field">
+                {{ form.ward_code.label(class="visually-hidden") }}
+                <div class="match-filter-control">
+                    <i class="bi bi-pin-map" aria-hidden="true"></i>
+                    {{ form.ward_code(class="form-select" + (" is-invalid" if form.ward_code.errors else ""), disabled=not form.province_code.data) }}
+                </div>
+                {% for error in form.ward_code.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                <div id="administrative-unit-status" class="form-text" role="status"></div>
+            </div>
+            <div class="match-filter-field">
+                {{ form.play_date.label(class="visually-hidden") }}
+                <div class="match-filter-control">
+                    <i class="bi bi-calendar3" aria-hidden="true"></i>
+                    {{ form.play_date(class="form-control" + (" is-invalid" if form.play_date.errors else ""), aria_label="Ngày chơi") }}
+                </div>
+                {% for error in form.play_date.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+            </div>
+            <div class="match-filter-field">
+                {{ form.match_type.label(class="visually-hidden") }}
+                <div class="match-filter-control">
+                    <i class="bi bi-people" aria-hidden="true"></i>
+                    {{ form.match_type(class="form-select" + (" is-invalid" if form.match_type.errors else "")) }}
+                </div>
+                {% for error in form.match_type.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+            </div>
+            <button class="btn btn-primary match-filter-submit" type="submit"><i class="bi bi-funnel" aria-hidden="true"></i> Lọc kèo</button>
         </div>
-    </div>
-    <div class="match-list-grid marketplace-match-list">
-        {% for match in matches %}
-            {{ match_marketplace_card(match, 'Xem chi tiết', url_for('matches.detail', match_id=match.id), show_description=True) }}
+        {% if has_active_filters %}
+            <a class="match-filter-clear" href="{{ url_for('matches.index') }}"><i class="bi bi-x-circle" aria-hidden="true"></i> Xóa bộ lọc</a>
+        {% endif %}
+    </form>
+
+    {% if search_is_valid and search_page %}
+        <div class="marketplace-section-heading match-browse-heading">
+            <div>
+                <h2 class="h4 mb-1">{{ search_page.total }} kèo phù hợp</h2>
+            </div>
+            <form class="match-sort-form" method="get" action="{{ url_for('matches.index') }}">
+                {% if pagination_params.sport %}<input type="hidden" name="sport" value="{{ pagination_params.sport }}">{% endif %}
+                {% if pagination_params.province_code %}<input type="hidden" name="province_code" value="{{ pagination_params.province_code }}">{% endif %}
+                {% if pagination_params.ward_code %}<input type="hidden" name="ward_code" value="{{ pagination_params.ward_code }}">{% endif %}
+                {% if pagination_params.play_date %}<input type="hidden" name="play_date" value="{{ pagination_params.play_date }}">{% endif %}
+                {% if pagination_params.match_type %}<input type="hidden" name="match_type" value="{{ pagination_params.match_type }}">{% endif %}
+                {{ form.sort.label(class="visually-hidden") }}
+                <i class="bi bi-arrow-down-up match-sort-icon" aria-hidden="true"></i>
+                {{ form.sort(class="form-select form-select-sm match-sort-select", data_match_sort="") }}
+            </form>
+        </div>
+
+        {% if matches %}
+            <div class="match-list-grid marketplace-match-list">
+                {% for match in matches %}
+                    {{ match_marketplace_card(match, 'Xem chi tiết', url_for('matches.detail', match_id=match.id)) }}
+                {% endfor %}
+            </div>
+            {% if search_page.pages > 1 %}
+                <nav class="match-pagination" aria-label="Phân trang kết quả tìm kèo">
+                    {% if search_page.has_previous %}
+                        <a class="btn btn-outline-primary" href="{{ url_for('matches.index', sport=pagination_params.sport, province_code=pagination_params.province_code, ward_code=pagination_params.ward_code, play_date=pagination_params.play_date, match_type=pagination_params.match_type, sort=pagination_params.sort, page=search_page.page - 1) }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Trang trước</a>
+                    {% else %}
+                        <span class="btn btn-outline-secondary disabled" aria-disabled="true"><i class="bi bi-arrow-left" aria-hidden="true"></i> Trang trước</span>
+                    {% endif %}
+                    <span class="match-pagination-status">Trang {{ search_page.page }}/{{ search_page.pages }}</span>
+                    {% if search_page.has_next %}
+                        <a class="btn btn-outline-primary" href="{{ url_for('matches.index', sport=pagination_params.sport, province_code=pagination_params.province_code, ward_code=pagination_params.ward_code, play_date=pagination_params.play_date, match_type=pagination_params.match_type, sort=pagination_params.sort, page=search_page.page + 1) }}">Trang sau <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+                    {% else %}
+                        <span class="btn btn-outline-secondary disabled" aria-disabled="true">Trang sau <i class="bi bi-arrow-right" aria-hidden="true"></i></span>
+                    {% endif %}
+                </nav>
+            {% endif %}
         {% else %}
             <div class="empty-state match-empty-state marketplace-card">
-                <div class="hero-ball mb-3" aria-hidden="true"><i class="bi bi-people"></i></div>
-                <h2 class="h4 fw-bold">Chưa có kèo đang mở</h2>
-                <p class="text-secondary mb-4">Bắt đầu từ việc chọn một sân phù hợp, sau đó hệ thống sẽ hướng dẫn bạn tạo kèo tìm đối thủ hoặc người chơi.</p>
+                <div class="hero-ball mb-3" aria-hidden="true"><i class="bi bi-search"></i></div>
+                <h2 class="h4 fw-bold">{% if has_active_filters %}Không tìm thấy kèo phù hợp{% else %}Chưa có kèo đang mở{% endif %}</h2>
+                <p class="text-secondary mb-4">{% if has_active_filters %}Hãy thử đổi ngày chơi, khu vực, bộ môn hoặc loại kèo.{% else %}Chọn một sân phù hợp rồi đặt sân để đăng kèo đầu tiên.{% endif %}</p>
                 <div class="d-flex flex-wrap justify-content-center gap-2">
+                    {% if has_active_filters %}<a class="btn btn-outline-primary" href="{{ url_for('matches.index') }}">Xóa bộ lọc</a>{% endif %}
                     <a class="btn btn-primary" href="{{ url_for('venues.index') }}">Tìm sân để đặt</a>
-                    {% if current_user.is_authenticated and current_user.role in ['USER', 'OWNER'] %}
-                        <a class="btn btn-outline-primary" href="{{ url_for('matches.mine') }}">Xem kèo của tôi</a>
-                    {% else %}
-                        <a class="btn btn-outline-primary" href="{{ url_for('auth.login') }}">Đăng nhập để tạo kèo</a>
-                    {% endif %}
                 </div>
             </div>
-        {% endfor %}
-    </div>
+        {% endif %}
+    {% else %}
+        <div class="empty-state match-empty-state marketplace-card">
+            <div class="hero-ball mb-3" aria-hidden="true"><i class="bi bi-exclamation-lg"></i></div>
+            <h2 class="h4 fw-bold">Bộ lọc chưa hợp lệ</h2>
+            <p class="text-secondary mb-0">Vui lòng sửa các ô được đánh dấu rồi lọc lại.</p>
+        </div>
+    {% endif %}
 </section>
+{% endblock %}
+
+{% block scripts %}
+    <script src="{{ url_for('static', filename='js/administrative-unit-picker.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/match-discovery.js') }}"></script>
 {% endblock %}

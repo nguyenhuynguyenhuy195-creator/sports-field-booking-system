@@ -19,10 +19,10 @@
 <section class="container marketplace-shell marketplace-page marketplace-booking-page py-4 pb-lg-5">
 
     {% if bookings %}
-        <div class="booking-tabs marketplace-tabs" role="tablist" aria-label="Lọc lịch đặt sân">
+        <div class="marketplace-tabs booking-workspace-tabs" role="tablist" aria-label="Lọc lịch đặt sân">
             {% for group in booking_groups %}
                 <button
-                    class="booking-tab{% if loop.first %} active{% endif %}"
+                    class="marketplace-tab{% if loop.first %} active{% endif %}"
                     id="booking-tab-{{ group.key }}"
                     data-bs-toggle="pill"
                     data-bs-target="#booking-panel-{{ group.key }}"
@@ -34,7 +34,7 @@
                     aria-selected="{{ 'true' if loop.first else 'false' }}"
                 >
                     <span>{{ group.title }}</span>
-                    <span class="booking-tab-count">{{ group.entries|length }}</span>
+                    <span class="marketplace-tab-count">{{ group.entries|length }}</span>
                 </button>
             {% endfor %}
         </div>

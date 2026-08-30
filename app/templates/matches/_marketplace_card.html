@@ -17,8 +17,9 @@
         {% endif %}
 
         <div class="match-market-copy">
+            <p class="match-market-sport"><i class="bi bi-trophy" aria-hidden="true"></i> {{ match.booking.field.field_type.sport.name }}</p>
             <h3>{{ match.title }}</h3>
-            <p class="match-market-venue"><i class="bi bi-building" aria-hidden="true"></i> {{ venue.name }}</p>
+            <p class="match-market-time"><i class="bi bi-clock" aria-hidden="true"></i> <strong>{{ match.booking.start_time.strftime('%H:%M') }}–{{ match.booking.end_time.strftime('%H:%M') }}</strong></p>
             <p class="match-market-location">
                 <i class="bi bi-geo-alt" aria-hidden="true"></i>
                 <span>{{ venue.full_address or 'Địa chỉ sân đang cập nhật' }}</span>
@@ -28,19 +29,9 @@
             {% endif %}
         </div>
 
-        <div class="match-market-meta" aria-label="Thông tin kèo">
-            <div>
-                <span><i class="bi bi-clock" aria-hidden="true"></i> Thời gian</span>
-                <strong>{{ match.booking.start_time.strftime('%H:%M') }}–{{ match.booking.end_time.strftime('%H:%M') }}</strong>
-            </div>
-            <div>
-                <span><i class="bi bi-trophy" aria-hidden="true"></i> Bộ môn</span>
-                <strong>{{ match.booking.field.field_type.sport.name }}</strong>
-            </div>
-            <div>
-                <span><i class="bi bi-grid-3x3-gap" aria-hidden="true"></i> Sân</span>
-                <strong>{{ match.booking.field.name }}</strong>
-            </div>
+        <div class="match-market-venue" aria-label="Địa điểm thi đấu">
+            <i class="bi bi-building" aria-hidden="true"></i>
+            <span>{{ venue.name }} <small>· {{ match.booking.field.name }}</small></span>
         </div>
 
         <div class="match-market-footer">

@@ -28,13 +28,6 @@
 </section>
 
 <section class="container marketplace-shell marketplace-page marketplace-workspace-page py-4 pb-lg-5">
-    <div class="match-workspace-summary" aria-label="Tóm tắt kèo của tôi">
-        <div><span>Đã đăng</span><strong>{{ created_matches|length }}</strong></div>
-        <div><span>Đang mở</span><strong>{{ open_created|length }}</strong></div>
-        <div><span>Đã tham gia</span><strong>{{ joined_requests|length }}</strong></div>
-        <div><span>Đang chờ</span><strong>{{ request_metrics.waiting }}</strong></div>
-    </div>
-
     <div class="marketplace-tabs match-workspace-tabs" role="tablist" aria-label="Nhóm hoạt động kèo">
         <button class="marketplace-tab active" id="match-created-tab" data-bs-toggle="pill" data-bs-target="#match-created-panel" type="button" role="tab" aria-controls="match-created-panel" aria-selected="true">
             Kèo đã đăng <span class="marketplace-tab-count">{{ created_matches|length }}</span>

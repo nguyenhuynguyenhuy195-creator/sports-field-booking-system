@@ -119,7 +119,7 @@ def search_public_venues(
     min_price: Decimal | None = None,
     max_price: Decimal | None = None,
     page: int = 1,
-    per_page: int = 9,
+    per_page: int = 10,
 ) -> PublicVenueSearchPage:
     """Return bookable public venues matching the validated search filters."""
     normalized_query = " ".join((query or "").split())
