@@ -56,8 +56,7 @@
 
 - Endpoint trả mốc 30 phút với trạng thái AVAILABLE, BOOKED, MAINTENANCE, NO_PRICE hoặc PAST.
 - Chọn khoảng liên tục tối thiểu 60 phút, trong giờ mở cửa và tối đa 30 ngày.
-- DIRECT_BOOKING/FIND_PLAYERS đặt trước tối thiểu 60 phút.
-- FIND_OPPONENT đặt trước tối thiểu 24 giờ.
+- DIRECT_BOOKING/FIND_PLAYERS/FIND_OPPONENT đặt trước tối thiểu 60 phút.
 - Submit kiểm tra lại trùng lịch/giá/bảo trì trong transaction.
 - Booking tạo CONFIRMED, giữ chỗ 15 phút và có price snapshot.
 
@@ -126,7 +125,7 @@
 
 ## AC-015: Thời gian tồn tại của bài tìm đối thủ
 
-- Không cho tạo FIND_OPPONENT nếu còn dưới 24 giờ.
+- Không cho tạo FIND_OPPONENT nếu còn dưới 60 phút.
 - Bài mở đến giờ booking bắt đầu, trừ khi creator đóng sớm hoặc đối thủ thanh toán thành công.
 - Tại giờ bắt đầu, không nhận suất/payment mới và các suất chưa hoàn tất hết hiệu lực.
 - Đóng bài không hủy booking, không giải phóng sân và không làm mất cọc creator.

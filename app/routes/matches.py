@@ -25,6 +25,7 @@ from app.models import (
     BookingMode,
     BookingStatus,
     MatchParticipantStatus,
+    MatchParticipantType,
     MatchStatus,
     MatchType,
     UserRole,
@@ -33,10 +34,13 @@ from app.services import (
     AdministrativeUnitError,
     BookingNotFoundError,
     BookingPermissionError,
+    ContributionError,
     DuplicateMatchRequestError,
     MatchmakingError,
     MatchNotFoundError,
     MatchPermissionError,
+    build_contribution_plan,
+    build_google_maps_directions_url,
     create_match,
     current_vietnam_datetime,
     decide_match_request,
@@ -158,6 +162,7 @@ def index():
         ),
         match_type_labels=MATCH_TYPE_LABELS,
         skill_level_labels=SKILL_LEVEL_LABELS,
+        match_has_joined_opponent=_match_has_joined_opponent,
     )
 
 
@@ -172,6 +177,8 @@ def mine():
         match_type_labels=MATCH_TYPE_LABELS,
         match_status_labels=MATCH_STATUS_LABELS,
         participant_status_labels=PARTICIPANT_STATUS_LABELS,
+        skill_level_labels=SKILL_LEVEL_LABELS,
+        match_has_joined_opponent=_match_has_joined_opponent,
     )
 
 
@@ -275,6 +282,18 @@ def detail(match_id: int):
         participant.status == MatchParticipantStatus.JOINED.value
         for participant in match.participants
     )
+    opponent_auto_join = opponent_join_is_automatic(match)
+    expected_deposit_amount = None
+    if opponent_auto_join:
+        try:
+            expected_deposit_amount = build_contribution_plan(
+                booking_mode=match.booking.booking_mode,
+                deposit_amount=match.booking.deposit_amount,
+                requested_players=match.booking.requested_players,
+            ).external_amount
+        except ContributionError:
+            # Legacy data may not support a safe pre-payment quote.
+            expected_deposit_amount = None
     current_contact_phone = current_user.phone if current_user.is_authenticated else None
     if current_user.is_authenticated and current_user.id == match.creator_id:
         current_contact_phone = match.creator_contact_phone
@@ -289,6 +308,9 @@ def detail(match_id: int):
         match_status_labels=MATCH_STATUS_LABELS,
         participant_status_labels=PARTICIPANT_STATUS_LABELS,
         skill_level_labels=SKILL_LEVEL_LABELS,
+        has_joined_opponent=_match_has_joined_opponent(match),
+        directions_url=build_google_maps_directions_url(match.booking.field.venue),
+        expected_deposit_amount=expected_deposit_amount,
         join_form=MatchJoinForm(contact_phone=current_contact_phone),
         action_form=MatchActionForm(),
         payment_form=BookingActionForm(prefix="payment"),
@@ -303,7 +325,7 @@ def detail(match_id: int):
             else False
         ),
         contact_visible=_contact_visible(match.booking),
-        opponent_auto_join=opponent_join_is_automatic(match),
+        opponent_auto_join=opponent_auto_join,
         momo_enabled=current_app.config.get("MOMO_ENABLED", False),
     )
 
@@ -450,3 +472,12 @@ def _contact_visible(booking) -> bool:
         return False
     end_at = datetime.combine(booking.booking_date, booking.end_time)
     return end_at > current_vietnam_datetime()
+
+
+def _match_has_joined_opponent(match) -> bool:
+    return any(
+        participant.participant_type
+        == MatchParticipantType.OPPONENT_REPRESENTATIVE.value
+        and participant.status == MatchParticipantStatus.JOINED.value
+        for participant in match.participants
+    )

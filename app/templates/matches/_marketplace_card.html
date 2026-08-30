@@ -1,6 +1,8 @@
 {% macro match_marketplace_card(match, action_label, action_url, status_label=None, status_class=None, show_description=False) %}
     {% set joined_count = match.participants|selectattr('status', 'equalto', 'JOINED')|list|length %}
     {% set venue = match.booking.field.venue %}
+    {% set compact_ward = venue.ward_name or venue.district %}
+    {% set compact_province = (venue.province_name or venue.city or '')|replace('Thành phố ', 'TP. ') %}
     <article class="match-market-card marketplace-card">
         <div class="match-market-card-topline">
             <span class="match-type-badge match-type-{{ match.match_type|lower|replace('_', '-') }}">
@@ -22,8 +24,16 @@
             <p class="match-market-time"><i class="bi bi-clock" aria-hidden="true"></i> <strong>{{ match.booking.start_time.strftime('%H:%M') }}–{{ match.booking.end_time.strftime('%H:%M') }}</strong></p>
             <p class="match-market-location">
                 <i class="bi bi-geo-alt" aria-hidden="true"></i>
-                <span>{{ venue.full_address or 'Địa chỉ sân đang cập nhật' }}</span>
+                <span>
+                    {% if compact_ward and compact_province %}{{ compact_ward }} · {{ compact_province }}
+                    {% elif compact_ward %}{{ compact_ward }}
+                    {% elif compact_province %}{{ compact_province }}
+                    {% else %}Khu vực đang cập nhật{% endif %}
+                </span>
             </p>
+            {% if match.skill_level %}
+                <span class="match-market-skill"><i class="bi bi-bar-chart" aria-hidden="true"></i> Trình độ: {{ skill_level_labels[match.skill_level] }}</span>
+            {% endif %}
             {% if show_description and match.description %}
                 <p class="match-market-description">{{ match.description }}</p>
             {% endif %}
@@ -38,7 +48,7 @@
             <div class="match-market-progress">
                 {% if match.match_type == 'FIND_PLAYERS' %}
                     <div class="match-market-progress-label">
-                        <span><i class="bi bi-people" aria-hidden="true"></i> {{ joined_count }}/{{ match.required_players }} người</span>
+                        <span><i class="bi bi-people" aria-hidden="true"></i> {{ joined_count }}/{{ match.required_players }} suất đã có</span>
                         <strong>
                             {% if match.required_players - joined_count > 0 %}
                                 Còn thiếu {{ match.required_players - joined_count }} người
@@ -53,11 +63,11 @@
                 {% else %}
                     <div class="match-market-progress-label match-market-opponent-state">
                         <span><i class="bi bi-shield-check" aria-hidden="true"></i> Đối thủ</span>
-                        <strong>{% if match.status == 'CONFIRMED' %}Đã có đối thủ{% else %}Chưa có đối thủ{% endif %}</strong>
+                        <strong>{% if match_has_joined_opponent(match) %}Đã có đối thủ{% else %}Chưa có đối thủ{% endif %}</strong>
                     </div>
                 {% endif %}
             </div>
-            <a class="btn btn-primary match-market-action" href="{{ action_url }}">{{ action_label }} <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+            <a class="btn btn-primary match-market-action" href="{{ action_url }}">{{ action_label }} <span aria-hidden="true">→</span></a>
         </div>
     </article>
 {% endmacro %}

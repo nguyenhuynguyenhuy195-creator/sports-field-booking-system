@@ -376,3 +376,16 @@ ADR này thay thế hành vi runtime của ADR-025 và phần Google Maps trong 
 - `create_booking()` vẫn lặp lại toàn bộ guardrail liên quan trước khi commit; pricing, contribution, deposit, payment, match, cancellation và refund không đổi.
 
 ADR này thay thế phần quy định play format mới trong ADR-022 và ADR-024. Các ADR cũ và dữ liệu cũ được giữ để ghi lại lịch sử quyết định.
+
+## ADR-034: Thống nhất thời gian đặt trước tối thiểu cho mọi booking mode
+
+**Ngày quyết định:** 30/08/2026
+**Trạng thái:** Đã áp dụng cho booking service, test và tài liệu.
+
+- DIRECT_BOOKING, FIND_PLAYERS và FIND_OPPONENT đều phải được tạo trước giờ bắt đầu ít nhất 60 phút.
+- Bỏ ngoại lệ yêu cầu FIND_OPPONENT phải đặt trước 24 giờ.
+- Các quy tắc thời gian còn lại không đổi: booking ở tương lai, thời lượng tối thiểu 60 phút, bước 30 phút, giờ mở cửa và giới hạn tối đa 30 ngày.
+- Kiểm tra trùng booking/bảo trì không đổi.
+- Matchmaking, payment, deposit, cancellation và refund không đổi.
+
+ADR này chỉ thay thế điều kiện đặt trước 24 giờ của FIND_OPPONENT trong ADR-023 và các tài liệu dẫn xuất; các quyết định còn lại vẫn giữ nguyên.

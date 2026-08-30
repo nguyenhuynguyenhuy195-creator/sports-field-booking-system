@@ -61,7 +61,7 @@ Yêu cầu:
   - Tìm thêm người chơi.
 - FIND_PLAYERS hiển thị ô số vị trí muốn tìm, giới hạn nhỏ hơn capacity của field và giải thích người ghép trả tại sân.
 - Số vị trí FIND_PLAYERS được lưu cùng booking trước khi creator thanh toán cọc/mở match.
-- FIND_OPPONENT ghi rõ phải đặt trước 24 giờ; creator cọc 15% để giữ sân, bài tìm đối thủ mở đến giờ bắt đầu và đối thủ cọc thêm 15% nếu tham gia.
+- FIND_OPPONENT ghi rõ phải đặt trước tối thiểu 60 phút; creator cọc 15% để giữ sân, bài tìm đối thủ mở đến giờ bắt đầu và đối thủ cọc thêm 15% nếu tham gia.
 - Trước submit hiển thị các đoạn giá, total, mức cọc mục tiêu, creator cần trả ngay và số dự kiến trả tại sân. FIND_OPPONENT chưa có đối thủ phải hiển thị 85%, không mặc định 70%.
 - Trước nút thanh toán có thông báo/checkbox: người chủ động hủy, rút hoặc no-show không được hoàn phần cọc của mình; owner hủy hoặc lỗi hệ thống được hoàn 100%.
 - Nêu rõ booking giữ chỗ 15 phút và không chờ owner duyệt.

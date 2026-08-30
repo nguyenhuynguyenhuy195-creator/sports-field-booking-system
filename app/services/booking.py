@@ -101,7 +101,6 @@ def create_booking(
         booking_date=booking_date,
         start_time=start_time,
         end_time=end_time,
-        booking_mode=normalized_mode,
         current_local=current_local,
     )
 
@@ -257,7 +256,6 @@ def quote_booking(
         booking_date=booking_date,
         start_time=start_time,
         end_time=end_time,
-        booking_mode=normalized_mode,
         current_local=current_local,
     )
     quote = _quote_available_interval(
@@ -662,7 +660,6 @@ def _validate_booking_time(
     booking_date: date,
     start_time: time,
     end_time: time,
-    booking_mode: str,
     current_local: datetime,
 ) -> None:
     _validate_booking_interval(
@@ -673,28 +670,8 @@ def _validate_booking_time(
         current_local=current_local,
     )
     start_at = datetime.combine(booking_date, start_time)
-    minimum_lead = (
-        timedelta(hours=1)
-        if booking_mode
-        in {
-            BookingMode.DIRECT_BOOKING.value,
-            BookingMode.FIND_PLAYERS.value,
-        }
-        else timedelta(hours=24)
-    )
-    if start_at - current_local < minimum_lead:
-        hours = (
-            1
-            if booking_mode
-            in {
-                BookingMode.DIRECT_BOOKING.value,
-                BookingMode.FIND_PLAYERS.value,
-            }
-            else 24
-        )
-        raise BookingError(
-            f"Hình thức này phải được đặt trước ít nhất {hours} giờ."
-        )
+    if start_at - current_local < timedelta(hours=1):
+        raise BookingError("Hình thức này phải được đặt trước ít nhất 1 giờ.")
 
 
 def _validate_booking_interval(

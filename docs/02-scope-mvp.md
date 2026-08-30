@@ -42,8 +42,7 @@
 - User chọn ngày, giờ bắt đầu và kết thúc theo bước 30 phút; tối thiểu 60 phút.
 - Không hỏi hoặc yêu cầu hình thức đánh đơn/đôi ở bất kỳ bộ môn nào; booking mới lưu `play_format = NULL`.
 - User chọn DIRECT_BOOKING, FIND_OPPONENT hoặc FIND_PLAYERS.
-- DIRECT_BOOKING và FIND_PLAYERS đặt trước tối thiểu 60 phút.
-- FIND_OPPONENT chỉ được tạo trước giờ bắt đầu ít nhất 24 giờ.
+- DIRECT_BOOKING, FIND_PLAYERS và FIND_OPPONENT đều phải đặt trước tối thiểu 60 phút.
 - Không đặt quá 30 ngày, ngoài giờ mở cửa, trùng bảo trì hoặc trùng booking.
 - Backend tính giá và lưu snapshot; không nhận giá từ frontend.
 - Booking hợp lệ được giữ chỗ 15 phút để thanh toán khoản cọc đầu tiên.

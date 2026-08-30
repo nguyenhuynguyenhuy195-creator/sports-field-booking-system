@@ -665,9 +665,30 @@ def test_match_pages_show_open_match_and_request_state(app, client):
     assert response.status_code == 200
     html = response.get_data(as_text=True)
     assert "Kèo giao hữu cuối tuần" in html
-    assert "123 Đường Thể Thao, TP. Hồ Chí Minh" in html
+    assert "123 Đường Thể Thao" not in html
+    assert "TP. Hồ Chí Minh" in html
+    assert "Trình độ: Trung bình" in html
+    assert "Chưa có đối thủ" in html
 
     login(client, email=player.email)
+    detail_page = client.get(f"/matches/{match_id}").get_data(as_text=True)
+    assert "123 Đường Thể Thao, TP. Hồ Chí Minh" in detail_page
+    assert "Mở chỉ đường trên Google Maps" in detail_page
+    assert "Tiền cọc cần thanh toán" in detail_page
+    assert "60.000 đ" in detail_page
+    assert "Vui lòng đồng ý chia sẻ số điện thoại trước khi tiếp tục." in detail_page
+    assert "data-match-join-form" in detail_page
+
+    missing_consent = client.post(
+        f"/matches/{match_id}/requests",
+        data={
+            "message": "Đội mình muốn tham gia.",
+            "contact_phone": "0901000002",
+        },
+        follow_redirects=True,
+    )
+    assert "Thông tin tham gia không hợp lệ." in missing_consent.get_data(as_text=True)
+
     response = client.post(
         f"/matches/{match_id}/requests",
         data={
@@ -682,6 +703,79 @@ def test_match_pages_show_open_match_and_request_state(app, client):
     assert "Đã giữ suất đối thủ trong 15 phút" in page
     assert "không cần chờ người tạo duyệt" in page
     assert "Đội mình muốn tham gia." not in page
+
+
+def test_find_players_cards_show_slot_progress(app, client):
+    owner = create_user(app, email="owner@example.com", role=UserRole.OWNER)
+    creator = create_user(app, email="creator@example.com")
+    player = create_user(app, email="player@example.com")
+    _, field_id = create_bookable_field(app, owner_id=owner.id)
+    booking_code = _create_split_booking(
+        app,
+        creator_id=creator.id,
+        field_id=field_id,
+        booking_mode=BookingMode.FIND_PLAYERS.value,
+        requested_players=2,
+    )
+    match_id = _create_match(app, booking_code=booking_code, creator_id=creator.id)
+
+    with app.app_context():
+        participant = request_to_join_match(
+            match_id=match_id,
+            user=db.session.get(User, player.id),
+            contact_phone="0901000002",
+            share_contact=True,
+        )
+        decide_match_request(
+            match_id=match_id,
+            participant_id=participant.id,
+            creator=db.session.get(User, creator.id),
+            accept=True,
+        )
+
+    page = client.get("/matches").get_data(as_text=True)
+
+    assert "1/2 suất đã có" in page
+    assert "Còn thiếu 1 người" in page
+    assert 'aria-valuenow="1"' in page
+
+
+def test_completed_opponent_match_uses_joined_participant_state(app, client):
+    owner = create_user(app, email="owner@example.com", role=UserRole.OWNER)
+    creator = create_user(app, email="creator@example.com")
+    opponent = create_user(app, email="opponent@example.com")
+    _, field_id = create_bookable_field(app, owner_id=owner.id)
+    booking_code = _create_split_booking(
+        app,
+        creator_id=creator.id,
+        field_id=field_id,
+        booking_mode=BookingMode.FIND_OPPONENT.value,
+    )
+    match_id = _create_match(app, booking_code=booking_code, creator_id=creator.id)
+
+    with app.app_context():
+        participant = request_to_join_match(
+            match_id=match_id,
+            user=db.session.get(User, opponent.id),
+            contact_phone="0901000002",
+            share_contact=True,
+        )
+        pay_contribution_with_mock(
+            booking_code=booking_code,
+            contribution_id=participant.contribution_id,
+            payer=db.session.get(User, opponent.id),
+        )
+        db.session.get(Match, match_id).status = MatchStatus.COMPLETED.value
+        db.session.commit()
+
+    login(client, email=creator.email)
+    mine_page = client.get("/matches/mine").get_data(as_text=True)
+    detail_page = client.get(f"/matches/{match_id}").get_data(as_text=True)
+
+    assert "Đã có đối thủ" in mine_page
+    assert "Chưa có đối thủ" not in mine_page
+    assert "Đã có đối thủ" in detail_page
+    assert "Chưa có đối thủ" not in detail_page
 
 
 def test_paid_opponent_appears_in_match_workspace_and_contacts_stay_private(app, client):

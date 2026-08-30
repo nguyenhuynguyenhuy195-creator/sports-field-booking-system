@@ -120,7 +120,7 @@ Booking 18:00–20:00 từ chối mọi khoảng giao nhau; chấp nhận kết 
 
 ### TC-BOOKING-004: Giới hạn đặt trước
 
-DIRECT_BOOKING/FIND_PLAYERS dưới 60 phút bị từ chối; FIND_OPPONENT dưới 24 giờ bị từ chối; quá 30 ngày bị từ chối.
+Mọi booking mode dưới 60 phút đều bị từ chối; FIND_OPPONENT từ đủ 60 phút được chấp nhận; quá 30 ngày bị từ chối.
 
 ### TC-BOOKING-005: Availability hết hạn
 

@@ -110,8 +110,7 @@ User phải đăng nhập trước khi tạo booking, tạo kèo, gửi yêu c�
 
 ### BR-016: Thời gian đặt trước
 
-- DIRECT_BOOKING và FIND_PLAYERS phải tạo trước giờ bắt đầu ít nhất 60 phút.
-- FIND_OPPONENT phải tạo trước giờ bắt đầu ít nhất 24 giờ.
+- DIRECT_BOOKING, FIND_PLAYERS và FIND_OPPONENT đều phải tạo trước giờ bắt đầu ít nhất 60 phút.
 - Bài FIND_OPPONENT được nhận yêu cầu đến giờ booking bắt đầu; không có deadline riêng trước 12 giờ.
 
 ### BR-017: Cấu hình booking hiện tại

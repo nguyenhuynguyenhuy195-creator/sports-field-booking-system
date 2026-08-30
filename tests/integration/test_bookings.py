@@ -725,7 +725,7 @@ def test_service_rejects_invalid_booking_time(
     assert message in str(exc_info.value)
 
 
-def test_booking_mode_lead_times_and_maximum_advance_are_enforced(app):
+def test_all_booking_modes_share_one_hour_lead_time_and_maximum_advance(app):
     owner = create_user(app, email="owner@example.com", role=UserRole.OWNER)
     player = create_user(app, email="player@example.com")
     now = datetime(2026, 8, 10, 10, 0)
@@ -738,26 +738,34 @@ def test_booking_mode_lead_times_and_maximum_advance_are_enforced(app):
 
     with app.app_context():
         player_model = db.session.get(User, player.id)
-        with pytest.raises(BookingError, match="ít nhất 1 giờ"):
-            create_booking(
-                user=player_model,
-                field_id=field_id,
-                booking_date=target_date,
-                start_time=time(10, 30),
-                end_time=time(11, 30),
-                booking_mode=BookingMode.DIRECT_BOOKING.value,
-                now=now,
-            )
-        with pytest.raises(BookingError, match="ít nhất 24 giờ"):
-            create_booking(
-                user=player_model,
-                field_id=field_id,
-                booking_date=target_date,
-                start_time=time(22, 0),
-                end_time=time(23, 0),
-                booking_mode=BookingMode.FIND_OPPONENT.value,
-                now=now,
-            )
+        for booking_mode, requested_players in (
+            (BookingMode.DIRECT_BOOKING.value, None),
+            (BookingMode.FIND_PLAYERS.value, 2),
+            (BookingMode.FIND_OPPONENT.value, None),
+        ):
+            with pytest.raises(BookingError, match="ít nhất 1 giờ"):
+                create_booking(
+                    user=player_model,
+                    field_id=field_id,
+                    booking_date=target_date,
+                    start_time=time(10, 30),
+                    end_time=time(11, 30),
+                    booking_mode=booking_mode,
+                    requested_players=requested_players,
+                    now=now,
+                )
+
+        opponent_booking = create_booking(
+            user=player_model,
+            field_id=field_id,
+            booking_date=target_date,
+            start_time=time(11, 0),
+            end_time=time(12, 0),
+            booking_mode=BookingMode.FIND_OPPONENT.value,
+            now=now,
+        )
+        assert opponent_booking.booking_mode == BookingMode.FIND_OPPONENT.value
+
         with pytest.raises(BookingError, match="tối đa 30 ngày"):
             create_booking(
                 user=player_model,

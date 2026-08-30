@@ -49,7 +49,7 @@ Ví dụ total_amount 600.000đ:
 
 Quy trình:
 
-1. Booking phải được tạo trước giờ bắt đầu ít nhất 24 giờ.
+1. Booking phải được tạo trước giờ bắt đầu ít nhất 60 phút.
 2. Trong 15 phút giữ chỗ, creator thanh toán 50% deposit_amount.
 3. IPN hợp lệ chuyển booking PARTIALLY_PAID và cho phép mở match FIND_OPPONENT.
 4. Đại diện phía đối thủ nhập số Zalo, đồng ý chia sẻ rồi bấm “Nhận kèo”.
