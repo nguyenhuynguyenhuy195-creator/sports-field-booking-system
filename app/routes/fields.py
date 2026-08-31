@@ -92,6 +92,7 @@ def owner_create(venue_id: int):
         venue=venue,
         page_title="Thêm sân",
         submit_label="Tạo sân",
+        field_status_labels=FIELD_STATUS_LABELS,
     )
 
 
@@ -141,6 +142,7 @@ def owner_edit(venue_id: int, field_id: int):
         field=field,
         page_title="Chỉnh sửa sân",
         submit_label="Lưu thay đổi",
+        field_status_labels=FIELD_STATUS_LABELS,
     )
 
 

@@ -5,21 +5,60 @@
 {% block owner_page_label %}Cơ sở &amp; Sân{% endblock %}
 
 {% block content %}
-<section class="auth-section py-5">
-    <div class="container">
-        <div class="auth-card mx-auto">
-            <a class="text-decoration-none" href="{{ url_for('fields.owner_index', venue_id=venue.id) }}">← Danh sách sân</a>
-            <span class="eyebrow d-block mt-4">{{ venue.name }}</span>
-            <h1 class="h2 fw-bold mt-2">{{ page_title }}</h1>
-            <p class="text-secondary">Sân mới chưa nhận đặt lịch cho đến khi có khung giá hợp lệ.</p>
+<section class="container owner-page-container owner-field-form-page py-4 py-lg-5">
+    <a class="owner-fields-back" href="{{ url_for('fields.owner_index', venue_id=venue.id) }}"><i class="bi bi-arrow-left" aria-hidden="true"></i>Danh sách sân</a>
+    <div class="owner-field-form-layout">
+        <header class="owner-field-form-heading">
+            <span class="eyebrow">{{ venue.name }}</span>
+            <h1 class="h2 fw-bold mt-2 mb-2">{{ page_title }}</h1>
+            <p class="text-secondary mb-0">Quản lý thông tin nhận diện và thông số vận hành của sân.</p>
+        </header>
+
+        <div class="owner-field-form-card">
+            {% if field %}
+                <div class="owner-field-form-status">
+                    <span class="status-badge status-{{ field.status|lower }}">{{ field_status_labels[field.status] }}</span>
+                    <p>Chỉnh sửa thông tin không thay đổi trạng thái sân. Bật hoặc tạm ngưng sân tại trang Bảng giá.</p>
+                </div>
+            {% else %}
+                <div class="alert alert-info owner-field-form-note"><i class="bi bi-info-circle" aria-hidden="true"></i><span>Sân mới được tạo ở trạng thái <strong>Chưa hoạt động</strong>. Hãy tạo khung giá đang áp dụng trước khi bật sân tại trang Bảng giá.</span></div>
+            {% endif %}
 
             <form method="post" novalidate>
                 {{ form.hidden_tag() }}
-                {{ render_field(form.name, placeholder="Ví dụ: Sân số 1") }}
-                {{ render_field(form.field_type) }}
-                {{ render_field(form.surface_type, placeholder="Ví dụ: Cỏ nhân tạo") }}
-                {{ render_field(form.capacity, min="1", placeholder="Ví dụ: 14") }}
-                {{ form.submit(class="btn btn-primary w-100", value=submit_label) }}
+                <section class="owner-field-form-section" aria-labelledby="field-identity-heading">
+                    <div class="owner-field-form-section-heading">
+                        <i class="bi bi-bounding-box-circles" aria-hidden="true"></i>
+                        <div>
+                            <h2 id="field-identity-heading">Thông tin sân</h2>
+                            <p>Tên và loại sân giúp Owner phân biệt sân trong cùng cơ sở.</p>
+                        </div>
+                    </div>
+                    {{ render_field(form.name, placeholder="Ví dụ: Sân số 1") }}
+                    {{ render_field(form.field_type) }}
+                    {% if field %}
+                        <p class="form-text mt-0 mb-3">Loại sân không thể thay đổi sau khi sân đã có lịch sử đặt.</p>
+                    {% endif %}
+                </section>
+
+                <section class="owner-field-form-section" aria-labelledby="field-operation-heading">
+                    <div class="owner-field-form-section-heading">
+                        <i class="bi bi-sliders" aria-hidden="true"></i>
+                        <div>
+                            <h2 id="field-operation-heading">Thông số vận hành</h2>
+                            <p>Mặt sân là thông tin bổ sung; sức chứa phải lớn hơn 0.</p>
+                        </div>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-7">{{ render_field(form.surface_type, placeholder="Ví dụ: Cỏ nhân tạo") }}</div>
+                        <div class="col-md-5">{{ render_field(form.capacity, min="1", placeholder="Ví dụ: 14") }}</div>
+                    </div>
+                </section>
+
+                <div class="owner-field-form-actions">
+                    <a class="btn btn-outline-secondary" href="{{ url_for('fields.owner_index', venue_id=venue.id) }}">Hủy</a>
+                    {{ form.submit(class="btn btn-primary", value=submit_label) }}
+                </div>
             </form>
         </div>
     </div>

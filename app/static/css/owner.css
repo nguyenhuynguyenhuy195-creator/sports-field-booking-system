@@ -1343,7 +1343,8 @@ a.owner-sidebar-link:hover {
     font-size: 0.58rem;
 }
 
-.owner-field-capacity {
+.owner-field-capacity,
+.owner-field-sport {
     display: inline-flex;
     gap: 0.3rem;
     align-items: center;
@@ -1353,7 +1354,8 @@ a.owner-sidebar-link:hover {
     white-space: nowrap;
 }
 
-.owner-field-capacity i {
+.owner-field-capacity i,
+.owner-field-sport i {
     color: #4f8b73;
 }
 
@@ -1387,10 +1389,19 @@ a.owner-sidebar-link:hover {
     border-top: 1px solid #edf2ef;
 }
 
+.owner-field-meta > div + div {
+    margin-top: 0.5rem;
+}
+
 .owner-field-meta dt,
 .owner-field-meta dd {
     margin: 0;
     font-size: 0.64rem;
+}
+
+.owner-field-meta dd i {
+    margin-right: 0.28rem;
+    color: #4f8b73;
 }
 
 .owner-field-meta dt {
@@ -1442,6 +1453,10 @@ a.owner-sidebar-link:hover {
     border-radius: 8px;
 }
 
+.owner-field-actions .btn {
+    flex: 1 1 104px;
+}
+
 .owner-field-actions .btn-primary {
     box-shadow: 0 5px 12px rgba(22, 118, 77, 0.13);
 }
@@ -1459,6 +1474,139 @@ a.owner-sidebar-link:hover {
 .owner-fields-empty .empty-state-icon {
     display: inline-grid;
     place-items: center;
+}
+
+.owner-field-form-page {
+    max-width: 940px !important;
+}
+
+.owner-field-form-layout {
+    display: grid;
+    gap: 1.15rem;
+    margin-top: 1.15rem;
+}
+
+.owner-field-form-heading {
+    max-width: 680px;
+}
+
+.owner-field-form-heading .eyebrow {
+    color: var(--owner-primary-dark);
+    font-size: 0.65rem;
+    font-weight: 800;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+}
+
+.owner-field-form-card {
+    width: 100%;
+    padding: 1.15rem;
+    background: var(--owner-surface);
+    border: 1px solid var(--owner-border);
+    border-radius: var(--owner-radius);
+    box-shadow: 0 10px 28px rgba(16, 63, 53, 0.06);
+}
+
+.owner-field-form-note {
+    display: flex;
+    gap: 0.55rem;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+    font-size: 0.7rem;
+}
+
+.owner-field-form-note i {
+    flex: 0 0 auto;
+    margin-top: 0.1rem;
+}
+
+.owner-field-form-status {
+    display: flex;
+    gap: 0.7rem;
+    align-items: center;
+    padding: 0.72rem;
+    margin-bottom: 1rem;
+    background: #f5f8f6;
+    border: 1px solid #e2eae5;
+    border-radius: 9px;
+}
+
+.owner-field-form-status .status-badge {
+    flex: 0 0 auto;
+}
+
+.owner-field-form-status p {
+    margin: 0;
+    color: var(--owner-muted);
+    font-size: 0.68rem;
+    line-height: 1.5;
+}
+
+.owner-field-form-section + .owner-field-form-section {
+    padding-top: 1.05rem;
+    margin-top: 1.05rem;
+    border-top: 1px solid #e7eeea;
+}
+
+.owner-field-form-section-heading {
+    display: flex;
+    gap: 0.62rem;
+    align-items: flex-start;
+    margin-bottom: 0.9rem;
+}
+
+.owner-field-form-section-heading > i {
+    display: inline-grid;
+    flex: 0 0 auto;
+    width: 32px;
+    height: 32px;
+    place-items: center;
+    color: var(--owner-primary-dark);
+    background: #e7f3ed;
+    border-radius: 8px;
+}
+
+.owner-field-form-section-heading h2 {
+    margin: 0;
+    color: #15382b;
+    font-size: 0.84rem;
+    font-weight: 700;
+}
+
+.owner-field-form-section-heading p {
+    margin: 0.15rem 0 0;
+    color: var(--owner-muted);
+    font-size: 0.64rem;
+    line-height: 1.45;
+}
+
+.owner-field-form-card .form-label,
+.owner-field-form-card .form-control,
+.owner-field-form-card .form-select,
+.owner-field-form-card .form-text,
+.owner-field-form-card .invalid-feedback {
+    font-size: 0.7rem;
+}
+
+.owner-field-form-card .form-control,
+.owner-field-form-card .form-select {
+    min-width: 0;
+}
+
+.owner-field-form-actions {
+    display: flex;
+    gap: 0.6rem;
+    justify-content: flex-end;
+    padding-top: 1.1rem;
+    margin-top: 1.05rem;
+    border-top: 1px solid #e7eeea;
+}
+
+.owner-field-form-actions .btn {
+    min-width: 118px;
+    min-height: 40px;
+    font-size: 0.72rem;
+    font-weight: 700;
 }
 
 /* Owner booking operations detail. User booking detail keeps the shared app styles. */
@@ -2413,7 +2561,8 @@ a.owner-sidebar-link:hover {
         font-size: 0.66rem;
     }
 
-    .owner-field-capacity {
+    .owner-field-capacity,
+    .owner-field-sport {
         font-size: 0.7rem;
     }
 
@@ -2444,6 +2593,29 @@ a.owner-sidebar-link:hover {
         min-height: 38px;
         padding: 0.48rem 0.66rem;
         font-size: 0.72rem;
+    }
+
+    .owner-field-form-heading .eyebrow {
+        font-size: 0.72rem;
+    }
+
+    .owner-field-form-card {
+        padding: 1.35rem;
+    }
+
+    .owner-field-form-section-heading h2 {
+        font-size: 0.94rem;
+    }
+
+    .owner-field-form-section-heading p,
+    .owner-field-form-card .form-label,
+    .owner-field-form-card .form-control,
+    .owner-field-form-card .form-select,
+    .owner-field-form-card .form-text,
+    .owner-field-form-card .invalid-feedback,
+    .owner-field-form-note,
+    .owner-field-form-status p {
+        font-size: 0.76rem;
     }
 
     .owner-booking-detail-header {
@@ -2632,7 +2804,9 @@ a.owner-sidebar-link:hover {
 
     .owner-dashboard,
     .owner-bookings-page,
-    .owner-venues-page {
+    .owner-venues-page,
+    .owner-fields-page,
+    .owner-field-form-page {
         padding-top: 1.25rem !important;
         padding-bottom: 1.5rem !important;
     }
@@ -2732,6 +2906,25 @@ a.owner-sidebar-link:hover {
         width: 100%;
         min-width: 0;
     }
+
+    .owner-field-form-card {
+        padding: 0.9rem;
+    }
+
+    .owner-field-form-status {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .owner-field-form-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .owner-field-form-actions .btn {
+        width: 100%;
+        min-width: 0;
+    }
 }
 
 @media (max-width: 420px) {
@@ -2754,6 +2947,10 @@ a.owner-sidebar-link:hover {
     .owner-venue-form-actions {
         grid-template-columns: minmax(0, 1fr);
     }
+
+    .owner-field-form-actions {
+        grid-template-columns: minmax(0, 1fr);
+    }
 }
 
 @media (min-width: 768px) {
@@ -2763,6 +2960,16 @@ a.owner-sidebar-link:hover {
     }
 
     .owner-venue-grid--pair {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        max-width: 1100px;
+    }
+
+    .owner-field-grid--single {
+        grid-template-columns: minmax(0, 1fr);
+        max-width: 560px;
+    }
+
+    .owner-field-grid--pair {
         grid-template-columns: repeat(2, minmax(0, 1fr));
         max-width: 1100px;
     }

@@ -317,11 +317,14 @@ Theo quyết định của người dùng ngày 31/08/2026:
 - Browser QA đạt cho 0/1/2/3/nhiều Venue ở desktop 1440×900 và mobile 390×844; grid 1 Venue tối đa 560px, 2 Venue tối đa 1100px, từ 3 Venue giữ card width hiện có; không page-level horizontal overflow.
 - Regression: focused Venue tests 41 passed; full suite 282 passed, 0 failed.
 
-### Step 3.3B – Field Management — NOT STARTED
+### Step 3.3B – Owner Field Management — DONE / ACCEPTED (01/09/2026)
 
-- Danh sách sân và Chỉnh sửa sân theo Venue được chọn.
-- Tạo/sửa sân trong cơ sở; Field type, capacity và trạng thái sân.
-- Tích hợp/review lại Field UI trong Owner Console; không gộp backend Venue/Field, giữ route/service/domain và ownership validation hiện có.
+- Danh sách sân theo Venue đã được tích hợp vào workspace Cơ sở & Sân trong Owner Console, gồm empty state, loại sân/môn thể thao, sức chứa, mặt sân, trạng thái và các entry Chỉnh sửa/Bảng giá/Bảo trì.
+- Create/Edit Field dùng Owner Console shell và visual language đã nghiệm thu; tái sử dụng `FieldForm`, route/service/domain hiện có và giữ Field mới mặc định chưa hoạt động.
+- Ownership được kiểm tra ở cả Venue và quan hệ Field–Venue; `USER`/`ADMIN`, Owner khác và cặp `venue_id`/`field_id` không khớp không được truy cập hoặc làm lộ dữ liệu.
+- Không thay đổi model/migration hay booking, pricing, maintenance, payment, refund và matchmaking rules; quan hệ Pricing/Maintenance được giữ nguyên khi sửa Field.
+- Browser QA đạt cho Venue có 0/1/2/nhiều Field ở desktop 1440×900 và mobile 390×844; không page-level horizontal overflow.
+- Regression: focused Field/Pricing/Maintenance tests 39 passed; full suite 287 passed, 0 failed.
 
 ### Step 3.3C – Venue & Field Media — NOT STARTED
 
@@ -498,9 +501,9 @@ DONE:
 
 ### TASK TIẾP THEO
 
-**PHASE 3 – STEP 3.3 VENUE & FIELD MANAGEMENT + MEDIA**
+**PHASE 3 – STEP 3.3C VENUE & FIELD MEDIA**
 
-Step 3.2 đã nghiệm thu. Tiếp theo audit Venue/Field hiện có, media infrastructure và ownership flow trước khi triển khai quản lý Cơ sở & Sân + Media theo scope Step 3.3; Phase 2 vẫn được tạm hoãn theo quyết định của người dùng.
+Step 3.3A Venue Management và Step 3.3B Field Management đã nghiệm thu. Step 3.3C Media vẫn chưa bắt đầu và chỉ triển khai khi có yêu cầu riêng; Phase 2 vẫn được tạm hoãn theo quyết định của người dùng.
 
 ---
 
