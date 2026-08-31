@@ -887,7 +887,7 @@ a.owner-sidebar-link:hover {
     border-radius: 8px;
 }
 
-/* Venue + Field entry: media is a visual placeholder until Step 3.3. */
+/* Venue management: compact owner-scoped summaries and forms. */
 .owner-venue-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0.9rem;
@@ -903,25 +903,11 @@ a.owner-sidebar-link:hover {
     box-shadow: 0 8px 22px rgba(16, 63, 53, 0.05);
 }
 
-.owner-venue-media {
-    display: grid;
+.owner-venue-create {
+    display: inline-flex;
     gap: 0.4rem;
-    min-height: 118px;
-    place-content: center;
-    color: #668278;
-    text-align: center;
-    background: linear-gradient(135deg, #eaf3ee 0%, #dcebe2 100%);
-    border-bottom: 1px solid #dce8e1;
-}
-
-.owner-venue-media i {
-    color: #2c7660;
-    font-size: 1.55rem;
-}
-
-.owner-venue-media span {
-    font-size: 0.62rem;
-    font-weight: 600;
+    align-items: center;
+    justify-content: center;
 }
 
 .owner-venue-card-body {
@@ -1019,6 +1005,10 @@ a.owner-sidebar-link:hover {
     border-top: 1px solid #edf2ef;
 }
 
+.owner-venue-fields-note strong {
+    color: #354d42;
+}
+
 .owner-venue-actions .btn {
     min-height: 34px;
     padding: 0.42rem 0.58rem;
@@ -1045,6 +1035,124 @@ a.owner-sidebar-link:hover {
 
 .owner-venue-public-link i {
     font-size: 0.62rem;
+}
+
+.owner-venue-form-page {
+    max-width: 940px !important;
+}
+
+.owner-venue-form-back {
+    display: inline-flex;
+    gap: 0.4rem;
+    align-items: center;
+    color: #426157;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.owner-venue-form-back:hover {
+    color: var(--owner-primary);
+}
+
+.owner-venue-form-layout {
+    display: grid;
+    gap: 1.15rem;
+    margin-top: 1.15rem;
+}
+
+.owner-venue-form-heading {
+    max-width: 680px;
+}
+
+.owner-venue-form-card {
+    width: 100%;
+    max-width: none;
+    padding: 1.15rem;
+    background: var(--owner-surface);
+    border: 1px solid var(--owner-border);
+    border-radius: var(--owner-radius);
+    box-shadow: 0 10px 28px rgba(16, 63, 53, 0.06);
+}
+
+.owner-venue-review-note {
+    display: flex;
+    gap: 0.55rem;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+    font-size: 0.7rem;
+}
+
+.owner-venue-review-note i {
+    flex: 0 0 auto;
+    margin-top: 0.1rem;
+}
+
+.owner-venue-form-section + .owner-venue-form-section {
+    padding-top: 1.05rem;
+    margin-top: 1.05rem;
+    border-top: 1px solid #e7eeea;
+}
+
+.owner-venue-form-section-heading {
+    display: flex;
+    gap: 0.62rem;
+    align-items: flex-start;
+    margin-bottom: 0.9rem;
+}
+
+.owner-venue-form-section-heading > i {
+    display: inline-grid;
+    flex: 0 0 auto;
+    width: 32px;
+    height: 32px;
+    place-items: center;
+    color: var(--owner-primary-dark);
+    background: #e7f3ed;
+    border-radius: 8px;
+}
+
+.owner-venue-form-section-heading h2 {
+    margin: 0;
+    color: #15382b;
+    font-size: 0.84rem;
+    font-weight: 700;
+}
+
+.owner-venue-form-section-heading p {
+    margin: 0.15rem 0 0;
+    color: var(--owner-muted);
+    font-size: 0.64rem;
+    line-height: 1.45;
+}
+
+.owner-venue-form-card .form-label,
+.owner-venue-form-card .form-control,
+.owner-venue-form-card .form-select,
+.owner-venue-form-card .form-text,
+.owner-venue-form-card .invalid-feedback {
+    font-size: 0.7rem;
+}
+
+.owner-venue-form-card .form-control,
+.owner-venue-form-card .form-select {
+    min-width: 0;
+}
+
+.owner-venue-form-actions {
+    display: flex;
+    gap: 0.6rem;
+    justify-content: flex-end;
+    padding-top: 1.1rem;
+    margin-top: 1.05rem;
+    border-top: 1px solid #e7eeea;
+}
+
+.owner-venue-form-actions .btn {
+    min-width: 118px;
+    min-height: 40px;
+    font-size: 0.72rem;
+    font-weight: 700;
 }
 
 /* Owner field catalogue: compact product cards, isolated from public field cards. */
@@ -2210,18 +2318,6 @@ a.owner-sidebar-link:hover {
         justify-content: start;
     }
 
-    .owner-venue-media {
-        min-height: 164px;
-    }
-
-    .owner-venue-media i {
-        font-size: 1.8rem;
-    }
-
-    .owner-venue-media span {
-        font-size: 0.7rem;
-    }
-
     .owner-venue-card-body {
         padding: 1.05rem 1.05rem 0.92rem;
     }
@@ -2257,6 +2353,28 @@ a.owner-sidebar-link:hover {
 
     .owner-venue-public-link {
         font-size: 0.69rem;
+    }
+
+    .owner-venue-form-back {
+        font-size: 0.8rem;
+    }
+
+    .owner-venue-form-card {
+        padding: 1.35rem;
+    }
+
+    .owner-venue-form-section-heading h2 {
+        font-size: 0.94rem;
+    }
+
+    .owner-venue-form-section-heading p,
+    .owner-venue-form-card .form-label,
+    .owner-venue-form-card .form-control,
+    .owner-venue-form-card .form-select,
+    .owner-venue-form-card .form-text,
+    .owner-venue-form-card .invalid-feedback,
+    .owner-venue-review-note {
+        font-size: 0.76rem;
     }
 
     .owner-fields-back {
@@ -2595,6 +2713,25 @@ a.owner-sidebar-link:hover {
     .owner-venue-grid {
         grid-template-columns: minmax(0, 1fr);
     }
+
+    .owner-venue-form-page {
+        padding-top: 1.25rem !important;
+        padding-bottom: 1.5rem !important;
+    }
+
+    .owner-venue-form-card {
+        padding: 0.9rem;
+    }
+
+    .owner-venue-form-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .owner-venue-form-actions .btn {
+        width: 100%;
+        min-width: 0;
+    }
 }
 
 @media (max-width: 420px) {
@@ -2612,6 +2749,22 @@ a.owner-sidebar-link:hover {
     .owner-booking-primary,
     .owner-booking-action {
         grid-column: auto;
+    }
+
+    .owner-venue-form-actions {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (min-width: 768px) {
+    .owner-venue-grid--single {
+        grid-template-columns: minmax(0, 1fr);
+        max-width: 560px;
+    }
+
+    .owner-venue-grid--pair {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        max-width: 1100px;
     }
 }
 

@@ -90,6 +90,12 @@ class PublicVenueSearchPage:
         return self.page < self.pages
 
 
+@dataclass(frozen=True)
+class OwnerVenueSummary:
+    venue: Venue
+    field_count: int
+
+
 def _normalize_required_text(value: str) -> str:
     return normalize_full_name(value)
 
@@ -366,6 +372,25 @@ def get_owner_venue(*, venue_id: int, owner_id: int) -> Venue:
     if venue.owner_id != owner_id:
         raise VenuePermissionError("Bạn không có quyền quản lý cơ sở này.")
     return venue
+
+
+def list_owner_venue_summaries(owner_id: int) -> list[OwnerVenueSummary]:
+    """Return owner-scoped venues with their current field count."""
+    field_count = (
+        db.select(db.func.count(Field.id))
+        .where(Field.venue_id == Venue.id)
+        .correlate(Venue)
+        .scalar_subquery()
+    )
+    rows = db.session.execute(
+        db.select(Venue, field_count.label("field_count"))
+        .where(Venue.owner_id == owner_id)
+        .order_by(Venue.created_at.desc(), Venue.id.desc())
+    ).all()
+    return [
+        OwnerVenueSummary(venue=venue, field_count=int(count or 0))
+        for venue, count in rows
+    ]
 
 
 def list_admin_venues(*, status: str | None = None) -> list[Venue]:

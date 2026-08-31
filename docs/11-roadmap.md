@@ -308,16 +308,25 @@ Theo quyết định của người dùng ngày 31/08/2026:
 - Browser QA đạt ở 1920×1080, 1440×900, 1366×768 và 390×844; matrix 1/2/3/10 sân, sticky/internal scroll, mobile, empty day, inactive field và console JavaScript đều đạt.
 - Regression: 9 test Owner Schedule mới đạt; full suite 277 passed, 0 failed.
 
-### Step 3.3 – Venue & Field Management + Media — NOT STARTED
+### Step 3.3A – Owner Venue Management — DONE / ACCEPTED (01/09/2026)
 
-- Danh sách cơ sở.
-- Tạo/sửa cơ sở; giờ hoạt động và trạng thái.
+- `/owner/venues` là workspace Cơ sở & Sân trong Owner Console, chỉ liệt kê Venue thuộc `OWNER` hiện tại cùng địa chỉ cấu trúc, giờ hoạt động, moderation status và số sân thực tế.
+- Có empty state, Thêm cơ sở, Chỉnh sửa và entry Xem sân theo từng Venue; chưa thay đổi hay polish Field Management.
+- Create/Edit Venue dùng Owner Console shell và visual language hiện có; giữ Province/Ward validation, rule giờ mở/đóng, ownership 403 và Admin moderation workflow.
+- Query read-model chỉ bổ sung số sân theo Venue; không tạo model/migration và không thay đổi booking, pricing, maintenance, payment hoặc match logic.
+- Browser QA đạt cho 0/1/2/3/nhiều Venue ở desktop 1440×900 và mobile 390×844; grid 1 Venue tối đa 560px, 2 Venue tối đa 1100px, từ 3 Venue giữ card width hiện có; không page-level horizontal overflow.
+- Regression: focused Venue tests 41 passed; full suite 282 passed, 0 failed.
+
+### Step 3.3B – Field Management — NOT STARTED
+
+- Danh sách sân và Chỉnh sửa sân theo Venue được chọn.
+- Tạo/sửa sân trong cơ sở; Field type, capacity và trạng thái sân.
+- Tích hợp/review lại Field UI trong Owner Console; không gộp backend Venue/Field, giữ route/service/domain và ownership validation hiện có.
+
+### Step 3.3C – Venue & Field Media — NOT STARTED
+
 - Ảnh đại diện và gallery cơ sở.
-- Xem sân theo từng cơ sở; chỉ hiển thị Field thuộc Venue được chọn.
-- Tạo/sửa sân trong cơ sở.
-- Field type, capacity và trạng thái sân.
 - Ảnh đại diện và gallery sân.
-- Không gộp backend Venue/Field; giữ route/service/domain và ownership validation hiện có.
 
 ### Step 3.4 – Pricing & Maintenance Operations — NOT STARTED
 

@@ -921,6 +921,135 @@ def test_owner_venue_list_does_not_show_legacy_google_location_warning(
     assert "tìm kiếm gần tôi" not in page
 
 
+def test_owner_venue_workspace_handles_empty_state(app, client):
+    owner = create_user(
+        app,
+        email="empty-venue-owner@example.com",
+        role=UserRole.OWNER,
+    )
+    login(client, email=owner.email)
+
+    response = client.get("/owner/venues")
+    page = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "Owner Console" in page
+    assert "Bạn chưa có cơ sở nào" in page
+    assert "Tạo cơ sở đầu tiên" in page
+    assert "Chưa có ảnh cơ sở" not in page
+
+
+@pytest.mark.parametrize(
+    ("venue_count", "grid_modifier"),
+    [(1, "owner-venue-grid--single"), (2, "owner-venue-grid--pair")],
+)
+def test_owner_venue_workspace_marks_compact_grids_by_venue_count(
+    app,
+    client,
+    venue_count,
+    grid_modifier,
+):
+    owner = create_user(
+        app,
+        email=f"venue-grid-{venue_count}@example.com",
+        role=UserRole.OWNER,
+    )
+    for number in range(venue_count):
+        create_venue_for_owner(app, owner.id, name=f"Cơ sở lưới {number}")
+    login(client, email=owner.email)
+
+    response = client.get("/owner/venues")
+
+    assert response.status_code == 200
+    assert grid_modifier in response.get_data(as_text=True)
+
+
+def test_owner_venue_workspace_scopes_statuses_and_counts_fields(app, client):
+    owner = create_user(
+        app,
+        email="venue-workspace-owner@example.com",
+        role=UserRole.OWNER,
+    )
+    other_owner = create_user(
+        app,
+        email="venue-workspace-other@example.com",
+        role=UserRole.OWNER,
+    )
+    status_venue_ids = []
+    for status in VenueStatus:
+        venue_id = create_venue_for_owner(
+            app,
+            owner.id,
+            name=f"Cơ sở {status.value}",
+        )
+        status_venue_ids.append((venue_id, status))
+    create_venue_for_owner(app, other_owner.id, name="Cơ sở không thuộc chủ sân")
+    with app.app_context():
+        for venue_id, status in status_venue_ids:
+            db.session.get(Venue, venue_id).status = status.value
+        field_type_id = db.session.scalar(
+            db.select(FieldType.id).where(
+                FieldType.code == FieldTypeCode.FOOTBALL_5.value
+            )
+        )
+        db.session.add_all(
+            [
+                Field(
+                    venue_id=status_venue_ids[0][0],
+                    name=f"Sân đếm {number}",
+                    field_type_id=field_type_id,
+                    capacity=10,
+                    status=FieldStatus.ACTIVE.value,
+                )
+                for number in range(1, 3)
+            ]
+        )
+        db.session.commit()
+    login(client, email=owner.email)
+
+    response = client.get("/owner/venues")
+    page = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "Cơ sở không thuộc chủ sân" not in page
+    assert "2</strong> sân thuộc cơ sở" in page
+    assert "Xem sân" in page
+    for label in (
+        "Đang chờ duyệt",
+        "Đang hoạt động",
+        "Đã bị ẩn",
+        "Ngừng hoạt động",
+    ):
+        assert label in page
+
+
+def test_owner_venue_form_uses_console_shell_and_rejects_short_address(
+    app,
+    client,
+):
+    owner = create_user(
+        app,
+        email="venue-form-shell-owner@example.com",
+        role=UserRole.OWNER,
+    )
+    login(client, email=owner.email)
+
+    get_response = client.get("/owner/venues/new")
+    invalid_response = client.post(
+        "/owner/venues/new",
+        data=venue_form_data(address="12"),
+    )
+
+    assert get_response.status_code == 200
+    assert "owner-venue-form-card" in get_response.get_data(as_text=True)
+    assert invalid_response.status_code == 200
+    assert "Địa chỉ phải từ 5 đến 255 ký tự." in invalid_response.get_data(
+        as_text=True
+    )
+    with app.app_context():
+        assert db.session.scalar(db.select(db.func.count(Venue.id))) == 0
+
+
 def test_owner_update_preserves_legacy_location_data_after_address_change(
     app,
     client,
@@ -990,6 +1119,7 @@ def test_owner_cannot_edit_another_owners_venue(app, client):
     venue_id = create_venue_for_owner(app, owner_b.id)
     login(client, email=owner_a.email)
 
+    assert client.get(f"/owner/venues/{venue_id}/edit").status_code == 403
     response = client.post(
         f"/owner/venues/{venue_id}/edit",
         data=venue_form_data(name="Tên bị giả mạo"),

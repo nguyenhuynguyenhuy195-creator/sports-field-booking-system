@@ -23,7 +23,7 @@ from app.services import (
     get_owner_venue,
     get_public_venue,
     list_admin_venues,
-    list_owner_venues,
+    list_owner_venue_summaries,
     list_active_field_types,
     list_active_sports,
     list_provinces,
@@ -164,7 +164,7 @@ def detail(venue_id: int):
 def owner_index():
     return render_template(
         "owner/venues/index.html",
-        venues=list_owner_venues(current_user.id),
+        venue_summaries=list_owner_venue_summaries(current_user.id),
         status_labels=VENUE_STATUS_LABELS,
     )
 

@@ -27,21 +27,28 @@
 {% block owner_page_label %}Cơ sở &amp; Sân{% endblock %}
 
 {% block content %}
-<section class="auth-section py-5">
-    <div class="container">
-        <div class="auth-card venue-form-card mx-auto">
-            <a class="text-decoration-none" href="{{ url_for('venues.owner_index') }}">← Cơ sở của tôi</a>
-            <span class="eyebrow d-block mt-4">KHU VỰC CHỦ SÂN</span>
-            <h1 class="h2 fw-bold mt-2">{{ page_title }}</h1>
-            <p class="text-secondary">Xác nhận vị trí, thông tin liên hệ và giờ hoạt động của cơ sở.</p>
+<section class="container owner-page-container owner-venue-form-page py-4 py-lg-5">
+    <a class="owner-venue-form-back" href="{{ url_for('venues.owner_index') }}"><i class="bi bi-arrow-left" aria-hidden="true"></i>Cơ sở của tôi</a>
+    <div class="owner-venue-form-layout">
+        <header class="owner-venue-form-heading">
+            <span class="eyebrow">KHU VỰC CHỦ SÂN</span>
+            <h1 class="h2 fw-bold mt-2 mb-2">{{ page_title }}</h1>
+            <p class="text-secondary mb-0">Xác nhận địa chỉ, thông tin liên hệ và giờ hoạt động của cơ sở.</p>
+        </header>
+        <div class="owner-venue-form-card venue-form-card">
 
             {% if venue and venue.status == 'ACTIVE' %}
-                <div class="alert alert-info">Cơ sở đang hoạt động. Việc chỉnh sửa không làm thay đổi trạng thái hiện tại.</div>
+                <div class="alert alert-info owner-venue-review-note"><i class="bi bi-info-circle" aria-hidden="true"></i><span><strong>Cơ sở đang hoạt động.</strong> Đổi tên hoặc địa chỉ sẽ đưa cơ sở về trạng thái chờ duyệt; các thay đổi khác vẫn giữ trạng thái hiện tại.</span></div>
             {% endif %}
 
             <form method="post" novalidate>
                 {{ form.hidden_tag() }}
-                {{ render_field(form.name, placeholder="Ví dụ: Sân bóng Minh Anh") }}
+                <section class="owner-venue-form-section" aria-labelledby="venue-basic-heading">
+                    <div class="owner-venue-form-section-heading">
+                        <i class="bi bi-buildings" aria-hidden="true"></i>
+                        <div><h2 id="venue-basic-heading">Thông tin cơ sở</h2><p>Tên và địa chỉ được dùng trong danh sách công khai sau khi duyệt.</p></div>
+                    </div>
+                    {{ render_field(form.name, placeholder="Ví dụ: Sân bóng Minh Anh") }}
                 {% if venue and not (venue.province_code and venue.ward_code) %}
                     <div class="alert alert-warning">
                         Cơ sở này đang dùng địa chỉ cũ. Vui lòng chọn lại tỉnh/thành phố và phường/xã theo danh mục hiện hành; dữ liệu cũ vẫn được hệ thống giữ nguyên.
@@ -75,13 +82,31 @@
                 <p class="form-text mt-0 mb-3">
                     Địa chỉ này sẽ được dùng để tìm kiếm và mở chỉ đường trên Google Maps.
                 </p>
-                {{ render_field(form.phone, placeholder="Ví dụ: 0901234567") }}
-                {{ render_field(form.description, rows="4", placeholder="Mô tả vị trí, tiện ích và thông tin liên hệ") }}
-                <div class="row g-3">
-                    <div class="col-md-6">{{ render_time_picker("Giờ mở cửa", form.opening_hour, form.opening_minute) }}</div>
-                    <div class="col-md-6">{{ render_time_picker("Giờ đóng cửa", form.closing_hour, form.closing_minute) }}</div>
+                </section>
+
+                <section class="owner-venue-form-section" aria-labelledby="venue-contact-heading">
+                    <div class="owner-venue-form-section-heading">
+                        <i class="bi bi-telephone" aria-hidden="true"></i>
+                        <div><h2 id="venue-contact-heading">Liên hệ &amp; mô tả</h2><p>Thông tin giúp khách nhận biết và liên hệ với cơ sở.</p></div>
+                    </div>
+                    {{ render_field(form.phone, placeholder="Ví dụ: 0901234567") }}
+                    {{ render_field(form.description, rows="4", placeholder="Mô tả vị trí, tiện ích và thông tin liên hệ") }}
+                </section>
+
+                <section class="owner-venue-form-section" aria-labelledby="venue-hours-heading">
+                    <div class="owner-venue-form-section-heading">
+                        <i class="bi bi-clock" aria-hidden="true"></i>
+                        <div><h2 id="venue-hours-heading">Giờ hoạt động</h2><p>Giờ đóng cửa phải sau giờ mở cửa trong cùng ngày.</p></div>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">{{ render_time_picker("Giờ mở cửa", form.opening_hour, form.opening_minute) }}</div>
+                        <div class="col-md-6">{{ render_time_picker("Giờ đóng cửa", form.closing_hour, form.closing_minute) }}</div>
+                    </div>
+                </section>
+                <div class="owner-venue-form-actions">
+                    <a class="btn btn-outline-secondary" href="{{ url_for('venues.owner_index') }}">Hủy</a>
+                    {{ form.submit(class="btn btn-primary", value=submit_label) }}
                 </div>
-                {{ form.submit(class="btn btn-primary w-100", value=submit_label) }}
             </form>
         </div>
     </div>
