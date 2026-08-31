@@ -376,19 +376,12 @@
                 {% endif %}
 
                 {% if owner_view and effective_status in ['CONFIRMED', 'PARTIALLY_PAID', 'PAID'] %}
-                    <form method="post"
-                          action="{{ url_for('bookings.owner_cancel', booking_code=booking.booking_code) }}"
-                          data-confirm-title="Xác nhận hủy lịch đặt sân?"
-                          data-confirm-message="Lịch đặt sân sẽ bị hủy. Nếu đã thu cọc, hệ thống phải hoàn đủ các khoản hợp lệ trước khi giải phóng lịch sân."
-                          data-confirm-button="Xác nhận hủy lịch đặt sân">
-                        {{ owner_cancel_form.hidden_tag() }}
-                        {{ owner_cancel_form.reason.label(class="form-label") }}
-                        {{ owner_cancel_form.reason(class="form-control", rows="3", placeholder="Nêu sự cố buộc phải hủy") }}
-                        <button class="btn btn-outline-danger w-100 mt-3" type="submit">Hủy lịch đặt sân</button>
-                    </form>
-                    {% if booking.paid_amount > 0 %}
-                        <p class="small text-secondary mt-2 mb-0">Hệ thống sẽ hoàn 100% mọi khoản đã thu rồi mới giải phóng lịch sân.</p>
-                    {% endif %}
+                    <button
+                        class="btn btn-outline-danger w-100 owner-booking-cancel-trigger"
+                        type="button"
+                        data-bs-toggle="modal"
+                        data-bs-target="#ownerBookingCancelModal"
+                    >Hủy booking</button>
                 {% elif not owner_view and booking.payment_policy == 'DEPOSIT_30' and effective_status in ['PENDING', 'CONFIRMED', 'PARTIALLY_PAID', 'PAID'] and (booking.booking_mode != 'FIND_OPPONENT' or (booking.matchmaking_deadline is none and booking.funding_deadline is none)) %}
                     <form method="post"
                           action="{{ url_for('bookings.cancel', booking_code=booking.booking_code) }}"
@@ -423,8 +416,59 @@
         </div>
     </div>
 </section>
+
+{% if owner_view and effective_status in ['CONFIRMED', 'PARTIALLY_PAID', 'PAID'] %}
+    {% set reason_errors = owner_cancel_form.reason.errors %}
+    <div
+        class="modal fade owner-booking-cancel-modal"
+        id="ownerBookingCancelModal"
+        tabindex="-1"
+        aria-labelledby="ownerBookingCancelModalLabel"
+        aria-hidden="true"
+        data-owner-booking-cancel-modal
+        data-open="{{ 'true' if owner_cancel_modal_open else 'false' }}"
+        data-has-server-error="{{ 'true' if reason_errors else 'false' }}"
+    >
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <form class="modal-content border-0 shadow" method="post" action="{{ url_for('bookings.owner_cancel', booking_code=booking.booking_code) }}" novalidate data-owner-booking-cancel-form>
+                {{ owner_cancel_form.hidden_tag() }}
+                <div class="modal-header border-0 pb-0">
+                    <div>
+                        <span class="owner-booking-cancel-modal-eyebrow">THAO TÁC CẦN XÁC NHẬN</span>
+                        <h2 class="modal-title fs-5 fw-bold" id="ownerBookingCancelModalLabel">Xác nhận hủy booking</h2>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="owner-booking-cancel-modal-copy">Khi chủ sân hủy, hệ thống hoàn 100% mọi khoản đã thu trước khi giải phóng lịch sân.</p>
+                    <dl class="owner-booking-cancel-refund-summary" aria-label="Thông tin tiền cọc và hoàn tiền">
+                        <div><dt>Đã thu tiền cọc</dt><dd>{{ booking.paid_amount|vnd_currency }}</dd></div>
+                        <div><dt>Dự kiến hoàn lại</dt><dd>{{ booking.paid_amount|vnd_currency }}</dd></div>
+                    </dl>
+                    {% if booking.paid_amount > 0 %}
+                        <p class="owner-booking-cancel-refund-note"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i> Khoản hoàn được tạo theo từng giao dịch thanh toán đã có.</p>
+                    {% else %}
+                        <p class="owner-booking-cancel-refund-note"><i class="bi bi-info-circle" aria-hidden="true"></i> Lịch chưa phát sinh tiền cọc nên không có giao dịch hoàn tiền.</p>
+                    {% endif %}
+                    <div class="mt-4">
+                        <label class="form-label" for="{{ owner_cancel_form.reason.id }}">Lý do hủy <span class="text-danger" aria-hidden="true">*</span></label>
+                        {{ owner_cancel_form.reason(class="form-control" + (" is-invalid" if reason_errors else ""), rows="4", placeholder="Nêu sự cố buộc phải hủy", aria_describedby="ownerBookingCancelReasonError", aria_required="true") }}
+                        <div class="invalid-feedback{% if reason_errors %} d-block{% endif %}" id="ownerBookingCancelReasonError" data-owner-booking-cancel-error aria-live="polite">
+                            {% for error in reason_errors %}{{ error }}{% endfor %}
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Quay lại</button>
+                    <button type="submit" class="btn btn-danger" data-owner-booking-cancel-submit>Xác nhận hủy</button>
+                </div>
+            </form>
+        </div>
+    </div>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
     <script src="{{ url_for('static', filename='js/booking-detail.js') }}" defer></script>
+    {% if owner_view %}<script src="{{ url_for('static', filename='js/owner-booking-cancel.js') }}" defer></script>{% endif %}
 {% endblock %}

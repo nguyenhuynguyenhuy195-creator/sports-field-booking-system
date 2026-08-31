@@ -144,6 +144,56 @@ def test_owner_cancels_paid_booking_and_refunds_every_payment(app):
         assert {item.status for item in payments} == {PaymentStatus.SUCCESS.value}
 
 
+def test_owner_cancel_modal_requires_reason_and_shows_actual_refund_amount(app):
+    owner, _, _, booking_code, _, _ = _prepare_joined_opponent(app)
+    client = app.test_client()
+    login(client, email=owner.email)
+
+    detail = client.get(f"/owner/bookings/{booking_code}")
+    detail_html = detail.get_data(as_text=True)
+
+    assert detail.status_code == 200
+    assert "Đã thanh toán cọc" in detail_html
+    assert 'data-bs-target="#ownerBookingCancelModal"' in detail_html
+    assert 'id="ownerBookingCancelModal"' in detail_html
+    assert 'novalidate data-owner-booking-cancel-form' in detail_html
+    assert detail_html.count("Dự kiến hoàn lại") == 1
+
+    missing_reason = client.post(
+        f"/owner/bookings/{booking_code}/cancel",
+        data={"owner-cancel-reason": ""},
+    )
+    missing_reason_html = missing_reason.get_data(as_text=True)
+
+    assert missing_reason.status_code == 422
+    assert 'data-open="true"' in missing_reason_html
+    assert "Vui lòng nhập lý do hủy." in missing_reason_html
+    assert 'invalid-feedback d-block' in missing_reason_html
+
+    cancelled = client.post(
+        f"/owner/bookings/{booking_code}/cancel",
+        data={"owner-cancel-reason": "Sân gặp sự cố đột xuất."},
+        follow_redirects=True,
+    )
+    cancelled_html = cancelled.get_data(as_text=True)
+
+    assert cancelled.status_code == 200
+    assert "Đã hủy lịch đặt sân" in cancelled_html
+    assert "Đã hoàn tiền" in cancelled_html
+    with app.app_context():
+        booking = db.session.scalar(
+            db.select(Booking).where(Booking.booking_code == booking_code)
+        )
+        refunds = list(
+            db.session.scalars(db.select(Refund).where(Refund.booking_id == booking.id))
+        )
+
+        assert booking.status == BookingStatus.CANCELLED.value
+        assert booking.paid_amount == Decimal("0.00")
+        assert booking.cancellation_fee_amount == Decimal("0.00")
+        assert sum(item.amount for item in refunds) == booking.deposit_amount
+
+
 def test_funding_deadline_refund_job_is_idempotent(app):
     owner = create_user(app, email="owner@example.com", role=UserRole.OWNER)
     creator = create_user(app, email="creator@example.com")

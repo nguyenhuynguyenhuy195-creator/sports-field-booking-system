@@ -64,7 +64,7 @@ BOOKING_STATUS_LABELS = {
     BookingStatus.PENDING.value: "Đang xử lý",
     BookingStatus.CONFIRMED.value: "Đang giữ chỗ, chờ thanh toán",
     BookingStatus.PARTIALLY_PAID.value: "Đã cọc giữ sân, chờ đối thủ",
-    BookingStatus.PAID.value: "Đã đủ tiền cọc",
+    BookingStatus.PAID.value: "Đã thanh toán cọc",
     BookingStatus.REFUND_PENDING.value: "Đang hoàn tiền",
     BookingStatus.COMPLETED.value: "Đã hoàn thành",
     BookingStatus.REJECTED.value: "Đã từ chối",
@@ -448,6 +448,15 @@ def owner_index():
 @roles_required(UserRole.OWNER)
 def owner_detail(booking_code: str):
     booking = _load_owner_booking(booking_code)
+    return _render_owner_booking_detail(booking)
+
+
+def _render_owner_booking_detail(
+    booking: Booking,
+    *,
+    owner_cancel_form: BookingReasonForm | None = None,
+    owner_cancel_modal_open: bool = False,
+):
     return render_template(
         "bookings/detail.html",
         booking=booking,
@@ -461,7 +470,8 @@ def owner_detail(booking_code: str):
         refund_status_labels=REFUND_STATUS_LABELS,
         successful_refund_total=_successful_refund_total(booking),
         top_up_window_open=_top_up_window_open(booking),
-        owner_cancel_form=BookingReasonForm(prefix="owner-cancel"),
+        owner_cancel_form=owner_cancel_form or BookingReasonForm(prefix="owner-cancel"),
+        owner_cancel_modal_open=owner_cancel_modal_open,
         owner_view=True,
         momo_enabled=current_app.config.get("MOMO_ENABLED", False),
     )
@@ -470,28 +480,34 @@ def owner_detail(booking_code: str):
 @bookings_bp.post("/owner/bookings/<string:booking_code>/cancel")
 @roles_required(UserRole.OWNER)
 def owner_cancel(booking_code: str):
-    _load_owner_booking(booking_code)
+    booking = _load_owner_booking(booking_code)
     form = BookingReasonForm(prefix="owner-cancel")
-    if form.validate_on_submit():
-        try:
-            cancel_owner_booking(
-                booking_code=booking_code,
-                owner=current_user,
-                reason=form.reason.data,
-            )
-        except BookingPermissionError:
-            abort(403)
-        except BookingNotFoundError:
-            abort(404)
-        except BookingError as exc:
-            flash(str(exc), "warning")
-        else:
-            flash(
-                "Đã hủy lịch đặt sân; các khoản đã thu (nếu có) đã được hoàn 100%.",
-                "success",
-            )
+    if not form.validate_on_submit():
+        return (
+            _render_owner_booking_detail(
+                booking,
+                owner_cancel_form=form,
+                owner_cancel_modal_open=True,
+            ),
+            422,
+        )
+    try:
+        cancel_owner_booking(
+            booking_code=booking_code,
+            owner=current_user,
+            reason=form.reason.data,
+        )
+    except BookingPermissionError:
+        abort(403)
+    except BookingNotFoundError:
+        abort(404)
+    except BookingError as exc:
+        flash(str(exc), "warning")
     else:
-        flash("Vui lòng nhập lý do hủy hợp lệ.", "danger")
+        flash(
+            "Đã hủy lịch đặt sân; các khoản đã thu (nếu có) đã được hoàn 100%.",
+            "success",
+        )
     return redirect(url_for("bookings.owner_detail", booking_code=booking_code))
 
 

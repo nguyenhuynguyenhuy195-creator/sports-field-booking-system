@@ -1680,6 +1680,103 @@ a.owner-sidebar-link:hover {
     font-size: 0.68rem;
 }
 
+.owner-booking-cancel-trigger {
+    margin-top: 0.25rem;
+}
+
+.owner-booking-cancel-modal .modal-content {
+    color: var(--owner-text);
+    border-radius: 14px;
+}
+
+.owner-booking-cancel-modal .modal-header,
+.owner-booking-cancel-modal .modal-body,
+.owner-booking-cancel-modal .modal-footer {
+    padding-right: 1.1rem;
+    padding-left: 1.1rem;
+}
+
+.owner-booking-cancel-modal-eyebrow {
+    display: block;
+    margin-bottom: 0.18rem;
+    color: #aa5d18;
+    font-size: 0.59rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+}
+
+.owner-booking-cancel-modal .modal-title {
+    color: #1d382c;
+}
+
+.owner-booking-cancel-modal-copy {
+    margin-bottom: 0.85rem;
+    color: #52665c;
+    font-size: 0.76rem;
+    line-height: 1.55;
+}
+
+.owner-booking-cancel-refund-summary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    overflow: hidden;
+    margin: 0;
+    background: #fff8ef;
+    border: 1px solid #f0d5b6;
+    border-radius: 10px;
+}
+
+.owner-booking-cancel-refund-summary div {
+    min-width: 0;
+    padding: 0.72rem 0.76rem;
+}
+
+.owner-booking-cancel-refund-summary div + div {
+    border-left: 1px solid #f0d5b6;
+}
+
+.owner-booking-cancel-refund-summary dt {
+    color: #8a682d;
+    font-size: 0.61rem;
+    font-weight: 600;
+}
+
+.owner-booking-cancel-refund-summary dd {
+    margin: 0.2rem 0 0;
+    overflow-wrap: anywhere;
+    color: #573d19;
+    font-size: 0.86rem;
+    font-weight: 700;
+}
+
+.owner-booking-cancel-refund-note {
+    margin: 0.55rem 0 0;
+    color: #6f6557;
+    font-size: 0.66rem;
+    line-height: 1.45;
+}
+
+.owner-booking-cancel-refund-note i {
+    margin-right: 0.25rem;
+    color: #b36a20;
+}
+
+.owner-booking-cancel-modal .form-label {
+    color: #314b3f;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.owner-booking-cancel-modal .form-control {
+    min-height: 100px;
+    font-size: 0.75rem;
+    resize: vertical;
+}
+
+.owner-booking-cancel-modal .invalid-feedback {
+    font-size: 0.66rem;
+}
+
 @media (min-width: 992px) {
     .owner-shell {
         display: grid;
@@ -2355,6 +2452,13 @@ a.owner-sidebar-link:hover {
     .owner-booking-status-card .form-control,
     .owner-booking-status-card .btn {
         font-size: 0.72rem;
+    }
+
+    .owner-booking-cancel-modal .modal-header,
+    .owner-booking-cancel-modal .modal-body,
+    .owner-booking-cancel-modal .modal-footer {
+        padding-right: 1.35rem;
+        padding-left: 1.35rem;
     }
 }
 

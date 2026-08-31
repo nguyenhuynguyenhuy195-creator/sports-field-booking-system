@@ -298,15 +298,15 @@ Theo quyết định của người dùng ngày 31/08/2026:
 
 - `GET /owner/schedule` là lịch vận hành chính thức theo một Venue/ngày với query `date`, `venue_id`, `view=matrix|list` và bộ lọc `field_id` tùy chọn.
 - Khi chưa chọn Venue, route chuyển tới Venue đầu tiên theo thứ tự ổn định và tạo URL context rõ ràng; ownership được kiểm tra trước khi tải lịch.
-- Matrix desktop dùng time × field, guide 30 phút, sticky header/time rail và cuộn nội bộ; booking/maintenance vẫn đặt theo phút chính xác và được clip ở biên giờ hoạt động chỉ trên phần hiển thị.
-- Matrix giữ sân inactive để Owner thấy đầy đủ vận hành; mobile dùng timeline dọc một sân với selector rõ ràng.
+- Matrix responsive dùng time × field, guide 30 phút, sticky header/time rail và cuộn nội bộ; 1–4 sân chia đều phần rộng còn lại, nhiều sân giữ tối thiểu 230px/cột và cuộn ngang trong matrix, không làm tràn trang.
+- Matrix giữ sân inactive để Owner thấy đầy đủ vận hành; cả desktop/mobile dùng selector `Tất cả sân` hoặc một sân cụ thể, không pagination cột.
 - List view là agenda theo ngày của Venue đã chọn, gồm cả booking và maintenance; không trùng vai trò với trang quản lý Booking.
 - Booking đang giữ chỗ dùng đúng effective status hiện có; stale `CONFIRMED`, `PENDING`, `REJECTED`, `CANCELLED`, `EXPIRED` không chiếm lịch và GET không persist trạng thái. Booking/maintenance đã hoàn thành được hiển thị muted để tra cứu lịch sử.
-- Booking block đi tới Owner Booking Detail; maintenance đi tới nested maintenance route hiện có. Không thêm inline cancellation hoặc thay đổi action/business rule.
+- Booking block đi tới Owner Booking Detail; maintenance đi tới nested maintenance route hiện có. Owner hủy booking qua modal có lý do bắt buộc, lỗi inline và số tiền cọc/hoàn tiền từ dữ liệu thực; service/rule hoàn tiền hiện có không đổi.
 - Read-model tải batch theo Venue, Field, Booking và Maintenance (4 query chính), filter ownership tại SQL/service và không query theo từng ô.
 - Permission đạt: anonymous chuyển đăng nhập; `OWNER` được truy cập; `USER`/`ADMIN` nhận 403; dữ liệu giữa các Owner không bị lộ.
-- Browser QA đạt ở 1920×1080, 1440×900, 1366×768 và 390×844; sidebar collapsed/expanded, mobile offcanvas, internal scroll, empty day, inactive field và console JavaScript đều đạt.
-- Regression: 6 test Owner Schedule mới đạt; 105 test Owner/booking/maintenance/field/venue liên quan đạt; full suite 273 passed (baseline 267 + 6 test mới), 0 failed.
+- Browser QA đạt ở 1920×1080, 1440×900, 1366×768 và 390×844; matrix 1/2/3/10 sân, sticky/internal scroll, mobile, empty day, inactive field và console JavaScript đều đạt.
+- Regression: 9 test Owner Schedule mới đạt; full suite 277 passed, 0 failed.
 
 ### Step 3.3 – Venue & Field Management + Media — NOT STARTED
 

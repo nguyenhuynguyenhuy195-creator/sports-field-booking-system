@@ -130,7 +130,7 @@ class BookingReasonForm(FlaskForm):
     reason = TextAreaField(
         "Lý do",
         validators=[
-            DataRequired(message="Vui lòng nhập lý do."),
+            DataRequired(message="Vui lòng nhập lý do hủy."),
             Length(max=500, message="Lý do tối đa 500 ký tự."),
         ],
     )
