@@ -1857,6 +1857,507 @@ a.owner-sidebar-link:hover {
     }
 }
 
+@media (min-width: 1440px) {
+    :root {
+        --owner-content-width: 1440px;
+        --owner-page-width: 1400px;
+    }
+
+    .owner-topbar-inner {
+        min-height: 72px;
+    }
+
+    .owner-topbar-title small {
+        font-size: 0.68rem;
+    }
+
+    .owner-topbar-title strong {
+        font-size: 1rem;
+    }
+
+    .owner-page-heading {
+        margin-bottom: 1.75rem;
+    }
+
+    .owner-page-heading .eyebrow,
+    .owner-fields-header .eyebrow {
+        font-size: 0.72rem;
+    }
+
+    .owner-page-heading h1,
+    .owner-fields-header h1 {
+        font-size: 2.05rem;
+    }
+
+    .owner-page-heading > div > p,
+    .owner-fields-header p {
+        font-size: 0.92rem;
+    }
+
+    .owner-page-heading > .btn,
+    .owner-fields-add {
+        min-height: 42px;
+        padding: 0.62rem 0.9rem;
+        font-size: 0.82rem;
+    }
+
+    .owner-welcome-panel {
+        min-height: 184px;
+        padding: 2rem 2.15rem;
+    }
+
+    .owner-welcome-eyebrow {
+        font-size: 0.69rem;
+    }
+
+    .owner-welcome-panel h1 {
+        font-size: 2.3rem;
+    }
+
+    .owner-welcome-panel p {
+        max-width: 720px;
+        font-size: 0.9rem;
+    }
+
+    .owner-welcome-actions .btn {
+        min-height: 42px;
+        padding: 0.62rem 0.9rem;
+        font-size: 0.8rem;
+    }
+
+    .owner-kpi-grid {
+        gap: 1rem;
+        margin-top: 1.15rem;
+    }
+
+    .owner-kpi-card {
+        min-height: 134px;
+        padding: 1.15rem;
+    }
+
+    .owner-kpi-card p {
+        margin-bottom: 0.62rem;
+        font-size: 0.8rem;
+    }
+
+    .owner-kpi-card strong {
+        font-size: 2rem;
+    }
+
+    .owner-kpi-card small {
+        margin-top: 0.55rem;
+        font-size: 0.69rem;
+    }
+
+    .owner-kpi-icon {
+        top: 1rem;
+        right: 1rem;
+        width: 38px;
+        height: 38px;
+        font-size: 0.92rem;
+    }
+
+    .owner-dashboard-grid {
+        grid-template-columns: minmax(0, 1.65fr) minmax(360px, 0.9fr);
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+
+    .owner-section-heading {
+        padding: 1.1rem 1.2rem 1rem;
+    }
+
+    .owner-section-heading h2 {
+        font-size: 1.1rem;
+    }
+
+    .owner-section-heading p {
+        font-size: 0.7rem;
+    }
+
+    .owner-section-heading a {
+        font-size: 0.75rem;
+    }
+
+    .owner-booking-table {
+        min-width: 780px;
+    }
+
+    .owner-booking-table th {
+        padding: 0.72rem 0.84rem;
+        font-size: 0.63rem;
+    }
+
+    .owner-booking-table td {
+        padding: 0.82rem 0.84rem;
+        font-size: 0.75rem;
+    }
+
+    .owner-booking-table td small {
+        font-size: 0.66rem;
+    }
+
+    .owner-row-link {
+        width: 32px;
+        height: 32px;
+    }
+
+    .owner-operation-list {
+        gap: 0.65rem;
+        padding: 0.9rem;
+    }
+
+    .owner-operation-list > a,
+    .owner-operation-list > div {
+        gap: 0.65rem;
+        padding: 0.82rem;
+    }
+
+    .owner-operation-list strong {
+        font-size: 0.77rem;
+    }
+
+    .owner-operation-list small {
+        font-size: 0.65rem;
+    }
+
+    .owner-dashboard-empty {
+        min-height: 170px;
+        padding: 1.75rem;
+    }
+
+    .owner-dashboard-empty strong {
+        font-size: 0.85rem;
+    }
+
+    .owner-dashboard-empty p {
+        font-size: 0.72rem;
+    }
+
+    .owner-bookings-page {
+        max-width: var(--owner-page-width) !important;
+    }
+
+    .owner-booking-tab-panels {
+        max-width: none;
+    }
+
+    .owner-bookings-page .booking-tab {
+        min-height: 42px;
+        padding: 0.56rem 0.78rem;
+        font-size: 0.82rem;
+    }
+
+    .owner-bookings-page .booking-tab-count {
+        min-width: 1.5rem;
+        font-size: 0.69rem;
+    }
+
+    .owner-bookings-page .booking-group-description {
+        font-size: 0.83rem;
+    }
+
+    .owner-booking-list {
+        gap: 0.75rem;
+    }
+
+    .owner-booking-item {
+        grid-template-columns: minmax(260px, 1.55fr) minmax(132px, 0.64fr) minmax(174px, 0.8fr) minmax(142px, 0.7fr) auto;
+        gap: 1rem;
+        padding: 1.05rem 1.15rem;
+    }
+
+    .owner-booking-item .status-badge,
+    .owner-venue-card .status-badge {
+        padding: 0.32rem 0.6rem;
+        font-size: 0.69rem;
+    }
+
+    .owner-booking-title h2 {
+        font-size: 0.98rem;
+    }
+
+    .owner-booking-title p {
+        font-size: 0.77rem;
+    }
+
+    .owner-booking-item .booking-code {
+        font-size: 0.64rem;
+    }
+
+    .owner-booking-meta-label {
+        font-size: 0.62rem !important;
+    }
+
+    .owner-booking-item .booking-list-time strong,
+    .owner-booking-item .booking-list-price strong,
+    .owner-booking-customer strong {
+        font-size: 0.82rem;
+    }
+
+    .owner-booking-item .booking-list-time > span:not(.owner-booking-meta-label),
+    .owner-booking-item .booking-list-price > span:not(.owner-booking-meta-label),
+    .owner-booking-customer > span:not(.owner-booking-meta-label) {
+        font-size: 0.7rem;
+    }
+
+    .owner-booking-action {
+        min-height: 40px;
+        padding: 0.5rem 0.72rem;
+        font-size: 0.75rem;
+    }
+
+    .owner-venue-grid {
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 420px));
+        gap: 1.1rem;
+        justify-content: start;
+    }
+
+    .owner-venue-media {
+        min-height: 164px;
+    }
+
+    .owner-venue-media i {
+        font-size: 1.8rem;
+    }
+
+    .owner-venue-media span {
+        font-size: 0.7rem;
+    }
+
+    .owner-venue-card-body {
+        padding: 1.05rem 1.05rem 0.92rem;
+    }
+
+    .owner-venue-card-heading > small {
+        font-size: 0.62rem;
+    }
+
+    .owner-venue-card h2 {
+        font-size: 1.08rem;
+    }
+
+    .owner-venue-address,
+    .owner-venue-hours,
+    .owner-venue-fields-note {
+        font-size: 0.73rem;
+    }
+
+    .owner-venue-hours strong {
+        font-size: 0.66rem;
+    }
+
+    .owner-venue-actions {
+        gap: 0.5rem;
+        padding: 0.85rem 1.05rem 0.95rem;
+    }
+
+    .owner-venue-actions .btn {
+        min-height: 38px;
+        padding: 0.48rem 0.68rem;
+        font-size: 0.74rem;
+    }
+
+    .owner-venue-public-link {
+        font-size: 0.69rem;
+    }
+
+    .owner-fields-back {
+        font-size: 0.8rem;
+    }
+
+    .owner-fields-header {
+        padding: 1.15rem 0 1.55rem;
+    }
+
+    .owner-field-grid {
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 420px));
+        gap: 1.1rem;
+    }
+
+    .owner-field-media {
+        min-height: 160px;
+    }
+
+    .owner-field-media-icon {
+        width: 48px;
+        height: 48px;
+        font-size: 1.35rem;
+    }
+
+    .owner-field-media-label {
+        font-size: 0.62rem;
+    }
+
+    .owner-field-body {
+        padding: 1.05rem 1.1rem 0.95rem;
+    }
+
+    .owner-field-status-row .status-badge {
+        padding: 0.34rem 0.58rem;
+        font-size: 0.66rem;
+    }
+
+    .owner-field-capacity {
+        font-size: 0.7rem;
+    }
+
+    .owner-field-heading h2 {
+        font-size: 1.08rem;
+    }
+
+    .owner-field-heading p {
+        font-size: 0.76rem;
+    }
+
+    .owner-field-meta dt,
+    .owner-field-meta dd {
+        font-size: 0.72rem;
+    }
+
+    .owner-field-note {
+        font-size: 0.66rem;
+    }
+
+    .owner-field-actions {
+        gap: 0.46rem;
+        padding: 0.82rem 1.05rem 0.92rem;
+    }
+
+    .owner-field-actions .btn,
+    .owner-field-action-link {
+        min-height: 38px;
+        padding: 0.48rem 0.66rem;
+        font-size: 0.72rem;
+    }
+
+    .owner-booking-detail-header {
+        padding: 1.05rem 0 1.2rem;
+    }
+
+    .owner-booking-detail-header .status-badge {
+        font-size: 0.69rem;
+    }
+
+    .owner-booking-detail-header .booking-code {
+        font-size: 0.7rem;
+    }
+
+    .owner-booking-detail-header h1 {
+        font-size: 2.05rem !important;
+    }
+
+    .owner-booking-detail-header > div > p.text-secondary {
+        font-size: 0.9rem;
+    }
+
+    .owner-booking-header-meta,
+    .owner-booking-detail .owner-booking-customer {
+        font-size: 0.8rem;
+    }
+
+    .owner-booking-detail .owner-booking-customer strong {
+        font-size: 0.82rem;
+    }
+
+    .owner-booking-info-card {
+        padding: 1.2rem 1.25rem;
+    }
+
+    .owner-booking-info-card h2,
+    .owner-booking-status-card h2 {
+        font-size: 0.98rem !important;
+    }
+
+    .owner-booking-info-card .booking-detail-grid > div {
+        grid-template-columns: minmax(112px, 0.72fr) minmax(0, 1.28fr);
+        gap: 0.65rem;
+        padding: 0.78rem 0.84rem;
+    }
+
+    .owner-booking-info-card .booking-detail-grid dt {
+        font-size: 0.69rem;
+    }
+
+    .owner-booking-info-card .booking-detail-grid dd {
+        font-size: 0.78rem;
+    }
+
+    .owner-booking-finance-heading {
+        margin-top: 1.2rem;
+        font-size: 0.7rem;
+    }
+
+    .owner-booking-financial-details .booking-disclosure summary {
+        min-height: 64px;
+        padding: 0.78rem 1rem;
+    }
+
+    .owner-booking-financial-details .booking-disclosure summary strong {
+        font-size: 0.8rem;
+    }
+
+    .owner-booking-financial-details .booking-disclosure summary small {
+        font-size: 0.68rem;
+    }
+
+    .owner-booking-financial-details .booking-disclosure-body {
+        padding: 0.9rem 1rem 1rem;
+    }
+
+    .owner-booking-financial-details .table {
+        font-size: 0.76rem;
+    }
+
+    .owner-booking-side-column {
+        top: 88px;
+        gap: 0.9rem;
+    }
+
+    .owner-booking-payment-card,
+    .owner-booking-status-card {
+        padding: 1.1rem 1.15rem;
+    }
+
+    .owner-booking-card-heading span {
+        font-size: 0.88rem;
+    }
+
+    .owner-booking-payment-card > span {
+        font-size: 0.7rem;
+    }
+
+    .owner-booking-payment-card > strong {
+        margin-bottom: 0.82rem;
+        font-size: 1.7rem;
+    }
+
+    .owner-booking-payment-lines small {
+        font-size: 0.71rem;
+    }
+
+    .owner-booking-payment-lines b {
+        font-size: 0.74rem;
+    }
+
+    .owner-booking-status-card .booking-final-status {
+        padding: 0.8rem 0.86rem;
+    }
+
+    .owner-booking-status-card .booking-final-status strong {
+        font-size: 0.79rem;
+    }
+
+    .owner-booking-status-card .booking-final-status span,
+    .owner-booking-status-card > p,
+    .owner-booking-status-card .alert,
+    .owner-booking-status-card form,
+    .owner-booking-status-card .form-control,
+    .owner-booking-status-card .btn {
+        font-size: 0.72rem;
+    }
+}
+
 @media (max-width: 1199.98px) {
     .owner-kpi-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
