@@ -292,16 +292,21 @@ Theo quyết định của người dùng ngày 31/08/2026:
 - Không tạo global Field/Pricing/Maintenance route, model, migration hoặc JavaScript Owner riêng.
 - Browser QA đạt ở desktop 1440×900 và mobile 390×844; offcanvas, active navigation, dropdown, overflow và console JavaScript đều đạt.
 - Regression: 5 test Owner Dashboard mới đạt; 142 test liên quan đạt; full suite 267 passed (baseline 262 + 5 test mới), 0 failed.
-- Lịch sân và Tài chính vẫn chưa triển khai trước hạn.
+- Tại thời điểm nghiệm thu Step 3.1, Lịch sân và Tài chính chưa được triển khai trước hạn.
 
-### Step 3.2 – Schedule & Booking Operations — NOT STARTED
+### Step 3.2 – Schedule & Booking Operations — DONE / ACCEPTED (31/08/2026)
 
-- Lịch sân time × field.
-- List view.
-- Booking Owner.
-- Booking detail.
-- Trạng thái booking.
-- Owner cancellation và operational actions trong scope.
+- `GET /owner/schedule` là lịch vận hành chính thức theo một Venue/ngày với query `date`, `venue_id`, `view=matrix|list` và bộ lọc `field_id` tùy chọn.
+- Khi chưa chọn Venue, route chuyển tới Venue đầu tiên theo thứ tự ổn định và tạo URL context rõ ràng; ownership được kiểm tra trước khi tải lịch.
+- Matrix desktop dùng time × field, guide 30 phút, sticky header/time rail và cuộn nội bộ; booking/maintenance vẫn đặt theo phút chính xác và được clip ở biên giờ hoạt động chỉ trên phần hiển thị.
+- Matrix giữ sân inactive để Owner thấy đầy đủ vận hành; mobile dùng timeline dọc một sân với selector rõ ràng.
+- List view là agenda theo ngày của Venue đã chọn, gồm cả booking và maintenance; không trùng vai trò với trang quản lý Booking.
+- Booking đang giữ chỗ dùng đúng effective status hiện có; stale `CONFIRMED`, `PENDING`, `REJECTED`, `CANCELLED`, `EXPIRED` không chiếm lịch và GET không persist trạng thái. Booking/maintenance đã hoàn thành được hiển thị muted để tra cứu lịch sử.
+- Booking block đi tới Owner Booking Detail; maintenance đi tới nested maintenance route hiện có. Không thêm inline cancellation hoặc thay đổi action/business rule.
+- Read-model tải batch theo Venue, Field, Booking và Maintenance (4 query chính), filter ownership tại SQL/service và không query theo từng ô.
+- Permission đạt: anonymous chuyển đăng nhập; `OWNER` được truy cập; `USER`/`ADMIN` nhận 403; dữ liệu giữa các Owner không bị lộ.
+- Browser QA đạt ở 1920×1080, 1440×900, 1366×768 và 390×844; sidebar collapsed/expanded, mobile offcanvas, internal scroll, empty day, inactive field và console JavaScript đều đạt.
+- Regression: 6 test Owner Schedule mới đạt; 105 test Owner/booking/maintenance/field/venue liên quan đạt; full suite 273 passed (baseline 267 + 6 test mới), 0 failed.
 
 ### Step 3.3 – Venue & Field Management + Media — NOT STARTED
 
@@ -442,7 +447,7 @@ Hiện tại:
 - Phase 1B: DONE.
 - Phase 1.2: DONE / ACCEPTED (30/08/2026).
 - Phase 2: NOT STARTED / DEFERRED BY USER DECISION.
-- Phase 3: IN PROGRESS (Step 3.1 DONE / ACCEPTED).
+- Phase 3: IN PROGRESS (Step 3.2 DONE / ACCEPTED).
 - Phase 4: NOT YET AUDITED / ACCEPTED.
 - Phase 4.1: NOT STARTED.
 - Phase 5: NOT STARTED.
@@ -484,9 +489,9 @@ DONE:
 
 ### TASK TIẾP THEO
 
-**PHASE 3 – STEP 3.2 SCHEDULE & BOOKING OPERATIONS**
+**PHASE 3 – STEP 3.3 VENUE & FIELD MANAGEMENT + MEDIA**
 
-Step 3.1 đã nghiệm thu. Tiếp theo audit và triển khai Lịch sân time × field, list view và Booking Owner theo đúng scope Step 3.2; Phase 2 vẫn được tạm hoãn theo quyết định của người dùng.
+Step 3.2 đã nghiệm thu. Tiếp theo audit Venue/Field hiện có, media infrastructure và ownership flow trước khi triển khai quản lý Cơ sở & Sân + Media theo scope Step 3.3; Phase 2 vẫn được tạm hoãn theo quyết định của người dùng.
 
 ---
 

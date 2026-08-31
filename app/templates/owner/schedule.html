@@ -1,0 +1,190 @@
+{% extends "owner/base.html" %}
+
+{% block title %}Lịch sân · Sân Thể Thao{% endblock %}
+{% block owner_page_label %}Lịch sân{% endblock %}
+
+{% macro block_content(block, compact=false) %}
+    <span class="owner-schedule-block-kind">
+        {% if block.kind == 'booking' %}
+            <i class="bi bi-calendar2-check" aria-hidden="true"></i> Booking
+        {% else %}
+            <i class="bi bi-tools" aria-hidden="true"></i> Bảo trì
+        {% endif %}
+    </span>
+    <strong>
+        {{ block.start_time.strftime('%H:%M') }}–{{ block.end_time.strftime('%H:%M') }}
+    </strong>
+    {% if not compact %}
+        {% if block.booking %}
+            <span>{{ block.booking.user.full_name }}</span>
+            <small>#{{ block.booking.booking_code }}</small>
+        {% else %}
+            <span>{{ block.maintenance.reason }}</span>
+            <small>{{ 'Đã hoàn thành' if block.is_historical else 'Đang hoạt động' }}</small>
+        {% endif %}
+    {% endif %}
+{% endmacro %}
+
+{% block content %}
+<section class="container owner-page-container owner-schedule-page py-4 py-lg-5">
+    <div class="owner-page-heading owner-schedule-heading">
+        <div>
+            <span class="eyebrow">VẬN HÀNH THEO NGÀY</span>
+            <h1 class="h2 fw-bold mt-2 mb-1">Lịch sân</h1>
+            <p class="text-secondary mb-0">Theo dõi booking và bảo trì trên từng sân trong cùng một ngày.</p>
+        </div>
+        <a class="btn btn-outline-primary" href="{{ url_for('bookings.owner_index') }}">
+            <i class="bi bi-journal-text" aria-hidden="true"></i> Xem Booking
+        </a>
+    </div>
+
+    {% if summary.venues %}
+        <div class="owner-schedule-toolbar" aria-label="Bộ lọc lịch sân">
+            <form class="owner-schedule-filter" method="get" action="{{ url_for('owner.schedule') }}">
+                <input type="hidden" name="date" value="{{ summary.schedule_date.isoformat() }}">
+                <input type="hidden" name="view" value="{{ schedule_view }}">
+                <label for="ownerScheduleVenue">Cơ sở</label>
+                <select class="form-select" id="ownerScheduleVenue" name="venue_id" onchange="this.form.submit()">
+                    {% for venue in summary.venues %}
+                        <option value="{{ venue.id }}"{% if summary.selected_venue and venue.id == summary.selected_venue.id %} selected{% endif %}>{{ venue.name }}</option>
+                    {% endfor %}
+                </select>
+                <noscript><button class="btn btn-outline-primary" type="submit">Áp dụng</button></noscript>
+            </form>
+
+            <form class="owner-schedule-field-picker" method="get" action="{{ url_for('owner.schedule') }}">
+                <input type="hidden" name="date" value="{{ summary.schedule_date.isoformat() }}">
+                <input type="hidden" name="venue_id" value="{{ summary.selected_venue.id }}">
+                <input type="hidden" name="view" value="{{ schedule_view }}">
+                <label for="ownerScheduleField">Hiển thị sân</label>
+                <select class="form-select" id="ownerScheduleField" name="field_id" onchange="this.form.submit()">
+                    <option value=""{% if not summary.field_filter_id %} selected{% endif %}>Tất cả sân</option>
+                    {% for field in summary.fields %}
+                        <option value="{{ field.id }}"{% if summary.selected_field and field.id == summary.selected_field.id and summary.field_filter_id %} selected{% endif %}>{{ field.name }} · {{ 'Đang bật' if field.is_active else 'Đang tắt' }}</option>
+                    {% endfor %}
+                </select>
+                <noscript><button class="btn btn-outline-primary" type="submit">Áp dụng</button></noscript>
+            </form>
+
+            <nav class="owner-schedule-date-nav" aria-label="Chọn ngày xem lịch">
+                <a href="{{ url_for('owner.schedule', date=previous_date.isoformat(), venue_id=summary.selected_venue.id, field_id=summary.field_filter_id, view=schedule_view) }}" aria-label="Ngày trước"><i class="bi bi-chevron-left" aria-hidden="true"></i></a>
+                <a class="owner-schedule-today" href="{{ url_for('owner.schedule', date=today.isoformat(), venue_id=summary.selected_venue.id, field_id=summary.field_filter_id, view=schedule_view) }}">Hôm nay</a>
+                <a href="{{ url_for('owner.schedule', date=next_date.isoformat(), venue_id=summary.selected_venue.id, field_id=summary.field_filter_id, view=schedule_view) }}" aria-label="Ngày sau"><i class="bi bi-chevron-right" aria-hidden="true"></i></a>
+            </nav>
+
+            <label class="owner-schedule-date-input">
+                <span>Ngày</span>
+                <input class="form-control" type="date" name="date" value="{{ summary.schedule_date.isoformat() }}" form="ownerScheduleDateForm" onchange="this.form.submit()">
+            </label>
+            <form id="ownerScheduleDateForm" method="get" action="{{ url_for('owner.schedule') }}">
+                <input type="hidden" name="venue_id" value="{{ summary.selected_venue.id }}">
+                {% if summary.field_filter_id %}<input type="hidden" name="field_id" value="{{ summary.field_filter_id }}">{% endif %}
+                <input type="hidden" name="view" value="{{ schedule_view }}">
+            </form>
+
+            <div class="owner-schedule-view-switch" role="group" aria-label="Chế độ xem">
+                <a class="{% if schedule_view == 'matrix' %}active{% endif %}" href="{{ url_for('owner.schedule', date=summary.schedule_date.isoformat(), venue_id=summary.selected_venue.id, field_id=summary.field_filter_id, view='matrix') }}"{% if schedule_view == 'matrix' %} aria-current="page"{% endif %}><i class="bi bi-grid-3x3-gap" aria-hidden="true"></i> Ma trận</a>
+                <a class="{% if schedule_view == 'list' %}active{% endif %}" href="{{ url_for('owner.schedule', date=summary.schedule_date.isoformat(), venue_id=summary.selected_venue.id, field_id=summary.field_filter_id, view='list') }}"{% if schedule_view == 'list' %} aria-current="page"{% endif %}><i class="bi bi-list-ul" aria-hidden="true"></i> Danh sách</a>
+            </div>
+        </div>
+
+        <div class="owner-schedule-context">
+            <div>
+                <span>{{ summary.schedule_date.strftime('%d/%m/%Y') }}</span>
+                <strong>{{ summary.selected_venue.name }}</strong>
+                <small>Giờ hoạt động {{ summary.selected_venue.opening_time.strftime('%H:%M') }}–{{ summary.selected_venue.closing_time.strftime('%H:%M') }}</small>
+            </div>
+            <div class="owner-schedule-legend" aria-label="Chú thích lịch">
+                <span><i class="owner-legend-dot owner-legend-booking"></i>Booking</span>
+                <span><i class="owner-legend-dot owner-legend-maintenance"></i>Bảo trì</span>
+                <span><i class="owner-legend-dot owner-legend-history"></i>Đã kết thúc</span>
+            </div>
+        </div>
+
+        {% if summary.fields %}
+            {% if schedule_view == 'matrix' %}
+                <div class="owner-schedule-matrix-scroll" tabindex="0" aria-label="Ma trận lịch theo sân; có thể cuộn ngang và dọc">
+                    <div class="owner-schedule-matrix" style="--owner-field-count: {{ summary.columns|length }}; --owner-matrix-min-width: {{ 74 + (summary.columns|length * 230) }}px; --owner-grid-minutes: {{ summary.grid_minutes }};">
+                        <div class="owner-schedule-corner">Thời gian</div>
+                        {% for column in summary.columns %}
+                            <div class="owner-schedule-field-heading">
+                                <strong>{{ column.field.name }}</strong>
+                                <span>{{ column.field.field_type.sport.name }} · {{ column.field.field_type.name }}</span>
+                                <small class="{% if column.field.is_active %}is-active{% else %}is-inactive{% endif %}">{{ 'Đang bật' if column.field.is_active else 'Đang tắt' }}</small>
+                            </div>
+                        {% endfor %}
+
+                        <div class="owner-schedule-time-rail" style="--owner-grid-minutes: {{ summary.grid_minutes }};">
+                            {% for guide in summary.guides %}
+                                <span style="--owner-guide-offset: {{ guide.offset_minutes }};">{{ guide.label }}</span>
+                            {% endfor %}
+                        </div>
+                        {% for column in summary.columns %}
+                            <div class="owner-schedule-timeline" style="--owner-grid-minutes: {{ summary.grid_minutes }};">
+                                {% for block in column.blocks if block.is_visible %}
+                                    {% if block.booking %}
+                                        <a class="owner-schedule-block owner-schedule-booking{% if block.is_historical %} is-historical{% endif %}" style="--owner-block-offset: {{ block.offset_minutes }}; --owner-block-duration: {{ block.duration_minutes }};" href="{{ url_for('bookings.owner_detail', booking_code=block.booking.booking_code) }}" title="{{ block.start_time.strftime('%H:%M') }}–{{ block.end_time.strftime('%H:%M') }} · {{ block.booking.user.full_name }}">
+                                            {{ block_content(block) }}
+                                        </a>
+                                    {% else %}
+                                        <a class="owner-schedule-block owner-schedule-maintenance{% if block.is_historical %} is-historical{% endif %}" style="--owner-block-offset: {{ block.offset_minutes }}; --owner-block-duration: {{ block.duration_minutes }};" href="{{ url_for('maintenance.owner_index', venue_id=summary.selected_venue.id, field_id=column.field.id) }}" title="{{ block.start_time.strftime('%H:%M') }}–{{ block.end_time.strftime('%H:%M') }} · {{ block.maintenance.reason }}">
+                                            {{ block_content(block) }}
+                                        </a>
+                                    {% endif %}
+                                {% endfor %}
+                                {% if not column.blocks|selectattr('is_visible')|list %}
+                                    <span class="owner-schedule-column-empty">Không có lịch</span>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            {% else %}
+                <div class="owner-schedule-agenda">
+                    {% if summary.list_entries %}
+                        {% for block in summary.list_entries %}
+                            {% if block.booking %}
+                                <a class="owner-agenda-item{% if block.is_historical %} is-historical{% endif %}" href="{{ url_for('bookings.owner_detail', booking_code=block.booking.booking_code) }}">
+                            {% else %}
+                                <a class="owner-agenda-item owner-agenda-maintenance{% if block.is_historical %} is-historical{% endif %}" href="{{ url_for('maintenance.owner_index', venue_id=summary.selected_venue.id, field_id=block.field.id) }}">
+                            {% endif %}
+                                <time>{{ block.start_time.strftime('%H:%M') }}<small>{{ block.end_time.strftime('%H:%M') }}</small></time>
+                                <span class="owner-agenda-icon"><i class="bi {{ 'bi-calendar2-check' if block.booking else 'bi-tools' }}" aria-hidden="true"></i></span>
+                                <span class="owner-agenda-copy">
+                                    <strong>{{ block.field.name }}</strong>
+                                    {% if block.booking %}
+                                        <span>{{ block.booking.user.full_name }} · {{ booking_mode_labels[block.booking.booking_mode] }}</span>
+                                        <small>#{{ block.booking.booking_code }} · {{ booking_status_labels[block.effective_status] }}</small>
+                                    {% else %}
+                                        <span>{{ block.maintenance.reason }}</span>
+                                        <small>Bảo trì · {{ 'Đã hoàn thành' if block.is_historical else 'Đang hoạt động' }}</small>
+                                    {% endif %}
+                                </span>
+                                <i class="bi bi-chevron-right owner-agenda-chevron" aria-hidden="true"></i>
+                            </a>
+                        {% endfor %}
+                    {% else %}
+                        <div class="owner-schedule-empty">
+                            <i class="bi bi-calendar2" aria-hidden="true"></i>
+                            <div><strong>Không có lịch</strong><p>Không có booking hoặc bảo trì trong ngày đã chọn.</p></div>
+                        </div>
+                    {% endif %}
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="owner-schedule-empty">
+                <i class="bi bi-grid-3x3" aria-hidden="true"></i>
+                <div><strong>Cơ sở chưa có sân</strong><p>Thêm sân trong khu vực Cơ sở &amp; Sân để bắt đầu theo dõi lịch.</p></div>
+                <a class="btn btn-outline-primary" href="{{ url_for('fields.owner_index', venue_id=summary.selected_venue.id) }}">Cơ sở &amp; Sân</a>
+            </div>
+        {% endif %}
+    {% else %}
+        <div class="owner-schedule-empty">
+            <i class="bi bi-buildings" aria-hidden="true"></i>
+            <div><strong>Chưa có cơ sở</strong><p>Tạo cơ sở trước khi sử dụng lịch vận hành.</p></div>
+            <a class="btn btn-primary" href="{{ url_for('venues.owner_create') }}">Thêm cơ sở</a>
+        </div>
+    {% endif %}
+</section>
+{% endblock %}

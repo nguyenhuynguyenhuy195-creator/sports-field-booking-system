@@ -18,6 +18,7 @@
 <body class="owner-body">
     {% set endpoint = request.endpoint or '' %}
     {% set dashboard_active = endpoint == 'owner.dashboard' %}
+    {% set schedule_active = endpoint == 'owner.schedule' %}
     {% set bookings_active = endpoint.startswith('bookings.owner_') %}
     {% set venues_active = endpoint.startswith('venues.owner_') or endpoint.startswith('fields.owner_') %}
     {% set pricing_active = endpoint.startswith('pricing.owner_') %}
@@ -39,9 +40,9 @@
                     <a class="owner-sidebar-link{% if dashboard_active %} active{% endif %}" href="{{ url_for('owner.dashboard') }}"{% if dashboard_active %} aria-current="page"{% endif %} aria-label="Tổng quan" title="Tổng quan">
                         <i class="bi bi-grid" aria-hidden="true"></i><span>Tổng quan</span>
                     </a>
-                    <span class="owner-sidebar-link owner-sidebar-link-disabled" aria-label="Lịch sân — Sắp có" aria-disabled="true" title="Lịch sân — Sắp có">
-                        <i class="bi bi-calendar3" aria-hidden="true"></i><span>Lịch sân</span><small>Sắp có</small>
-                    </span>
+                    <a class="owner-sidebar-link{% if schedule_active %} active{% endif %}" href="{{ url_for('owner.schedule') }}"{% if schedule_active %} aria-current="page"{% endif %} aria-label="Lịch sân" title="Lịch sân">
+                        <i class="bi bi-calendar3" aria-hidden="true"></i><span>Lịch sân</span>
+                    </a>
                     <a class="owner-sidebar-link{% if bookings_active %} active{% endif %}" href="{{ url_for('bookings.owner_index') }}"{% if bookings_active %} aria-current="page"{% endif %} aria-label="Booking" title="Booking">
                         <i class="bi bi-journal-text" aria-hidden="true"></i><span>Booking</span>
                     </a>
