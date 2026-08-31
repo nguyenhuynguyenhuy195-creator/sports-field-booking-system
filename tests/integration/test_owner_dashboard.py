@@ -350,7 +350,7 @@ def test_shared_booking_detail_selects_owner_or_player_shell(app):
         code="DETAIL-SHELL",
         user_id=customer.id,
         field_id=field_id,
-        booking_at=datetime.now() + timedelta(days=2),
+        booking_at=datetime(2030, 1, 15, 18, 0),
         status=BookingStatus.PAID,
         paid_amount=Decimal("90000.00"),
     )
