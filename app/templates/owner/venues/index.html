@@ -1,10 +1,11 @@
-{% extends "base.html" %}
+{% extends "owner/base.html" %}
 
 {% block title %}Cơ sở của tôi · Sân Thể Thao{% endblock %}
+{% block owner_page_label %}Cơ sở &amp; Sân{% endblock %}
 
 {% block content %}
-<section class="container py-5">
-    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+<section class="container owner-page-container owner-venues-page py-4 py-lg-5">
+    <div class="owner-page-heading d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
         <div>
             <span class="eyebrow">KHU VỰC CHỦ SÂN</span>
             <h1 class="h2 fw-bold mt-2 mb-1">Cơ sở của tôi</h1>
@@ -14,28 +15,33 @@
     </div>
 
     {% if venues %}
-        <div class="application-list">
+        <div class="application-list owner-venue-grid">
             {% for venue in venues %}
-                <article class="application-card">
-                    <div class="d-flex flex-column flex-lg-row justify-content-between gap-4">
-                        <div>
-                            <span class="status-badge status-{{ venue.status|lower }}">{{ status_labels[venue.status] }}</span>
-                            <h2 class="h5 fw-bold mt-3 mb-2">{{ venue.name }}</h2>
-                            <p class="text-secondary mb-1">{{ venue.full_address }}</p>
-                            <p class="mb-0"><strong>Giờ hoạt động:</strong> {{ venue.opening_time.strftime('%H:%M') }}–{{ venue.closing_time.strftime('%H:%M') }}</p>
-                            {% if venue.moderation_note %}
-                                <div class="alert alert-light border mt-3 mb-0"><strong>Ghi chú kiểm duyệt:</strong> {{ venue.moderation_note }}</div>
-                            {% endif %}
-                        </div>
-                        <div class="text-lg-end">
-                            <p class="small text-secondary mb-3">Tạo lúc {{ venue.created_at|local_datetime }}</p>
-                            <a class="btn btn-outline-primary" href="{{ url_for('fields.owner_index', venue_id=venue.id) }}">Quản lý sân</a>
-                            <a class="btn btn-outline-primary" href="{{ url_for('venues.owner_edit', venue_id=venue.id) }}">Chỉnh sửa</a>
-                            {% if venue.status == 'ACTIVE' %}
-                                <a class="btn btn-primary" href="{{ url_for('venues.detail', venue_id=venue.id) }}">Xem công khai</a>
-                            {% endif %}
-                        </div>
+                <article class="application-card owner-venue-card">
+                    <div class="owner-venue-media" aria-hidden="true">
+                        <i class="bi bi-buildings"></i>
+                        <span>Chưa có ảnh cơ sở</span>
                     </div>
+                    <div class="owner-venue-card-body">
+                        <div class="owner-venue-card-heading">
+                            <span class="status-badge status-{{ venue.status|lower }}">{{ status_labels[venue.status] }}</span>
+                            <small>Tạo lúc {{ venue.created_at|local_datetime }}</small>
+                        </div>
+                        <h2>{{ venue.name }}</h2>
+                        <p class="owner-venue-address"><i class="bi bi-geo-alt" aria-hidden="true"></i>{{ venue.full_address }}</p>
+                        <p class="owner-venue-hours"><i class="bi bi-clock" aria-hidden="true"></i><span><strong>Giờ hoạt động</strong>{{ venue.opening_time.strftime('%H:%M') }}–{{ venue.closing_time.strftime('%H:%M') }}</span></p>
+                        <p class="owner-venue-fields-note"><i class="bi bi-grid-3x3-gap" aria-hidden="true"></i>Quản lý sân theo từng cơ sở</p>
+                        {% if venue.moderation_note %}
+                            <div class="alert alert-light owner-venue-moderation mb-0"><strong>Ghi chú kiểm duyệt:</strong> {{ venue.moderation_note }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="owner-venue-actions">
+                        <a class="btn btn-primary" href="{{ url_for('fields.owner_index', venue_id=venue.id) }}">Quản lý sân</a>
+                        <a class="btn btn-outline-primary" href="{{ url_for('venues.owner_edit', venue_id=venue.id) }}">Chỉnh sửa</a>
+                        {% if venue.status == 'ACTIVE' %}
+                            <a class="owner-venue-public-link" href="{{ url_for('venues.detail', venue_id=venue.id) }}">Xem công khai<i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>
+                        {% endif %}
+                        </div>
                 </article>
             {% endfor %}
         </div>

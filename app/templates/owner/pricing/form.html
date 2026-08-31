@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "owner/base.html" %}
 {% from "_form_helpers.html" import render_field %}
 
 {% macro render_time_picker(title, hour_field, minute_field) %}
@@ -24,6 +24,7 @@
 {% endmacro %}
 
 {% block title %}{{ page_title }} · Sân Thể Thao{% endblock %}
+{% block owner_page_label %}Bảng giá{% endblock %}
 
 {% block content %}
 <section class="auth-section py-5">

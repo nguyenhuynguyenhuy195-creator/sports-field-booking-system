@@ -147,6 +147,11 @@ from .owner_application import (
     review_owner_application,
     submit_owner_application,
 )
+from .owner import (
+    OwnerDashboardBooking,
+    OwnerDashboardSummary,
+    get_owner_dashboard_summary,
+)
 from .pricing import (
     MissingActivePriceSlotError,
     MissingPriceCoverageError,
@@ -228,6 +233,8 @@ __all__ = [
     "AdminPage",
     "AdminPermissionError",
     "AdminVenueLocationSummary",
+    "OwnerDashboardBooking",
+    "OwnerDashboardSummary",
     "AdministrativeAddress",
     "AdministrativeUnitError",
     "AVAILABILITY_STEP_MINUTES",
@@ -337,6 +344,7 @@ __all__ = [
     "get_effective_maintenance_status",
     "get_effective_booking_status",
     "get_owner_booking",
+    "get_owner_dashboard_summary",
     "get_owner_maintenance",
     "get_owner_price_slot",
     "get_public_venue",

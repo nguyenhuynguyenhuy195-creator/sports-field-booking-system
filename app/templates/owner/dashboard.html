@@ -1,0 +1,126 @@
+{% extends "owner/base.html" %}
+
+{% block title %}Tổng quan chủ sân · Sân Thể Thao{% endblock %}
+{% block owner_page_label %}Tổng quan{% endblock %}
+
+{% block content %}
+<section class="container owner-dashboard owner-page-container py-4 py-lg-5">
+    <div class="owner-welcome-panel">
+        <div>
+            <span class="owner-welcome-eyebrow">TRUNG TÂM VẬN HÀNH</span>
+            <h1>Chào {{ current_user.full_name }}</h1>
+            <p>Theo dõi booking, cơ sở, sân và các mục vận hành cần chú ý trong một nơi.</p>
+        </div>
+        <div class="owner-welcome-actions">
+            <a class="btn btn-light owner-welcome-primary" href="{{ url_for('bookings.owner_index') }}">Xem booking</a>
+            <a class="btn owner-btn-soft" href="{{ url_for('venues.owner_index') }}">Cơ sở &amp; Sân</a>
+        </div>
+    </div>
+
+    <div class="owner-kpi-grid" aria-label="Tổng quan hoạt động">
+        <article class="owner-kpi-card">
+            <span class="owner-kpi-icon"><i class="bi bi-calendar2-check" aria-hidden="true"></i></span>
+            <p>Booking hôm nay</p>
+            <strong>{{ summary.today_booking_count }}</strong>
+            <small>Theo ngày sử dụng {{ summary.generated_at.strftime('%d/%m/%Y') }}</small>
+        </article>
+        <article class="owner-kpi-card">
+            <span class="owner-kpi-icon"><i class="bi bi-clock-history" aria-hidden="true"></i></span>
+            <p>Booking sắp tới</p>
+            <strong>{{ summary.upcoming_booking_count }}</strong>
+            <small>Còn hiệu lực và chưa đến giờ bắt đầu</small>
+        </article>
+        <article class="owner-kpi-card">
+            <span class="owner-kpi-icon"><i class="bi bi-buildings" aria-hidden="true"></i></span>
+            <p>Cơ sở của tôi</p>
+            <strong>{{ summary.venue_count }}</strong>
+            <small>Tất cả trạng thái kiểm duyệt</small>
+        </article>
+        <article class="owner-kpi-card">
+            <span class="owner-kpi-icon"><i class="bi bi-check2-circle" aria-hidden="true"></i></span>
+            <p>Sân đang bật</p>
+            <strong>{{ summary.active_field_count }}</strong>
+            <small>Sân đang ở trạng thái hoạt động</small>
+        </article>
+    </div>
+
+    <div class="owner-dashboard-grid">
+        <section class="owner-dashboard-card owner-upcoming-card" aria-labelledby="upcomingBookingsTitle">
+            <div class="owner-section-heading">
+                <div>
+                    <h2 id="upcomingBookingsTitle">Booking sắp tới</h2>
+                    <p>Các lịch gần nhất trên toàn bộ sân của bạn.</p>
+                </div>
+                <a href="{{ url_for('bookings.owner_index') }}">Xem tất cả</a>
+            </div>
+
+            {% if summary.upcoming_bookings %}
+                <div class="table-responsive">
+                    <table class="table owner-booking-table align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th scope="col">Thời gian</th>
+                                <th scope="col">Sân</th>
+                                <th scope="col">Khách</th>
+                                <th scope="col">Hình thức</th>
+                                <th scope="col">Trạng thái</th>
+                                <th scope="col"><span class="visually-hidden">Thao tác</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for entry in summary.upcoming_bookings %}
+                                {% set booking = entry.booking %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ booking.start_time.strftime('%H:%M') }}–{{ booking.end_time.strftime('%H:%M') }}</strong>
+                                        <small>{{ booking.booking_date.strftime('%d/%m/%Y') }}</small>
+                                    </td>
+                                    <td><strong>{{ booking.field.name }}</strong><small>{{ booking.field.venue.name }}</small></td>
+                                    <td>{{ booking.user.full_name }}</td>
+                                    <td>{{ booking_mode_labels[booking.booking_mode] }}</td>
+                                    <td><span class="status-badge status-{{ entry.effective_status|lower|replace('_', '-') }}">{{ booking_status_labels[entry.effective_status] }}</span></td>
+                                    <td><a class="owner-row-link" href="{{ url_for('bookings.owner_detail', booking_code=booking.booking_code) }}" aria-label="Xem booking {{ booking.booking_code }}"><i class="bi bi-chevron-right" aria-hidden="true"></i></a></td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="owner-dashboard-empty">
+                    <i class="bi bi-calendar2" aria-hidden="true"></i>
+                    <div><strong>Chưa có booking sắp tới</strong><p>Booking còn hiệu lực sẽ xuất hiện tại đây.</p></div>
+                </div>
+            {% endif %}
+        </section>
+
+        <section class="owner-dashboard-card owner-operation-card" aria-labelledby="operationStatusTitle">
+            <div class="owner-section-heading">
+                <div>
+                    <h2 id="operationStatusTitle">Tình trạng vận hành</h2>
+                    <p>Những mục cần theo dõi.</p>
+                </div>
+            </div>
+            <div class="owner-operation-list">
+                <a href="{{ url_for('venues.owner_index') }}">
+                    <span class="owner-operation-dot owner-dot-warning" aria-hidden="true"></span>
+                    <span><strong>{{ summary.pending_venue_count }} cơ sở chờ duyệt</strong><small>Kiểm tra trạng thái cơ sở</small></span>
+                    <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                </a>
+                <a href="{{ url_for('venues.owner_index') }}">
+                    <span class="owner-operation-dot owner-dot-muted" aria-hidden="true"></span>
+                    <span><strong>{{ summary.inactive_field_count }} sân chưa bật</strong><small>Vào từng cơ sở để quản lý sân</small></span>
+                    <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                </a>
+                <div>
+                    <span class="owner-operation-dot owner-dot-danger" aria-hidden="true"></span>
+                    <span><strong>{{ summary.current_maintenance_count }} bảo trì đang diễn ra</strong><small>Theo thời gian Việt Nam hiện tại</small></span>
+                </div>
+                <div>
+                    <span class="owner-operation-dot owner-dot-success" aria-hidden="true"></span>
+                    <span><strong>{{ summary.upcoming_maintenance_count }} bảo trì sắp tới</strong><small>Lịch ACTIVE chưa đến giờ bắt đầu</small></span>
+                </div>
+            </div>
+        </section>
+    </div>
+</section>
+{% endblock %}

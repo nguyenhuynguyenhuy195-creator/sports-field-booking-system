@@ -1,20 +1,42 @@
-{% extends "base.html" %}
+{% extends "owner/base.html" if owner_view|default(false) else "base.html" %}
 
-{% block title %}Lịch đặt {{ booking.booking_code }} · Sân Thể Thao{% endblock %}
-
-{% block content %}
-<section class="container py-5">
-    <a class="text-decoration-none" href="{{ url_for('bookings.owner_index') if owner_view else url_for('bookings.index') }}">← Quay lại lịch đặt sân</a>
-
-    <div class="booking-detail-header mt-4">
-        <div>
-            <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-                <span class="status-badge status-{{ effective_status|lower|replace('_', '-') }}">{{ status_labels[effective_status] }}</span>
-                <span class="booking-code">{{ booking.booking_code }}</span>
+{% macro render_payment_summary(owner_compact=false) %}
+    {% if owner_compact %}
+        <div class="booking-total-panel owner-booking-payment-card">
+            <div class="owner-booking-card-heading">
+                <span>Thanh toán</span>
+                <i class="bi bi-wallet2" aria-hidden="true"></i>
             </div>
-            <h1 class="h2 fw-bold mb-1">{{ booking.field.name }}</h1>
-            <p class="text-secondary mb-0">{{ booking.field.venue.name }}</p>
+            {% if effective_status == 'CANCELLED' %}
+                <span>Đã hoàn tiền</span>
+                <strong>{{ successful_refund_total|vnd_currency }}</strong>
+                <div class="owner-booking-payment-lines">
+                    <small><span>Tiền sân ban đầu</span><b>{{ booking.total_amount|vnd_currency }}</b></small>
+                    {% if not booking.payments %}<small>Lịch đặt này chưa phát sinh thanh toán.</small>{% endif %}
+                    {% if booking.cancellation_fee_amount > 0 %}
+                        <small><span>Phí giữ sân</span><b>{{ booking.cancellation_fee_amount|vnd_currency }}</b></small>
+                    {% endif %}
+                </div>
+            {% elif effective_status == 'REFUND_PENDING' %}
+                <span>Đang xử lý hoàn tiền</span>
+                <strong>{{ booking.paid_amount|vnd_currency }}</strong>
+                <small>Số tiền ròng đang ghi nhận</small>
+            {% else %}
+                <span>Tổng tiền sân</span>
+                <strong>{{ booking.total_amount|vnd_currency }}</strong>
+                <div class="owner-booking-payment-lines">
+                    {% if booking.payment_policy == 'DEPOSIT_30' %}
+                        <small><span>Cọc yêu cầu 30%</span><b>{{ booking.deposit_amount|vnd_currency }}</b></small>
+                        <small><span>Đã thanh toán</span><b>{{ booking.paid_amount|vnd_currency }}</b></small>
+                        <small><span>Còn lại tại sân</span><b>{{ booking.balance_due_at_venue|vnd_currency }}</b></small>
+                    {% else %}
+                        <small><span>Đã thanh toán online</span><b>{{ booking.paid_amount|vnd_currency }}</b></small>
+                        <small><span>Còn thiếu</span><b>{{ booking.remaining_amount|vnd_currency }}</b></small>
+                    {% endif %}
+                </div>
+            {% endif %}
         </div>
+    {% else %}
         <div class="booking-total-panel">
             {% if effective_status == 'CANCELLED' %}
                 <span>Đã hoàn cho người thanh toán</span>
@@ -41,15 +63,46 @@
                 {% endif %}
             {% endif %}
         </div>
+    {% endif %}
+{% endmacro %}
+
+{% block title %}Lịch đặt {{ booking.booking_code }} · Sân Thể Thao{% endblock %}
+{% block owner_page_label %}Chi tiết booking{% endblock %}
+
+{% block content %}
+<section class="container{% if owner_view %} owner-page-container owner-booking-detail py-4{% else %} py-5{% endif %}">
+    <a class="text-decoration-none{% if owner_view %} owner-booking-back{% endif %}" href="{{ url_for('bookings.owner_index') if owner_view else url_for('bookings.index') }}">
+        {% if owner_view %}<i class="bi bi-arrow-left" aria-hidden="true"></i> Booking{% else %}← Quay lại lịch đặt sân{% endif %}
+    </a>
+
+    <div class="booking-detail-header{% if owner_view %} owner-booking-detail-header{% else %} mt-4{% endif %}">
+        <div>
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                <span class="status-badge status-{{ effective_status|lower|replace('_', '-') }}">{{ status_labels[effective_status] }}</span>
+                <span class="booking-code">{{ booking.booking_code }}</span>
+            </div>
+            <h1 class="h2 fw-bold mb-1">{{ booking.field.name }}</h1>
+            <p class="text-secondary{% if owner_view %} mb-2{% else %} mb-0{% endif %}">{{ booking.field.venue.name }}</p>
+            {% if owner_view %}
+                <div class="owner-booking-header-meta" aria-label="Tóm tắt lịch đặt">
+                    <span>{{ booking.booking_date.strftime('%d/%m/%Y') }}</span>
+                    <span>{{ booking.start_time.strftime('%H:%M') }}–{{ booking.end_time.strftime('%H:%M') }}</span>
+                    <span>{{ booking.field.field_type.sport.name }}</span>
+                    <span>{{ booking_mode_labels[booking.booking_mode] }}</span>
+                </div>
+                <p class="owner-booking-customer mb-0"><span>Người đặt</span><strong>{{ booking.user.full_name }}</strong></p>
+            {% endif %}
+        </div>
+        {% if not owner_view %}{{ render_payment_summary() }}{% endif %}
     </div>
 
-    <div class="row g-4 mt-1">
+    <div class="row g-3{% if owner_view %} owner-booking-detail-layout{% else %} mt-1{% endif %}">
         <div class="col-lg-8">
-            <div class="booking-detail-card mb-4">
+            <div class="booking-detail-card{% if owner_view %} owner-booking-info-card{% else %} mb-4{% endif %}">
                 <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
                     <div>
-                        <h2 class="h5 fw-bold mb-1">Chi tiết đặt sân</h2>
-                        <p class="small text-secondary mb-0">Thông tin quan trọng của lịch đã xác nhận.</p>
+                        <h2 class="h5 fw-bold mb-1">{{ 'Thông tin booking' if owner_view else 'Chi tiết đặt sân' }}</h2>
+                        {% if not owner_view %}<p class="small text-secondary mb-0">Thông tin quan trọng của lịch đã xác nhận.</p>{% endif %}
                     </div>
                 </div>
                 <dl class="booking-detail-grid mb-0">
@@ -69,14 +122,15 @@
                 </dl>
             </div>
 
-            <div class="booking-disclosure-stack">
+            {% if owner_view %}<h2 class="owner-booking-finance-heading">Chi tiết tài chính</h2>{% endif %}
+            <div class="booking-disclosure-stack{% if owner_view %} owner-booking-financial-details{% endif %}">
                 <details class="booking-disclosure">
                     <summary>
                         <span>
                             <strong>Chi tiết tính giá</strong>
                             <small>{{ booking.price_details|length }} khung giá · Tổng {{ booking.total_amount|vnd_currency }}</small>
                         </span>
-                        <span class="booking-disclosure-icon" aria-hidden="true">+</span>
+                        <span class="booking-disclosure-icon" aria-hidden="true">{% if owner_view %}<i class="bi bi-chevron-right"></i>{% else %}+{% endif %}</span>
                     </summary>
                     <div class="booking-disclosure-body table-responsive">
                         <table class="table align-middle mb-0">
@@ -102,7 +156,7 @@
                             <strong>Các khoản cọc</strong>
                             <small>{{ booking.contributions|length }} khoản cần theo dõi · Mở để xem đối soát</small>
                         </span>
-                        <span class="booking-disclosure-icon" aria-hidden="true">+</span>
+                        <span class="booking-disclosure-icon" aria-hidden="true">{% if owner_view %}<i class="bi bi-chevron-right"></i>{% else %}+{% endif %}</span>
                     </summary>
                     <div class="booking-disclosure-body table-responsive">
                         <table class="table align-middle mb-0 contribution-table">
@@ -147,7 +201,7 @@
                                 <strong>Lịch sử thanh toán</strong>
                                 <small>{{ booking.payments|length }} thanh toán · {{ booking.refunds|length }} hoàn tiền</small>
                             </span>
-                            <span class="booking-disclosure-icon" aria-hidden="true">+</span>
+                            <span class="booking-disclosure-icon" aria-hidden="true">{% if owner_view %}<i class="bi bi-chevron-right"></i>{% else %}+{% endif %}</span>
                         </summary>
                         <div class="booking-disclosure-body">
                             {% if booking.payments %}
@@ -203,8 +257,10 @@
         </div>
 
         <div class="col-lg-4">
-            <aside class="booking-detail-card booking-action-card">
-                <h2 class="h5 fw-bold">Trạng thái và thao tác</h2>
+            <div class="{% if owner_view %}owner-booking-side-column{% endif %}">
+            {% if owner_view %}{{ render_payment_summary(true) }}{% endif %}
+            <aside class="booking-detail-card booking-action-card{% if owner_view %} owner-booking-status-card{% endif %}">
+                <h2 class="h5 fw-bold">{{ 'Trạng thái' if owner_view else 'Trạng thái và thao tác' }}</h2>
                 {% if not owner_view and current_user.id == booking.user_id %}
                     {% if booking.match and booking.match.status != 'CANCELLED' and effective_status in ['PARTIALLY_PAID', 'PAID'] %}
                         <div class="match-booking-cta mb-3">
@@ -307,8 +363,8 @@
                     </div>
                 {% elif effective_status == 'COMPLETED' %}
                     <div class="booking-final-status booking-final-status-completed">
-                        <strong>Lịch đặt sân đã hoàn thành.</strong>
-                        <span>Lịch sử thanh toán vẫn được lưu để đối soát.</span>
+                        <strong>{% if owner_view %}<i class="bi bi-check-circle-fill" aria-hidden="true"></i>{% endif %} Lịch đặt sân đã hoàn thành.</strong>
+                        <span>{{ 'Không còn thao tác cần xử lý.' if owner_view else 'Lịch sử thanh toán vẫn được lưu để đối soát.' }}</span>
                     </div>
                 {% endif %}
 
@@ -363,6 +419,7 @@
                     <p class="small text-secondary mt-2 mb-0">Bạn được hoàn 80% phần đã đóng; 20% được giữ làm phí giữ sân. Người tham gia khác được hoàn 100%.</p>
                 {% endif %}
             </aside>
+            </div>
         </div>
     </div>
 </section>

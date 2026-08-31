@@ -1,17 +1,18 @@
-{% extends "base.html" %}
+{% extends "owner/base.html" %}
 
 {% block title %}Quản lý lịch đặt sân · Sân Thể Thao{% endblock %}
+{% block owner_page_label %}Booking{% endblock %}
 
 {% block content %}
-<section class="container py-5">
-    <div class="mb-4">
+<section class="container owner-page-container owner-bookings-page py-4 py-lg-5">
+    <div class="owner-page-heading">
         <span class="eyebrow">DÀNH CHO CHỦ SÂN</span>
         <h1 class="h2 fw-bold mt-2 mb-1">Quản lý lịch đặt sân</h1>
         <p class="text-secondary mb-0">Theo dõi lịch được hệ thống xác nhận tự động và xử lý sự cố khi cần.</p>
     </div>
 
     {% if bookings %}
-        <div class="booking-tabs" role="tablist" aria-label="Lọc lịch đặt sân của chủ sân">
+        <div class="booking-tabs owner-booking-tabs" role="tablist" aria-label="Lọc lịch đặt sân của chủ sân">
             {% for group in booking_groups %}
                 <button
                     class="booking-tab{% if loop.first %} active{% endif %}"
@@ -31,7 +32,7 @@
             {% endfor %}
         </div>
 
-        <div class="tab-content booking-tab-panels">
+        <div class="tab-content booking-tab-panels owner-booking-tab-panels">
             {% for group in booking_groups %}
                 <section
                     class="tab-pane fade{% if loop.first %} show active{% endif %}"
@@ -43,30 +44,35 @@
                 >
                     <p class="booking-group-description">{{ group.description }}</p>
                     {% if group.entries %}
-                        <div class="booking-list">
+                        <div class="booking-list owner-booking-list">
                             {% for entry in group.entries %}
                                 {% set booking = entry.booking %}
                                 {% set status = entry.status %}
-                                <article class="booking-list-card">
-                                    <div>
+                                <article class="booking-list-card owner-booking-item">
+                                    <div class="owner-booking-primary">
                                         <span class="status-badge status-{{ status|lower|replace('_', '-') }}">{{ status_labels[status] }}</span>
-                                        <h2 class="h5 fw-bold mt-3 mb-1">{{ booking.field.venue.name }}</h2>
-                                        <p class="text-secondary mb-0">{{ booking.field.name }}</p>
-                                        <p class="small mt-2 mb-0">
-                                            <strong>Người đặt:</strong> {{ booking.user.full_name }}
-                                            {% if booking.user.phone %} · {{ booking.user.phone }}{% endif %}
-                                        </p>
+                                        <div class="owner-booking-title">
+                                            <h2>{{ booking.field.venue.name }}</h2>
+                                            <p>{{ booking.field.name }}</p>
+                                        </div>
                                         <span class="booking-code">Mã {{ booking.booking_code }}</span>
                                     </div>
-                                    <div class="booking-list-time">
+                                    <div class="booking-list-time owner-booking-meta">
+                                        <span class="owner-booking-meta-label"><i class="bi bi-calendar3" aria-hidden="true"></i> Thời gian</span>
                                         <strong>{{ booking.booking_date.strftime('%d/%m/%Y') }}</strong>
                                         <span>{{ booking.start_time.strftime('%H:%M') }}–{{ booking.end_time.strftime('%H:%M') }}</span>
                                     </div>
-                                    <div class="booking-list-price">
+                                    <div class="owner-booking-customer owner-booking-meta">
+                                        <span class="owner-booking-meta-label"><i class="bi bi-person" aria-hidden="true"></i> Khách</span>
+                                        <strong class="owner-booking-customer-name" title="{{ booking.user.full_name }}">{{ booking.user.full_name }}</strong>
+                                        {% if booking.user.phone %}<span class="owner-booking-customer-phone">{{ booking.user.phone }}</span>{% endif %}
+                                    </div>
+                                    <div class="booking-list-price owner-booking-meta">
+                                        <span class="owner-booking-meta-label"><i class="bi bi-receipt" aria-hidden="true"></i> Giá trị</span>
                                         <strong>{{ booking.total_amount|vnd_currency }}</strong>
                                         <span>{{ booking_mode_labels[booking.booking_mode] }}</span>
                                     </div>
-                                    <a class="btn btn-outline-primary" href="{{ url_for('bookings.owner_detail', booking_code=booking.booking_code) }}">Xem lịch đặt</a>
+                                    <a class="btn btn-outline-primary owner-booking-action" href="{{ url_for('bookings.owner_detail', booking_code=booking.booking_code) }}">Xem chi tiết<i class="bi bi-arrow-right" aria-hidden="true"></i></a>
                                 </article>
                             {% endfor %}
                         </div>

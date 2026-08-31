@@ -271,23 +271,28 @@ Theo quyết định của người dùng ngày 31/08/2026:
 
 ## PHASE 3 – OWNER CONSOLE
 
-**Trạng thái: NEXT / IN PROGRESS**
+**Trạng thái: IN PROGRESS**
 
 - Dedicated `/owner` workspace dùng sidebar/topbar riêng, không dùng navbar ngang dài như giao diện User.
 - Một tài khoản `OWNER` vẫn có thể chuyển giữa Trang người chơi và Quản lý sân.
-- Dropdown tài khoản Owner gồm: Trang người chơi, Quản lý sân, Hồ sơ và Đăng xuất.
+- Dropdown tài khoản Owner gồm: Trang người chơi và Đăng xuất; giao diện User của tài khoản `OWNER` có entry Quản lý sân.
 - Owner sidebar target: Tổng quan → Lịch sân → Booking → Cơ sở & Sân → Bảng giá → Bảo trì → Tài chính.
 - Cơ sở và Sân được gộp ở tầng UX vì Field luôn thuộc Venue; vẫn giữ nguyên route, service, domain và ownership validation riêng cho Venue/Field.
 - Ảnh được quản lý theo entity Venue/Field; không có menu hoặc trang Hình ảnh riêng.
 
-### Step 3.1 – Owner Shell + Dashboard — NEXT
+### Step 3.1 – Owner Shell + Dashboard — DONE / ACCEPTED (31/08/2026)
 
-- Sidebar/topbar riêng cho Owner Console.
-- Hỗ trợ chuyển User ↔ Owner trong cùng một tài khoản `OWNER`.
-- Dashboard tổng quan cho chủ sân.
-- Tổng quan, Booking và Cơ sở & Sân có entry hoạt động.
-- Bảng giá/Bảo trì tiếp tục dùng nested field route hiện có khi Owner đi vào từ một sân; không tạo global Field route chỉ để phục vụ sidebar.
-- Lịch sân và Tài chính chưa triển khai trước hạn.
+- `/owner` là landing page chính thức và chỉ cho phép role `OWNER`; anonymous được chuyển tới đăng nhập, `USER`/`ADMIN` nhận 403.
+- Sidebar, sticky topbar, account dropdown và Bootstrap offcanvas mobile dùng chung cho toàn bộ Owner Console.
+- Hỗ trợ chuyển Trang người chơi ↔ Quản lý sân trong cùng một tài khoản `OWNER`, không thay đổi role/session.
+- Dashboard dùng dữ liệu thật theo ownership ở SQL: booking hôm nay, booking sắp tới, cơ sở, sân đang bật, cơ sở chờ duyệt, sân chưa bật và maintenance hiện tại/sắp tới.
+- Trạng thái booking và maintenance trên dashboard tái sử dụng helper expiration/timezone hiện có; không thêm KPI tài chính.
+- Tổng quan, Booking và Cơ sở & Sân có entry hoạt động; Bảng giá/Bảo trì tiếp tục dùng nested field route hiện có.
+- Shared booking detail chọn đúng Owner Shell hoặc User Shell theo `owner_view`; không fork template và không thay đổi booking/payment/refund/match logic.
+- Không tạo global Field/Pricing/Maintenance route, model, migration hoặc JavaScript Owner riêng.
+- Browser QA đạt ở desktop 1440×900 và mobile 390×844; offcanvas, active navigation, dropdown, overflow và console JavaScript đều đạt.
+- Regression: 5 test Owner Dashboard mới đạt; 142 test liên quan đạt; full suite 267 passed (baseline 262 + 5 test mới), 0 failed.
+- Lịch sân và Tài chính vẫn chưa triển khai trước hạn.
 
 ### Step 3.2 – Schedule & Booking Operations — NOT STARTED
 
@@ -437,7 +442,7 @@ Hiện tại:
 - Phase 1B: DONE.
 - Phase 1.2: DONE / ACCEPTED (30/08/2026).
 - Phase 2: NOT STARTED / DEFERRED BY USER DECISION.
-- Phase 3: NEXT / IN PROGRESS.
+- Phase 3: IN PROGRESS (Step 3.1 DONE / ACCEPTED).
 - Phase 4: NOT YET AUDITED / ACCEPTED.
 - Phase 4.1: NOT STARTED.
 - Phase 5: NOT STARTED.
@@ -479,9 +484,9 @@ DONE:
 
 ### TASK TIẾP THEO
 
-**PHASE 3 – STEP 3.1 OWNER SHELL + DASHBOARD**
+**PHASE 3 – STEP 3.2 SCHEDULE & BOOKING OPERATIONS**
 
-Phase 1.2 đã đóng. Phase 2 được tạm hoãn và Phase 3 là Phase tiếp theo. Task cập nhật roadmap này không triển khai Step 3.1 hoặc bất kỳ mã nguồn nào.
+Step 3.1 đã nghiệm thu. Tiếp theo audit và triển khai Lịch sân time × field, list view và Booking Owner theo đúng scope Step 3.2; Phase 2 vẫn được tạm hoãn theo quyết định của người dùng.
 
 ---
 

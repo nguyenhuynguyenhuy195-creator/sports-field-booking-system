@@ -65,8 +65,7 @@
                                 {% endif %}
                                 {% if current_user.is_owner %}
                                     <li><h2 class="dropdown-header">Quản lý chủ sân</h2></li>
-                                    <li><a class="dropdown-item" href="{{ url_for('bookings.owner_index') }}">Quản lý lịch đặt</a></li>
-                                    <li><a class="dropdown-item" href="{{ url_for('venues.owner_index') }}">Quản lý cơ sở</a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('owner.dashboard') }}">Quản lý sân</a></li>
                                 {% endif %}
                                 {% if current_user.is_admin %}
                                     <li><h2 class="dropdown-header">Quản trị hệ thống</h2></li>

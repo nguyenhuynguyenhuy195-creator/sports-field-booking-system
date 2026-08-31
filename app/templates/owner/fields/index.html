@@ -1,46 +1,65 @@
-{% extends "base.html" %}
+{% extends "owner/base.html" %}
 
 {% block title %}Sân tại {{ venue.name }} · Sân Thể Thao{% endblock %}
+{% block owner_page_label %}Cơ sở &amp; Sân{% endblock %}
 
 {% block content %}
-<section class="container py-5">
-    <a class="text-decoration-none" href="{{ url_for('venues.owner_index') }}">← Cơ sở của tôi</a>
-    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 my-4">
+<section class="container owner-page-container owner-fields-page py-4 py-lg-5">
+    <a class="owner-fields-back" href="{{ url_for('venues.owner_index') }}"><i class="bi bi-arrow-left" aria-hidden="true"></i>Cơ sở của tôi</a>
+    <div class="owner-fields-header">
         <div>
             <span class="eyebrow">{{ venue.name }}</span>
             <h1 class="h2 fw-bold mt-2 mb-1">Danh sách sân</h1>
-            <p class="text-secondary mb-0">Quản lý các sân con thuộc cơ sở này.</p>
+            <p class="text-secondary mb-0">
+                {% if fields %}
+                    {{ fields|length }} sân · {{ fields|selectattr('status', 'equalto', 'ACTIVE')|list|length }} đang hoạt động
+                {% else %}
+                    Quản lý các sân con thuộc cơ sở này.
+                {% endif %}
+            </p>
         </div>
-        <a class="btn btn-primary" href="{{ url_for('fields.owner_create', venue_id=venue.id) }}">Thêm sân</a>
+        <a class="btn btn-primary owner-fields-add" href="{{ url_for('fields.owner_create', venue_id=venue.id) }}"><i class="bi bi-plus-lg" aria-hidden="true"></i>Thêm sân</a>
     </div>
 
     {% if fields %}
-        <div class="field-grid">
+        <div class="owner-field-grid">
             {% for field in fields %}
-                <article class="field-card">
-                    <div class="d-flex justify-content-between align-items-start gap-3">
-                        <div>
-                            <span class="status-badge status-{{ field.status|lower }}">{{ field_status_labels[field.status] }}</span>
-                            <h2 class="h5 fw-bold mt-3 mb-1">{{ field.name }}</h2>
-                            <p class="text-secondary mb-0">{{ field.field_type.sport.name }} · {{ field.field_type.name }}</p>
-                        </div>
-                        <span class="field-capacity">{{ field.capacity }} người</span>
+                <article class="owner-field-card">
+                    <div class="owner-field-media" aria-hidden="true">
+                        <span class="owner-field-court-lines"></span>
+                        <span class="owner-field-media-icon"><i class="bi bi-bounding-box-circles"></i></span>
+                        <span class="owner-field-media-label">{{ field.field_type.sport.name }}</span>
                     </div>
-                    <p class="mt-3 mb-3"><strong>Mặt sân:</strong> {{ field.surface_type or 'Chưa cung cấp' }}</p>
-                    {% if field.status == 'INACTIVE' %}
-                        <p class="small text-secondary">Sân chưa nhận đặt lịch cho đến khi có khung giá hợp lệ.</p>
-                    {% endif %}
-                    <div class="d-grid gap-2 mt-auto">
-                        <a class="btn btn-primary" href="{{ url_for('pricing.owner_index', venue_id=venue.id, field_id=field.id) }}">Quản lý khung giá</a>
-                        <a class="btn btn-outline-primary" href="{{ url_for('maintenance.owner_index', venue_id=venue.id, field_id=field.id) }}">Quản lý bảo trì</a>
-                        <a class="btn btn-outline-primary" href="{{ url_for('fields.owner_edit', venue_id=venue.id, field_id=field.id) }}">Chỉnh sửa sân</a>
+                    <div class="owner-field-body">
+                        <div class="owner-field-status-row">
+                            <span class="status-badge status-{{ field.status|lower }}">{{ field_status_labels[field.status] }}</span>
+                            <span class="owner-field-capacity"><i class="bi bi-people" aria-hidden="true"></i>{{ field.capacity }} người</span>
+                        </div>
+                        <div class="owner-field-heading">
+                            <h2>{{ field.name }}</h2>
+                            <p>{{ field.field_type.sport.name }} · {{ field.field_type.name }}</p>
+                        </div>
+                        <dl class="owner-field-meta">
+                            <div>
+                                <dt>Mặt sân</dt>
+                                <dd>{{ field.surface_type or 'Chưa cung cấp' }}</dd>
+                            </div>
+                        </dl>
+                        {% if field.status == 'INACTIVE' %}
+                            <p class="owner-field-note"><i class="bi bi-info-circle" aria-hidden="true"></i>Sân chưa nhận đặt lịch cho đến khi có khung giá hợp lệ.</p>
+                        {% endif %}
+                    </div>
+                    <div class="owner-field-actions">
+                        <a class="btn btn-primary" href="{{ url_for('fields.owner_edit', venue_id=venue.id, field_id=field.id) }}"><i class="bi bi-pencil-square" aria-hidden="true"></i>Chỉnh sửa</a>
+                        <a class="btn btn-outline-primary" href="{{ url_for('pricing.owner_index', venue_id=venue.id, field_id=field.id) }}"><i class="bi bi-tag" aria-hidden="true"></i>Bảng giá</a>
+                        <a class="owner-field-action-link" href="{{ url_for('maintenance.owner_index', venue_id=venue.id, field_id=field.id) }}"><i class="bi bi-tools" aria-hidden="true"></i>Bảo trì</a>
                     </div>
                 </article>
             {% endfor %}
         </div>
     {% else %}
-        <div class="empty-state text-center">
-            <div class="empty-state-icon" aria-hidden="true">⚽</div>
+        <div class="empty-state text-center owner-fields-empty">
+            <div class="empty-state-icon" aria-hidden="true"><i class="bi bi-bounding-box-circles"></i></div>
             <h2 class="h5 fw-bold">Cơ sở chưa có sân nào</h2>
             <p class="text-secondary">Thêm sân đầu tiên để tiếp tục cấu hình khung giá.</p>
             <a class="btn btn-primary" href="{{ url_for('fields.owner_create', venue_id=venue.id) }}">Thêm sân đầu tiên</a>

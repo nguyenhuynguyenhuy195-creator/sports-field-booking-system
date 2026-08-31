@@ -82,6 +82,7 @@ def _register_blueprints(app: Flask) -> None:
     from .routes.maintenance import maintenance_bp
     from .routes.matches import matches_bp
     from .routes.owner_applications import owner_applications_bp
+    from .routes.owner import owner_bp
     from .routes.payments import payments_bp
     from .routes.pricing import pricing_bp
     from .routes.venues import venues_bp
@@ -95,6 +96,7 @@ def _register_blueprints(app: Flask) -> None:
     app.register_blueprint(matches_bp)
     app.register_blueprint(pricing_bp)
     app.register_blueprint(owner_applications_bp)
+    app.register_blueprint(owner_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(venues_bp)
     app.register_blueprint(health_bp)
