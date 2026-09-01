@@ -3,23 +3,15 @@
 
 {% macro render_time_picker(title, hour_field, minute_field) %}
     {% set time_errors = hour_field.errors + minute_field.errors %}
-    <fieldset class="time-picker-field mb-3">
+    <fieldset class="time-picker-field mb-0">
         <legend class="form-label fw-semibold">{{ title }}</legend>
         <div class="time-picker-control{% if time_errors %} is-invalid{% endif %}">
-            <div class="time-picker-segment">
-                <span class="time-picker-caption">Giờ</span>
-                {{ hour_field(class="form-select time-picker-select", aria_label=title ~ " - giờ") }}
-            </div>
+            <div class="time-picker-segment"><span class="time-picker-caption">Giờ</span>{{ hour_field(class="form-select time-picker-select", aria_label=title ~ " - giờ") }}</div>
             <span class="time-picker-colon" aria-hidden="true">:</span>
-            <div class="time-picker-segment">
-                <span class="time-picker-caption">Phút</span>
-                {{ minute_field(class="form-select time-picker-select", aria_label=title ~ " - phút") }}
-            </div>
+            <div class="time-picker-segment"><span class="time-picker-caption">Phút</span>{{ minute_field(class="form-select time-picker-select", aria_label=title ~ " - phút") }}</div>
             <span class="time-picker-period">24H</span>
         </div>
-        {% for error in time_errors %}
-            <div class="invalid-feedback d-block">{{ error }}</div>
-        {% endfor %}
+        {% for error in time_errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
     </fieldset>
 {% endmacro %}
 
@@ -27,25 +19,39 @@
 {% block owner_page_label %}Bảo trì{% endblock %}
 
 {% block content %}
-<section class="auth-section py-5">
-    <div class="container">
-        <div class="auth-card venue-form-card mx-auto">
-            <a class="text-decoration-none" href="{{ url_for('maintenance.owner_index', venue_id=field.venue_id, field_id=field.id) }}">← Danh sách bảo trì</a>
-            <span class="eyebrow d-block mt-4">{{ field.venue.name }} · {{ field.name }}</span>
-            <h1 class="h2 fw-bold mt-2">Thêm lịch bảo trì</h1>
-            <p class="text-secondary">Khoảng giờ này sẽ không thể được chọn khi đặt sân.</p>
+<section class="container owner-page-container owner-operation-form-page py-4 py-lg-5">
+    <a class="owner-fields-back" href="{{ url_for('maintenance.owner_index', venue_id=field.venue_id, field_id=field.id) }}"><i class="bi bi-arrow-left" aria-hidden="true"></i>Danh sách bảo trì</a>
+    <header class="owner-operation-form-heading">
+        <span class="eyebrow">{{ field.venue.name }} · {{ field.name }}</span>
+        <h1>Thêm lịch bảo trì</h1>
+        <p>Chọn khoảng thời gian sân cần ngừng nhận booking để phục vụ vận hành.</p>
+    </header>
 
-            <form method="post" novalidate>
-                {{ form.hidden_tag() }}
+    <div class="owner-operation-form-layout">
+        <form class="owner-operation-form-card" method="post" novalidate>
+            {{ form.hidden_tag() }}
+            <div class="owner-operation-note is-warning"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i><span>Lịch bảo trì đang hoạt động sẽ khóa khoảng giờ này khỏi các booking mới. Booking còn chiếm lịch sẽ khiến yêu cầu bị từ chối.</span></div>
+            <section class="owner-operation-form-section" aria-labelledby="maintenance-date-heading">
+                <div class="owner-operation-form-section-heading"><i class="bi bi-calendar3" aria-hidden="true"></i><div><h2 id="maintenance-date-heading">Ngày bảo trì</h2><p>Thời gian bảo trì phải chưa kết thúc.</p></div></div>
                 {{ render_field(form.maintenance_date) }}
-                <div class="row g-3">
-                    <div class="col-md-6">{{ render_time_picker("Giờ bắt đầu", form.start_hour, form.start_minute) }}</div>
-                    <div class="col-md-6">{{ render_time_picker("Giờ kết thúc", form.end_hour, form.end_minute) }}</div>
-                </div>
+            </section>
+            <section class="owner-operation-form-section" aria-labelledby="maintenance-time-heading">
+                <div class="owner-operation-form-section-heading"><i class="bi bi-clock" aria-hidden="true"></i><div><h2 id="maintenance-time-heading">Khung giờ</h2><p>Phải nằm trong giờ hoạt động và không chồng lịch bảo trì đang hoạt động.</p></div></div>
+                <div class="row g-3"><div class="col-md-6">{{ render_time_picker("Giờ bắt đầu", form.start_hour, form.start_minute) }}</div><div class="col-md-6">{{ render_time_picker("Giờ kết thúc", form.end_hour, form.end_minute) }}</div></div>
+            </section>
+            <section class="owner-operation-form-section" aria-labelledby="maintenance-reason-heading">
+                <div class="owner-operation-form-section-heading"><i class="bi bi-card-text" aria-hidden="true"></i><div><h2 id="maintenance-reason-heading">Lý do</h2><p>Mô tả ngắn gọn công việc cần thực hiện.</p></div></div>
                 {{ render_field(form.reason, rows="4", placeholder="Ví dụ: Bảo dưỡng mặt cỏ và hệ thống chiếu sáng") }}
-                {{ form.submit(class="btn btn-primary w-100") }}
-            </form>
-        </div>
+            </section>
+            <div class="owner-operation-form-actions"><a class="btn btn-outline-secondary" href="{{ url_for('maintenance.owner_index', venue_id=field.venue_id, field_id=field.id) }}">Hủy</a>{{ form.submit(class="btn btn-primary") }}</div>
+        </form>
+
+        <aside class="owner-operation-form-aside" aria-label="Quy tắc bảo trì">
+            <div class="owner-operation-aside-icon is-warning" aria-hidden="true"><i class="bi bi-tools"></i></div>
+            <small>Cơ sở</small><strong>{{ field.venue.name }}</strong><span>{{ field.name }}</span>
+            <dl><div><dt>Giờ mở cửa</dt><dd>{{ field.venue.opening_time.strftime('%H:%M') }}</dd></div><div><dt>Giờ đóng cửa</dt><dd>{{ field.venue.closing_time.strftime('%H:%M') }}</dd></div></dl>
+            <p><i class="bi bi-shield-check" aria-hidden="true"></i>Hệ thống kiểm tra lịch bảo trì chồng nhau và booking còn chiếm sân trước khi lưu.</p>
+        </aside>
     </div>
 </section>
 {% endblock %}

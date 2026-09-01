@@ -3,23 +3,15 @@
 
 {% macro render_time_picker(title, hour_field, minute_field) %}
     {% set time_errors = hour_field.errors + minute_field.errors %}
-    <fieldset class="time-picker-field mb-3">
+    <fieldset class="time-picker-field mb-0">
         <legend class="form-label fw-semibold">{{ title }}</legend>
         <div class="time-picker-control{% if time_errors %} is-invalid{% endif %}">
-            <div class="time-picker-segment">
-                <span class="time-picker-caption">Giờ</span>
-                {{ hour_field(class="form-select time-picker-select", aria_label=title ~ " - giờ") }}
-            </div>
+            <div class="time-picker-segment"><span class="time-picker-caption">Giờ</span>{{ hour_field(class="form-select time-picker-select", aria_label=title ~ " - giờ") }}</div>
             <span class="time-picker-colon" aria-hidden="true">:</span>
-            <div class="time-picker-segment">
-                <span class="time-picker-caption">Phút</span>
-                {{ minute_field(class="form-select time-picker-select", aria_label=title ~ " - phút") }}
-            </div>
+            <div class="time-picker-segment"><span class="time-picker-caption">Phút</span>{{ minute_field(class="form-select time-picker-select", aria_label=title ~ " - phút") }}</div>
             <span class="time-picker-period">24H</span>
         </div>
-        {% for error in time_errors %}
-            <div class="invalid-feedback d-block">{{ error }}</div>
-        {% endfor %}
+        {% for error in time_errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
     </fieldset>
 {% endmacro %}
 
@@ -27,29 +19,39 @@
 {% block owner_page_label %}Bảng giá{% endblock %}
 
 {% block content %}
-<section class="auth-section py-5">
-    <div class="container">
-        <div class="auth-card venue-form-card mx-auto">
-            <a class="text-decoration-none" href="{{ url_for('pricing.owner_index', venue_id=field.venue_id, field_id=field.id) }}">← Danh sách khung giá</a>
-            <span class="eyebrow d-block mt-4">{{ field.venue.name }} · {{ field.name }}</span>
-            <h1 class="h2 fw-bold mt-2">{{ page_title }}</h1>
-            <p class="text-secondary">Giờ hoạt động của cơ sở: {{ field.venue.opening_time.strftime('%H:%M') }}–{{ field.venue.closing_time.strftime('%H:%M') }}.</p>
+<section class="container owner-page-container owner-operation-form-page py-4 py-lg-5">
+    <a class="owner-fields-back" href="{{ url_for('pricing.owner_index', venue_id=field.venue_id, field_id=field.id) }}"><i class="bi bi-arrow-left" aria-hidden="true"></i>Danh sách khung giá</a>
+    <header class="owner-operation-form-heading">
+        <span class="eyebrow">{{ field.venue.name }} · {{ field.name }}</span>
+        <h1>{{ page_title }}</h1>
+        <p>Cấu hình ngày, thời gian và mức giá áp dụng cho sân.</p>
+    </header>
 
-            {% if slot and slot.status == 'INACTIVE' %}
-                <div class="alert alert-light border">Khung giá này đang tạm ngưng. Chỉnh sửa không tự động bật lại.</div>
-            {% endif %}
-
-            <form method="post" novalidate>
-                {{ form.hidden_tag() }}
+    <div class="owner-operation-form-layout">
+        <form class="owner-operation-form-card" method="post" novalidate>
+            {{ form.hidden_tag() }}
+            {% if slot and slot.status == 'INACTIVE' %}<div class="owner-operation-note"><i class="bi bi-info-circle" aria-hidden="true"></i><span>Khung giá đang tạm ngưng. Lưu thay đổi sẽ không tự động bật lại.</span></div>{% endif %}
+            <section class="owner-operation-form-section" aria-labelledby="pricing-day-heading">
+                <div class="owner-operation-form-section-heading"><i class="bi bi-calendar3" aria-hidden="true"></i><div><h2 id="pricing-day-heading">Ngày áp dụng</h2><p>Chọn một ngày trong tuần cho khung giá.</p></div></div>
                 {{ render_field(form.day_of_week) }}
-                <div class="row g-3">
-                    <div class="col-md-6">{{ render_time_picker("Giờ bắt đầu", form.start_hour, form.start_minute) }}</div>
-                    <div class="col-md-6">{{ render_time_picker("Giờ kết thúc", form.end_hour, form.end_minute) }}</div>
-                </div>
+            </section>
+            <section class="owner-operation-form-section" aria-labelledby="pricing-time-heading">
+                <div class="owner-operation-form-section-heading"><i class="bi bi-clock" aria-hidden="true"></i><div><h2 id="pricing-time-heading">Khung giờ</h2><p>Phải nằm trong giờ hoạt động và không chồng khung đang áp dụng cùng ngày.</p></div></div>
+                <div class="row g-3"><div class="col-md-6">{{ render_time_picker("Giờ bắt đầu", form.start_hour, form.start_minute) }}</div><div class="col-md-6">{{ render_time_picker("Giờ kết thúc", form.end_hour, form.end_minute) }}</div></div>
+            </section>
+            <section class="owner-operation-form-section" aria-labelledby="pricing-price-heading">
+                <div class="owner-operation-form-section-heading"><i class="bi bi-cash-coin" aria-hidden="true"></i><div><h2 id="pricing-price-heading">Mức giá</h2><p>Giá tính cho một giờ sử dụng sân.</p></div></div>
                 {{ render_field(form.hourly_price, min="1", step="1000", inputmode="decimal", placeholder="Ví dụ: 250000") }}
-                {{ form.submit(class="btn btn-primary w-100", value=submit_label) }}
-            </form>
-        </div>
+            </section>
+            <div class="owner-operation-form-actions"><a class="btn btn-outline-secondary" href="{{ url_for('pricing.owner_index', venue_id=field.venue_id, field_id=field.id) }}">Hủy</a>{{ form.submit(class="btn btn-primary", value=submit_label) }}</div>
+        </form>
+
+        <aside class="owner-operation-form-aside" aria-label="Quy tắc bảng giá">
+            <div class="owner-operation-aside-icon" aria-hidden="true"><i class="bi bi-shop"></i></div>
+            <small>Cơ sở</small><strong>{{ field.venue.name }}</strong><span>{{ field.name }}</span>
+            <dl><div><dt>Giờ mở cửa</dt><dd>{{ field.venue.opening_time.strftime('%H:%M') }}</dd></div><div><dt>Giờ đóng cửa</dt><dd>{{ field.venue.closing_time.strftime('%H:%M') }}</dd></div></dl>
+            <p><i class="bi bi-shield-check" aria-hidden="true"></i>Hệ thống sẽ từ chối khung giờ nằm ngoài thời gian hoạt động hoặc chồng với khung đang áp dụng.</p>
+        </aside>
     </div>
 </section>
 {% endblock %}

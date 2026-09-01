@@ -3,62 +3,70 @@
 {% block title %}Bảo trì {{ field.name }} · Sân Thể Thao{% endblock %}
 {% block owner_page_label %}Bảo trì{% endblock %}
 
-{% block content %}
-<section class="container py-5">
-    <a class="text-decoration-none" href="{{ url_for('fields.owner_index', venue_id=field.venue_id) }}">← Danh sách sân</a>
-
-    <div class="maintenance-summary my-4">
-        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-4">
-            <div>
-                <span class="eyebrow">{{ field.venue.name }}</span>
-                <h1 class="h2 fw-bold mt-2 mb-2">Lịch bảo trì · {{ field.name }}</h1>
-                <p class="text-secondary mb-0">Khóa sân theo ngày và khoảng giờ. Các lịch đang hoạt động không được chồng nhau.</p>
-            </div>
-            <a class="btn btn-primary" href="{{ url_for('maintenance.owner_create', venue_id=field.venue_id, field_id=field.id) }}">Thêm lịch bảo trì</a>
+{% macro maintenance_row(maintenance, history_mode=false) %}
+    {% set display_status = effective_statuses[maintenance.id] %}
+    <article class="owner-maintenance-row{% if history_mode %} is-history{% endif %}">
+        <div class="owner-maintenance-date">
+            <span>{{ maintenance.maintenance_date.strftime('%d') }}</span>
+            <div><strong>Tháng {{ maintenance.maintenance_date.strftime('%m') }}</strong><small>{{ maintenance.maintenance_date.strftime('%Y') }}</small></div>
         </div>
-    </div>
+        <div class="owner-maintenance-time"><i class="bi bi-clock" aria-hidden="true"></i><strong>{{ maintenance.start_time.strftime('%H:%M') }}–{{ maintenance.end_time.strftime('%H:%M') }}</strong></div>
+        <div class="owner-maintenance-reason"><strong>{{ maintenance.reason }}</strong><small>{% if maintenance.id in current_ids %}Đang diễn ra{% elif display_status == 'ACTIVE' %}Sắp tới{% else %}Lịch sử bảo trì{% endif %}</small></div>
+        <div><span class="status-badge status-{{ display_status|lower }}">{{ status_labels[display_status] }}</span></div>
+        <div class="owner-operation-row-actions">
+            {% if display_status == 'ACTIVE' %}
+                <form method="post" action="{{ url_for('maintenance.owner_cancel', venue_id=field.venue_id, field_id=field.id, maintenance_id=maintenance.id) }}">
+                    {{ action_form.hidden_tag() }}
+                    <button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-x-circle" aria-hidden="true"></i>Hủy lịch</button>
+                </form>
+            {% else %}
+                <span class="owner-operation-no-action">Không còn thao tác</span>
+            {% endif %}
+        </div>
+    </article>
+{% endmacro %}
+
+{% block content %}
+<section class="container owner-page-container owner-operations-page py-4 py-lg-5">
+    <a class="owner-fields-back" href="{{ url_for('fields.owner_index', venue_id=field.venue_id) }}"><i class="bi bi-arrow-left" aria-hidden="true"></i>Danh sách sân</a>
+
+    <header class="owner-operation-heading">
+        <div>
+            <span class="eyebrow">{{ field.venue.name }} · {{ field.name }}</span>
+            <h1>Lịch bảo trì sân</h1>
+            <p>Khóa các khoảng thời gian cần bảo trì để ngăn phát sinh booking mới.</p>
+        </div>
+        <a class="btn btn-primary" href="{{ url_for('maintenance.owner_create', venue_id=field.venue_id, field_id=field.id) }}"><i class="bi bi-plus-lg" aria-hidden="true"></i>Thêm lịch bảo trì</a>
+    </header>
+
+    <section class="owner-operation-context" aria-label="Thông tin vận hành sân">
+        <div class="owner-operation-context-main"><span class="owner-operation-context-icon is-warning" aria-hidden="true"><i class="bi bi-tools"></i></span><div><small>Giờ hoạt động của cơ sở</small><strong>{{ field.venue.opening_time.strftime('%H:%M') }}–{{ field.venue.closing_time.strftime('%H:%M') }}</strong></div></div>
+        <div class="owner-operation-context-status"><span class="status-badge status-{{ field.status|lower }}">{{ 'Đang hoạt động' if field.status == 'ACTIVE' else 'Chưa hoạt động' }}</span><small>{{ current_or_upcoming|length }} lịch hiện tại hoặc sắp tới</small></div>
+        <a class="btn btn-outline-primary" href="{{ url_for('owner.schedule', venue_id=field.venue_id, field_id=field.id) }}"><i class="bi bi-calendar3" aria-hidden="true"></i>Xem lịch sân</a>
+    </section>
 
     {% if maintenances %}
-        <div class="maintenance-table-card table-responsive">
-            <table class="table align-middle mb-0">
-                <thead>
-                    <tr>
-                        <th>Ngày</th>
-                        <th>Khoảng giờ</th>
-                        <th>Lý do</th>
-                        <th>Trạng thái</th>
-                        <th class="text-end">Thao tác</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for maintenance in maintenances %}
-                        {% set display_status = effective_statuses[maintenance.id] %}
-                        <tr>
-                            <td class="fw-semibold">{{ maintenance.maintenance_date.strftime('%d/%m/%Y') }}</td>
-                            <td>{{ maintenance.start_time.strftime('%H:%M') }}–{{ maintenance.end_time.strftime('%H:%M') }}</td>
-                            <td class="maintenance-reason">{{ maintenance.reason }}</td>
-                            <td><span class="status-badge status-{{ display_status|lower }}">{{ status_labels[display_status] }}</span></td>
-                            <td class="text-end">
-                                {% if display_status == 'ACTIVE' %}
-                                    <form method="post" action="{{ url_for('maintenance.owner_cancel', venue_id=field.venue_id, field_id=field.id, maintenance_id=maintenance.id) }}">
-                                        {{ action_form.hidden_tag() }}
-                                        <button class="btn btn-sm btn-outline-danger" type="submit">Hủy lịch</button>
-                                    </form>
-                                {% else %}
-                                    <span class="text-secondary small">Không còn thao tác</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+        <section class="owner-maintenance-section" aria-labelledby="maintenance-upcoming-heading">
+            <div class="owner-operation-list-heading"><div><h2 id="maintenance-upcoming-heading">Hiện tại &amp; sắp tới</h2><p>Các khoảng thời gian đang khóa hoặc sẽ khóa booking.</p></div><span>{{ current_or_upcoming|length }}</span></div>
+            {% if current_or_upcoming %}
+                <div class="owner-maintenance-list">{% for maintenance in current_or_upcoming %}{{ maintenance_row(maintenance) }}{% endfor %}</div>
+            {% else %}
+                <div class="owner-operation-inline-empty"><i class="bi bi-calendar2-check" aria-hidden="true"></i><div><strong>Không có lịch bảo trì đang hoạt động</strong><p>Sân hiện không có khoảng bảo trì nào đang diễn ra hoặc sắp tới.</p></div></div>
+            {% endif %}
+        </section>
+
+        {% if history %}
+            <section class="owner-maintenance-section" aria-labelledby="maintenance-history-heading">
+                <div class="owner-operation-list-heading"><div><h2 id="maintenance-history-heading">Lịch sử bảo trì</h2><p>Các lịch đã hoàn thành hoặc đã hủy, mới nhất hiển thị trước.</p></div><span>{{ history|length }}</span></div>
+                <div class="owner-maintenance-list">{% for maintenance in history %}{{ maintenance_row(maintenance, true) }}{% endfor %}</div>
+            </section>
+        {% endif %}
     {% else %}
-        <div class="empty-state text-center">
-            <div class="empty-state-icon" aria-hidden="true">🛠️</div>
+        <div class="empty-state text-center owner-operation-empty">
+            <div class="empty-state-icon" aria-hidden="true"><i class="bi bi-tools"></i></div>
             <h2 class="h5 fw-bold">Sân chưa có lịch bảo trì</h2>
             <p class="text-secondary">Thêm lịch khi sân cần tạm ngừng nhận đặt trong một khoảng giờ.</p>
-            <a class="btn btn-primary" href="{{ url_for('maintenance.owner_create', venue_id=field.venue_id, field_id=field.id) }}">Thêm lịch bảo trì</a>
+            <a class="btn btn-primary" href="{{ url_for('maintenance.owner_create', venue_id=field.venue_id, field_id=field.id) }}">Thêm lịch bảo trì đầu tiên</a>
         </div>
     {% endif %}
 </section>

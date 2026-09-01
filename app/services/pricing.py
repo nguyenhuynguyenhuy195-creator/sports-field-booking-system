@@ -124,6 +124,11 @@ def create_price_slot(
         owner_id=owner.id,
         lock=True,
     )
+    _validate_within_operating_hours(
+        field=field,
+        start_time=start_time,
+        end_time=end_time,
+    )
     if _active_overlap_exists(
         field_id=field.id,
         day_of_week=day_of_week,
@@ -166,7 +171,16 @@ def update_price_slot(
     slot = db.session.get(FieldPriceSlot, slot_id)
     if slot is None:
         raise PricingNotFoundError("Không tìm thấy khung giá.")
-    _get_owned_field(field_id=slot.field_id, owner_id=owner.id, lock=True)
+    field = _get_owned_field(
+        field_id=slot.field_id,
+        owner_id=owner.id,
+        lock=True,
+    )
+    _validate_within_operating_hours(
+        field=field,
+        start_time=start_time,
+        end_time=end_time,
+    )
     slot = db.session.scalar(
         db.select(FieldPriceSlot)
         .where(FieldPriceSlot.id == slot_id)
@@ -402,6 +416,23 @@ def _validate_interval(
         raise PricingError("Khoảng giờ không hợp lệ.")
     if start_time >= end_time:
         raise PricingError("Giờ kết thúc phải sau giờ bắt đầu.")
+
+
+def _validate_within_operating_hours(
+    *,
+    field: Field,
+    start_time: time,
+    end_time: time,
+) -> None:
+    if (
+        start_time < field.venue.opening_time
+        or end_time > field.venue.closing_time
+    ):
+        raise PricingError(
+            "Khung giá phải nằm trong giờ hoạt động của cơ sở "
+            f"({field.venue.opening_time.strftime('%H:%M')}–"
+            f"{field.venue.closing_time.strftime('%H:%M')})."
+        )
 
 
 def _active_overlap_exists(

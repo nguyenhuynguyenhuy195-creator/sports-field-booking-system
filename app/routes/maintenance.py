@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from flask import Blueprint, abort, flash, redirect, render_template, url_for
 from flask_login import current_user
 
@@ -43,11 +45,43 @@ def owner_index(venue_id: int, field_id: int):
         )
         for maintenance in maintenances
     }
+    current_or_upcoming = [
+        maintenance
+        for maintenance in maintenances
+        if effective_statuses[maintenance.id]
+        == FieldMaintenanceStatus.ACTIVE.value
+    ]
+    history = sorted(
+        (
+            maintenance
+            for maintenance in maintenances
+            if effective_statuses[maintenance.id]
+            != FieldMaintenanceStatus.ACTIVE.value
+        ),
+        key=lambda maintenance: (
+            maintenance.maintenance_date,
+            maintenance.start_time,
+            maintenance.id,
+        ),
+        reverse=True,
+    )
+    current_ids = {
+        maintenance.id
+        for maintenance in current_or_upcoming
+        if datetime.combine(
+            maintenance.maintenance_date,
+            maintenance.start_time,
+        )
+        <= now
+    }
     return render_template(
         "owner/maintenance/index.html",
         field=field,
         maintenances=maintenances,
         effective_statuses=effective_statuses,
+        current_or_upcoming=current_or_upcoming,
+        history=history,
+        current_ids=current_ids,
         status_labels=MAINTENANCE_STATUS_LABELS,
         action_form=MaintenanceActionForm(),
     )

@@ -105,6 +105,11 @@ def create_maintenance(
         owner_id=owner.id,
         lock=True,
     )
+    _validate_within_operating_hours(
+        field=field,
+        start_time=start_time,
+        end_time=end_time,
+    )
     if _active_overlap_exists(
         field_id=field.id,
         maintenance_date=maintenance_date,
@@ -271,6 +276,23 @@ def _validate_interval(*, start_time: time, end_time: time) -> None:
         raise MaintenanceError("Khoảng giờ bảo trì không hợp lệ.")
     if start_time >= end_time:
         raise MaintenanceError("Giờ kết thúc phải sau giờ bắt đầu.")
+
+
+def _validate_within_operating_hours(
+    *,
+    field: Field,
+    start_time: time,
+    end_time: time,
+) -> None:
+    if (
+        start_time < field.venue.opening_time
+        or end_time > field.venue.closing_time
+    ):
+        raise MaintenanceError(
+            "Lịch bảo trì phải nằm trong giờ hoạt động của cơ sở "
+            f"({field.venue.opening_time.strftime('%H:%M')}–"
+            f"{field.venue.closing_time.strftime('%H:%M')})."
+        )
 
 
 def _active_overlap_exists(

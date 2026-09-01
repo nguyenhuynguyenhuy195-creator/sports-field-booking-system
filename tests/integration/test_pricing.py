@@ -143,6 +143,30 @@ def test_only_owner_can_open_pricing_pages(app, client):
     login(client, email=player.email)
     assert client.get(pricing_url).status_code == 403
 
+    client.post("/auth/logout")
+    admin = create_user(app, email="admin@example.com", role=UserRole.ADMIN)
+    login(client, email=admin.email)
+    assert client.get(pricing_url).status_code == 403
+
+    client.post("/auth/logout")
+    login(client, email=owner.email)
+    assert client.get(pricing_url).status_code == 200
+
+
+def test_pricing_empty_state_explains_activation_requirement(app, client):
+    owner = create_user(app, email="owner@example.com", role=UserRole.OWNER)
+    venue_id, field_id = create_venue_and_field(app, owner_id=owner.id)
+    login(client, email=owner.email)
+
+    response = client.get(
+        f"/owner/venues/{venue_id}/fields/{field_id}/prices"
+    )
+
+    html = response.get_data(as_text=True)
+    assert response.status_code == 200
+    assert "Sân chưa có khung giá" in html
+    assert "Sân chưa thể bật vì chưa có khung giá đang áp dụng" in html
+
 
 def test_owner_creates_active_price_slot_while_field_stays_inactive(app, client):
     owner = create_user(app, email="owner@example.com", role=UserRole.OWNER)
@@ -197,6 +221,55 @@ def test_invalid_price_slot_values_are_rejected(
         assert db.session.scalar(db.select(db.func.count(FieldPriceSlot.id))) == 0
 
 
+def test_price_slot_must_stay_within_venue_operating_hours(app, client):
+    owner = create_user(app, email="owner@example.com", role=UserRole.OWNER)
+    venue_id, field_id = create_venue_and_field(app, owner_id=owner.id)
+    login(client, email=owner.email)
+    create_url = f"/owner/venues/{venue_id}/fields/{field_id}/prices/new"
+
+    before_open = client.post(
+        create_url,
+        data=price_form_data(start_hour="05", end_hour="07"),
+    )
+    after_close = client.post(
+        create_url,
+        data=price_form_data(start_hour="22", end_hour="23", end_minute="30"),
+    )
+
+    assert before_open.status_code == 200
+    assert after_close.status_code == 200
+    assert "phải nằm trong giờ hoạt động" in before_open.get_data(as_text=True)
+    assert "06:00–23:00" in after_close.get_data(as_text=True)
+    with app.app_context():
+        assert db.session.scalar(db.select(db.func.count(FieldPriceSlot.id))) == 0
+
+
+def test_owner_edits_price_slot_without_changing_its_status(app, client):
+    owner = create_user(app, email="owner@example.com", role=UserRole.OWNER)
+    venue_id, field_id = create_venue_and_field(app, owner_id=owner.id)
+    slot_id = create_slot(app, owner_id=owner.id, field_id=field_id)
+    login(client, email=owner.email)
+
+    response = client.post(
+        f"/owner/venues/{venue_id}/fields/{field_id}/prices/{slot_id}/edit",
+        data=price_form_data(
+            day_of_week="2",
+            start_hour="18",
+            end_hour="20",
+            hourly_price="275000",
+        ),
+    )
+
+    assert response.status_code == 302
+    with app.app_context():
+        slot = db.session.get(FieldPriceSlot, slot_id)
+        assert slot.day_of_week == 2
+        assert slot.start_time == time(18, 0)
+        assert slot.end_time == time(20, 0)
+        assert slot.hourly_price == Decimal("275000.00")
+        assert slot.status == PriceSlotStatus.ACTIVE.value
+
+
 def test_owner_cannot_manage_another_owners_pricing(app, client):
     owner_a = create_user(app, email="owner-a@example.com", role=UserRole.OWNER)
     owner_b = create_user(app, email="owner-b@example.com", role=UserRole.OWNER)
@@ -209,6 +282,34 @@ def test_owner_cannot_manage_another_owners_pricing(app, client):
         client.post(f"{pricing_url}/new", data=price_form_data()).status_code
         == 403
     )
+
+
+def test_mismatched_pricing_path_ids_return_not_found(app, client):
+    owner = create_user(app, email="owner@example.com", role=UserRole.OWNER)
+    venue_a_id, field_a_id = create_venue_and_field(
+        app,
+        owner_id=owner.id,
+        field_name="Sân A",
+    )
+    venue_b_id, field_b_id = create_venue_and_field(
+        app,
+        owner_id=owner.id,
+        field_name="Sân B",
+    )
+    slot_b_id = create_slot(app, owner_id=owner.id, field_id=field_b_id)
+    login(client, email=owner.email)
+
+    assert client.get(
+        f"/owner/venues/{venue_a_id}/fields/{field_b_id}/prices"
+    ).status_code == 404
+    assert client.get(
+        f"/owner/venues/{venue_a_id}/fields/{field_a_id}"
+        f"/prices/{slot_b_id}/edit"
+    ).status_code == 404
+    assert client.post(
+        f"/owner/venues/{venue_b_id}/fields/{field_a_id}"
+        f"/prices/{slot_b_id}/status/INACTIVE"
+    ).status_code == 404
 
 
 def test_overlap_is_blocked_but_adjacent_or_other_day_is_allowed(app, client):

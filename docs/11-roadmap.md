@@ -340,13 +340,18 @@ Theo quyết định của người dùng ngày 31/08/2026:
 - Browser QA đạt cho Venue/Field có 0/1/nhiều ảnh ở desktop 1440×900 và mobile 390×844; gallery responsive, không page-level horizontal overflow, upload/set-cover/delete hoạt động và console sạch.
 - Regression: focused Media/Venue/Field tests 64 passed; full suite 296 passed, 0 failed.
 
-### Step 3.4 – Pricing & Maintenance Operations — NOT STARTED
+### Step 3.4 – Pricing & Maintenance Operations — DONE / ACCEPTED (01/09/2026)
 
-- Bảng giá theo ngày trong tuần và khung giờ.
-- Overlap validation.
-- Bảo trì.
-- Current/upcoming maintenance.
-- Booking conflict validation.
+- Owner quản lý Bảng giá và Bảo trì theo đúng nested context Venue → Field trong Owner Console; list/form, trạng thái, thao tác, empty state và responsive UI dùng cùng visual language đã nghiệm thu ở Step 3.3.
+- Pricing tiếp tục tái sử dụng `FieldPriceSlot`, form, route và service hiện có; khung giá phải có `start_time < end_time`, nằm trong giờ hoạt động của Venue và các slot `ACTIVE` cùng Field/ngày không được chồng nhau. Không tự sửa hoặc tắt slot khác để giải quyết overlap và không thay đổi cách tính giá booking.
+- Field mới vẫn mặc định `INACTIVE`; chỉ được bật khi có ít nhất một price slot `ACTIVE`. Khi tạm ngưng price slot `ACTIVE` cuối cùng, Field tự trở về `INACTIVE`; việc sửa một slot `INACTIVE` không tự bật lại slot hoặc Field.
+- Maintenance tiếp tục dùng model/form/service create/cancel hiện có; thời gian phải chưa kết thúc, có `start_time < end_time`, nằm trong giờ hoạt động của Venue và không chồng maintenance `ACTIVE` khác. Source hiện không có edit capability nên Step 3.4 không tự tạo route/service sửa Maintenance mới.
+- Danh sách Maintenance phân biệt hiện tại/sắp tới với lịch sử; trạng thái `ACTIVE` đã kết thúc được hiển thị hiệu lực là `COMPLETED`, còn `CANCELLED` không khóa lịch. Owner Schedule tiếp tục hiển thị maintenance theo cùng source of truth.
+- Xung đột booking–maintenance giữ effective occupancy hiện có: `CONFIRMED` còn hạn, `PARTIALLY_PAID`, `PAID` và `REFUND_PENDING` chặn maintenance; hold `CONFIRMED` đã hết hạn cùng `REJECTED`, `CANCELLED`, `EXPIRED` không chặn sai. Maintenance `ACTIVE` tạo thành công tiếp tục chặn booking mới trong khoảng giao nhau.
+- Ownership và nested IDs được kiểm tra server-side: `USER`/`ADMIN` không có quyền Owner; Owner khác nhận 403; Venue/Field/PriceSlot/Maintenance ID không khớp nhận 404 và không lộ dữ liệu.
+- Browser QA đạt ở desktop 1440×900 và mobile 390×844 cho Pricing populated/empty, create/edit, Field activation/deactivation, Maintenance populated/empty, create/cancel và Owner Schedule; không page-level horizontal overflow, browser console sạch.
+- Regression: focused Pricing/Maintenance 38 passed; related Pricing/Maintenance/Booking/Owner Schedule/Dashboard/Field 111 passed; full suite 312 passed, 0 failed.
+- Không tạo model/migration mới; không thay đổi payment, refund, matchmaking, Media hoặc Finance.
 
 ### Step 3.5 – Owner Finance Foundation — NOT STARTED
 
@@ -468,7 +473,7 @@ Hiện tại:
 - Phase 1B: DONE.
 - Phase 1.2: DONE / ACCEPTED (30/08/2026).
 - Phase 2: NOT STARTED / DEFERRED BY USER DECISION.
-- Phase 3: IN PROGRESS (Step 3.2 DONE / ACCEPTED).
+- Phase 3: IN PROGRESS (Step 3.4 DONE / ACCEPTED; Step 3.5 NOT STARTED).
 - Phase 4: NOT YET AUDITED / ACCEPTED.
 - Phase 4.1: NOT STARTED.
 - Phase 5: NOT STARTED.
@@ -510,9 +515,9 @@ DONE:
 
 ### TASK TIẾP THEO
 
-**PHASE 3 – STEP 3.4 PRICING & MAINTENANCE OPERATIONS — NOT STARTED**
+**PHASE 3 – STEP 3.5 OWNER FINANCE FOUNDATION — NOT STARTED**
 
-Step 3.3 Venue & Field Management + Media đã hoàn tất và được nghiệm thu. Step 3.4 Pricing & Maintenance chưa bắt đầu và chỉ triển khai khi có yêu cầu riêng; Phase 2 vẫn được tạm hoãn theo quyết định của người dùng.
+Step 3.4 Pricing & Maintenance Operations đã hoàn tất và được nghiệm thu ngày 01/09/2026. Step 3.5 Owner Finance Foundation chưa bắt đầu và chỉ triển khai khi có yêu cầu riêng; Phase 2 vẫn được tạm hoãn theo quyết định của người dùng.
 
 ---
 
