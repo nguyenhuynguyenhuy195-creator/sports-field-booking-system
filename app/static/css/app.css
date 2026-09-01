@@ -6905,9 +6905,140 @@ body {
     transform: none;
 }
 
+.venue-card-media,
+.field-card-media,
+.venue-public-media-cover,
+.venue-public-media-gallery img {
+    overflow: hidden;
+    background: #edf4f0;
+    border-radius: 12px;
+}
+
+.venue-card-media {
+    min-height: 150px;
+    margin-bottom: 0.9rem;
+    aspect-ratio: 16 / 7;
+}
+
+.venue-card-media > img,
+.field-card-media > img,
+.venue-public-media-cover img,
+.venue-public-media-gallery img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.public-media-placeholder {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    min-height: inherit;
+    color: #658175;
+    background: linear-gradient(145deg, #edf5f1, #e0ece6);
+}
+
+.public-media-placeholder i {
+    font-size: 1.45rem;
+}
+
+.public-media-placeholder small,
+.public-media-placeholder span {
+    font-size: 0.76rem;
+    font-weight: 700;
+}
+
+.venue-public-media {
+    margin-top: 1.25rem;
+}
+
+.venue-public-media-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(260px, 0.8fr);
+    gap: 0.8rem;
+    margin-top: 0.9rem;
+}
+
+.venue-public-media-layout.is-single {
+    grid-template-columns: minmax(0, 760px);
+}
+
+.venue-public-media-cover {
+    min-height: 300px;
+    aspect-ratio: 16 / 8;
+}
+
+.venue-public-media-gallery {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+}
+
+.venue-public-media-gallery img {
+    min-width: 0;
+    aspect-ratio: 4 / 3;
+}
+
+.venue-public-media-empty {
+    min-height: 180px;
+    margin-top: 0.9rem;
+    border: 1px dashed #cbdcd3;
+    border-radius: 14px;
+}
+
+.field-card-media {
+    position: relative;
+    min-height: 145px;
+    margin-bottom: 0.9rem;
+    aspect-ratio: 16 / 9;
+}
+
+.field-card-gallery {
+    position: absolute;
+    right: 0.55rem;
+    bottom: 0.55rem;
+    display: flex;
+    gap: 0.35rem;
+    max-width: calc(100% - 1.1rem);
+    overflow-x: auto;
+}
+
+.field-card-gallery img {
+    flex: 0 0 48px;
+    width: 48px;
+    height: 38px;
+    object-fit: cover;
+    border: 2px solid rgba(255, 255, 255, 0.95);
+    border-radius: 6px;
+    box-shadow: 0 3px 9px rgba(14, 45, 32, 0.18);
+}
+
 @media (max-width: 1199.98px) {
     .marketplace-venue-page .venue-grid {
         grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .venue-card-media {
+        min-height: 132px;
+        aspect-ratio: 16 / 8;
+    }
+
+    .venue-public-media-layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .venue-public-media-cover {
+        min-height: 210px;
+    }
+
+    .venue-public-media-gallery {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 

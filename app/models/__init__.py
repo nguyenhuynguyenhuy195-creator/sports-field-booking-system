@@ -25,6 +25,7 @@ from .match_participant import (
     MatchParticipantStatus,
     MatchParticipantType,
 )
+from .media_image import MediaImage
 from .owner_application import OwnerApplication, OwnerApplicationStatus
 from .price_slot import DAY_OF_WEEK_LABELS, FieldPriceSlot, PriceSlotStatus
 from .payment import Payment, PaymentMethod, PaymentProvider, PaymentStatus
@@ -56,6 +57,7 @@ __all__ = [
     "MatchParticipantType",
     "MatchStatus",
     "MatchType",
+    "MediaImage",
     "OwnerApplication",
     "OwnerApplicationStatus",
     "OCCUPYING_BOOKING_STATUSES",

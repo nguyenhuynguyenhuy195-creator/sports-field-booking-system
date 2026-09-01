@@ -32,6 +32,26 @@
         </aside>
     </article>
 
+    <section class="venue-public-media" aria-labelledby="venue-gallery-heading">
+        <div class="venue-section-heading">
+            <div><span class="eyebrow">HÌNH ẢNH CƠ SỞ</span><h2 id="venue-gallery-heading" class="mb-0">Không gian tại {{ venue.name }}</h2></div>
+        </div>
+        {% if venue.cover_image %}
+            <div class="venue-public-media-layout{% if venue.media_images|length == 1 %} is-single{% endif %}">
+                <div class="venue-public-media-cover"><img src="{{ url_for('media.image', media_id=venue.cover_image.id) }}" alt="Ảnh đại diện {{ venue.name }}"></div>
+                {% if venue.media_images|length > 1 %}
+                    <div class="venue-public-media-gallery">
+                        {% for image in venue.media_images if not image.is_cover %}
+                            <img src="{{ url_for('media.image', media_id=image.id) }}" alt="Ảnh thư viện {{ venue.name }}">
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+        {% else %}
+            <div class="venue-public-media-empty public-media-placeholder"><i class="bi bi-image" aria-hidden="true"></i><span>Cơ sở chưa cập nhật hình ảnh.</span></div>
+        {% endif %}
+    </section>
+
     {% if venue.description %}
         <section class="venue-description-section" aria-labelledby="venue-description-heading">
             <h2 id="venue-description-heading" class="h5">Giới thiệu về cơ sở</h2>
@@ -51,6 +71,20 @@
             <div class="field-grid">
                 {% for field in fields %}
                     <article class="field-card">
+                        <div class="field-card-media">
+                            {% if field.cover_image %}
+                                <img src="{{ url_for('media.image', media_id=field.cover_image.id) }}" alt="Ảnh đại diện {{ field.name }}">
+                                {% if field.media_images|length > 1 %}
+                                    <div class="field-card-gallery" aria-label="Thư viện ảnh {{ field.name }}">
+                                        {% for image in field.media_images if not image.is_cover %}
+                                            <img src="{{ url_for('media.image', media_id=image.id) }}" alt="Ảnh thư viện {{ field.name }}">
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            {% else %}
+                                <span class="public-media-placeholder"><i class="bi bi-image" aria-hidden="true"></i><small>Chưa có ảnh sân</small></span>
+                            {% endif %}
+                        </div>
                         <div class="field-card-heading">
                             <div class="field-card-title">
                                 <span class="field-card-icon" aria-hidden="true"><i class="bi bi-grid-3x3-gap"></i></span>

@@ -11,7 +11,13 @@ from flask import (
 from flask_login import current_user
 
 from app.decorators import roles_required
-from app.forms import ModerateVenueForm, VenueForm, VenueSearchForm
+from app.forms import (
+    MediaActionForm,
+    MediaUploadForm,
+    ModerateVenueForm,
+    VenueForm,
+    VenueSearchForm,
+)
 from app.models import DAY_OF_WEEK_LABELS, UserRole, VenueStatus
 from app.services import (
     AdministrativeUnitError,
@@ -255,6 +261,8 @@ def owner_edit(venue_id: int):
         page_title="Chỉnh sửa cơ sở",
         submit_label="Lưu thay đổi",
         venue=venue,
+        media_upload_form=MediaUploadForm(),
+        media_action_form=MediaActionForm(),
         wards_api_url=url_for("venues.administrative_wards"),
     )
 

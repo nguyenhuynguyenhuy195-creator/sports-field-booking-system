@@ -61,6 +61,16 @@
                 </div>
             </form>
         </div>
+
+        {% if field %}
+            {% set media_owner = field %}
+            {% set media_scope = 'field' %}
+            {% include "owner/_media_manager.html" %}
+        {% else %}
+            <section class="owner-media-manager owner-media-manager--locked" aria-labelledby="field-media-heading">
+                <div class="owner-media-manager-title"><i class="bi bi-images" aria-hidden="true"></i><div><h2 id="field-media-heading">Hình ảnh</h2><p>Lưu sân trước, sau đó bạn có thể tải ảnh đại diện và thư viện ảnh.</p></div></div>
+            </section>
+        {% endif %}
     </div>
 </section>
 {% endblock %}

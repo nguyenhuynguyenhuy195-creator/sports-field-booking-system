@@ -109,6 +109,16 @@
                 </div>
             </form>
         </div>
+
+        {% if venue %}
+            {% set media_owner = venue %}
+            {% set media_scope = 'venue' %}
+            {% include "owner/_media_manager.html" %}
+        {% else %}
+            <section class="owner-media-manager owner-media-manager--locked" aria-labelledby="venue-media-heading">
+                <div class="owner-media-manager-title"><i class="bi bi-images" aria-hidden="true"></i><div><h2 id="venue-media-heading">Hình ảnh</h2><p>Lưu cơ sở trước, sau đó bạn có thể tải ảnh đại diện và thư viện ảnh.</p></div></div>
+            </section>
+        {% endif %}
     </div>
 </section>
 {% endblock %}

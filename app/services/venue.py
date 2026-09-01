@@ -8,7 +8,7 @@ from urllib.parse import urlencode
 
 from sqlalchemy import or_
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 
 from app.extensions import db
 from app.models import (
@@ -219,7 +219,7 @@ def search_public_venues(
     statement = db.select(
         Venue,
         starting_price.label("starting_price"),
-    ).where(
+    ).options(selectinload(Venue.media_images)).where(
         Venue.status == VenueStatus.ACTIVE.value,
         eligible_field_exists,
     )
@@ -344,7 +344,10 @@ def _escape_like_value(value: str) -> str:
 def get_public_venue(venue_id: int) -> Venue:
     venue = db.session.scalar(
         db.select(Venue)
-        .options(joinedload(Venue.owner))
+        .options(
+            joinedload(Venue.owner),
+            selectinload(Venue.media_images),
+        )
         .where(
             Venue.id == venue_id,
             Venue.status == VenueStatus.ACTIVE.value,
@@ -366,7 +369,11 @@ def list_owner_venues(owner_id: int) -> list[Venue]:
 
 
 def get_owner_venue(*, venue_id: int, owner_id: int) -> Venue:
-    venue = db.session.get(Venue, venue_id)
+    venue = db.session.scalar(
+        db.select(Venue)
+        .options(selectinload(Venue.media_images))
+        .where(Venue.id == venue_id)
+    )
     if venue is None:
         raise VenueNotFoundError("Không tìm thấy cơ sở.")
     if venue.owner_id != owner_id:
@@ -384,6 +391,7 @@ def list_owner_venue_summaries(owner_id: int) -> list[OwnerVenueSummary]:
     )
     rows = db.session.execute(
         db.select(Venue, field_count.label("field_count"))
+        .options(selectinload(Venue.media_images))
         .where(Venue.owner_id == owner_id)
         .order_by(Venue.created_at.desc(), Venue.id.desc())
     ).all()

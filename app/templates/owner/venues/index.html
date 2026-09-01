@@ -19,6 +19,13 @@
             {% for item in venue_summaries %}
                 {% set venue = item.venue %}
                 <article class="application-card owner-venue-card">
+                    <div class="owner-entity-cover">
+                        {% if venue.cover_image %}
+                            <img src="{{ url_for('media.image', media_id=venue.cover_image.id) }}" alt="Ảnh đại diện {{ venue.name }}">
+                        {% else %}
+                            <span class="owner-entity-cover-placeholder"><i class="bi bi-image" aria-hidden="true"></i><small>Chưa có ảnh</small></span>
+                        {% endif %}
+                    </div>
                     <div class="owner-venue-card-body">
                         <div class="owner-venue-card-heading">
                             <span class="status-badge status-{{ venue.status|lower }}">{{ status_labels[venue.status] }}</span>

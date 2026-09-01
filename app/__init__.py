@@ -18,6 +18,8 @@ def create_app(config_name: str | None = None) -> Flask:
 
     app.config.from_object(config_class)
     app.config["APP_ENV_NAME"] = selected_config
+    if not app.config.get("MEDIA_ROOT"):
+        app.config["MEDIA_ROOT"] = os.path.join(app.instance_path, "media")
     _validate_required_config(app)
     _initialize_extensions(app)
     _register_blueprints(app)
@@ -81,6 +83,7 @@ def _register_blueprints(app: Flask) -> None:
     from .routes.main import main_bp
     from .routes.maintenance import maintenance_bp
     from .routes.matches import matches_bp
+    from .routes.media import media_bp
     from .routes.owner_applications import owner_applications_bp
     from .routes.owner import owner_bp
     from .routes.payments import payments_bp
@@ -94,6 +97,7 @@ def _register_blueprints(app: Flask) -> None:
     app.register_blueprint(fields_bp)
     app.register_blueprint(maintenance_bp)
     app.register_blueprint(matches_bp)
+    app.register_blueprint(media_bp)
     app.register_blueprint(pricing_bp)
     app.register_blueprint(owner_applications_bp)
     app.register_blueprint(owner_bp)

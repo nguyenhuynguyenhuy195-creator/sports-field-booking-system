@@ -2,7 +2,7 @@ from flask import Blueprint, abort, flash, redirect, render_template, url_for
 from flask_login import current_user
 
 from app.decorators import roles_required
-from app.forms import FieldForm
+from app.forms import FieldForm, MediaActionForm, MediaUploadForm
 from app.models import FieldStatus, UserRole
 from app.services import (
     FieldError,
@@ -143,6 +143,8 @@ def owner_edit(venue_id: int, field_id: int):
         page_title="Chỉnh sửa sân",
         submit_label="Lưu thay đổi",
         field_status_labels=FIELD_STATUS_LABELS,
+        media_upload_form=MediaUploadForm(),
+        media_action_form=MediaActionForm(),
     )
 
 

@@ -10,6 +10,7 @@ from .booking import (
 )
 from .field import FieldForm
 from .maintenance import MaintenanceActionForm, MaintenanceForm
+from .media import MediaActionForm, MediaUploadForm
 from .matchmaking import (
     MatchActionForm,
     MatchContactForm,
@@ -31,6 +32,8 @@ __all__ = [
     "LoginForm",
     "MaintenanceActionForm",
     "MaintenanceForm",
+    "MediaActionForm",
+    "MediaUploadForm",
     "MatchActionForm",
     "MatchContactForm",
     "MatchForm",

@@ -59,6 +59,8 @@ class BaseConfig:
     MOMO_REDIRECT_URL = os.getenv("MOMO_REDIRECT_URL", "")
     MOMO_IPN_URL = os.getenv("MOMO_IPN_URL", "")
     MOMO_TIMEOUT_SECONDS = int(os.getenv("MOMO_TIMEOUT_SECONDS", "30"))
+    MEDIA_ROOT = os.getenv("MEDIA_ROOT")
+    MEDIA_MAX_BYTES = int(os.getenv("MEDIA_MAX_BYTES", str(5 * 1024 * 1024)))
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
     REMEMBER_COOKIE_HTTPONLY = True

@@ -83,10 +83,23 @@ class Field(db.Model):
         back_populates="field",
         order_by="Booking.booking_date, Booking.start_time",
     )
+    media_images: Mapped[list["MediaImage"]] = relationship(
+        back_populates="field",
+        cascade="all, delete-orphan",
+        order_by="MediaImage.created_at, MediaImage.id",
+        passive_deletes=True,
+    )
 
     @property
     def is_active(self) -> bool:
         return self.status == FieldStatus.ACTIVE.value
+
+    @property
+    def cover_image(self) -> "MediaImage | None":
+        return next(
+            (image for image in self.media_images if image.is_cover),
+            None,
+        )
 
     def __repr__(self) -> str:
         return (

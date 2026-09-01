@@ -44,7 +44,10 @@ def list_owner_fields(*, venue_id: int, owner_id: int) -> tuple[Venue, list[Fiel
     fields = list(
         db.session.scalars(
             db.select(Field)
-            .options(joinedload(Field.field_type).joinedload(FieldType.sport))
+            .options(
+                joinedload(Field.field_type).joinedload(FieldType.sport),
+                selectinload(Field.media_images),
+            )
             .where(Field.venue_id == venue_id)
             .order_by(Field.created_at.desc())
         )
@@ -62,7 +65,8 @@ def list_public_fields(venue_id: int) -> list[Field]:
                     Field.price_slots.and_(
                         FieldPriceSlot.status == PriceSlotStatus.ACTIVE.value
                     )
-                )
+                ),
+                selectinload(Field.media_images),
             )
             .where(
                 Field.venue_id == venue_id,
@@ -79,6 +83,7 @@ def get_owner_field(*, field_id: int, owner_id: int) -> Field:
         .options(
             joinedload(Field.venue),
             joinedload(Field.field_type).joinedload(FieldType.sport),
+            selectinload(Field.media_images),
         )
         .where(Field.id == field_id)
     )

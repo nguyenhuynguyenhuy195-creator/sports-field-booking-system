@@ -150,6 +150,13 @@
                     {% set venue = result.venue %}
                     {% set display_address = venue.full_address|replace('Thành phố ', 'TP. ') %}
                     <article class="venue-card marketplace-card h-100" data-venue-card="{{ venue.id }}">
+                        <div class="venue-card-media">
+                            {% if venue.cover_image %}
+                                <img src="{{ url_for('media.image', media_id=venue.cover_image.id) }}" alt="Ảnh đại diện {{ venue.name }}">
+                            {% else %}
+                                <span class="public-media-placeholder"><i class="bi bi-image" aria-hidden="true"></i><small>Chưa có ảnh</small></span>
+                            {% endif %}
+                        </div>
                         <div class="venue-card-header">
                             <div class="venue-card-title-group">
                                 <h3 class="mb-1">{{ venue.name }}</h3>

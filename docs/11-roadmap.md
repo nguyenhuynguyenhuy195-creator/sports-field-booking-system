@@ -308,7 +308,11 @@ Theo quyết định của người dùng ngày 31/08/2026:
 - Browser QA đạt ở 1920×1080, 1440×900, 1366×768 và 390×844; matrix 1/2/3/10 sân, sticky/internal scroll, mobile, empty day, inactive field và console JavaScript đều đạt.
 - Regression: 9 test Owner Schedule mới đạt; full suite 277 passed, 0 failed.
 
-### Step 3.3A – Owner Venue Management — DONE / ACCEPTED (01/09/2026)
+### Step 3.3 – Venue & Field Management + Media — DONE / ACCEPTED (01/09/2026)
+
+- Step 3.3A Venue Management, Step 3.3B Field Management và Step 3.3C Media đã hoàn tất và được nghiệm thu; Venue/Field/Media cùng nằm trong workspace Cơ sở & Sân nhưng vẫn giữ domain, ownership và route riêng.
+
+#### Step 3.3A – Owner Venue Management — DONE / ACCEPTED (01/09/2026)
 
 - `/owner/venues` là workspace Cơ sở & Sân trong Owner Console, chỉ liệt kê Venue thuộc `OWNER` hiện tại cùng địa chỉ cấu trúc, giờ hoạt động, moderation status và số sân thực tế.
 - Có empty state, Thêm cơ sở, Chỉnh sửa và entry Xem sân theo từng Venue; chưa thay đổi hay polish Field Management.
@@ -317,7 +321,7 @@ Theo quyết định của người dùng ngày 31/08/2026:
 - Browser QA đạt cho 0/1/2/3/nhiều Venue ở desktop 1440×900 và mobile 390×844; grid 1 Venue tối đa 560px, 2 Venue tối đa 1100px, từ 3 Venue giữ card width hiện có; không page-level horizontal overflow.
 - Regression: focused Venue tests 41 passed; full suite 282 passed, 0 failed.
 
-### Step 3.3B – Owner Field Management — DONE / ACCEPTED (01/09/2026)
+#### Step 3.3B – Owner Field Management — DONE / ACCEPTED (01/09/2026)
 
 - Danh sách sân theo Venue đã được tích hợp vào workspace Cơ sở & Sân trong Owner Console, gồm empty state, loại sân/môn thể thao, sức chứa, mặt sân, trạng thái và các entry Chỉnh sửa/Bảng giá/Bảo trì.
 - Create/Edit Field dùng Owner Console shell và visual language đã nghiệm thu; tái sử dụng `FieldForm`, route/service/domain hiện có và giữ Field mới mặc định chưa hoạt động.
@@ -326,10 +330,15 @@ Theo quyết định của người dùng ngày 31/08/2026:
 - Browser QA đạt cho Venue có 0/1/2/nhiều Field ở desktop 1440×900 và mobile 390×844; không page-level horizontal overflow.
 - Regression: focused Field/Pricing/Maintenance tests 39 passed; full suite 287 passed, 0 failed.
 
-### Step 3.3C – Venue & Field Media — NOT STARTED
+#### Step 3.3C – Venue & Field Media — DONE / ACCEPTED (01/09/2026)
 
-- Ảnh đại diện và gallery cơ sở.
-- Ảnh đại diện và gallery sân.
+- Owner quản lý ảnh đại diện và gallery cho Venue/Field ngay trong form chỉnh sửa tương ứng; card thông tin và Media Manager độc lập, upload form không lồng vào form cập nhật entity.
+- File được lưu dưới `MEDIA_ROOT`, database chỉ giữ metadata/path; upload kiểm tra JPG/PNG/WebP, kích thước tối đa 5 MB, nội dung thực, tên file an toàn và filename duy nhất.
+- Cover duy nhất được bảo vệ bằng filtered unique index cho Venue/Field; xóa cover chọn fallback ổn định, thiếu file vật lý trả 404 và rollback DB không làm mất hoặc bỏ sót file ngoài kiểm soát.
+- Ownership được kiểm tra server-side cho mọi upload/set-cover/delete; nested Venue–Field scope, media không công khai và đường dẫn filesystem đều không thể bị truy cập chéo.
+- Storage/security audit: PASS trên SQL Server migration head `a6d8e4f2c913`.
+- Browser QA đạt cho Venue/Field có 0/1/nhiều ảnh ở desktop 1440×900 và mobile 390×844; gallery responsive, không page-level horizontal overflow, upload/set-cover/delete hoạt động và console sạch.
+- Regression: focused Media/Venue/Field tests 64 passed; full suite 296 passed, 0 failed.
 
 ### Step 3.4 – Pricing & Maintenance Operations — NOT STARTED
 
@@ -501,9 +510,9 @@ DONE:
 
 ### TASK TIẾP THEO
 
-**PHASE 3 – STEP 3.3C VENUE & FIELD MEDIA**
+**PHASE 3 – STEP 3.4 PRICING & MAINTENANCE OPERATIONS — NOT STARTED**
 
-Step 3.3A Venue Management và Step 3.3B Field Management đã nghiệm thu. Step 3.3C Media vẫn chưa bắt đầu và chỉ triển khai khi có yêu cầu riêng; Phase 2 vẫn được tạm hoãn theo quyết định của người dùng.
+Step 3.3 Venue & Field Management + Media đã hoàn tất và được nghiệm thu. Step 3.4 Pricing & Maintenance chưa bắt đầu và chỉ triển khai khi có yêu cầu riêng; Phase 2 vẫn được tạm hoãn theo quyết định của người dùng.
 
 ---
 

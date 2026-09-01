@@ -133,6 +133,12 @@ class Venue(db.Model):
         foreign_keys=[province_code]
     )
     ward: Mapped[Ward | None] = relationship(foreign_keys=[ward_code])
+    media_images: Mapped[list["MediaImage"]] = relationship(
+        back_populates="venue",
+        cascade="all, delete-orphan",
+        order_by="MediaImage.created_at, MediaImage.id",
+        passive_deletes=True,
+    )
 
     @property
     def is_active(self) -> bool:
@@ -141,6 +147,13 @@ class Venue(db.Model):
     @property
     def has_coordinates(self) -> bool:
         return self.latitude is not None and self.longitude is not None
+
+    @property
+    def cover_image(self) -> "MediaImage | None":
+        return next(
+            (image for image in self.media_images if image.is_cover),
+            None,
+        )
 
     @property
     def full_address(self) -> str:

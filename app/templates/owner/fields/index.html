@@ -25,6 +25,13 @@
         <div class="owner-field-grid{% if fields|length == 1 %} owner-field-grid--single{% elif fields|length == 2 %} owner-field-grid--pair{% endif %}">
             {% for field in fields %}
                 <article class="owner-field-card">
+                    <div class="owner-entity-cover owner-field-cover">
+                        {% if field.cover_image %}
+                            <img src="{{ url_for('media.image', media_id=field.cover_image.id) }}" alt="Ảnh đại diện {{ field.name }}">
+                        {% else %}
+                            <span class="owner-entity-cover-placeholder"><i class="bi bi-image" aria-hidden="true"></i><small>Chưa có ảnh</small></span>
+                        {% endif %}
+                    </div>
                     <div class="owner-field-body">
                         <div class="owner-field-status-row">
                             <span class="status-badge status-{{ field.status|lower }}">{{ field_status_labels[field.status] }}</span>

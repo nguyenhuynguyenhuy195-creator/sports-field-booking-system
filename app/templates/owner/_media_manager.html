@@ -1,0 +1,66 @@
+{% set media_images = media_owner.media_images %}
+{% if media_scope == 'venue' %}
+    {% set upload_url = url_for('media.venue_upload', venue_id=venue.id) %}
+{% else %}
+    {% set upload_url = url_for('media.field_upload', venue_id=venue.id, field_id=field.id) %}
+{% endif %}
+
+<section class="owner-media-manager" aria-labelledby="{{ media_scope }}-media-heading">
+    <div class="owner-media-manager-heading">
+        <div class="owner-media-manager-title">
+            <i class="bi bi-images" aria-hidden="true"></i>
+            <div>
+                <h2 id="{{ media_scope }}-media-heading">Hình ảnh</h2>
+                <p>Ảnh đại diện xuất hiện trước; các ảnh còn lại tạo thành thư viện.</p>
+            </div>
+        </div>
+        <span class="owner-media-count">{{ media_images|length }} ảnh</span>
+    </div>
+
+    <form class="owner-media-upload" method="post" action="{{ upload_url }}" enctype="multipart/form-data" novalidate>
+        {{ media_upload_form.hidden_tag() }}
+        <div class="owner-media-upload-control">
+            {{ media_upload_form.image(
+                class="form-control",
+                accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp",
+                aria_describedby=media_scope ~ "-media-help"
+            ) }}
+            {{ media_upload_form.submit(class="btn btn-primary") }}
+        </div>
+        <p id="{{ media_scope }}-media-help" class="form-text mb-0">JPG, PNG hoặc WebP · tối đa 5 MB. Ảnh đầu tiên tự động làm ảnh đại diện.</p>
+    </form>
+
+    {% if media_images %}
+        <div class="owner-media-gallery{% if media_images|length == 1 %} owner-media-gallery--single{% elif media_images|length == 2 %} owner-media-gallery--pair{% endif %}">
+            {% for image in media_images %}
+                <article class="owner-media-item{% if image.is_cover %} is-cover{% endif %}">
+                    <div class="owner-media-preview">
+                        <img src="{{ url_for('media.image', media_id=image.id) }}" alt="{{ 'Ảnh đại diện' if image.is_cover else 'Ảnh thư viện' }} của {{ media_owner.name }}">
+                        {% if image.is_cover %}<span class="owner-media-cover-badge"><i class="bi bi-star-fill" aria-hidden="true"></i>Ảnh đại diện</span>{% endif %}
+                    </div>
+                    <div class="owner-media-item-body">
+                        <p title="{{ image.original_filename }}">{{ image.original_filename }}</p>
+                        <small>{{ (image.size_bytes / 1024)|round|int }} KB</small>
+                    </div>
+                    <div class="owner-media-actions">
+                        {% if not image.is_cover %}
+                            <form method="post" action="{% if media_scope == 'venue' %}{{ url_for('media.venue_cover', venue_id=venue.id, media_id=image.id) }}{% else %}{{ url_for('media.field_cover', venue_id=venue.id, field_id=field.id, media_id=image.id) }}{% endif %}">
+                                {{ media_action_form.hidden_tag() }}
+                                <button class="btn btn-sm btn-outline-primary" type="submit"><i class="bi bi-star" aria-hidden="true"></i>Đặt làm ảnh đại diện</button>
+                            </form>
+                        {% endif %}
+                        <form method="post" action="{% if media_scope == 'venue' %}{{ url_for('media.venue_delete', venue_id=venue.id, media_id=image.id) }}{% else %}{{ url_for('media.field_delete', venue_id=venue.id, field_id=field.id, media_id=image.id) }}{% endif %}" data-confirm-message="Xóa ảnh này? Nếu đây là ảnh đại diện, hệ thống sẽ chọn ảnh còn lại làm ảnh thay thế.">
+                            {{ media_action_form.hidden_tag() }}
+                            <button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-trash" aria-hidden="true"></i>Xóa</button>
+                        </form>
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="owner-media-empty">
+            <i class="bi bi-image" aria-hidden="true"></i>
+            <div><h3>Chưa có hình ảnh</h3><p>Tải ảnh đầu tiên để tạo ảnh đại diện cho {{ 'cơ sở' if media_scope == 'venue' else 'sân' }}.</p></div>
+        </div>
+    {% endif %}
+</section>
