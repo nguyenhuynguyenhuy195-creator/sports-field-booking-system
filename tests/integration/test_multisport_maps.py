@@ -23,6 +23,7 @@ from app.models import (
 )
 from app.services import (
     ImmutableFieldTypeError,
+    VenueError,
     create_field,
     create_venue,
     moderate_venue,
@@ -386,13 +387,152 @@ def test_search_does_not_require_coordinates_or_radius(app):
         result = search_public_venues(sport=SportCode.BADMINTON.value)
 
         assert result.total == 3
-        assert all(
-            not hasattr(item, "distance_km") for item in result.items
-        )
+        assert all(item.distance_km is None for item in result.items)
         assert all(
             item.directions_url.startswith("https://www.google.com/maps/dir/")
             for item in result.items
         )
+
+
+def test_nearby_search_sorts_valid_coordinate_venues_and_excludes_missing(app):
+    owner_id = create_user(
+        app,
+        email="nearby-sort-owner@example.com",
+        role=UserRole.OWNER,
+    )
+    near_id = create_public_venue_with_field(
+        app,
+        owner_id=owner_id,
+        name="Z Sân gần nhất",
+        latitude=Decimal("10.001000"),
+        longitude=Decimal("106.000000"),
+        field_type_code=FieldTypeCode.BADMINTON_STANDARD.value,
+    )
+    far_id = create_public_venue_with_field(
+        app,
+        owner_id=owner_id,
+        name="A Sân xa hơn",
+        latitude=Decimal("10.020000"),
+        longitude=Decimal("106.000000"),
+        field_type_code=FieldTypeCode.BADMINTON_STANDARD.value,
+    )
+    missing_id = create_public_venue_with_field(
+        app,
+        owner_id=owner_id,
+        name="B Sân chưa có tọa độ",
+        latitude=None,
+        longitude=None,
+        field_type_code=FieldTypeCode.BADMINTON_STANDARD.value,
+    )
+
+    with app.app_context():
+        result = search_public_venues(
+            sport=SportCode.BADMINTON.value,
+            latitude="10.000000",
+            longitude="106.000000",
+        )
+
+        assert result.total == 2
+        assert [item.venue.id for item in result.items] == [near_id, far_id]
+        assert missing_id not in {item.venue.id for item in result.items}
+        assert result.items[0].distance_km == pytest.approx(0.1112, abs=0.001)
+        assert result.items[1].distance_km == pytest.approx(2.2239, abs=0.002)
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "message"),
+    [
+        ({"latitude": "91", "longitude": "106"}, "Tọa độ vị trí hiện tại không hợp lệ."),
+        ({"latitude": "abc", "longitude": "106"}, "Tọa độ vị trí hiện tại không hợp lệ."),
+        ({"latitude": "10", "longitude": None}, "phải được gửi cùng nhau"),
+        ({"sort": "nearest"}, "cung cấp vị trí hiện tại"),
+        ({"sort": "unknown"}, "Kiểu sắp xếp vị trí không hợp lệ."),
+    ],
+)
+def test_nearby_search_service_rejects_invalid_location_input(app, kwargs, message):
+    with app.app_context(), pytest.raises(VenueError, match=message):
+        search_public_venues(**kwargs)
+
+
+def test_nearby_search_page_shows_distance_user_location_and_preserves_filters(
+    app,
+    client,
+):
+    owner_id = create_user(
+        app,
+        email="nearby-page-owner@example.com",
+        role=UserRole.OWNER,
+    )
+    for number in range(1, 12):
+        create_public_venue_with_field(
+            app,
+            owner_id=owner_id,
+            name=f"Sân nearby phân trang {number:02d}",
+            latitude=Decimal("10.000000") + Decimal(number) / Decimal("1000"),
+            longitude=Decimal("106.000000"),
+            field_type_code=FieldTypeCode.PICKLEBALL_STANDARD.value,
+        )
+
+    response = client.get(
+        "/venues",
+        query_string={
+            "q": "nearby phân trang",
+            "sport": SportCode.PICKLEBALL.value,
+            "latitude": "10.000000",
+            "longitude": "106.000000",
+            "sort": "nearest",
+            "page": "2",
+        },
+    )
+    page = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "11 cơ sở phù hợp" in page
+    assert "Trang 2/2" in page
+    assert "Sân nearby phân trang 11" in page
+    assert "Sân nearby phân trang 10" not in page
+    assert "Cách bạn" in page
+    assert 'data-user-location=' in page
+    assert "Sân gần tôi · gần nhất" in page
+    assert "latitude=10.000000" in page
+    assert "longitude=106.000000" in page
+    assert "sort=nearest" in page
+    assert "sport=PICKLEBALL" in page
+
+
+@pytest.mark.parametrize(
+    ("query_string", "message"),
+    [
+        ({"latitude": "91", "longitude": "106"}, "Vĩ độ vị trí hiện tại không hợp lệ."),
+        ({"latitude": "10"}, "phải được gửi cùng nhau"),
+        ({"latitude": "abc", "longitude": "106"}, "Vĩ độ vị trí hiện tại không hợp lệ."),
+        ({"sort": "nearest"}, "Hãy cho phép truy cập vị trí"),
+    ],
+)
+def test_find_venue_rejects_invalid_nearby_query(client, query_string, message):
+    response = client.get("/venues", query_string=query_string)
+    page = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "Bộ lọc chưa hợp lệ" in page
+    assert message in page
+
+
+def test_find_venue_geolocation_script_handles_browser_errors(client):
+    listing = client.get("/venues").get_data(as_text=True)
+    script_response = client.get("/static/js/venue-nearby-search.js")
+    script = script_response.get_data(as_text=True)
+
+    assert 'id="use-current-location"' in listing
+    assert "venue-nearby-search.js" in listing
+    assert script_response.status_code == 200
+    assert 'locationButton.addEventListener("click"' in script
+    assert "Bạn đã từ chối quyền truy cập vị trí" in script
+    assert "Không thể xác định vị trí hiện tại" in script
+    assert "Hết thời gian chờ vị trí" in script
+    assert "không hỗ trợ xác định vị trí" in script
+    assert "localStorage" not in script
+    assert "sessionStorage" not in script
 
 
 def test_text_search_still_includes_legacy_venue_without_coordinates(app):

@@ -44,6 +44,7 @@ from app.services import (
     moderate_venue,
     search_public_venues,
     update_venue,
+    valid_venue_coordinates,
 )
 
 
@@ -94,6 +95,8 @@ def index():
     sports, field_types, provinces, wards = _configure_catalog_choices(form)
     venue_results = []
     search_page = None
+    nearby_active = False
+    user_location = None
     search_is_valid = form.validate()
     if search_is_valid:
         try:
@@ -105,9 +108,18 @@ def index():
                 field_type=form.field_type.data,
                 min_price=form.min_price.data,
                 max_price=form.max_price.data,
+                latitude=form.latitude.data,
+                longitude=form.longitude.data,
+                sort=form.sort.data,
                 page=request.args.get("page", 1, type=int) or 1,
             )
             venue_results = search_page.items
+            nearby_active = bool(form.latitude.data and form.longitude.data)
+            if nearby_active:
+                user_location = {
+                    "latitude": form.latitude.data,
+                    "longitude": form.longitude.data,
+                }
         except VenueError as exc:
             flash(str(exc), "danger")
             search_is_valid = False
@@ -125,6 +137,8 @@ def index():
         wards_api_url=url_for("venues.administrative_wards"),
         search_page=search_page,
         venue_map_results=venue_map_results,
+        nearby_active=nearby_active,
+        user_location=user_location,
         map_tile_url=current_app.config["MAP_TILE_URL"],
         pagination_params={
             "q": form.q.data or None,
@@ -134,6 +148,9 @@ def index():
             "field_type": form.field_type.data or None,
             "min_price": form.min_price.data,
             "max_price": form.max_price.data,
+            "latitude": form.latitude.data or None,
+            "longitude": form.longitude.data or None,
+            "sort": form.sort.data or None,
         },
         has_active_filters=any(
             request.args.get(name, "").strip()
@@ -145,6 +162,9 @@ def index():
                 "field_type",
                 "min_price",
                 "max_price",
+                "latitude",
+                "longitude",
+                "sort",
             )
         ),
         has_advanced_filters=any(
@@ -180,15 +200,10 @@ def detail(venue_id: int):
 
 def _public_venue_map_data(venue):
     """Return only trusted, display-safe map data for a public Venue page."""
-    if venue.latitude is None or venue.longitude is None:
+    coordinates = valid_venue_coordinates(venue)
+    if coordinates is None:
         return None
-
-    latitude = float(venue.latitude)
-    longitude = float(venue.longitude)
-    if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
-        return None
-    if latitude == 0 and longitude == 0:
-        return None
+    latitude, longitude = coordinates
 
     return {
         "latitude": f"{latitude:.6f}",
@@ -205,16 +220,23 @@ def _public_search_map_data(venue_results):
         marker = _public_venue_map_data(result.venue)
         if marker is None:
             continue
-        markers.append(
-            {
-                **marker,
-                "detail_url": url_for(
-                    "venues.detail",
-                    venue_id=result.venue.id,
-                ),
-            }
+        marker["detail_url"] = url_for(
+            "venues.detail",
+            venue_id=result.venue.id,
         )
+        distance_label = _format_distance(result.distance_km)
+        if distance_label is not None:
+            marker["distance_label"] = distance_label
+        markers.append(marker)
     return markers
+
+
+def _format_distance(distance_km):
+    if distance_km is None:
+        return None
+    if distance_km < 1:
+        return f"{round(distance_km * 1000)} m"
+    return f"{distance_km:.1f}".replace(".", ",") + " km"
 
 
 @venues_bp.get("/owner/venues")

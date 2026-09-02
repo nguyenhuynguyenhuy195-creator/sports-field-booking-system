@@ -84,6 +84,49 @@ class VenueSearchForm(FlaskForm):
             ),
         ],
     )
+    latitude = HiddenField("Vĩ độ vị trí hiện tại")
+    longitude = HiddenField("Kinh độ vị trí hiện tại")
+    sort = HiddenField("Sắp xếp")
+
+    def validate(self, extra_validators=None) -> bool:
+        is_valid = super().validate(extra_validators=extra_validators)
+        raw_latitude = (self.latitude.data or "").strip()
+        raw_longitude = (self.longitude.data or "").strip()
+        normalized_sort = (self.sort.data or "").strip().lower()
+
+        if normalized_sort not in ("", "nearest"):
+            self.sort.errors.append("Kiểu sắp xếp vị trí không hợp lệ.")
+            is_valid = False
+        if bool(raw_latitude) != bool(raw_longitude):
+            self.latitude.errors.append(
+                "Vĩ độ và kinh độ vị trí hiện tại phải được gửi cùng nhau."
+            )
+            return False
+        if not raw_latitude:
+            if normalized_sort == "nearest":
+                self.sort.errors.append(
+                    "Hãy cho phép truy cập vị trí trước khi sắp xếp gần nhất."
+                )
+                return False
+            return is_valid
+
+        for field, minimum, maximum, label in (
+            (self.latitude, Decimal("-90"), Decimal("90"), "Vĩ độ"),
+            (self.longitude, Decimal("-180"), Decimal("180"), "Kinh độ"),
+        ):
+            try:
+                value = Decimal(field.data)
+                in_range = value.is_finite() and minimum <= value <= maximum
+            except (ArithmeticError, ValueError):
+                in_range = False
+            if not in_range:
+                field.errors.append(
+                    f"{label} vị trí hiện tại không hợp lệ."
+                )
+                is_valid = False
+        if is_valid and not normalized_sort:
+            self.sort.data = "nearest"
+        return is_valid
 
     def validate_max_price(self, field) -> None:
         if (

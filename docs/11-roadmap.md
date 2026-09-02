@@ -202,7 +202,7 @@ Step 4.0 chỉ là foundation dữ liệu; **không đồng nghĩa Step 4 Admin 
 
 ## PHASE 1.3 – LOCATION & MAP ENHANCEMENT
 
-**Trạng thái: ĐANG THỰC HIỆN – 1.3D DONE / ACCEPTED; 1.3E VÀ CÁC BƯỚC SAU VẪN PLANNED**
+**Trạng thái: ĐANG THỰC HIỆN – 1.3E DONE / ACCEPTED; 1.3F VẪN PLANNED**
 
 Phase này mở rộng foundation địa chỉ đã nghiệm thu ở Phase 1.2 bằng tọa độ Venue đáng tin cậy và bản đồ nhúng Leaflet. Leaflet chỉ render/tương tác bản đồ; tile và geocoding là các dịch vụ riêng. Liên kết Google Maps ngoài hệ thống từ `full_address` tiếp tục là fallback/tiện ích độc lập.
 
@@ -284,11 +284,17 @@ Phase này mở rộng foundation địa chỉ đã nghiệm thu ở Phase 1.2 b
 
 ### 1.3E – Current Location / Nearby Search
 
-**Trạng thái: PLANNED – CHƯA BẮT ĐẦU**
+**Trạng thái: DONE / ACCEPTED (03/09/2026)**
 
-- Browser geolocation.
-- Thiết kế distance/radius query và sorting.
-- Chỉ bắt đầu khi độ phủ và chất lượng tọa độ Venue đủ tốt.
+- Browser geolocation chỉ chạy sau khi người dùng bấm `Sân gần tôi`; các trường hợp từ chối quyền, không khả dụng, timeout hoặc trình duyệt không hỗ trợ đều có thông báo tiếng Việt và không làm hỏng tìm kiếm thông thường.
+- Backend xác thực latitude/longitude theo nguyên tắc cả hai hoặc không có, đúng phạm vi; khoảng cách được tính server-side bằng Haversine và sắp xếp gần nhất với tie-break ổn định.
+- Nearby mode chỉ dùng Venue có cặp tọa độ hợp lệ; Venue thiếu tọa độ vẫn xuất hiện trong tìm kiếm thông thường và chỉ bị loại khi người dùng chủ động bật nearby.
+- Vị trí người dùng hiển thị khác biệt với marker Venue; map tiếp tục giữ popup/link chi tiết và tự fit viewport phù hợp.
+- Không lưu vị trí người dùng vào database, session, localStorage hoặc sessionStorage; không có logging tọa độ chính xác do ứng dụng bổ sung.
+- Giữ nguyên keyword, Province/Ward, Sport, Field Type, giá và pagination; không thêm radius filter hoặc geospatial database extension.
+- Focused Find Venue/location tests: 81 passed; full regression: 345 passed trong 131.72 giây.
+- Visual review đã đạt; trạng thái nearby, khoảng cách, marker Venue và vị trí người dùng hiển thị đúng, không có horizontal overflow hoặc browser console error.
+- `git diff --check`, Python/JavaScript syntax checks và `flask db check` đều đạt; không có thay đổi schema/model/migration/dependency; Alembic current/head giữ nguyên `a6d8e4f2c913`.
 
 ### 1.3F – Final QA / Acceptance
 
@@ -571,7 +577,7 @@ Hiện tại:
 - Phase 1A: DONE.
 - Phase 1B: DONE.
 - Phase 1.2: DONE / ACCEPTED (30/08/2026).
-- Phase 1.3: IN PROGRESS; 1.3A, 1.3B0, 1.3B1, 1.3B2, 1.3C và 1.3D DONE / ACCEPTED; 1.3E và các bước sau PLANNED.
+- Phase 1.3: IN PROGRESS; 1.3A, 1.3B0, 1.3B1, 1.3B2, 1.3C, 1.3D và 1.3E DONE / ACCEPTED; 1.3F PLANNED.
 - Phase 2: NOT STARTED / DEFERRED BY USER DECISION.
 - Phase 3: DONE / ACCEPTED (02/09/2026).
 - Phase 4: NOT YET AUDITED / ACCEPTED.
@@ -615,9 +621,9 @@ DONE:
 
 ### TASK TIẾP THEO
 
-**PHASE 1.3D – FIND VENUE MAP — DONE / ACCEPTED**
+**PHASE 1.3F – FINAL QA / ACCEPTANCE — PLANNED**
 
-Phase 1.3D đã được nghiệm thu: Find Venue map chỉ phản ánh tọa độ Venue hợp lệ trong result set hiện tại; Venue thiếu tọa độ vẫn hiện trong list và không có marker giả. Không bắt đầu Phase 1.3E, current location hoặc nearby search nếu chưa có yêu cầu riêng. Phase 2 vẫn tạm hoãn và không tự khởi động.
+Phase 1.3E đã được nghiệm thu: nearby chỉ kích hoạt theo hành động người dùng, khoảng cách tính server-side bằng Haversine, vị trí người dùng không được lưu và các bộ lọc/pagination hiện có được giữ nguyên. Bước tiếp theo chỉ là audit/acceptance toàn bộ Phase 1.3; Phase 2 vẫn tạm hoãn và không tự khởi động.
 
 ---
 

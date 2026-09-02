@@ -933,6 +933,57 @@ a:hover {
     width: 100%;
 }
 
+.venue-nearby-bar {
+    align-items: center;
+    border-top: 1px solid #e5eee8;
+    display: flex;
+    gap: 0.8rem;
+    margin-top: 0.9rem;
+    padding-top: 0.85rem;
+}
+
+.venue-nearby-bar.is-active {
+    background: #f3faf6;
+    border: 1px solid #cde4d6;
+    border-radius: 12px;
+    margin-top: 0.85rem;
+    padding: 0.7rem;
+}
+
+.venue-nearby-bar #use-current-location {
+    align-items: center;
+    border-radius: 10px;
+    display: inline-flex;
+    flex: 0 0 auto;
+    font-weight: 750;
+    gap: 0.45rem;
+    min-height: 42px;
+}
+
+.venue-nearby-bar #location-search-status {
+    color: #607168;
+    flex: 1 1 auto;
+    font-size: 0.85rem;
+    line-height: 1.45;
+}
+
+.venue-nearby-bar #location-search-status.is-error {
+    color: #a12626;
+    font-weight: 650;
+}
+
+.venue-nearby-clear {
+    color: var(--app-primary-dark);
+    flex: 0 0 auto;
+    font-size: 0.84rem;
+    font-weight: 750;
+    text-decoration: none;
+}
+
+.venue-nearby-clear:hover {
+    text-decoration: underline;
+}
+
 .venue-search-actions #use-current-location {
     border-radius: 12px;
     font-weight: 700;
@@ -1262,6 +1313,13 @@ a:hover {
     font-size: 0.68rem;
 }
 
+.venue-map-popup-distance {
+    color: #176c43;
+    font-size: 0.82rem;
+    font-weight: 700;
+    margin-top: 0.2rem;
+}
+
 .venue-search-map-unavailable,
 .venue-search-map-empty {
     align-items: flex-start;
@@ -1460,6 +1518,20 @@ a:hover {
     color: var(--app-primary);
     flex: 0 0 auto;
     margin-top: 0.15rem;
+}
+
+.venue-card-distance {
+    align-items: center;
+    color: #176c43;
+    display: flex;
+    font-size: 0.84rem;
+    font-weight: 750;
+    gap: 0.4rem;
+    margin-top: 0.45rem;
+}
+
+.venue-card-distance i {
+    font-size: 0.75rem;
 }
 
 .venue-location {
@@ -3722,6 +3794,20 @@ a:hover {
 
     .venue-search-actions #location-search-status {
         text-align: center;
+    }
+
+    .venue-nearby-bar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .venue-nearby-bar #use-current-location {
+        justify-content: center;
+        width: 100%;
+    }
+
+    .venue-nearby-clear {
+        align-self: flex-start;
     }
 
     .venue-filter-toggle {

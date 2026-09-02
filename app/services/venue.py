@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import time
 from decimal import Decimal, InvalidOperation
-from math import ceil
+from math import asin, ceil, cos, radians, sin, sqrt
 from urllib.parse import urlencode
 
 from sqlalchemy import or_
@@ -68,6 +68,7 @@ class PublicVenueSearchResult:
     starting_price: Decimal | None
     field_types: tuple[PublicFieldTypeSummary, ...]
     directions_url: str
+    distance_km: float | None = None
 
 
 @dataclass(frozen=True)
@@ -124,6 +125,9 @@ def search_public_venues(
     field_type: str | None = None,
     min_price: Decimal | None = None,
     max_price: Decimal | None = None,
+    latitude: str | Decimal | None = None,
+    longitude: str | Decimal | None = None,
+    sort: str | None = None,
     page: int = 1,
     per_page: int = 10,
 ) -> PublicVenueSearchPage:
@@ -133,6 +137,16 @@ def search_public_venues(
     normalized_ward_code = (ward_code or "").strip() or None
     normalized_sport = (sport or "").strip().upper() or None
     normalized_field_type = (field_type or "").strip() or None
+    nearby_origin = _normalize_search_coordinates(latitude, longitude)
+    normalized_sort = (sort or "").strip().lower()
+    if nearby_origin is not None and not normalized_sort:
+        normalized_sort = "nearest"
+    if normalized_sort not in ("", "nearest"):
+        raise VenueError("Kiểu sắp xếp vị trí không hợp lệ.")
+    if normalized_sort == "nearest" and nearby_origin is None:
+        raise VenueError(
+            "Hãy cung cấp vị trí hiện tại trước khi sắp xếp gần nhất."
+        )
     if normalized_ward_code and not normalized_province_code:
         raise VenueError(
             "Hãy chọn tỉnh hoặc thành phố trước khi chọn phường, xã."
@@ -249,9 +263,29 @@ def search_public_venues(
     if max_price is not None:
         statement = statement.where(starting_price <= max_price)
     rows = db.session.execute(statement.order_by(Venue.name.asc())).all()
-    filtered_rows: list[tuple[Venue, Decimal | None]] = []
+    filtered_rows: list[tuple[Venue, Decimal | None, float | None]] = []
     for venue, price in rows:
-        filtered_rows.append((venue, price))
+        distance_km = None
+        if nearby_origin is not None:
+            venue_coordinates = valid_venue_coordinates(venue)
+            if venue_coordinates is None:
+                continue
+            distance_km = haversine_distance_km(
+                nearby_origin[0],
+                nearby_origin[1],
+                venue_coordinates[0],
+                venue_coordinates[1],
+            )
+        filtered_rows.append((venue, price, distance_km))
+
+    if normalized_sort == "nearest":
+        filtered_rows.sort(
+            key=lambda row: (
+                row[2] if row[2] is not None else float("inf"),
+                row[0].name.casefold(),
+                row[0].id,
+            )
+        )
 
     total = len(filtered_rows)
     total_pages = ceil(total / per_page) if total else 0
@@ -267,7 +301,7 @@ def search_public_venues(
             total=total,
         )
 
-    venue_ids = [venue.id for venue, _ in page_rows]
+    venue_ids = [venue.id for venue, _, _ in page_rows]
     visible_field_type_conditions = [
         Field.venue_id.in_(venue_ids),
         Field.status == FieldStatus.ACTIVE.value,
@@ -319,8 +353,9 @@ def search_public_venues(
                     )
                 ),
                 directions_url=build_google_maps_directions_url(venue),
+                distance_km=distance_km,
             )
-            for venue, price in page_rows
+            for venue, price, distance_km in page_rows
         ),
         page=page,
         per_page=per_page,
@@ -379,6 +414,68 @@ def get_owner_venue(*, venue_id: int, owner_id: int) -> Venue:
     if venue.owner_id != owner_id:
         raise VenuePermissionError("Bạn không có quyền quản lý cơ sở này.")
     return venue
+
+
+def _normalize_search_coordinates(
+    latitude: str | Decimal | None,
+    longitude: str | Decimal | None,
+) -> tuple[float, float] | None:
+    raw_latitude = str(latitude).strip() if latitude is not None else ""
+    raw_longitude = str(longitude).strip() if longitude is not None else ""
+    if bool(raw_latitude) != bool(raw_longitude):
+        raise VenueError(
+            "Vĩ độ và kinh độ vị trí hiện tại phải được gửi cùng nhau."
+        )
+    if not raw_latitude:
+        return None
+
+    try:
+        normalized_latitude = Decimal(raw_latitude)
+        normalized_longitude = Decimal(raw_longitude)
+    except InvalidOperation as exc:
+        raise VenueError("Tọa độ vị trí hiện tại không hợp lệ.") from exc
+    if (
+        not normalized_latitude.is_finite()
+        or not normalized_longitude.is_finite()
+        or not Decimal("-90") <= normalized_latitude <= Decimal("90")
+        or not Decimal("-180") <= normalized_longitude <= Decimal("180")
+    ):
+        raise VenueError("Tọa độ vị trí hiện tại không hợp lệ.")
+    return float(normalized_latitude), float(normalized_longitude)
+
+
+def valid_venue_coordinates(venue: Venue) -> tuple[float, float] | None:
+    """Return a trusted coordinate pair suitable for public location features."""
+    if not venue.has_coordinates:
+        return None
+    latitude = float(venue.latitude)
+    longitude = float(venue.longitude)
+    if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
+        return None
+    if latitude == 0 and longitude == 0:
+        return None
+    return latitude, longitude
+
+
+def haversine_distance_km(
+    origin_latitude: float,
+    origin_longitude: float,
+    destination_latitude: float,
+    destination_longitude: float,
+) -> float:
+    """Calculate great-circle distance using mean Earth radius 6,371.0088 km."""
+    latitude_delta = radians(destination_latitude - origin_latitude)
+    longitude_delta = radians(destination_longitude - origin_longitude)
+    origin_radians = radians(origin_latitude)
+    destination_radians = radians(destination_latitude)
+    haversine = (
+        sin(latitude_delta / 2) ** 2
+        + cos(origin_radians)
+        * cos(destination_radians)
+        * sin(longitude_delta / 2) ** 2
+    )
+    angular_distance = 2 * asin(sqrt(min(1.0, max(0.0, haversine))))
+    return 6371.0088 * angular_distance
 
 
 def list_owner_venue_summaries(owner_id: int) -> list[OwnerVenueSummary]:

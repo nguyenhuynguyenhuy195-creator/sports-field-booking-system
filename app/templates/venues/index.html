@@ -20,6 +20,9 @@
 
 <section class="container marketplace-shell venue-search-content marketplace-page marketplace-venue-page py-4 pb-lg-5">
     <form id="venue-search-form" class="venue-search-panel marketplace-card" method="get" action="{{ url_for('venues.index') }}" role="search">
+        {{ form.latitude() }}
+        {{ form.longitude() }}
+        {{ form.sort() }}
         <div class="venue-search-primary">
             <div class="venue-search-primary-field venue-search-keyword-field">
                 {{ form.q.label(class_="visually-hidden") }}
@@ -75,6 +78,26 @@
             <div class="venue-search-actions">
                 <button class="btn btn-primary venue-search-submit" type="submit"><i class="bi bi-search" aria-hidden="true"></i> Tìm sân</button>
             </div>
+        </div>
+
+        {% set nearby_errors = form.latitude.errors + form.longitude.errors + form.sort.errors %}
+        <div class="venue-nearby-bar{% if nearby_active %} is-active{% endif %}">
+            <button id="use-current-location" class="btn btn-outline-primary" type="button">
+                <i class="bi bi-crosshair" aria-hidden="true"></i>
+                <span>{% if nearby_active %}Cập nhật vị trí{% else %}Sân gần tôi{% endif %}</span>
+            </button>
+            <p id="location-search-status" class="mb-0{% if nearby_errors %} is-error{% endif %}" role="status" aria-live="polite">
+                {% if nearby_errors %}
+                    {{ nearby_errors[0] }}
+                {% elif nearby_active %}
+                    Đang hiển thị các cơ sở có tọa độ theo khoảng cách gần nhất.
+                {% else %}
+                    Chỉ truy cập vị trí khi bạn bấm nút; vị trí không được lưu vào tài khoản.
+                {% endif %}
+            </p>
+            {% if nearby_active %}
+                <a class="venue-nearby-clear" href="{{ url_for('venues.index', q=pagination_params.q, province_code=pagination_params.province_code, ward_code=pagination_params.ward_code, sport=pagination_params.sport, field_type=pagination_params.field_type, min_price=pagination_params.min_price, max_price=pagination_params.max_price) }}">Bỏ vị trí</a>
+            {% endif %}
         </div>
 
         <button
@@ -137,6 +160,7 @@
                             {% else %}Đến {{ form.max_price.data|vnd_currency }}{% endif %}
                         </span>
                     {% endif %}
+                    {% if nearby_active %}<span class="venue-type-chip"><i class="bi bi-crosshair" aria-hidden="true"></i> Sân gần tôi · gần nhất</span>{% endif %}
                 </div>
                 <a class="venue-clear-all" href="{{ url_for('venues.index') }}">Xóa tất cả</a>
             </div>
@@ -170,6 +194,7 @@
                             tabindex="0"
                             data-venues='{{ venue_map_results|tojson }}'
                             data-tile-url="{{ map_tile_url }}"
+                            {% if user_location %}data-user-location='{{ user_location|tojson }}'{% endif %}
                         ></div>
                         <p id="venue-search-map-unavailable" class="venue-search-map-unavailable mb-0" hidden aria-live="polite"><i class="bi bi-info-circle" aria-hidden="true"></i> Không thể tải bản đồ lúc này. Danh sách cơ sở bên dưới vẫn đầy đủ để bạn lựa chọn.</p>
                     </div>
@@ -199,6 +224,7 @@
                             <div class="venue-card-title-group">
                                 <h3 class="mb-1">{{ venue.name }}</h3>
                                 <p class="venue-card-address mb-0"><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ display_address }}</p>
+                                {% if result.distance_km is not none %}<p class="venue-card-distance mb-0"><i class="bi bi-navigation-fill" aria-hidden="true"></i> Cách bạn {% if result.distance_km < 1 %}{{ (result.distance_km * 1000)|round|int }} m{% else %}{{ ('%.1f'|format(result.distance_km))|replace('.', ',') }} km{% endif %}</p>{% endif %}
                             </div>
                             <div class="venue-card-price-meta">
                                 <div class="venue-starting-price">
@@ -225,11 +251,11 @@
             {% if search_page.pages > 1 %}
                 <nav class="venue-pagination" aria-label="Phân trang kết quả tìm sân">
                     {% if search_page.has_previous %}
-                        <a class="btn btn-outline-primary" href="{{ url_for('venues.index', q=pagination_params.q, province_code=pagination_params.province_code, ward_code=pagination_params.ward_code, sport=pagination_params.sport, field_type=pagination_params.field_type, min_price=pagination_params.min_price, max_price=pagination_params.max_price, page=search_page.page - 1) }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Trang trước</a>
+                        <a class="btn btn-outline-primary" href="{{ url_for('venues.index', q=pagination_params.q, province_code=pagination_params.province_code, ward_code=pagination_params.ward_code, sport=pagination_params.sport, field_type=pagination_params.field_type, min_price=pagination_params.min_price, max_price=pagination_params.max_price, latitude=pagination_params.latitude, longitude=pagination_params.longitude, sort=pagination_params.sort, page=search_page.page - 1) }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Trang trước</a>
                     {% else %}<span class="btn btn-outline-secondary disabled" aria-disabled="true"><i class="bi bi-arrow-left" aria-hidden="true"></i> Trang trước</span>{% endif %}
                     <span class="venue-pagination-status">Trang {{ search_page.page }}/{{ search_page.pages }}</span>
                     {% if search_page.has_next %}
-                        <a class="btn btn-outline-primary" href="{{ url_for('venues.index', q=pagination_params.q, province_code=pagination_params.province_code, ward_code=pagination_params.ward_code, sport=pagination_params.sport, field_type=pagination_params.field_type, min_price=pagination_params.min_price, max_price=pagination_params.max_price, page=search_page.page + 1) }}">Trang sau <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+                        <a class="btn btn-outline-primary" href="{{ url_for('venues.index', q=pagination_params.q, province_code=pagination_params.province_code, ward_code=pagination_params.ward_code, sport=pagination_params.sport, field_type=pagination_params.field_type, min_price=pagination_params.min_price, max_price=pagination_params.max_price, latitude=pagination_params.latitude, longitude=pagination_params.longitude, sort=pagination_params.sort, page=search_page.page + 1) }}">Trang sau <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
                     {% else %}<span class="btn btn-outline-secondary disabled" aria-disabled="true">Trang sau <i class="bi bi-arrow-right" aria-hidden="true"></i></span>{% endif %}
                 </nav>
             {% endif %}
@@ -237,7 +263,7 @@
             <div class="venue-search-empty">
                 <div class="venue-empty-icon" aria-hidden="true"><i class="bi bi-search"></i></div>
                 <h2 class="h5 fw-bold">Chưa tìm thấy sân phù hợp</h2>
-                <p class="text-secondary mb-0">Hãy thử đổi khu vực, bộ môn hoặc khoảng giá.</p>
+                <p class="text-secondary mb-0">{% if nearby_active %}Chưa có cơ sở có tọa độ phù hợp với các bộ lọc hiện tại.{% else %}Hãy thử đổi khu vực, bộ môn hoặc khoảng giá.{% endif %}</p>
                 {% if has_active_filters %}<a class="btn btn-outline-primary btn-sm mt-3" href="{{ url_for('venues.index') }}">Xóa bộ lọc</a>{% endif %}
             </div>
         {% endif %}
@@ -254,6 +280,7 @@
 {% block scripts %}
     <script src="{{ url_for('static', filename='js/administrative-unit-picker.js') }}"></script>
     <script src="{{ url_for('static', filename='js/venue-search-filters.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/venue-nearby-search.js') }}"></script>
     {% if venue_map_results %}
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>
         <script src="{{ url_for('static', filename='js/venue-search-map.js') }}"></script>

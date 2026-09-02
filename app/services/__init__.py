@@ -262,6 +262,7 @@ from .venue import (
     moderate_venue,
     search_public_venues,
     update_venue,
+    valid_venue_coordinates,
 )
 
 __all__ = [
@@ -482,6 +483,7 @@ __all__ = [
     "resolve_media_path",
     "moderate_venue",
     "update_venue",
+    "valid_venue_coordinates",
     "update_field",
     "update_price_slot",
     "upload_field_image",
