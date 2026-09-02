@@ -200,14 +200,92 @@ Step 4.0 chỉ là foundation dữ liệu; **không đồng nghĩa Step 4 Admin 
 
 ---
 
+## PHASE 1.3 – LOCATION & MAP ENHANCEMENT
+
+**Trạng thái: ĐANG THỰC HIỆN – 1.3B0 ĐÃ NGHIỆM THU; 1.3B1 VÀ CÁC BƯỚC SAU ĐANG LẬP KẾ HOẠCH**
+
+Phase này mở rộng foundation địa chỉ đã nghiệm thu ở Phase 1.2 bằng tọa độ Venue đáng tin cậy và bản đồ nhúng Leaflet. Leaflet chỉ render/tương tác bản đồ; tile và geocoding là các dịch vụ riêng. Liên kết Google Maps ngoài hệ thống từ `full_address` tiếp tục là fallback/tiện ích độc lập.
+
+### 1.3A – Location Data & Map Readiness Audit
+
+**Trạng thái: DONE / ACCEPTED (02/09/2026)**
+
+- Schema đã có `Venue.latitude`/`Venue.longitude` nullable và đủ cho MVP storage.
+- Development data hiện có địa chỉ cấu trúc nhưng chưa có tọa độ được xác nhận.
+- Không có Leaflet/geocoding/geolocation/nearby runtime ở baseline đã audit.
+
+### 1.3B0 – Location & Map Architecture Decision
+
+**Trạng thái: DONE / ACCEPTED (02/09/2026)**
+
+- ADR-036 chốt Leaflet + OpenStreetMap-compatible tiles cho embedded map MVP.
+- Workflow: address → geocode → suggested marker → Owner xác nhận/sửa → persist latitude/longitude.
+- Geocoder result chỉ là gợi ý; marker được Owner xác nhận là source of truth.
+- Chưa chọn geocoding provider, chưa cài dependency và chưa thay đổi runtime/database.
+
+### 1.3B1 – Owner Coordinate Lifecycle
+
+**Trạng thái: PLANNED – CHƯA BẮT ĐẦU**
+
+- Đánh giá và tích hợp geocoding provider.
+- Leaflet trong Venue create/edit.
+- Suggested marker và Owner confirmation/correction.
+- Coordinate validation.
+- Stale-coordinate handling khi address/Province/Ward thay đổi.
+- Tích hợp moderation cho toàn bộ location identity.
+- Không dự kiến migration.
+- Chỉ thiết lập tọa độ Venue đáng tin cậy; không gồm browser geolocation, nearby, radius, Haversine hoặc distance sorting.
+
+### 1.3B2 – Existing Venue Coordinate Population
+
+**Trạng thái: PLANNED – CHƯA BẮT ĐẦU**
+
+- Điền tọa độ cho Venue hiện có qua application flow có kiểm soát.
+- Dùng cùng nguyên tắc geocode → Owner/Admin xác nhận.
+- Không cập nhật SQL trực tiếp hoặc dùng tọa độ bịa làm dữ liệu production-like.
+
+### 1.3C – Venue Detail Map
+
+**Trạng thái: PLANNED – CHƯA BẮT ĐẦU**
+
+- Leaflet map với marker đã xác nhận.
+- Venue thiếu tọa độ dùng fallback có chủ đích bằng `full_address` và external directions.
+- Không hiển thị marker giả/mặc định như vị trí thật.
+
+### 1.3D – Find Venue Map
+
+**Trạng thái: PLANNED – CHƯA BẮT ĐẦU**
+
+- Marker cho các Venue có tọa độ hợp lệ trong kết quả tìm kiếm hiện tại.
+- Giữ nguyên search/filter/pagination đã nghiệm thu.
+- Venue thiếu tọa độ vẫn đọc được qua địa chỉ và fallback phù hợp.
+
+### 1.3E – Current Location / Nearby Search
+
+**Trạng thái: PLANNED – CHƯA BẮT ĐẦU**
+
+- Browser geolocation.
+- Thiết kế distance/radius query và sorting.
+- Chỉ bắt đầu khi độ phủ và chất lượng tọa độ Venue đủ tốt.
+
+### 1.3F – Final QA / Acceptance
+
+**Trạng thái: PLANNED – CHƯA BẮT ĐẦU**
+
+- Functional/regression tests.
+- Desktop/mobile visual review.
+- Kiểm tra attribution, lỗi tile/geocoding, manual fallback và missing-coordinate states.
+
+---
+
 ## THỨ TỰ THỰC HIỆN CHÍNH THỨC
 
-Theo quyết định của người dùng ngày 31/08/2026:
+Theo quyết định ngày 31/08/2026 và bổ sung Phase 1.3 ngày 02/09/2026:
 
-> **Phase 1.2 → Phase 3 → Phase 2 → Phase 4 → Phase 4.1 → Phase 5 → Phase 6 → Final**
+> **Phase 1.2 → Phase 3 → Phase 1.3 → Phase 2 → Phase 4 → Phase 4.1 → Phase 5 → Phase 6 → Final**
 
 - Phase 2 không bị loại khỏi roadmap; Phase này chỉ được tạm hoãn để ưu tiên hoàn thiện giao diện và nghiệp vụ Owner Console trước.
-- Sau Phase 3, dự án quay lại Phase 2 – Admin Operations rồi tiếp tục theo thứ tự trên.
+- Sau Phase 3, Phase 1.3 Location & Map Enhancement được ưu tiên theo quyết định mới; Phase 2 tiếp tục deferred cho đến khi có yêu cầu riêng.
 
 ---
 
@@ -471,6 +549,7 @@ Hiện tại:
 - Phase 1A: DONE.
 - Phase 1B: DONE.
 - Phase 1.2: DONE / ACCEPTED (30/08/2026).
+- Phase 1.3: IN PROGRESS; 1.3A và 1.3B0 DONE / ACCEPTED, 1.3B1 và các bước sau PLANNED.
 - Phase 2: NOT STARTED / DEFERRED BY USER DECISION.
 - Phase 3: DONE / ACCEPTED (02/09/2026).
 - Phase 4: NOT YET AUDITED / ACCEPTED.
@@ -480,9 +559,9 @@ Hiện tại:
 
 Thứ tự thực hiện hiện hành:
 
-> **Phase 1.2 → Phase 3 → Phase 2 → Phase 4 → Phase 4.1 → Phase 5 → Phase 6 → Final**
+> **Phase 1.2 → Phase 3 → Phase 1.3 → Phase 2 → Phase 4 → Phase 4.1 → Phase 5 → Phase 6 → Final**
 
-Lý do: Owner Console được chủ động ưu tiên trước Admin Operations theo quyết định của người dùng.
+Lý do: Owner Console đã hoàn tất; Location & Map Enhancement được ưu tiên tiếp theo, còn Admin Operations vẫn deferred theo quyết định của người dùng.
 
 ### Phase 1B
 
@@ -514,9 +593,9 @@ DONE:
 
 ### TASK TIẾP THEO
 
-**PHASE 2 – ADMIN OPERATIONS — NOT STARTED / DEFERRED BY USER DECISION**
+**PHASE 1.3B1 – OWNER COORDINATE LIFECYCLE — PLANNED / CHƯA BẮT ĐẦU**
 
-Phase 3 – Owner Console đã DONE / ACCEPTED ngày 02/09/2026. Phase 2 vẫn tạm hoãn và không tự khởi động cho đến khi có yêu cầu riêng của người dùng.
+ADR-036 và Phase 1.3B0 đã DONE / ACCEPTED. Không cài Leaflet, chọn/tích hợp geocoder, sửa runtime, backfill dữ liệu hoặc bắt đầu Phase 1.3B1 nếu chưa có yêu cầu triển khai riêng. Phase 2 vẫn tạm hoãn và không tự khởi động.
 
 ---
 

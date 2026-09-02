@@ -398,3 +398,105 @@ ADR này chỉ thay thế điều kiện đặt trước 24 giờ của FIND_OPP
 - Bảng giá và Bảo trì là thao tác theo từng Field, vì rule giá, trạng thái kích hoạt Field, lịch bảo trì và kiểm tra chồng lịch đều có phạm vi Field.
 - Owner đi từ Cơ sở & Sân theo ngữ cảnh Venue → Field đến Bảng giá hoặc Bảo trì; không tạo menu global, route global hay màn danh sách chéo Field mới chỉ để điều hướng.
 - Các nested route, service, permission và ownership validation hiện có là source of truth; quyết định này chỉ chuẩn hóa hierarchy điều hướng và không thay đổi nghiệp vụ.
+
+## ADR-036: Kiến trúc vị trí và bản đồ Leaflet cho MVP
+
+**Ngày quyết định:** 02/09/2026
+**Trạng thái:** Đã chốt kiến trúc tại Phase 1.3B0; chưa triển khai runtime.
+
+### Quan hệ với các quyết định trước
+
+- ADR-032 được giữ nguyên để ghi lại quyết định và runtime không Maps đã được nghiệm thu ngày 29/08/2026.
+- ADR này thay thế ADR-032 đối với các hành vi vị trí/bản đồ được đưa trở lại theo Phase 1.3: hệ thống được phép dùng bản đồ nhúng Leaflet, geocoding và tọa độ Venue đã được xác nhận.
+- Việc thay thế là theo lộ trình. Runtime hiện tại vẫn chỉ dùng địa chỉ và liên kết chỉ đường ngoài hệ thống cho đến khi từng bước Phase 1.3 được triển khai và nghiệm thu.
+- Kiến trúc Google Places/Nearby trong ADR-025 không còn là thiết kế runtime được chọn. Phần Google Maps trong ADR-030 cũng không quyết định công nghệ bản đồ mới.
+- Liên kết ngoài “Mở chỉ đường trên Google Maps” từ `full_address` có thể tiếp tục tồn tại như một tiện ích độc lập, trừ khi có quyết định khác sau này.
+
+### Công nghệ và ranh giới trách nhiệm
+
+- Leaflet là thư viện frontend được chọn để render bản đồ, đặt marker và hỗ trợ tương tác sửa vị trí.
+- Tile phải đến từ một nhà cung cấp tương thích OpenStreetMap và giao diện phải hiển thị attribution bắt buộc theo điều khoản của nhà cung cấp.
+- Leaflet không chuyển địa chỉ thành tọa độ. Geocoding là trách nhiệm riêng.
+- Dịch vụ tile và dịch vụ geocoding là hai dịch vụ độc lập; không được coi tile OpenStreetMap công khai là một geocoder.
+- MVP mới không đưa Google Maps JavaScript API hoặc Google Places trở lại.
+- Nhà cung cấp geocoding chưa được chọn trong ADR này. Phase 1.3B1 phải đánh giá nhà cung cấp thực tế trước khi tích hợp.
+
+Nhà cung cấp geocoding được đánh giá ở Phase 1.3B1 phải:
+
+- hỗ trợ chuyển địa chỉ thành tọa độ và phù hợp với địa chỉ Việt Nam;
+- có usage/rate limit được công bố;
+- không bị gọi bulk một cách âm thầm;
+- cho phép xử lý lỗi rõ ràng, có kiểm soát;
+- có yêu cầu attribution/licensing minh bạch;
+- không yêu cầu commit API key hoặc secret vào source code.
+
+Dịch vụ Nominatim công khai, nếu được cân nhắc, không được mặc định xem là hạ tầng production không giới hạn. Việc sử dụng phải được đánh giá theo policy thực tế ở Phase 1.3B1.
+
+### Workflow tọa độ kết hợp đã chấp thuận
+
+Owner tiếp tục nhập tên Venue, địa chỉ chi tiết, Province, Ward và metadata Venue hiện có. Luồng vị trí được chốt là:
+
+> **Address input → Geocoding → Approximate coordinates → Leaflet marker → Owner confirmation/correction → Persist latitude/longitude**
+
+Chi tiết:
+
+1. Hệ thống tạo/sử dụng `full_address` của Venue.
+2. Owner chủ động yêu cầu tra cứu vị trí trong flow tạo/sửa Venue.
+3. Geocoder chuyển địa chỉ thành cặp latitude/longitude gần đúng.
+4. Leaflet hiển thị vị trí và đặt marker tại tọa độ được gợi ý.
+5. Owner phải kiểm tra marker và có thể kéo hoặc chọn lại vị trí.
+6. Chỉ cặp tọa độ của marker đã được Owner xác nhận mới được persist thành tọa độ đáng tin cậy của Venue.
+7. Venue được lưu với address, Province, Ward, latitude và longitude đồng bộ.
+
+**Nguyên tắc source of truth:** Kết quả geocoder chỉ là gợi ý; marker được Owner xác nhận là source of truth cho tọa độ Venue.
+
+Không chấp nhận luồng `address → geocoder → âm thầm lưu tọa độ`. Geocoder có thể trả sai cổng vào, trả một đường lân cận, hiểu nhầm địa chỉ, trả nhiều/kết quả confidence thấp hoặc thất bại. Không kết quả nào được tin cậy nếu Owner chưa xác nhận hoặc sửa marker.
+
+### Location identity, stale coordinates và moderation
+
+Location identity của Venue gồm:
+
+- `address`;
+- `province`;
+- `ward`;
+- `latitude`;
+- `longitude`.
+
+Các giá trị này phải được giữ đồng bộ. Đối với Venue đang `ACTIVE`, thay đổi bất kỳ thành phần nào của location identity đều là thay đổi nhạy cảm với moderation và phải đưa Venue về `PENDING` theo semantics kiểm duyệt hiện có.
+
+Khi Owner thay đổi address, Province hoặc Ward, tọa độ đã xác nhận trước đó lập tức trở thành stale và không còn được xem là đáng tin cậy. Implementation tương lai phải yêu cầu xác nhận lại theo lifecycle:
+
+> **Existing confirmed location → Owner modifies address → Location confirmation becomes stale → Geocode again → Show suggested marker → Owner confirms/corrects marker → Save new location**
+
+Không được âm thầm giữ tọa độ thuộc địa chỉ cũ như vị trí của địa chỉ mới.
+
+### Lỗi geocoding và manual fallback
+
+Nếu geocoding không có kết quả, lỗi provider/network hoặc trả vị trí rõ ràng không đúng, Owner vẫn phải có một cách có kiểm soát để đặt hoặc sửa marker thủ công trên Leaflet. Ứng dụng không được tự bịa tọa độ.
+
+Phase 1.3B1 phải hỗ trợ:
+
+- luồng chính: `address → geocode → Owner xác nhận marker`;
+- fallback: Owner tự chọn hoặc sửa marker rồi xác nhận.
+
+### Tương thích dữ liệu thiếu tọa độ và schema
+
+- `Venue.latitude` và `Venue.longitude` hiện tại đủ cho nhu cầu lưu tọa độ MVP; chưa có kế hoạch migration.
+- Hai cột tiếp tục nullable để tương thích với dữ liệu hiện có.
+- Không thêm geometry/geography, `map_url`, location JSON hoặc bảng tọa độ mới nếu chưa có defect triển khai cụ thể chứng minh là cần thiết.
+- `google_place_id` không bắt buộc trong kiến trúc Leaflet mới.
+- Public page chỉ render Leaflet marker khi Venue có cặp tọa độ hợp lệ đã được xác nhận.
+- Venue thiếu tọa độ phải dùng fallback có chủ đích như `full_address` và liên kết chỉ đường ngoài hệ thống; không được hiển thị marker mặc định hoặc giả như vị trí thật.
+
+Các Venue development hiện có chưa có tọa độ được xác nhận. Phase 1.3B0 không backfill dữ liệu. Phase 1.3B2 sẽ điền tọa độ qua application flow có kiểm soát, dùng cùng nguyên tắc geocode rồi Owner/Admin xác nhận, không cập nhật SQL trực tiếp và không dùng fixture tọa độ bịa như dữ liệu production-like.
+
+### Ranh giới Phase 1.3B1 và Nearby
+
+Phase 1.3B1 chỉ thiết lập tọa độ Venue đáng tin cậy. Không đưa “Sân quanh tôi”, radius filter, Haversine query, sắp xếp theo khoảng cách hoặc browser current location vào bước này. Các hành vi đó thuộc Phase 1.3E và chỉ được triển khai sau khi độ phủ/chất lượng tọa độ đủ tốt.
+
+### Rủi ro yêu cầu Google Maps
+
+- Bằng chứng hiện có trong repository không xác lập Google Maps API là công nghệ runtime bắt buộc.
+- Leaflet + OpenStreetMap-compatible tiles là kiến trúc bản đồ nhúng MVP được chọn; geocoding provider là quyết định riêng.
+- Không được mô tả Leaflet là tương đương Google Maps API.
+- Nếu giảng viên hướng dẫn yêu cầu rõ Google Maps API là công nghệ bắt buộc ở ngoài tài liệu repository, ADR này phải được xem xét lại trước khi triển khai tiếp.
