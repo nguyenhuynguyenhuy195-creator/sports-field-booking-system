@@ -202,7 +202,7 @@ Step 4.0 chỉ là foundation dữ liệu; **không đồng nghĩa Step 4 Admin 
 
 ## PHASE 1.3 – LOCATION & MAP ENHANCEMENT
 
-**Trạng thái: ĐANG THỰC HIỆN – 1.3B1 DONE / ACCEPTED; CÁC BƯỚC SAU VẪN PLANNED**
+**Trạng thái: ĐANG THỰC HIỆN – 1.3B2 DONE / ACCEPTED; 1.3C VÀ CÁC BƯỚC SAU VẪN PLANNED**
 
 Phase này mở rộng foundation địa chỉ đã nghiệm thu ở Phase 1.2 bằng tọa độ Venue đáng tin cậy và bản đồ nhúng Leaflet. Leaflet chỉ render/tương tác bản đồ; tile và geocoding là các dịch vụ riêng. Liên kết Google Maps ngoài hệ thống từ `full_address` tiếp tục là fallback/tiện ích độc lập.
 
@@ -244,11 +244,16 @@ Phase này mở rộng foundation địa chỉ đã nghiệm thu ở Phase 1.2 b
 
 ### 1.3B2 – Existing Venue Coordinate Population
 
-**Trạng thái: PLANNED – CHƯA BẮT ĐẦU**
+**Trạng thái: DONE / ACCEPTED (02/09/2026)**
 
 - Điền tọa độ cho Venue hiện có qua application flow có kiểm soát.
 - Dùng cùng nguyên tắc geocode → Owner/Admin xác nhận.
 - Không cập nhật SQL trực tiếp hoặc dùng tọa độ bịa làm dữ liệu production-like.
+- Coverage trước population: 16 Venue; 1 có cặp tọa độ hợp lệ, 15 thiếu tọa độ.
+- Owner đã review/confirm qua Venue edit flow cho Venue 21, 22 và 23; coverage sau population là 4/16, không có partial pair, `0,0` hoặc tọa độ ngoài phạm vi.
+- Venue 9 không có kết quả Nominatim phù hợp; Venue 10 có địa chỉ chưa đủ rõ; Venue 11–20 dùng địa chỉ demo `Đường Trải Nghiệm`. Cả 12 Venue được giữ unconfirmed để manual review, không đoán tọa độ.
+- Address/province/ward không thay đổi. Ba Venue ACTIVE được thiết lập tọa độ đã chuyển sang PENDING đúng moderation rule; Venue chưa xác nhận giữ nguyên trạng thái.
+- Focused location/Venue tests: 52 passed; `git diff --check` đạt; `flask db check` không phát hiện upgrade operation mới; Alembic current/head giữ nguyên `a6d8e4f2c913`.
 
 ### 1.3C – Venue Detail Map
 
@@ -555,7 +560,7 @@ Hiện tại:
 - Phase 1A: DONE.
 - Phase 1B: DONE.
 - Phase 1.2: DONE / ACCEPTED (30/08/2026).
-- Phase 1.3: IN PROGRESS; 1.3A, 1.3B0 và 1.3B1 DONE / ACCEPTED, các bước sau PLANNED.
+- Phase 1.3: IN PROGRESS; 1.3A, 1.3B0, 1.3B1 và 1.3B2 DONE / ACCEPTED; 1.3C và các bước sau PLANNED.
 - Phase 2: NOT STARTED / DEFERRED BY USER DECISION.
 - Phase 3: DONE / ACCEPTED (02/09/2026).
 - Phase 4: NOT YET AUDITED / ACCEPTED.
@@ -599,9 +604,9 @@ DONE:
 
 ### TASK TIẾP THEO
 
-**PHASE 1.3B1 – OWNER COORDINATE LIFECYCLE — DONE / ACCEPTED**
+**PHASE 1.3B2 – EXISTING VENUE COORDINATE POPULATION — DONE / ACCEPTED**
 
-Phase 1.3B1 đã được nghiệm thu sau automated/browser QA và final visual review. Không backfill Venue hiện có hoặc bắt đầu Phase 1.3B2, Venue Detail map, Find Venue map, current location hay nearby search nếu chưa có yêu cầu riêng. Phase 2 vẫn tạm hoãn và không tự khởi động.
+Phase 1.3B2 đã được nghiệm thu với coverage 4/16; 12 Venue có địa chỉ ambiguous/demo vẫn unconfirmed để manual review. Không bắt đầu Phase 1.3C, Venue Detail map, Find Venue map, current location hoặc nearby search nếu chưa có yêu cầu riêng. Phase 2 vẫn tạm hoãn và không tự khởi động.
 
 ---
 
