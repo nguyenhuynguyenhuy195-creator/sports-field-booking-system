@@ -1187,6 +1187,98 @@ a.owner-sidebar-link:hover {
     font-weight: 700;
 }
 
+.owner-location-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    align-items: center;
+    margin-bottom: 0.7rem;
+}
+
+.owner-location-toolbar .btn {
+    display: inline-flex;
+    gap: 0.38rem;
+    align-items: center;
+    min-height: var(--owner-control-height);
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+.owner-location-toolbar .btn.is-confirmed:disabled {
+    color: #fff;
+    background: #197347;
+    border-color: #197347;
+    opacity: 1;
+}
+
+.owner-location-state {
+    display: inline-flex;
+    gap: 0.32rem;
+    align-items: center;
+    min-height: 28px;
+    padding: 0.28rem 0.48rem;
+    border: 1px solid #d6dfda;
+    border-radius: 999px;
+    color: #526b61;
+    background: #f7f9f8;
+    font-size: 0.62rem;
+    font-weight: 700;
+}
+
+.owner-location-state.is-suggestion {
+    color: #815d0d;
+    background: #fff8e4;
+    border-color: #ecd79b;
+}
+
+.owner-location-state.is-confirmed {
+    color: #176342;
+    background: #e8f5ed;
+    border-color: #b9dec8;
+}
+
+.owner-location-coordinates {
+    min-height: 1rem;
+    margin-top: 0.22rem;
+    color: #788a82;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.58rem;
+    line-height: 1.35;
+}
+
+.owner-location-map {
+    width: 100%;
+    height: 360px;
+    overflow: hidden;
+    background: #e8efeb;
+    border: 1px solid #ccdcd4;
+    border-radius: 10px;
+}
+
+.owner-location-map:focus-within {
+    outline: 3px solid rgba(25, 135, 84, 0.18);
+}
+
+.owner-location-status {
+    min-height: 1.4rem;
+    padding-top: 0.55rem;
+    color: #526b61;
+    font-size: 0.68rem;
+    font-weight: 600;
+}
+
+.owner-location-status.is-error { color: #a22935; }
+.owner-location-status.is-warning { color: #815d0d; }
+.owner-location-status.is-success { color: #176342; }
+.owner-location-status.is-loading { color: #365f75; }
+
+@media (max-width: 767.98px) {
+    .owner-location-map { height: 280px; }
+    .owner-location-toolbar { align-items: stretch; }
+    .owner-location-toolbar .btn { flex: 1 1 140px; justify-content: center; }
+    .owner-location-state { flex: 1 1 100%; justify-content: center; }
+}
+
 /* Owner field catalogue: compact product cards, isolated from public field cards. */
 .owner-fields-page {
     max-width: var(--owner-page-width) !important;

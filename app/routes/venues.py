@@ -1,6 +1,7 @@
 from flask import (
     Blueprint,
     abort,
+    current_app,
     flash,
     jsonify,
     redirect,
@@ -16,16 +17,21 @@ from app.forms import (
     MediaUploadForm,
     ModerateVenueForm,
     VenueForm,
+    VenueGeocodeForm,
     VenueSearchForm,
 )
 from app.models import DAY_OF_WEEK_LABELS, UserRole, VenueStatus
 from app.services import (
     AdministrativeUnitError,
+    GeocodingError,
+    GeocodingNotFoundError,
+    GeocodingProviderError,
     VenueError,
     VenueNotFoundError,
     VenuePermissionError,
     build_google_maps_directions_url,
     create_venue,
+    geocode_venue_address,
     get_owner_venue,
     get_public_venue,
     list_admin_venues,
@@ -175,6 +181,33 @@ def owner_index():
     )
 
 
+@venues_bp.post("/owner/venues/geocode")
+@roles_required(UserRole.OWNER)
+def owner_geocode():
+    form = VenueGeocodeForm()
+    if not form.validate_on_submit():
+        return jsonify(
+            error="Vui lòng nhập địa chỉ, tỉnh/thành phố và phường/xã hợp lệ."
+        ), 400
+    try:
+        result = geocode_venue_address(
+            address=form.address.data,
+            province_code=form.province_code.data,
+            ward_code=form.ward_code.data,
+        )
+    except GeocodingNotFoundError as exc:
+        return jsonify(error=str(exc)), 422
+    except GeocodingProviderError as exc:
+        return jsonify(error=str(exc)), 503
+    except GeocodingError as exc:
+        return jsonify(error=str(exc)), 400
+    return jsonify(
+        latitude=format(result.latitude, "f"),
+        longitude=format(result.longitude, "f"),
+        display_name=result.display_name,
+    )
+
+
 @venues_bp.route("/owner/venues/new", methods=["GET", "POST"])
 @roles_required(UserRole.OWNER)
 def owner_create():
@@ -192,6 +225,10 @@ def owner_create():
                 description=form.description.data,
                 opening_time=form.opening_time_value,
                 closing_time=form.closing_time_value,
+                latitude=form.latitude.data,
+                longitude=form.longitude.data,
+                coordinates_confirmed=form.location_confirmed.data == "1",
+                require_coordinates=True,
             )
         except VenueError as exc:
             flash(str(exc), "warning")
@@ -208,6 +245,8 @@ def owner_create():
         page_title="Thêm cơ sở",
         submit_label="Tạo cơ sở",
         wards_api_url=url_for("venues.administrative_wards"),
+        geocode_url=url_for("venues.owner_geocode"),
+        map_tile_url=current_app.config["MAP_TILE_URL"],
     )
 
 
@@ -244,6 +283,9 @@ def owner_edit(venue_id: int):
                 description=form.description.data,
                 opening_time=form.opening_time_value,
                 closing_time=form.closing_time_value,
+                latitude=form.latitude.data,
+                longitude=form.longitude.data,
+                coordinates_confirmed=form.location_confirmed.data == "1",
             )
         except VenuePermissionError:
             abort(403)
@@ -264,6 +306,8 @@ def owner_edit(venue_id: int):
         media_upload_form=MediaUploadForm(),
         media_action_form=MediaActionForm(),
         wards_api_url=url_for("venues.administrative_wards"),
+        geocode_url=url_for("venues.owner_geocode"),
+        map_tile_url=current_app.config["MAP_TILE_URL"],
     )
 
 

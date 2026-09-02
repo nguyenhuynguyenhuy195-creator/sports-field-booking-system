@@ -61,6 +61,27 @@ class BaseConfig:
     MOMO_TIMEOUT_SECONDS = int(os.getenv("MOMO_TIMEOUT_SECONDS", "30"))
     MEDIA_ROOT = os.getenv("MEDIA_ROOT")
     MEDIA_MAX_BYTES = int(os.getenv("MEDIA_MAX_BYTES", str(5 * 1024 * 1024)))
+    GEOCODING_PROVIDER = os.getenv("GEOCODING_PROVIDER", "nominatim")
+    NOMINATIM_BASE_URL = os.getenv(
+        "NOMINATIM_BASE_URL",
+        "https://nominatim.openstreetmap.org",
+    )
+    NOMINATIM_USER_AGENT = os.getenv(
+        "NOMINATIM_USER_AGENT",
+        "sports-field-booking-student-demo/1.0 "
+        "(https://github.com/nguyenhuynguyenhuy195-creator/"
+        "sports-field-booking-system)",
+    )
+    GEOCODING_TIMEOUT_SECONDS = float(
+        os.getenv("GEOCODING_TIMEOUT_SECONDS", "5")
+    )
+    GEOCODING_CACHE_TTL_SECONDS = int(
+        os.getenv("GEOCODING_CACHE_TTL_SECONDS", "86400")
+    )
+    MAP_TILE_URL = os.getenv(
+        "MAP_TILE_URL",
+        "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+    )
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
     REMEMBER_COOKIE_HTTPONLY = True

@@ -202,7 +202,7 @@ Step 4.0 chỉ là foundation dữ liệu; **không đồng nghĩa Step 4 Admin 
 
 ## PHASE 1.3 – LOCATION & MAP ENHANCEMENT
 
-**Trạng thái: ĐANG THỰC HIỆN – 1.3B0 ĐÃ NGHIỆM THU; 1.3B1 VÀ CÁC BƯỚC SAU ĐANG LẬP KẾ HOẠCH**
+**Trạng thái: ĐANG THỰC HIỆN – 1.3B1 DONE / ACCEPTED; CÁC BƯỚC SAU VẪN PLANNED**
 
 Phase này mở rộng foundation địa chỉ đã nghiệm thu ở Phase 1.2 bằng tọa độ Venue đáng tin cậy và bản đồ nhúng Leaflet. Leaflet chỉ render/tương tác bản đồ; tile và geocoding là các dịch vụ riêng. Liên kết Google Maps ngoài hệ thống từ `full_address` tiếp tục là fallback/tiện ích độc lập.
 
@@ -225,7 +225,7 @@ Phase này mở rộng foundation địa chỉ đã nghiệm thu ở Phase 1.2 b
 
 ### 1.3B1 – Owner Coordinate Lifecycle
 
-**Trạng thái: PLANNED – CHƯA BẮT ĐẦU**
+**Trạng thái: DONE / ACCEPTED (02/09/2026)**
 
 - Đánh giá và tích hợp geocoding provider.
 - Leaflet trong Venue create/edit.
@@ -235,6 +235,12 @@ Phase này mở rộng foundation địa chỉ đã nghiệm thu ở Phase 1.2 b
 - Tích hợp moderation cho toàn bộ location identity.
 - Không dự kiến migration.
 - Chỉ thiết lập tọa độ Venue đáng tin cậy; không gồm browser geolocation, nearby, radius, Haversine hoặc distance sorting.
+- Public Nominatim được chọn cho lưu lượng student/demo thấp, chỉ gọi khi Owner bấm tìm, có cache, giới hạn nhịp, timeout và manual-marker fallback; không xem đây là hạ tầng production không giới hạn.
+- Leaflet 1.9.4 dùng OSM-compatible tiles có attribution trong riêng Owner Venue create/edit; Venue Detail/Find Venue chưa có embedded map.
+- Focused location/Venue tests: 52 passed; related Owner Venue tests: 51 passed; final full regression: 328 passed trong 127.17 giây.
+- Final visual review: trạng thái suggestion/unconfirmed/confirmed rõ ràng; Leaflet nhất quán với Owner Console; desktop 1440×900 và mobile 390×844 được chấp thuận.
+- Final acceptance checks: `git diff --check` đạt; `flask db check` không phát hiện upgrade operation mới.
+- Alembic head giữ nguyên `a6d8e4f2c913`; `flask db check` không phát hiện upgrade operation mới.
 
 ### 1.3B2 – Existing Venue Coordinate Population
 
@@ -549,7 +555,7 @@ Hiện tại:
 - Phase 1A: DONE.
 - Phase 1B: DONE.
 - Phase 1.2: DONE / ACCEPTED (30/08/2026).
-- Phase 1.3: IN PROGRESS; 1.3A và 1.3B0 DONE / ACCEPTED, 1.3B1 và các bước sau PLANNED.
+- Phase 1.3: IN PROGRESS; 1.3A, 1.3B0 và 1.3B1 DONE / ACCEPTED, các bước sau PLANNED.
 - Phase 2: NOT STARTED / DEFERRED BY USER DECISION.
 - Phase 3: DONE / ACCEPTED (02/09/2026).
 - Phase 4: NOT YET AUDITED / ACCEPTED.
@@ -593,9 +599,9 @@ DONE:
 
 ### TASK TIẾP THEO
 
-**PHASE 1.3B1 – OWNER COORDINATE LIFECYCLE — PLANNED / CHƯA BẮT ĐẦU**
+**PHASE 1.3B1 – OWNER COORDINATE LIFECYCLE — DONE / ACCEPTED**
 
-ADR-036 và Phase 1.3B0 đã DONE / ACCEPTED. Không cài Leaflet, chọn/tích hợp geocoder, sửa runtime, backfill dữ liệu hoặc bắt đầu Phase 1.3B1 nếu chưa có yêu cầu triển khai riêng. Phase 2 vẫn tạm hoãn và không tự khởi động.
+Phase 1.3B1 đã được nghiệm thu sau automated/browser QA và final visual review. Không backfill Venue hiện có hoặc bắt đầu Phase 1.3B2, Venue Detail map, Find Venue map, current location hay nearby search nếu chưa có yêu cầu riêng. Phase 2 vẫn tạm hoãn và không tự khởi động.
 
 ---
 

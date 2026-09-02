@@ -25,6 +25,10 @@
 
 {% block title %}{{ page_title }} · Sân Thể Thao{% endblock %}
 {% block owner_page_label %}Cơ sở &amp; Sân{% endblock %}
+{% block head %}
+    {{ super() }}
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous">
+{% endblock %}
 
 {% block content %}
 <section class="container owner-page-container owner-venue-form-page py-4 py-lg-5">
@@ -38,7 +42,7 @@
         <div class="owner-venue-form-card venue-form-card">
 
             {% if venue and venue.status == 'ACTIVE' %}
-                <div class="alert alert-info owner-venue-review-note"><i class="bi bi-info-circle" aria-hidden="true"></i><span><strong>Cơ sở đang hoạt động.</strong> Đổi tên hoặc địa chỉ sẽ đưa cơ sở về trạng thái chờ duyệt; các thay đổi khác vẫn giữ trạng thái hiện tại.</span></div>
+                <div class="alert alert-info owner-venue-review-note"><i class="bi bi-info-circle" aria-hidden="true"></i><span><strong>Cơ sở đang hoạt động.</strong> Đổi tên, địa chỉ hành chính hoặc tọa độ sẽ đưa cơ sở về trạng thái chờ duyệt; các thay đổi khác vẫn giữ trạng thái hiện tại.</span></div>
             {% endif %}
 
             <form method="post" novalidate>
@@ -80,8 +84,58 @@
                 {{ render_field(form.address, placeholder="Ví dụ: 123 Nguyễn Hữu Thọ") }}
 
                 <p class="form-text mt-0 mb-3">
-                    Địa chỉ này sẽ được dùng để tìm kiếm và mở chỉ đường trên Google Maps.
+                    Địa chỉ này được dùng để tìm vị trí trên bản đồ và mở chỉ đường.
                 </p>
+                </section>
+
+                <section class="owner-venue-form-section" aria-labelledby="venue-location-heading">
+                    <div class="owner-venue-form-section-heading">
+                        <i class="bi bi-geo-alt" aria-hidden="true"></i>
+                        <div><h2 id="venue-location-heading">Xác nhận vị trí trên bản đồ</h2><p>Kết quả tìm kiếm chỉ là gợi ý. Ghim do bạn xác nhận mới là tọa độ được lưu.</p></div>
+                    </div>
+                    {% set location_errors = form.latitude.errors + form.longitude.errors %}
+                    {% for error in location_errors %}
+                        <div class="alert alert-danger py-2" role="alert">{{ error }}</div>
+                    {% endfor %}
+                    <div class="owner-location-toolbar">
+                        <span id="venue-location-state" class="owner-location-state is-unconfirmed" role="status" aria-live="polite">
+                            <i class="bi bi-exclamation-circle" aria-hidden="true"></i>
+                            <span>Chưa xác nhận vị trí</span>
+                        </span>
+                        <button id="venue-location-search" class="btn btn-outline-primary" type="button">
+                            <i class="bi bi-search" aria-hidden="true"></i>Tìm vị trí
+                        </button>
+                        <button id="venue-location-confirm" class="btn btn-primary" type="button" disabled>
+                            <i class="bi bi-check2-circle" aria-hidden="true"></i>Xác nhận ghim
+                        </button>
+                    </div>
+                    <div
+                        id="venue-location-map"
+                        class="owner-location-map"
+                        data-geocode-url="{{ geocode_url }}"
+                        data-tile-url="{{ map_tile_url }}"
+                        data-original-address="{{ venue.address if venue else '' }}"
+                        data-original-province="{{ venue.province_code if venue else '' }}"
+                        data-original-ward="{{ venue.ward_code if venue else '' }}"
+                        data-existing-coordinates="{{ '1' if venue and venue.has_coordinates else '0' }}"
+                        data-original-latitude="{{ venue.latitude if venue and venue.has_coordinates else '' }}"
+                        data-original-longitude="{{ venue.longitude if venue and venue.has_coordinates else '' }}"
+                        data-is-new="{{ '0' if venue else '1' }}"
+                        role="application"
+                        aria-label="Bản đồ chọn vị trí cơ sở"
+                    ></div>
+                    <div id="venue-location-status" class="owner-location-status" role="status" aria-live="polite">
+                        {% if venue and venue.has_coordinates %}
+                            Tọa độ hiện tại đang được giữ nguyên. Kéo ghim hoặc bấm lên bản đồ để chỉnh.
+                        {% elif venue %}
+                            Cơ sở này chưa có tọa độ. Thông tin vẫn hợp lệ; hãy tìm vị trí hoặc đặt ghim thủ công khi cần cập nhật vị trí.
+                        {% else %}
+                            Nhập đủ địa chỉ rồi tìm vị trí, hoặc bấm trực tiếp lên bản đồ để đặt ghim thủ công.
+                        {% endif %}
+                    </div>
+                    <p id="venue-location-coordinates" class="owner-location-coordinates mb-0" aria-live="polite"></p>
+                    <p class="form-text mb-0">Có thể kéo ghim hoặc bấm lên bản đồ để sửa vị trí. Mỗi thay đổi ghim phải được xác nhận lại trước khi lưu.</p>
+                    <noscript><div class="alert alert-warning mt-2 mb-0">Cần bật JavaScript để chọn và xác nhận tọa độ trên bản đồ.</div></noscript>
                 </section>
 
                 <section class="owner-venue-form-section" aria-labelledby="venue-contact-heading">
@@ -125,4 +179,6 @@
 
 {% block scripts %}
     <script src="{{ url_for('static', filename='js/administrative-unit-picker.js') }}"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>
+    <script src="{{ url_for('static', filename='js/venue-location-picker.js') }}"></script>
 {% endblock %}

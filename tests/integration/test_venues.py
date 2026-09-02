@@ -20,6 +20,8 @@ from app.models import (
     Ward,
 )
 from app.services import (
+    GeocodingProviderError,
+    GeocodingResult,
     VenueError,
     build_google_maps_directions_url,
     create_venue,
@@ -81,6 +83,9 @@ def venue_form_data(**overrides):
         "closing_minute": "00",
         "owner_id": "999999",
         "status": VenueStatus.ACTIVE.value,
+        "latitude": "10.776900",
+        "longitude": "106.700900",
+        "location_confirmed": "1",
     }
     data.update(overrides)
     return data
@@ -98,6 +103,9 @@ def create_venue_for_owner(app, owner_id: int, **overrides) -> int:
             "description": "Có bãi giữ xe.",
             "opening_time": time(6, 0),
             "closing_time": time(23, 0),
+            "latitude": Decimal("10.776900"),
+            "longitude": Decimal("106.700900"),
+            "coordinates_confirmed": True,
         }
         values.update(overrides)
         venue = create_venue(owner=owner, **values)
@@ -839,9 +847,26 @@ def test_owner_critical_update_returns_active_venue_to_pending_review(app, clien
         venue = db.session.get(Venue, venue_id)
         assert venue.name == "Sân bóng Minh Anh Mới"
         assert venue.status == VenueStatus.PENDING.value
+        assert venue.latitude == Decimal("10.776900")
+        assert venue.longitude == Decimal("106.700900")
         assert venue.reviewed_by is None
         assert venue.reviewed_at is None
         assert venue.moderation_note is None
+
+
+def test_owner_create_requires_explicit_marker_confirmation(app, client):
+    owner = create_user(app, email="unconfirmed-marker@example.com", role=UserRole.OWNER)
+    login(client, email=owner.email)
+
+    response = client.post(
+        "/owner/venues/new",
+        data=venue_form_data(location_confirmed="0"),
+    )
+
+    assert response.status_code == 200
+    assert "Vui lòng xác nhận ghim vị trí" in response.get_data(as_text=True)
+    with app.app_context():
+        assert db.session.scalar(db.select(db.func.count(Venue.id))) == 0
 
 
 def test_owner_noncritical_update_keeps_active_venue_approval(app, client):
@@ -878,9 +903,11 @@ def test_owner_noncritical_update_keeps_active_venue_approval(app, client):
         assert venue.reviewed_by == admin.id
         assert venue.reviewed_at is not None
         assert venue.moderation_note == "Duy trì công khai."
+        assert venue.latitude == Decimal("10.776900")
+        assert venue.longitude == Decimal("106.700900")
 
 
-def test_owner_form_has_address_fields_without_embedded_maps(
+def test_owner_form_has_leaflet_location_picker_without_public_maps_api(
     app,
     client,
 ):
@@ -895,8 +922,12 @@ def test_owner_form_has_address_fields_without_embedded_maps(
 
     assert response.status_code == 200
     page = response.get_data(as_text=True)
-    assert "Địa chỉ này sẽ được dùng để tìm kiếm" in page
-    assert "venue-location-picker.js" not in page
+    assert "Địa chỉ này được dùng để tìm vị trí trên bản đồ và mở chỉ đường." in page
+    assert "venue-location-picker.js" in page
+    assert "leaflet@1.9.4" in page
+    assert "Xác nhận ghim" in page
+    assert "Chưa xác nhận vị trí" in page
+    assert "tile.openstreetmap.org" in page
     assert "maps.googleapis.com" not in page
     assert "google_place_id" not in page
 
@@ -1050,7 +1081,7 @@ def test_owner_venue_form_uses_console_shell_and_rejects_short_address(
         assert db.session.scalar(db.select(db.func.count(Venue.id))) == 0
 
 
-def test_owner_update_preserves_legacy_location_data_after_address_change(
+def test_owner_address_change_requires_location_reconfirmation(
     app,
     client,
 ):
@@ -1070,21 +1101,164 @@ def test_owner_update_preserves_legacy_location_data_after_address_change(
 
     response = client.post(
         f"/owner/venues/{venue_id}/edit",
-        data=venue_form_data(address="456 Nguyễn Hữu Thọ"),
+        data=venue_form_data(
+            address="456 Nguyễn Hữu Thọ",
+            location_confirmed="0",
+        ),
+    )
+
+    assert response.status_code == 200
+    assert "Vui lòng xác nhận lại ghim" in response.get_data(as_text=True)
+    with app.app_context():
+        venue = db.session.get(Venue, venue_id)
+        assert venue.address == "123 Nguyễn Hữu Thọ"
+        assert venue.google_place_id == "legacy-place-id"
+        assert venue.latitude == Decimal("10.776900")
+        assert venue.longitude == Decimal("106.700900")
+
+
+def test_active_venue_coordinate_only_change_returns_to_pending(app, client):
+    owner = create_user(app, email="coordinate-owner@example.com", role=UserRole.OWNER)
+    admin = create_user(app, email="coordinate-admin@example.com", role=UserRole.ADMIN)
+    venue_id = create_venue_for_owner(app, owner.id)
+    with app.app_context():
+        venue = db.session.get(Venue, venue_id)
+        venue.status = VenueStatus.ACTIVE.value
+        venue.reviewed_by = admin.id
+        venue.moderation_note = "Đã kiểm tra."
+        db.session.commit()
+    login(client, email=owner.email)
+
+    response = client.post(
+        f"/owner/venues/{venue_id}/edit",
+        data=venue_form_data(latitude="10.777100", longitude="106.701200"),
     )
 
     assert response.status_code == 302
     with app.app_context():
         venue = db.session.get(Venue, venue_id)
-        assert venue.address == "456 Nguyễn Hữu Thọ"
-        assert venue.google_place_id == "legacy-place-id"
-        assert venue.latitude == Decimal("10.776900")
-        assert venue.longitude == Decimal("106.700900")
-        assert venue.district is None
-        assert venue.city is None
-        directions_url = build_google_maps_directions_url(venue)
-        assert "destination=456+Nguy%E1%BB%85n+H%E1%BB%AFu+Th%E1%BB%8D" in directions_url
-        assert "destination_place_id" not in directions_url
+        assert venue.latitude == Decimal("10.777100")
+        assert venue.longitude == Decimal("106.701200")
+        assert venue.status == VenueStatus.PENDING.value
+        assert venue.reviewed_by is None
+        assert venue.moderation_note is None
+
+
+@pytest.mark.parametrize(
+    ("overrides", "message"),
+    [
+        ({"latitude": "91"}, "Vĩ độ phải là số từ -90 đến 90."),
+        ({"longitude": "not-a-number"}, "Kinh độ phải là số từ -180 đến 180."),
+        ({"longitude": ""}, "Vĩ độ và kinh độ phải được gửi cùng nhau."),
+    ],
+)
+def test_owner_create_rejects_invalid_coordinate_input(app, client, overrides, message):
+    owner = create_user(app, email=f"invalid-{len(message)}@example.com", role=UserRole.OWNER)
+    login(client, email=owner.email)
+
+    response = client.post("/owner/venues/new", data=venue_form_data(**overrides))
+
+    assert response.status_code == 200
+    assert message in response.get_data(as_text=True)
+    with app.app_context():
+        assert db.session.scalar(db.select(db.func.count(Venue.id))) == 0
+
+
+def test_existing_venue_without_coordinates_remains_editable(app, client):
+    owner = create_user(app, email="legacy-no-coordinates@example.com", role=UserRole.OWNER)
+    venue_id = create_venue_for_owner(app, owner.id)
+    with app.app_context():
+        venue = db.session.get(Venue, venue_id)
+        venue.latitude = None
+        venue.longitude = None
+        db.session.commit()
+    login(client, email=owner.email)
+
+    response = client.post(
+        f"/owner/venues/{venue_id}/edit",
+        data=venue_form_data(
+            description="Cập nhật mô tả, không đổi vị trí.",
+            latitude="",
+            longitude="",
+            location_confirmed="0",
+        ),
+    )
+
+    assert response.status_code == 302
+    with app.app_context():
+        venue = db.session.get(Venue, venue_id)
+        assert venue.latitude is None
+        assert venue.longitude is None
+        assert venue.description == "Cập nhật mô tả, không đổi vị trí."
+
+
+def test_owner_geocode_endpoint_returns_mocked_suggestion(app, client, monkeypatch):
+    owner = create_user(app, email="geocode-owner@example.com", role=UserRole.OWNER)
+    login(client, email=owner.email)
+    monkeypatch.setattr(
+        "app.routes.venues.geocode_venue_address",
+        lambda **kwargs: GeocodingResult(
+            latitude=Decimal("10.776900"),
+            longitude=Decimal("106.700900"),
+            display_name="Vị trí gợi ý",
+            query="query",
+        ),
+    )
+
+    response = client.post(
+        "/owner/venues/geocode",
+        data={
+            "address": "123 Nguyễn Hữu Thọ",
+            "province_code": HCMC_PROVINCE_CODE,
+            "ward_code": HCMC_WARD_CODE,
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.get_json() == {
+        "latitude": "10.776900",
+        "longitude": "106.700900",
+        "display_name": "Vị trí gợi ý",
+    }
+
+
+def test_owner_geocode_endpoint_handles_provider_failure(app, client, monkeypatch):
+    owner = create_user(app, email="geocode-failure@example.com", role=UserRole.OWNER)
+    login(client, email=owner.email)
+
+    def fail_geocoding(**kwargs):
+        raise GeocodingProviderError(
+            "Không thể kết nối dịch vụ tìm vị trí. Bạn vẫn có thể đặt ghim thủ công trên bản đồ."
+        )
+
+    monkeypatch.setattr("app.routes.venues.geocode_venue_address", fail_geocoding)
+    response = client.post(
+        "/owner/venues/geocode",
+        data={
+            "address": "123 Nguyễn Hữu Thọ",
+            "province_code": HCMC_PROVINCE_CODE,
+            "ward_code": HCMC_WARD_CODE,
+        },
+    )
+
+    assert response.status_code == 503
+    assert "đặt ghim thủ công" in response.get_json()["error"]
+
+
+def test_non_owner_cannot_use_geocode_endpoint(app, client):
+    player = create_user(app, email="geocode-player@example.com", role=UserRole.USER)
+    login(client, email=player.email)
+
+    response = client.post(
+        "/owner/venues/geocode",
+        data={
+            "address": "123 Nguyễn Hữu Thọ",
+            "province_code": HCMC_PROVINCE_CODE,
+            "ward_code": HCMC_WARD_CODE,
+        },
+    )
+
+    assert response.status_code == 403
 
 
 def test_owner_edit_form_keeps_structured_province_and_ward_selection(app, client):

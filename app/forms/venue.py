@@ -1,8 +1,10 @@
 from datetime import time
+from decimal import Decimal
 
 from flask_wtf import FlaskForm
 from wtforms import (
     DecimalField,
+    HiddenField,
     RadioField,
     SelectField,
     StringField,
@@ -126,6 +128,9 @@ class VenueForm(FlaskForm):
         validate_choice=False,
         validators=[DataRequired(message="Vui lòng chọn phường, xã hoặc đặc khu.")],
     )
+    latitude = HiddenField("Vĩ độ")
+    longitude = HiddenField("Kinh độ")
+    location_confirmed = HiddenField(default="0")
     phone = StringField(
         "Số điện thoại cơ sở (không bắt buộc)",
         validators=[
@@ -170,6 +175,34 @@ class VenueForm(FlaskForm):
     )
     submit = SubmitField("Lưu cơ sở")
 
+    def validate(self, extra_validators=None) -> bool:
+        is_valid = super().validate(extra_validators=extra_validators)
+        latitude = (self.latitude.data or "").strip()
+        longitude = (self.longitude.data or "").strip()
+        if bool(latitude) != bool(longitude):
+            message = "Vĩ độ và kinh độ phải được gửi cùng nhau."
+            self.latitude.errors.append(message)
+            self.longitude.errors.append(message)
+            return False
+        if not latitude:
+            return is_valid
+
+        for field, minimum, maximum, label in (
+            (self.latitude, -90, 90, "Vĩ độ"),
+            (self.longitude, -180, 180, "Kinh độ"),
+        ):
+            try:
+                value = Decimal(field.data)
+                in_range = value.is_finite() and minimum <= value <= maximum
+            except (ArithmeticError, ValueError):
+                in_range = False
+            if not in_range:
+                field.errors.append(
+                    f"{label} phải là số từ {minimum} đến {maximum}."
+                )
+                is_valid = False
+        return is_valid
+
     @property
     def opening_time_value(self) -> time:
         return self._combine_time(
@@ -203,6 +236,19 @@ class VenueForm(FlaskForm):
             return
         if opening_time >= closing_time:
             raise ValidationError("Giờ đóng cửa phải sau giờ mở cửa.")
+
+
+class VenueGeocodeForm(FlaskForm):
+    address = StringField(
+        validators=[DataRequired(), Length(min=5, max=255)]
+    )
+    province_code = StringField(
+        validators=[DataRequired(), Length(max=20)]
+    )
+    ward_code = StringField(
+        validators=[DataRequired(), Length(max=20)]
+    )
+
 
 class ModerateVenueForm(FlaskForm):
     decision = RadioField(

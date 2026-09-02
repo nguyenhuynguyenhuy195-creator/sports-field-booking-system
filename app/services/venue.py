@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import time
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from math import ceil
 from urllib.parse import urlencode
 
@@ -423,6 +423,10 @@ def create_venue(
     description: str | None,
     opening_time: time,
     closing_time: time,
+    latitude: str | Decimal | None = None,
+    longitude: str | Decimal | None = None,
+    coordinates_confirmed: bool = False,
+    require_coordinates: bool = False,
 ) -> Venue:
     if owner.role != UserRole.OWNER.value:
         raise VenuePermissionError("Chỉ chủ sân được tạo cơ sở thể thao.")
@@ -434,6 +438,15 @@ def create_venue(
         )
     except AdministrativeUnitError as exc:
         raise VenueError(str(exc)) from exc
+    normalized_coordinates = _normalize_coordinates(latitude, longitude)
+    if require_coordinates and normalized_coordinates is None:
+        raise VenueError(
+            "Vui lòng đặt và xác nhận ghim vị trí trước khi tạo cơ sở."
+        )
+    if normalized_coordinates is not None and not coordinates_confirmed:
+        raise VenueError(
+            "Vui lòng xác nhận ghim vị trí trước khi lưu cơ sở."
+        )
     venue = Venue(
         owner_id=owner.id,
         name=_normalize_required_text(name),
@@ -446,6 +459,8 @@ def create_venue(
         description=(description or "").strip() or None,
         opening_time=opening_time,
         closing_time=closing_time,
+        latitude=(normalized_coordinates or (None, None))[0],
+        longitude=(normalized_coordinates or (None, None))[1],
         status=VenueStatus.PENDING.value,
     )
     db.session.add(venue)
@@ -465,6 +480,9 @@ def update_venue(
     description: str | None,
     opening_time: time,
     closing_time: time,
+    latitude: str | Decimal | None = None,
+    longitude: str | Decimal | None = None,
+    coordinates_confirmed: bool = False,
 ) -> Venue:
     if owner.role != UserRole.OWNER.value:
         raise VenuePermissionError("Chỉ chủ sân được sửa cơ sở thể thao.")
@@ -486,12 +504,33 @@ def update_venue(
 
     normalized_name = _normalize_required_text(name)
     normalized_address = _normalize_required_text(address)
-    critical_change = any(
+    address_changed = any(
         (
-            venue.name != normalized_name,
             venue.address != normalized_address,
             venue.province_code != administrative_address.province.code,
             venue.ward_code != administrative_address.ward.code,
+        )
+    )
+    submitted_coordinates = _normalize_coordinates(latitude, longitude)
+    current_coordinates = (
+        (venue.latitude, venue.longitude) if venue.has_coordinates else None
+    )
+    if submitted_coordinates is None:
+        if address_changed:
+            raise VenueError(
+                "Địa chỉ đã thay đổi. Vui lòng đặt và xác nhận lại ghim vị trí."
+            )
+        submitted_coordinates = current_coordinates
+    coordinates_changed = submitted_coordinates != current_coordinates
+    if (address_changed or coordinates_changed) and not coordinates_confirmed:
+        raise VenueError(
+            "Thông tin vị trí đã thay đổi. Vui lòng xác nhận lại ghim trước khi lưu."
+        )
+    location_changed = address_changed or coordinates_changed
+    critical_change = any(
+        (
+            venue.name != normalized_name,
+            location_changed,
         )
     )
 
@@ -505,6 +544,10 @@ def update_venue(
     venue.description = (description or "").strip() or None
     venue.opening_time = opening_time
     venue.closing_time = closing_time
+    if submitted_coordinates is not None:
+        venue.latitude, venue.longitude = submitted_coordinates
+    if location_changed:
+        venue.google_place_id = None
 
     if venue.status == VenueStatus.ACTIVE.value and critical_change:
         # The current approval only applies to the location and identity that
@@ -517,6 +560,34 @@ def update_venue(
 
     _commit_or_raise("Không thể cập nhật cơ sở lúc này. Vui lòng thử lại.")
     return venue
+
+
+def _normalize_coordinates(
+    latitude: str | Decimal | None,
+    longitude: str | Decimal | None,
+) -> tuple[Decimal, Decimal] | None:
+    raw_latitude = str(latitude).strip() if latitude is not None else ""
+    raw_longitude = str(longitude).strip() if longitude is not None else ""
+    if bool(raw_latitude) != bool(raw_longitude):
+        raise VenueError("Vĩ độ và kinh độ phải được cung cấp cùng nhau.")
+    if not raw_latitude:
+        return None
+    try:
+        normalized_latitude = Decimal(raw_latitude)
+        normalized_longitude = Decimal(raw_longitude)
+        if (
+            not normalized_latitude.is_finite()
+            or not normalized_longitude.is_finite()
+            or not Decimal("-90") <= normalized_latitude <= Decimal("90")
+            or not Decimal("-180") <= normalized_longitude <= Decimal("180")
+        ):
+            raise VenueError("Tọa độ nằm ngoài phạm vi hợp lệ.")
+        return (
+            normalized_latitude.quantize(Decimal("0.000001")),
+            normalized_longitude.quantize(Decimal("0.000001")),
+        )
+    except (InvalidOperation, ValueError) as exc:
+        raise VenueError("Tọa độ không đúng định dạng.") from exc
 
 
 def moderate_venue(

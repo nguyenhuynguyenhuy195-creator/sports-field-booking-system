@@ -110,6 +110,13 @@ from .maintenance import (
     list_owner_maintenances,
     maintenance_blocks_time,
 )
+from .geocoding import (
+    GeocodingError,
+    GeocodingNotFoundError,
+    GeocodingProviderError,
+    GeocodingResult,
+    geocode_venue_address,
+)
 from .media import (
     ALLOWED_IMAGE_EXTENSIONS,
     MediaError,
@@ -306,6 +313,10 @@ __all__ = [
     "FINANCE_ACTIVITY_TYPES",
     "FieldNotFoundError",
     "FieldPermissionError",
+    "GeocodingError",
+    "GeocodingNotFoundError",
+    "GeocodingProviderError",
+    "GeocodingResult",
     "ImmutableFieldTypeError",
     "InvalidOwnerApplicationStateError",
     "InvalidAdminAccountActionError",
@@ -393,6 +404,7 @@ __all__ = [
     "decide_match_request",
     "expire_stale_match_participants",
     "get_owner_venue",
+    "geocode_venue_address",
     "get_visible_image",
     "get_active_field_type",
     "get_active_sport",
