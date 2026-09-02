@@ -162,13 +162,36 @@ def detail(venue_id: int):
     except VenueNotFoundError:
         abort(404)
     directions_url = build_google_maps_directions_url(venue)
+    venue_map = _public_venue_map_data(venue)
     return render_template(
         "venues/detail.html",
         venue=venue,
         fields=list_public_fields(venue.id),
         day_labels=DAY_OF_WEEK_LABELS,
         directions_url=directions_url,
+        venue_map=venue_map,
+        map_tile_url=current_app.config["MAP_TILE_URL"],
     )
+
+
+def _public_venue_map_data(venue):
+    """Return only trusted, display-safe map data for the public detail page."""
+    if venue.latitude is None or venue.longitude is None:
+        return None
+
+    latitude = float(venue.latitude)
+    longitude = float(venue.longitude)
+    if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
+        return None
+    if latitude == 0 and longitude == 0:
+        return None
+
+    return {
+        "latitude": f"{latitude:.6f}",
+        "longitude": f"{longitude:.6f}",
+        "name": venue.name,
+        "address": venue.full_address,
+    }
 
 
 @venues_bp.get("/owner/venues")

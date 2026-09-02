@@ -202,7 +202,7 @@ Step 4.0 chỉ là foundation dữ liệu; **không đồng nghĩa Step 4 Admin 
 
 ## PHASE 1.3 – LOCATION & MAP ENHANCEMENT
 
-**Trạng thái: ĐANG THỰC HIỆN – 1.3B2 DONE / ACCEPTED; 1.3C VÀ CÁC BƯỚC SAU VẪN PLANNED**
+**Trạng thái: ĐANG THỰC HIỆN – 1.3C DONE / ACCEPTED; 1.3D VÀ CÁC BƯỚC SAU VẪN PLANNED**
 
 Phase này mở rộng foundation địa chỉ đã nghiệm thu ở Phase 1.2 bằng tọa độ Venue đáng tin cậy và bản đồ nhúng Leaflet. Leaflet chỉ render/tương tác bản đồ; tile và geocoding là các dịch vụ riêng. Liên kết Google Maps ngoài hệ thống từ `full_address` tiếp tục là fallback/tiện ích độc lập.
 
@@ -257,11 +257,17 @@ Phase này mở rộng foundation địa chỉ đã nghiệm thu ở Phase 1.2 b
 
 ### 1.3C – Venue Detail Map
 
-**Trạng thái: PLANNED – CHƯA BẮT ĐẦU**
+**Trạng thái: DONE / ACCEPTED (02/09/2026)**
 
-- Leaflet map với marker đã xác nhận.
-- Venue thiếu tọa độ dùng fallback có chủ đích bằng `full_address` và external directions.
-- Không hiển thị marker giả/mặc định như vị trí thật.
+- Venue Detail public chỉ render Leaflet khi Venue có cặp latitude/longitude hợp lệ đã được Owner xác nhận; map có một marker rõ ràng tại tọa độ đáng tin cậy đó.
+- Không geocode khi public page load, không dùng marker giả/mặc định, browser geolocation, nearby/radius hay thay đổi search/booking logic.
+- Venue thiếu tọa độ hiển thị fallback có chủ đích bằng `full_address`; external Google Maps directions vẫn luôn sẵn sàng.
+- Nếu Leaflet/tile render lỗi, address, directions và booking content vẫn hoạt động; map chỉ chuyển sang thông báo fallback.
+- Dữ liệu truyền cho public template tối thiểu: latitude, longitude, tên Venue và địa chỉ cần cho marker/popup; không lộ dữ liệu Owner/Admin.
+- Reuse Leaflet 1.9.4 và OSM-compatible tile setup/attribution đã chấp thuận ở 1.3B1.
+- Visual review desktop cho cả trường hợp có tọa độ và không tọa độ đã đạt; responsive QA 1440×900, 1366×768, tablet và 390×844 đạt, không horizontal overflow, marker/attribution/focus vẫn sử dụng được.
+- Focused public Venue/detail và location/Venue tests: 54 passed; full regression: 330 passed trong 120.04 giây.
+- `git diff --check` đạt; `flask db check` không phát hiện upgrade operation mới; không có thay đổi schema/model/migration/dependency; Alembic current/head giữ nguyên `a6d8e4f2c913`.
 
 ### 1.3D – Find Venue Map
 
@@ -560,7 +566,7 @@ Hiện tại:
 - Phase 1A: DONE.
 - Phase 1B: DONE.
 - Phase 1.2: DONE / ACCEPTED (30/08/2026).
-- Phase 1.3: IN PROGRESS; 1.3A, 1.3B0, 1.3B1 và 1.3B2 DONE / ACCEPTED; 1.3C và các bước sau PLANNED.
+- Phase 1.3: IN PROGRESS; 1.3A, 1.3B0, 1.3B1, 1.3B2 và 1.3C DONE / ACCEPTED; 1.3D và các bước sau PLANNED.
 - Phase 2: NOT STARTED / DEFERRED BY USER DECISION.
 - Phase 3: DONE / ACCEPTED (02/09/2026).
 - Phase 4: NOT YET AUDITED / ACCEPTED.
@@ -604,9 +610,9 @@ DONE:
 
 ### TASK TIẾP THEO
 
-**PHASE 1.3B2 – EXISTING VENUE COORDINATE POPULATION — DONE / ACCEPTED**
+**PHASE 1.3C – PUBLIC VENUE DETAIL MAP — DONE / ACCEPTED**
 
-Phase 1.3B2 đã được nghiệm thu với coverage 4/16; 12 Venue có địa chỉ ambiguous/demo vẫn unconfirmed để manual review. Không bắt đầu Phase 1.3C, Venue Detail map, Find Venue map, current location hoặc nearby search nếu chưa có yêu cầu riêng. Phase 2 vẫn tạm hoãn và không tự khởi động.
+Phase 1.3C đã được nghiệm thu: Venue có tọa độ đáng tin cậy hiển thị Leaflet một marker; Venue thiếu tọa độ dùng address fallback và directions; public page không geocode. Không bắt đầu Phase 1.3D, Find Venue map, current location hoặc nearby search nếu chưa có yêu cầu riêng. Phase 2 vẫn tạm hoãn và không tự khởi động.
 
 ---
 

@@ -568,6 +568,7 @@ def test_owner_admin_user_share_one_structured_venue_field_and_price(
         )
         db.session.add(field)
         db.session.flush()
+        field_id = field.id
         db.session.add(
             FieldPriceSlot(
                 field_id=field.id,
@@ -601,6 +602,70 @@ def test_owner_admin_user_share_one_structured_venue_field_and_price(
     assert "Sân xuyên suốt" in detail
     assert "275.000 đ/giờ" in detail
     assert 'class="nav-link active" href="/venues" aria-current="page"' in detail
+    assert f'href="/venues/{venue_id}/fields/{field_id}/bookings/new"' in detail
+
+
+def test_public_venue_detail_renders_leaflet_map_for_confirmed_coordinates(
+    app,
+    client,
+):
+    owner = create_user(
+        app,
+        email="public-map-owner@example.com",
+        role=UserRole.OWNER,
+    )
+    venue_id = create_venue_for_owner(app, owner.id, name="Cơ sở có bản đồ")
+    with app.app_context():
+        venue = db.session.get(Venue, venue_id)
+        venue.status = VenueStatus.ACTIVE.value
+        db.session.commit()
+
+    response = client.get(f"/venues/{venue_id}")
+    page = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert 'id="venue-public-map"' in page
+    assert 'data-latitude="10.776900"' in page
+    assert 'data-longitude="106.700900"' in page
+    assert "Vị trí đã xác nhận" in page
+    assert "leaflet@1.9.4" in page
+    assert "venue-detail-map.js" in page
+    assert "/owner/venues/geocode" not in page
+    assert "Mở chỉ đường trên Google Maps" in page
+
+
+def test_public_venue_detail_without_coordinates_uses_address_fallback(
+    app,
+    client,
+):
+    owner = create_user(
+        app,
+        email="public-map-fallback-owner@example.com",
+        role=UserRole.OWNER,
+    )
+    venue_id = create_venue_for_owner(
+        app,
+        owner.id,
+        name="Cơ sở chưa có tọa độ",
+        latitude=None,
+        longitude=None,
+        coordinates_confirmed=False,
+    )
+    with app.app_context():
+        venue = db.session.get(Venue, venue_id)
+        venue.status = VenueStatus.ACTIVE.value
+        db.session.commit()
+
+    response = client.get(f"/venues/{venue_id}")
+    page = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "Chưa có vị trí trên bản đồ" in page
+    assert "123 Nguyễn Hữu Thọ" in page
+    assert 'id="venue-public-map"' not in page
+    assert "leaflet@1.9.4" not in page
+    assert "venue-detail-map.js" not in page
+    assert "Mở chỉ đường trên Google Maps" in page
 
 
 def test_public_venue_filters_combine_field_type_and_matching_type_price(

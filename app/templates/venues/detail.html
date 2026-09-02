@@ -2,6 +2,13 @@
 
 {% block title %}{{ venue.name }} · Sân Thể Thao{% endblock %}
 
+{% block head %}
+    {{ super() }}
+    {% if venue_map %}
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous">
+    {% endif %}
+{% endblock %}
+
 {% block content %}
 <section class="container venue-search-content venue-detail-page py-4 pb-lg-5">
     <a class="venue-back-link" href="{{ url_for('venues.index') }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Quay lại danh sách sân</a>
@@ -31,6 +38,45 @@
             <a class="btn btn-outline-primary venue-detail-directions-link" href="{{ directions_url }}" target="_blank" rel="noopener noreferrer"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> Mở Google Maps<span class="visually-hidden">Mở chỉ đường trên Google Maps</span></a>
         </aside>
     </article>
+
+    <section class="venue-detail-map-section" aria-labelledby="venue-map-heading">
+        <div class="venue-section-heading">
+            <div>
+                <span class="eyebrow">VỊ TRÍ CƠ SỞ</span>
+                <h2 id="venue-map-heading" class="mb-0">Bản đồ vị trí</h2>
+            </div>
+        </div>
+
+        {% if venue_map %}
+            <div class="venue-public-map-card">
+                <div class="venue-public-map-heading">
+                    <span><i class="bi bi-patch-check-fill" aria-hidden="true"></i> Vị trí đã xác nhận</span>
+                    <small>{{ venue.full_address }}</small>
+                </div>
+                <div
+                    id="venue-public-map"
+                    class="venue-public-map"
+                    role="application"
+                    aria-label="Bản đồ vị trí {{ venue_map.name }}"
+                    tabindex="0"
+                    data-latitude="{{ venue_map.latitude }}"
+                    data-longitude="{{ venue_map.longitude }}"
+                    data-venue-name="{{ venue_map.name }}"
+                    data-venue-address="{{ venue_map.address }}"
+                    data-tile-url="{{ map_tile_url }}"
+                ></div>
+                <p id="venue-public-map-unavailable" class="venue-public-map-unavailable mb-0" hidden aria-live="polite"><i class="bi bi-info-circle" aria-hidden="true"></i> Không thể tải bản đồ lúc này. Bạn vẫn có thể dùng địa chỉ và liên kết chỉ đường ở trên.</p>
+            </div>
+        {% else %}
+            <div class="venue-map-fallback">
+                <i class="bi bi-geo-alt" aria-hidden="true"></i>
+                <div>
+                    <h3 class="h6 mb-1">Chưa có vị trí trên bản đồ</h3>
+                    <p class="mb-0">{{ venue.full_address }}. Bạn vẫn có thể mở chỉ đường bằng nút Google Maps ở trên.</p>
+                </div>
+            </div>
+        {% endif %}
+    </section>
 
     <section class="venue-public-media" aria-labelledby="venue-gallery-heading">
         <div class="venue-section-heading">
@@ -138,4 +184,11 @@
         {% endif %}
     </section>
 </section>
+{% endblock %}
+
+{% block scripts %}
+    {% if venue_map %}
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>
+        <script src="{{ url_for('static', filename='js/venue-detail-map.js') }}"></script>
+    {% endif %}
 {% endblock %}

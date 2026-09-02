@@ -1527,7 +1527,88 @@ a:hover {
 
 .venue-detail-map-section {
     border-top: 1px solid #e4ebe7;
+    margin-top: 1.5rem;
     padding-top: 1.5rem;
+}
+
+.venue-public-map-card {
+    background: #f8fbf9;
+    border: 1px solid #dce9e1;
+    border-radius: 14px;
+    overflow: hidden;
+}
+
+.venue-public-map-heading {
+    align-items: flex-start;
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+    padding: 0.9rem 1rem;
+}
+
+.venue-public-map-heading span {
+    align-items: center;
+    color: #176c43;
+    display: inline-flex;
+    flex: 0 0 auto;
+    font-size: 0.8rem;
+    font-weight: 800;
+    gap: 0.4rem;
+}
+
+.venue-public-map-heading small {
+    color: #68786f;
+    font-size: 0.82rem;
+    line-height: 1.45;
+    text-align: right;
+}
+
+.venue-public-map {
+    height: 340px;
+    width: 100%;
+    z-index: 0;
+}
+
+.venue-public-map:focus-visible {
+    outline: 3px solid rgba(20, 108, 67, 0.32);
+    outline-offset: -3px;
+}
+
+.venue-public-map .leaflet-control-attribution {
+    font-size: 0.68rem;
+}
+
+.venue-public-map-unavailable,
+.venue-map-fallback {
+    align-items: flex-start;
+    color: #607168;
+    display: flex;
+    font-size: 0.9rem;
+    gap: 0.65rem;
+    line-height: 1.55;
+    padding: 1rem;
+}
+
+.venue-public-map-unavailable {
+    border-top: 1px solid #dce9e1;
+}
+
+.venue-public-map-unavailable i,
+.venue-map-fallback > i {
+    color: var(--app-primary);
+    flex: 0 0 auto;
+    margin-top: 0.15rem;
+}
+
+.venue-map-fallback {
+    background: #f8fbf9;
+    border: 1px dashed #cbdcd1;
+    border-radius: 14px;
+}
+
+.venue-map-fallback h3 {
+    color: var(--app-secondary);
+    font-weight: 800;
 }
 
 .venue-description {
@@ -3641,6 +3722,20 @@ a:hover {
 
     .venue-detail-facts {
         padding: 1rem;
+    }
+
+    .venue-public-map {
+        height: 300px;
+    }
+
+    .venue-public-map-heading {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 0.35rem;
+    }
+
+    .venue-public-map-heading small {
+        text-align: left;
     }
 
     .venue-detail-directions-link,
@@ -7699,6 +7794,10 @@ body {
 }
 
 @media (max-width: 575.98px) {
+    .venue-public-map {
+        height: 260px;
+    }
+
     .match-detail-header .btn {
         width: 100%;
     }
