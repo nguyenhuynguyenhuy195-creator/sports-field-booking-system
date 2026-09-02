@@ -55,9 +55,9 @@
                     <span class="owner-sidebar-link owner-sidebar-link-nested{% if maintenance_active %} active{% endif %}" aria-label="Bảo trì — quản lý theo từng sân" aria-disabled="true"{% if maintenance_active %} aria-current="page"{% endif %} title="Bảo trì — quản lý theo từng sân">
                         <i class="bi bi-tools" aria-hidden="true"></i><span>Bảo trì</span>
                     </span>
-                    <span class="owner-sidebar-link owner-sidebar-link-disabled" aria-label="Tài chính — Sắp có" aria-disabled="true" title="Tài chính — Sắp có">
-                        <i class="bi bi-wallet2" aria-hidden="true"></i><span>Tài chính</span><small>Sắp có</small>
-                    </span>
+                    <a class="owner-sidebar-link{% if request.endpoint == 'owner.finance' %} active{% endif %}" href="{{ url_for('owner.finance') }}"{% if request.endpoint == 'owner.finance' %} aria-current="page"{% endif %}>
+                        <i class="bi bi-wallet2" aria-hidden="true"></i><span>Tài chính</span>
+                    </a>
                 </nav>
 
                 <div class="owner-sidebar-actions">

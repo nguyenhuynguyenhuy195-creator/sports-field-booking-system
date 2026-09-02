@@ -344,7 +344,7 @@ Tài liệu tham chiếu:
 - Payout cho Owner ưu tiên sandbox disbursement nếu provider hỗ trợ và dễ tích hợp. Nếu không phù hợp, hệ thống dùng simulated payout adapter để trình diễn đầy đủ vòng đời đối soát mà không chuyển tiền thật.
 - Payout thành công chuyển settlement sang `SETTLED`; lỗi payout được ghi nhận là `FAILED` hoặc `ON_HOLD` tùy nguyên nhân và cần luồng xử lý ngoại lệ của Admin.
 - Phần tiền còn lại sau tiền cọc được thanh toán trực tiếp tại sân; settlement chỉ đối soát các khoản online mà hệ thống có căn cứ ghi nhận.
-- Owner cấu hình tài khoản nhận tiền trong Owner Console. Thông tin tài khoản nhận tiền không thuộc Owner Application.
+- Cấu hình tài khoản hoặc đích nhận chi trả chỉ được thiết kế và triển khai cùng settlement/payout ở Phase 2.6; không thuộc Step 3.5 hoặc Owner Application.
 
 ADR này mở rộng ADR-006 về sandbox và làm rõ phần đối soát chưa được triển khai. ADR-016 vẫn giữ nguyên nguyên tắc booking không chờ Owner xác nhận; việc ánh xạ trạng thái chi tiết trong code hiện hữu chỉ được điều chỉnh khi Phase 2 được yêu cầu riêng.
 

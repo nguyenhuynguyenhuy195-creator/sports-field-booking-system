@@ -6,10 +6,14 @@ from flask_login import current_user
 from app.decorators import roles_required
 from app.models import BookingMode, BookingStatus, UserRole
 from app.services import (
+    OwnerFinanceError,
+    OwnerFinanceNotFoundError,
+    OwnerFinancePermissionError,
     OwnerScheduleNotFoundError,
     OwnerSchedulePermissionError,
     current_vietnam_datetime,
     get_owner_dashboard_summary,
+    get_owner_finance_summary,
     get_owner_schedule_summary,
 )
 
@@ -30,6 +34,25 @@ BOOKING_MODE_LABELS = {
     BookingMode.DIRECT_BOOKING.value: "Đặt trực tiếp",
     BookingMode.FIND_OPPONENT.value: "Tìm đối thủ",
     BookingMode.FIND_PLAYERS.value: "Tìm thêm người",
+}
+
+FINANCE_ACTIVITY_TYPE_LABELS = {
+    "PAYMENT": "Thanh toán",
+    "REFUND": "Hoàn tiền",
+}
+
+FINANCE_STATUS_LABELS = {
+    "PENDING": "Đang chờ xử lý",
+    "PROCESSING": "Đang xử lý",
+    "SUCCESS": "Thành công",
+    "FAILED": "Thất bại",
+    "CANCELLED": "Đã hủy",
+    "EXPIRED": "Đã hết hạn",
+}
+
+FINANCE_PROVIDER_LABELS = {
+    "MOCK": "Mô phỏng",
+    "MOMO": "MoMo Sandbox",
 }
 
 
@@ -53,6 +76,8 @@ def schedule():
         request.args.get("date"),
         default_date=today,
     )
+
+
     venue_id = _parse_positive_id(request.args.get("venue_id"), "venue_id")
     field_id = _parse_positive_id(request.args.get("field_id"), "field_id")
     view = request.args.get("view", "matrix")
@@ -94,6 +119,46 @@ def schedule():
     )
 
 
+@owner_bp.get("/finance")
+@roles_required(UserRole.OWNER)
+def finance():
+    venue_id = _parse_positive_id(request.args.get("venue_id"), "venue_id")
+    field_id = _parse_positive_id(request.args.get("field_id"), "field_id")
+    activity_type = request.args.get("activity_type") or None
+    status = request.args.get("status") or None
+    date_from = _parse_optional_date(request.args.get("date_from"), "date_from")
+    date_to = _parse_optional_date(request.args.get("date_to"), "date_to")
+
+    try:
+        summary = get_owner_finance_summary(
+            current_user.id,
+            venue_id=venue_id,
+            field_id=field_id,
+            activity_type=activity_type,
+            status=status,
+            date_from=date_from,
+            date_to=date_to,
+        )
+    except OwnerFinancePermissionError:
+        abort(403)
+    except OwnerFinanceNotFoundError:
+        abort(404)
+    except OwnerFinanceError as exc:
+        abort(400, description=str(exc))
+
+    return render_template(
+        "owner/finance.html",
+        summary=summary,
+        activity_type=activity_type,
+        status=status,
+        date_from=date_from,
+        date_to=date_to,
+        activity_type_labels=FINANCE_ACTIVITY_TYPE_LABELS,
+        finance_status_labels=FINANCE_STATUS_LABELS,
+        provider_labels=FINANCE_PROVIDER_LABELS,
+    )
+
+
 def _parse_schedule_date(raw_value: str | None, *, default_date: date) -> date:
     if raw_value is None:
         return default_date
@@ -101,6 +166,15 @@ def _parse_schedule_date(raw_value: str | None, *, default_date: date) -> date:
         return date.fromisoformat(raw_value)
     except ValueError:
         abort(400, description="Ngày xem lịch không hợp lệ.")
+
+
+def _parse_optional_date(raw_value: str | None, parameter_name: str) -> date | None:
+    if raw_value in (None, ""):
+        return None
+    try:
+        return date.fromisoformat(raw_value)
+    except ValueError:
+        abort(400, description=f"Tham số {parameter_name} không hợp lệ.")
 
 
 def _parse_positive_id(raw_value: str | None, parameter_name: str) -> int | None:

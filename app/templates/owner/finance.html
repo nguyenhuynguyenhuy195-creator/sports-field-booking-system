@@ -1,0 +1,174 @@
+{% extends "owner/base.html" %}
+{% block title %}Tài chính · Owner Console{% endblock %}
+{% block owner_page_label %}Tài chính{% endblock %}
+
+{% block content %}
+<section class="container owner-page-container owner-finance-page py-4 py-lg-5">
+    <header class="owner-finance-hero">
+        <div>
+            <span class="owner-welcome-eyebrow">THEO DÕI DÒNG TIỀN</span>
+            <h1>Tài chính</h1>
+            <p>Tổng hợp thanh toán và hoàn tiền thuộc các sân của bạn. Các số liệu này chưa phải doanh thu thực nhận hoặc kết quả đối soát.</p>
+        </div>
+        <span class="owner-finance-hero-icon" aria-hidden="true"><i class="bi bi-wallet2"></i></span>
+    </header>
+
+    <form class="owner-finance-scope" method="get" aria-label="Bộ lọc tài chính">
+        <div class="owner-finance-filter-grid">
+            <label>
+                <span>Cơ sở</span>
+                <select class="form-select" name="venue_id">
+                    <option value="">Tất cả cơ sở</option>
+                    {% for venue in summary.venues %}
+                        <option value="{{ venue.id }}"{% if summary.selected_venue and summary.selected_venue.id == venue.id %} selected{% endif %}>{{ venue.name }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>
+                <span>Sân</span>
+                <select class="form-select" name="field_id">
+                    <option value="">Tất cả sân</option>
+                    {% for field in summary.fields %}
+                        <option value="{{ field.id }}" data-venue-id="{{ field.venue_id }}"{% if summary.selected_field and summary.selected_field.id == field.id %} selected{% endif %}>{{ field.venue.name }} · {{ field.name }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>
+                <span>Hoạt động</span>
+                <select class="form-select" name="activity_type">
+                    <option value="">Thanh toán &amp; hoàn tiền</option>
+                    {% for value, label in activity_type_labels.items() %}
+                        <option value="{{ value }}"{% if activity_type == value %} selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>
+                <span>Trạng thái</span>
+                <select class="form-select" name="status">
+                    <option value="">Tất cả trạng thái</option>
+                    {% for value, label in finance_status_labels.items() %}
+                        <option value="{{ value }}"{% if status == value %} selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>
+                <span>Từ ngày giao dịch</span>
+                <input class="form-control" type="date" name="date_from" value="{{ date_from.isoformat() if date_from else '' }}">
+            </label>
+            <label>
+                <span>Đến ngày giao dịch</span>
+                <input class="form-control" type="date" name="date_to" value="{{ date_to.isoformat() if date_to else '' }}">
+            </label>
+        </div>
+        <div class="owner-finance-filter-actions">
+            <p><i class="bi bi-info-circle" aria-hidden="true"></i> Cơ sở và sân áp dụng cho toàn trang; loại, trạng thái và ngày chỉ lọc lịch sử.</p>
+            <div>
+                <a class="btn owner-btn-soft" href="{{ url_for('owner.finance') }}">Xóa lọc</a>
+                <button class="btn owner-btn-primary" type="submit"><i class="bi bi-funnel" aria-hidden="true"></i> Áp dụng</button>
+            </div>
+        </div>
+    </form>
+
+    <div class="owner-finance-kpi-grid" aria-label="Tổng quan tài chính">
+        <article class="owner-finance-kpi">
+            <span class="owner-finance-kpi-icon"><i class="bi bi-receipt" aria-hidden="true"></i></span>
+            <p>Giá trị booking đã giữ sân</p>
+            <strong>{{ summary.booking_value|vnd_currency }}</strong>
+            <small>Tổng giá trị các booking đã hoàn tất bước giữ sân hoặc đã hoàn thành.</small>
+        </article>
+        <article class="owner-finance-kpi">
+            <span class="owner-finance-kpi-icon is-collected"><i class="bi bi-check2-circle" aria-hidden="true"></i></span>
+            <p>Đã thu online</p>
+            <strong>{{ summary.collected_online|vnd_currency }}</strong>
+            <small>Tổng thanh toán trực tuyến thành công, trước hoàn tiền.</small>
+        </article>
+        <article class="owner-finance-kpi">
+            <span class="owner-finance-kpi-icon is-refund"><i class="bi bi-arrow-return-left" aria-hidden="true"></i></span>
+            <p>Đã hoàn</p>
+            <strong>{{ summary.refunded_completed|vnd_currency }}</strong>
+            <small>Tổng số tiền đã hoàn thành công cho người thanh toán.</small>
+        </article>
+        <article class="owner-finance-kpi">
+            <span class="owner-finance-kpi-icon is-venue"><i class="bi bi-shop" aria-hidden="true"></i></span>
+            <p>Dự kiến thanh toán tại sân</p>
+            <strong>{{ summary.expected_at_venue|vnd_currency }}</strong>
+            <small>Phần tiền dự kiến thanh toán trực tiếp tại sân của các booking đang còn hiệu lực.</small>
+        </article>
+    </div>
+
+    <div class="owner-finance-balance-note">
+        <div>
+            <span>Số tiền online hệ thống đang ghi nhận</span>
+            <strong>{{ summary.recorded_online_balance|vnd_currency }}</strong>
+            <small>Số tiền trực tuyến còn được hệ thống ghi nhận sau các khoản hoàn thành công.</small>
+        </div>
+        <div class="owner-finance-pending-refund">
+            <span>Hoàn tiền đang chờ/xử lý</span>
+            <strong>{{ summary.pending_refund_amount|vnd_currency }}</strong>
+            <small>{{ summary.pending_refund_count }} yêu cầu, chưa trừ khỏi số tiền đang ghi nhận</small>
+        </div>
+    </div>
+
+    <section class="owner-dashboard-card owner-finance-history" aria-labelledby="financeHistoryTitle">
+        <div class="owner-section-heading">
+            <div>
+                <h2 id="financeHistoryTitle">Lịch sử tài chính</h2>
+                <p>Các giao dịch thanh toán và hoàn tiền được xếp theo thời điểm mới nhất.</p>
+            </div>
+            <span class="owner-finance-count">{{ summary.activities|length }} hoạt động</span>
+        </div>
+        {% if summary.activities %}
+            <div class="table-responsive owner-finance-table-wrap">
+                <table class="table owner-finance-table align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th scope="col">Thời gian</th>
+                            <th scope="col">Booking</th>
+                            <th scope="col">Cơ sở / Sân</th>
+                            <th scope="col">Khách / người nhận</th>
+                            <th scope="col">Giao dịch</th>
+                            <th scope="col">Trạng thái</th>
+                            <th scope="col" class="text-end">Số tiền</th>
+                            <th scope="col"><span class="visually-hidden">Chi tiết</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for activity in summary.activities %}
+                            <tr>
+                                <td data-label="Thời gian"><strong>{{ activity.occurred_at.strftime('%H:%M') }}</strong><small>{{ activity.occurred_at.strftime('%d/%m/%Y') }}</small></td>
+                                <td data-label="Booking"><strong>{{ activity.booking.booking_code }}</strong><small>{{ activity.reference }}</small></td>
+                                <td data-label="Cơ sở / Sân"><strong>{{ activity.booking.field.venue.name }}</strong><small>{{ activity.booking.field.name }}</small></td>
+                                <td data-label="Khách / người nhận">{{ activity.payer_name }}</td>
+                                <td data-label="Giao dịch"><span class="owner-finance-type is-{{ activity.activity_type|lower }}">{{ activity_type_labels[activity.activity_type] }}</span><small>{{ provider_labels.get(activity.provider, activity.provider) }}</small></td>
+                                <td data-label="Trạng thái"><span class="status-badge status-{{ activity.status|lower|replace('_', '-') }}">{{ finance_status_labels[activity.status] }}</span></td>
+                                <td data-label="Số tiền" class="owner-finance-amount{% if activity.activity_type == 'REFUND' %} is-refund{% endif %}">{% if activity.activity_type == 'REFUND' %}−{% else %}+{% endif %}{{ activity.amount|vnd_currency }}</td>
+                                <td><a class="owner-row-link" href="{{ url_for('bookings.owner_detail', booking_code=activity.booking.booking_code) }}" aria-label="Xem booking {{ activity.booking.booking_code }}"><i class="bi bi-chevron-right" aria-hidden="true"></i></a></td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="owner-dashboard-empty owner-finance-empty">
+                <i class="bi bi-receipt-cutoff" aria-hidden="true"></i>
+                <div><strong>Chưa có hoạt động phù hợp</strong><p>Hoạt động thanh toán hoặc hoàn tiền thuộc phạm vi đã chọn sẽ xuất hiện tại đây.</p></div>
+            </div>
+        {% endif %}
+    </section>
+
+    <div class="owner-finance-foundation-grid">
+        <section class="owner-dashboard-card owner-finance-foundation" aria-labelledby="settlementTitle">
+            <span class="owner-finance-foundation-icon"><i class="bi bi-hourglass-split" aria-hidden="true"></i></span>
+            <div>
+                <span class="status-badge status-inactive">Chưa có dữ liệu đối soát</span>
+                <h2 id="settlementTitle">Đối soát &amp; chi trả</h2>
+                <p>Đối soát và chi trả chưa được triển khai. Thanh toán trực tuyến thành công không đồng nghĩa tiền đã được quyết toán cho Chủ sân.</p>
+            </div>
+        </section>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/owner-finance-filters.js') }}" defer></script>
+{% endblock %}

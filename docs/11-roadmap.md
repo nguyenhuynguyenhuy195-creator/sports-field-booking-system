@@ -28,7 +28,7 @@ Các nhóm nghiệp vụ chính:
 - Quản lý bảo trì.
 - Theo dõi booking.
 - Theo dõi tài chính cơ bản.
-- Khai báo tài khoản nhận tiền.
+- Cấu hình đích nhận chi trả ở Phase 2.6 cùng thiết kế settlement/payout.
 
 ### 3. ADMIN
 
@@ -353,15 +353,16 @@ Theo quyết định của người dùng ngày 31/08/2026:
 - Regression: focused Pricing/Maintenance 38 passed; related Pricing/Maintenance/Booking/Owner Schedule/Dashboard/Field 111 passed; full suite 312 passed, 0 failed.
 - Không tạo model/migration mới; không thay đổi payment, refund, matchmaking, Media hoặc Finance.
 
-### Step 3.5 – Owner Finance Foundation — NOT STARTED
+### Step 3.5 – Owner Finance Foundation — DONE / ACCEPTED (02/09/2026)
 
-- Tổng quan tài chính Owner.
-- Payment liên quan.
-- Settlement status nếu source hỗ trợ.
-- Lịch sử.
-- Tài khoản nhận tiền.
-- Không triển khai payout/settlement engine thực tế.
-- Actual payment, refund và settlement/payout engine được giữ lại cho Phase 2.4 – Thanh toán, Phase 2.5 – Hoàn tiền và Phase 2.6 – Settlement / đối soát chủ sân.
+- Owner Finance là read-model theo phạm vi Owner → Venue → Field, dùng Booking, Payment và Refund làm source of truth.
+- Khách thanh toán online tiền cọc booking bắt buộc 30% qua MoMo/MOCK; phần còn lại thanh toán trực tiếp tại sân.
+- Dashboard có KPI, lọc theo cơ sở/sân, lịch sử thanh toán/hoàn tiền và wording tiếng Việt nghiệp vụ.
+- KPI “Giá trị booking đã giữ sân” là tổng giá trị booking đã giữ sân/hoàn thành, không phải tiền cọc hoặc doanh thu thực nhận.
+- KPI “Dự kiến thanh toán tại sân” chỉ phản ánh phần thanh toán trực tiếp dự kiến của booking còn hiệu lực; không suy diễn khoản đã thu sau khi booking hoàn thành.
+- Giữ trạng thái thông tin “Chưa có dữ liệu đối soát”. Không có settlement/payout engine, tài khoản nhận tiền Owner hoặc trạng thái chi trả giả trong Step 3.5.
+- Settlement/payout và cấu hình đích nhận chi trả được hoãn sang Phase 2.6 cùng thiết kế đối soát.
+- Verification: Finance-focused 5 passed; Payment/Refund/Booking 73 passed; full regression 317 passed; migration head `a6d8e4f2c913`; `flask db check` sạch.
 
 ### Step 3.6 – Owner Console Final Polish & Audit — NOT STARTED
 
@@ -473,7 +474,7 @@ Hiện tại:
 - Phase 1B: DONE.
 - Phase 1.2: DONE / ACCEPTED (30/08/2026).
 - Phase 2: NOT STARTED / DEFERRED BY USER DECISION.
-- Phase 3: IN PROGRESS (Step 3.4 DONE / ACCEPTED; Step 3.5 NOT STARTED).
+- Phase 3: IN PROGRESS (Step 3.4 và Step 3.5 DONE / ACCEPTED; Step 3.6 NOT STARTED).
 - Phase 4: NOT YET AUDITED / ACCEPTED.
 - Phase 4.1: NOT STARTED.
 - Phase 5: NOT STARTED.
@@ -515,9 +516,9 @@ DONE:
 
 ### TASK TIẾP THEO
 
-**PHASE 3 – STEP 3.5 OWNER FINANCE FOUNDATION — NOT STARTED**
+**PHASE 3 – STEP 3.6 OWNER CONSOLE FINAL POLISH & AUDIT — NOT STARTED**
 
-Step 3.4 Pricing & Maintenance Operations đã hoàn tất và được nghiệm thu ngày 01/09/2026. Step 3.5 Owner Finance Foundation chưa bắt đầu và chỉ triển khai khi có yêu cầu riêng; Phase 2 vẫn được tạm hoãn theo quyết định của người dùng.
+Step 3.4 Pricing & Maintenance Operations đã hoàn tất ngày 01/09/2026 và Step 3.5 Owner Finance Foundation đã được nghiệm thu ngày 02/09/2026. Step 3.6 chưa bắt đầu và chỉ triển khai khi có yêu cầu riêng; Phase 2 vẫn được tạm hoãn theo quyết định của người dùng.
 
 ---
 
