@@ -2,6 +2,13 @@
 
 {% block title %}Tìm sân thể thao · Sân Thể Thao{% endblock %}
 
+{% block head %}
+    {{ super() }}
+    {% if venue_map_results %}
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous">
+    {% endif %}
+{% endblock %}
+
 {% block content %}
 <section class="venue-search-intro marketplace-page-intro marketplace-venue-intro">
     <div class="container marketplace-shell">
@@ -145,6 +152,37 @@
             </div>
 
         {% if venue_results %}
+            {% if venue_map_results %}
+                <section class="venue-search-map-section" aria-labelledby="venue-search-map-heading">
+                    <div class="venue-search-map-card">
+                        <div class="venue-search-map-heading">
+                            <div>
+                                <span class="eyebrow">BẢN ĐỒ KẾT QUẢ HIỆN TẠI</span>
+                                <h3 id="venue-search-map-heading" class="h5 mb-0">Vị trí các cơ sở đã xác nhận</h3>
+                            </div>
+                            <span><i class="bi bi-geo-alt-fill" aria-hidden="true"></i> {{ venue_map_results|length }}/{{ venue_results|length }} cơ sở có vị trí</span>
+                        </div>
+                        <div
+                            id="venue-search-map"
+                            class="venue-search-map"
+                            role="application"
+                            aria-label="Bản đồ các cơ sở trong kết quả tìm kiếm hiện tại"
+                            tabindex="0"
+                            data-venues='{{ venue_map_results|tojson }}'
+                            data-tile-url="{{ map_tile_url }}"
+                        ></div>
+                        <p id="venue-search-map-unavailable" class="venue-search-map-unavailable mb-0" hidden aria-live="polite"><i class="bi bi-info-circle" aria-hidden="true"></i> Không thể tải bản đồ lúc này. Danh sách cơ sở bên dưới vẫn đầy đủ để bạn lựa chọn.</p>
+                    </div>
+                </section>
+            {% else %}
+                <section class="venue-search-map-empty" aria-labelledby="venue-search-map-empty-heading">
+                    <i class="bi bi-map" aria-hidden="true"></i>
+                    <div>
+                        <h3 id="venue-search-map-empty-heading" class="h6 mb-1">Chưa có vị trí hiển thị trên bản đồ</h3>
+                        <p class="mb-0">Các cơ sở trong kết quả này chưa có tọa độ đã xác nhận. Bạn vẫn có thể xem địa chỉ và mở trang chi tiết của từng cơ sở.</p>
+                    </div>
+                </section>
+            {% endif %}
             <div class="venue-grid{% if venue_results|length == 1 %} venue-grid-single{% endif %}">
                 {% for result in venue_results %}
                     {% set venue = result.venue %}
@@ -216,4 +254,8 @@
 {% block scripts %}
     <script src="{{ url_for('static', filename='js/administrative-unit-picker.js') }}"></script>
     <script src="{{ url_for('static', filename='js/venue-search-filters.js') }}"></script>
+    {% if venue_map_results %}
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>
+        <script src="{{ url_for('static', filename='js/venue-search-map.js') }}"></script>
+    {% endif %}
 {% endblock %}

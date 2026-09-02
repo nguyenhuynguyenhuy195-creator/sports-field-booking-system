@@ -1213,6 +1213,89 @@ a:hover {
     color: var(--app-primary);
 }
 
+.venue-search-map-section {
+    margin-bottom: 1rem;
+}
+
+.venue-search-map-card {
+    background: #f8fbf9;
+    border: 1px solid #dce9e1;
+    border-radius: 14px;
+    overflow: hidden;
+}
+
+.venue-search-map-heading {
+    align-items: flex-start;
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+    padding: 0.9rem 1rem;
+}
+
+.venue-search-map-heading h3 {
+    color: var(--app-secondary);
+    font-weight: 800;
+}
+
+.venue-search-map-heading > span {
+    align-items: center;
+    color: #176c43;
+    display: inline-flex;
+    flex: 0 0 auto;
+    font-size: 0.82rem;
+    font-weight: 800;
+    gap: 0.4rem;
+}
+
+.venue-search-map {
+    height: 360px;
+    width: 100%;
+    z-index: 0;
+}
+
+.venue-search-map:focus-visible {
+    outline: 3px solid rgba(20, 108, 67, 0.32);
+    outline-offset: -3px;
+}
+
+.venue-search-map .leaflet-control-attribution {
+    font-size: 0.68rem;
+}
+
+.venue-search-map-unavailable,
+.venue-search-map-empty {
+    align-items: flex-start;
+    color: #607168;
+    display: flex;
+    font-size: 0.9rem;
+    gap: 0.65rem;
+    line-height: 1.55;
+    padding: 1rem;
+}
+
+.venue-search-map-unavailable {
+    border-top: 1px solid #dce9e1;
+}
+
+.venue-search-map-empty {
+    background: #f8fbf9;
+    border: 1px dashed #cbdcd1;
+    border-radius: 14px;
+    margin-bottom: 1rem;
+}
+
+.venue-search-map-empty > i,
+.venue-search-map-unavailable i {
+    color: var(--app-primary);
+    flex: 0 0 auto;
+    margin-top: 0.15rem;
+}
+
+.venue-search-map-empty h3 {
+    color: var(--app-secondary);
+    font-weight: 800;
+}
+
 .venue-starting-price > span,
 .venue-starting-price > strong {
     display: block;
@@ -3736,6 +3819,15 @@ a:hover {
 
     .venue-public-map-heading small {
         text-align: left;
+    }
+
+    .venue-search-map {
+        height: 300px;
+    }
+
+    .venue-search-map-heading {
+        flex-direction: column;
+        gap: 0.35rem;
     }
 
     .venue-detail-directions-link,
@@ -7795,6 +7887,10 @@ body {
 
 @media (max-width: 575.98px) {
     .venue-public-map {
+        height: 260px;
+    }
+
+    .venue-search-map {
         height: 260px;
     }
 

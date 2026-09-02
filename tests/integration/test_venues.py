@@ -1,3 +1,6 @@
+import html
+import json
+import re
 from dataclasses import dataclass
 from datetime import time
 from decimal import Decimal
@@ -129,6 +132,8 @@ def create_searchable_venue(
     ward_name: str | None = None,
     venue_status: VenueStatus = VenueStatus.ACTIVE,
     field_status: FieldStatus = FieldStatus.ACTIVE,
+    latitude: Decimal | None = None,
+    longitude: Decimal | None = None,
 ) -> int:
     with app.app_context():
         venue = Venue(
@@ -141,6 +146,8 @@ def create_searchable_venue(
             province_name=province_name,
             ward_code=ward_code,
             ward_name=ward_name,
+            latitude=latitude,
+            longitude=longitude,
             opening_time=time(6, 0),
             closing_time=time(23, 0),
             status=venue_status.value,
@@ -171,6 +178,12 @@ def create_searchable_venue(
         )
         db.session.commit()
         return venue.id
+
+
+def search_map_markers(page: str) -> list[dict[str, str]]:
+    match = re.search(r"data-venues='([^']*)'", page)
+    assert match is not None
+    return json.loads(html.unescape(match.group(1)))
 
 
 def moderate_form_data(venue_id: int, decision: VenueStatus, note: str = ""):
@@ -666,6 +679,158 @@ def test_public_venue_detail_without_coordinates_uses_address_fallback(
     assert "leaflet@1.9.4" not in page
     assert "venue-detail-map.js" not in page
     assert "Mở chỉ đường trên Google Maps" in page
+
+
+def test_find_venue_map_marks_only_coordinate_results_in_current_set(
+    app,
+    client,
+):
+    owner = create_user(
+        app,
+        email="find-map-owner@example.com",
+        role=UserRole.OWNER,
+    )
+    first_id = create_searchable_venue(
+        app,
+        owner_id=owner.id,
+        name="Ban do A",
+        address="1 Duong A",
+        district="Phuong Tan Hung",
+        city="TP. Ho Chi Minh",
+        field_name="San A",
+        field_type=FieldTypeCode.FOOTBALL_5,
+        hourly_price=Decimal("200000"),
+        latitude=Decimal("10.776900"),
+        longitude=Decimal("106.700900"),
+    )
+    second_id = create_searchable_venue(
+        app,
+        owner_id=owner.id,
+        name="Ban do B",
+        address="2 Duong B",
+        district="Phuong Tan Hung",
+        city="TP. Ho Chi Minh",
+        field_name="San B",
+        field_type=FieldTypeCode.FOOTBALL_7,
+        hourly_price=Decimal("250000"),
+        latitude=Decimal("10.780000"),
+        longitude=Decimal("106.710000"),
+    )
+    create_searchable_venue(
+        app,
+        owner_id=owner.id,
+        name="Ban do chua ghim",
+        address="3 Duong C",
+        district="Phuong Tan Hung",
+        city="TP. Ho Chi Minh",
+        field_name="San C",
+        field_type=FieldTypeCode.FOOTBALL_5,
+        hourly_price=Decimal("220000"),
+    )
+
+    response = client.get("/venues", query_string={"q": "Ban do"})
+    page = response.get_data(as_text=True)
+    markers = search_map_markers(page)
+
+    assert response.status_code == 200
+    assert 'id="venue-search-map"' in page
+    assert "2/3 cơ sở có vị trí" in page
+    assert "Ban do chua ghim" in page
+    assert {marker["name"] for marker in markers} == {"Ban do A", "Ban do B"}
+    assert {marker["detail_url"] for marker in markers} == {
+        f"/venues/{first_id}",
+        f"/venues/{second_id}",
+    }
+    assert all(
+        marker["latitude"] != "0.000000"
+        and marker["longitude"] != "0.000000"
+        for marker in markers
+    )
+    assert "/owner/venues/geocode" not in page
+    assert "radius_km=" not in page
+
+
+def test_find_venue_map_tracks_the_existing_sport_filter(app, client):
+    owner = create_user(
+        app,
+        email="find-map-filter-owner@example.com",
+        role=UserRole.OWNER,
+    )
+    football_id = create_searchable_venue(
+        app,
+        owner_id=owner.id,
+        name="Loc bong da",
+        address="4 Duong D",
+        district="Phuong Tan Hung",
+        city="TP. Ho Chi Minh",
+        field_name="San D",
+        field_type=FieldTypeCode.FOOTBALL_5,
+        hourly_price=Decimal("200000"),
+        latitude=Decimal("10.781000"),
+        longitude=Decimal("106.711000"),
+    )
+    create_searchable_venue(
+        app,
+        owner_id=owner.id,
+        name="Loc cau long",
+        address="5 Duong E",
+        district="Phuong Tan Hung",
+        city="TP. Ho Chi Minh",
+        field_name="San E",
+        field_type=FieldTypeCode.BADMINTON_STANDARD,
+        hourly_price=Decimal("180000"),
+        latitude=Decimal("10.782000"),
+        longitude=Decimal("106.712000"),
+    )
+
+    response = client.get("/venues", query_string={"sport": "FOOTBALL"})
+    page = response.get_data(as_text=True)
+    markers = search_map_markers(page)
+
+    assert response.status_code == 200
+    assert "1 cơ sở phù hợp" in page
+    assert "1/1 cơ sở có vị trí" in page
+    assert markers == [
+        {
+            "address": "4 Duong D, Phuong Tan Hung, TP. Ho Chi Minh",
+            "detail_url": f"/venues/{football_id}",
+            "latitude": "10.781000",
+            "longitude": "106.711000",
+            "name": "Loc bong da",
+        }
+    ]
+
+
+def test_find_venue_map_uses_empty_state_when_results_have_no_coordinates(
+    app,
+    client,
+):
+    owner = create_user(
+        app,
+        email="find-map-empty-owner@example.com",
+        role=UserRole.OWNER,
+    )
+    create_searchable_venue(
+        app,
+        owner_id=owner.id,
+        name="Khong co toa do",
+        address="6 Duong F",
+        district="Phuong Tan Hung",
+        city="TP. Ho Chi Minh",
+        field_name="San F",
+        field_type=FieldTypeCode.TENNIS_STANDARD,
+        hourly_price=Decimal("300000"),
+    )
+
+    response = client.get("/venues", query_string={"q": "Khong co toa do"})
+    page = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "Chưa có vị trí hiển thị trên bản đồ" in page
+    assert "Khong co toa do" in page
+    assert 'id="venue-search-map"' not in page
+    assert "leaflet@1.9.4" not in page
+    assert "venue-search-map.js" not in page
 
 
 def test_public_venue_filters_combine_field_type_and_matching_type_price(

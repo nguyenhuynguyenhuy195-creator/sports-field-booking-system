@@ -420,7 +420,7 @@ def test_text_search_still_includes_legacy_venue_without_coordinates(app):
         )
 
 
-def test_public_listing_keeps_directions_without_embedded_maps(app, client):
+def test_public_listing_uses_leaflet_map_and_keeps_directions(app, client):
     owner_id = create_user(
         app,
         email="public-marker-owner@example.com",
@@ -441,11 +441,13 @@ def test_public_listing_keeps_directions_without_embedded_maps(app, client):
     assert f'href="/venues/{venue_id}"' in page
     assert "https://www.google.com/maps/dir/" in page
     assert "Mở chỉ đường trên Google Maps" in page
-    assert "data-markers=" not in page
+    assert 'id="venue-search-map"' in page
+    assert "venue-search-map.js" in page
+    assert "leaflet@1.9.4" in page
     assert "maps.googleapis.com" not in page
 
 
-def test_public_pages_do_not_render_embedded_map_or_fallback(app, client):
+def test_public_pages_use_leaflet_without_google_maps_api(app, client):
     owner_id = create_user(
         app,
         email="public-map-fallback-owner@example.com",
@@ -468,8 +470,10 @@ def test_public_pages_do_not_render_embedded_map_or_fallback(app, client):
     assert detail_response.status_code == 200
     assert "Bản đồ hiện chưa khả dụng" not in listing_page
     assert "Bản đồ hiện chưa khả dụng" not in detail_page
-    assert "/static/js/venue-public-map.js" not in listing_page
-    assert "/static/js/venue-public-map.js" not in detail_page
+    assert "venue-search-map.js" in listing_page
+    assert "venue-detail-map.js" in detail_page
+    assert "leaflet@1.9.4" in listing_page
+    assert "leaflet@1.9.4" in detail_page
     assert "maps.googleapis.com" not in listing_page
     assert "maps.googleapis.com" not in detail_page
     assert "Mở chỉ đường" in listing_page
@@ -532,6 +536,10 @@ def test_text_search_paginates_without_location_filters(app, client):
     assert "11 cơ sở phù hợp" in page
     assert "Trang 2/2" in page
     assert "q=g%E1%BA%A7n+ph%C3%A2n+trang" in page
+    assert 'id="venue-search-map"' in page
+    assert "1/1 cơ sở có vị trí" in page
+    assert "Sân gần phân trang 11" in page
+    assert "Sân gần phân trang 10" not in page
     assert "latitude=" not in page
     assert "longitude=" not in page
     assert "radius_km=" not in page

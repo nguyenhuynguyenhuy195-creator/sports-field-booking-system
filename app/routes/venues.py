@@ -112,6 +112,8 @@ def index():
             flash(str(exc), "danger")
             search_is_valid = False
 
+    venue_map_results = _public_search_map_data(venue_results)
+
     return render_template(
         "venues/index.html",
         form=form,
@@ -122,6 +124,8 @@ def index():
         ward_labels={item.code: item.full_name for item in wards},
         wards_api_url=url_for("venues.administrative_wards"),
         search_page=search_page,
+        venue_map_results=venue_map_results,
+        map_tile_url=current_app.config["MAP_TILE_URL"],
         pagination_params={
             "q": form.q.data or None,
             "province_code": form.province_code.data or None,
@@ -175,7 +179,7 @@ def detail(venue_id: int):
 
 
 def _public_venue_map_data(venue):
-    """Return only trusted, display-safe map data for the public detail page."""
+    """Return only trusted, display-safe map data for a public Venue page."""
     if venue.latitude is None or venue.longitude is None:
         return None
 
@@ -192,6 +196,25 @@ def _public_venue_map_data(venue):
         "name": venue.name,
         "address": venue.full_address,
     }
+
+
+def _public_search_map_data(venue_results):
+    """Build map markers only for the current public search result page."""
+    markers = []
+    for result in venue_results:
+        marker = _public_venue_map_data(result.venue)
+        if marker is None:
+            continue
+        markers.append(
+            {
+                **marker,
+                "detail_url": url_for(
+                    "venues.detail",
+                    venue_id=result.venue.id,
+                ),
+            }
+        )
+    return markers
 
 
 @venues_bp.get("/owner/venues")
