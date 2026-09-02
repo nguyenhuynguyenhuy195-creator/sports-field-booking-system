@@ -1377,9 +1377,9 @@ def test_active_venue_coordinate_only_change_returns_to_pending(app, client):
 @pytest.mark.parametrize(
     ("overrides", "message"),
     [
-        ({"latitude": "91"}, "Vĩ độ phải là số từ -90 đến 90."),
-        ({"longitude": "not-a-number"}, "Kinh độ phải là số từ -180 đến 180."),
-        ({"longitude": ""}, "Vĩ độ và kinh độ phải được gửi cùng nhau."),
+        ({"latitude": "91"}, "Vị trí đã chọn không hợp lệ."),
+        ({"longitude": "not-a-number"}, "Vị trí đã chọn không hợp lệ."),
+        ({"longitude": ""}, "Thông tin vị trí chưa đầy đủ."),
     ],
 )
 def test_owner_create_rejects_invalid_coordinate_input(app, client, overrides, message):

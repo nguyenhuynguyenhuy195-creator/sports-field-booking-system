@@ -90,13 +90,13 @@
                 {% if nearby_errors %}
                     {{ nearby_errors[0] }}
                 {% elif nearby_active %}
-                    Đang hiển thị các cơ sở có tọa độ theo khoảng cách gần nhất.
+                    Đang hiển thị các cơ sở gần bạn nhất.
                 {% else %}
                     Chỉ truy cập vị trí khi bạn bấm nút; vị trí không được lưu vào tài khoản.
                 {% endif %}
             </p>
             {% if nearby_active %}
-                <a class="venue-nearby-clear" href="{{ url_for('venues.index', q=pagination_params.q, province_code=pagination_params.province_code, ward_code=pagination_params.ward_code, sport=pagination_params.sport, field_type=pagination_params.field_type, min_price=pagination_params.min_price, max_price=pagination_params.max_price) }}">Bỏ vị trí</a>
+                <a class="venue-nearby-clear" href="{{ url_for('venues.index', q=pagination_params.q, province_code=pagination_params.province_code, ward_code=pagination_params.ward_code, sport=pagination_params.sport, field_type=pagination_params.field_type, min_price=pagination_params.min_price, max_price=pagination_params.max_price) }}">Tắt tìm gần tôi</a>
             {% endif %}
         </div>
 
@@ -160,7 +160,7 @@
                             {% else %}Đến {{ form.max_price.data|vnd_currency }}{% endif %}
                         </span>
                     {% endif %}
-                    {% if nearby_active %}<span class="venue-type-chip"><i class="bi bi-crosshair" aria-hidden="true"></i> Sân gần tôi · gần nhất</span>{% endif %}
+                    {% if nearby_active %}<span class="venue-type-chip"><i class="bi bi-crosshair" aria-hidden="true"></i> Sân gần tôi</span>{% endif %}
                 </div>
                 <a class="venue-clear-all" href="{{ url_for('venues.index') }}">Xóa tất cả</a>
             </div>
@@ -182,7 +182,7 @@
                         <div class="venue-search-map-heading">
                             <div>
                                 <span class="eyebrow">BẢN ĐỒ KẾT QUẢ HIỆN TẠI</span>
-                                <h3 id="venue-search-map-heading" class="h5 mb-0">Vị trí các cơ sở đã xác nhận</h3>
+                                <h3 id="venue-search-map-heading" class="h5 mb-0">Các cơ sở trên bản đồ</h3>
                             </div>
                             <span><i class="bi bi-geo-alt-fill" aria-hidden="true"></i> {{ venue_map_results|length }}/{{ venue_results|length }} cơ sở có vị trí</span>
                         </div>
@@ -204,7 +204,7 @@
                     <i class="bi bi-map" aria-hidden="true"></i>
                     <div>
                         <h3 id="venue-search-map-empty-heading" class="h6 mb-1">Chưa có vị trí hiển thị trên bản đồ</h3>
-                        <p class="mb-0">Các cơ sở trong kết quả này chưa có tọa độ đã xác nhận. Bạn vẫn có thể xem địa chỉ và mở trang chi tiết của từng cơ sở.</p>
+                        <p class="mb-0">Các cơ sở trong kết quả này chưa có vị trí trên bản đồ. Bạn vẫn có thể xem địa chỉ và mở trang chi tiết của từng cơ sở.</p>
                     </div>
                 </section>
             {% endif %}
@@ -263,7 +263,7 @@
             <div class="venue-search-empty">
                 <div class="venue-empty-icon" aria-hidden="true"><i class="bi bi-search"></i></div>
                 <h2 class="h5 fw-bold">Chưa tìm thấy sân phù hợp</h2>
-                <p class="text-secondary mb-0">{% if nearby_active %}Chưa có cơ sở có tọa độ phù hợp với các bộ lọc hiện tại.{% else %}Hãy thử đổi khu vực, bộ môn hoặc khoảng giá.{% endif %}</p>
+                <p class="text-secondary mb-0">{% if nearby_active %}Chưa tìm thấy sân gần bạn phù hợp với các bộ lọc hiện tại.{% else %}Hãy thử đổi khu vực, bộ môn hoặc khoảng giá.{% endif %}</p>
                 {% if has_active_filters %}<a class="btn btn-outline-primary btn-sm mt-3" href="{{ url_for('venues.index') }}">Xóa bộ lọc</a>{% endif %}
             </div>
         {% endif %}

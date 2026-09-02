@@ -202,7 +202,7 @@ Step 4.0 chỉ là foundation dữ liệu; **không đồng nghĩa Step 4 Admin 
 
 ## PHASE 1.3 – LOCATION & MAP ENHANCEMENT
 
-**Trạng thái: ĐANG THỰC HIỆN – 1.3E DONE / ACCEPTED; 1.3F VẪN PLANNED**
+**Trạng thái: DONE / ACCEPTED (03/09/2026)**
 
 Phase này mở rộng foundation địa chỉ đã nghiệm thu ở Phase 1.2 bằng tọa độ Venue đáng tin cậy và bản đồ nhúng Leaflet. Leaflet chỉ render/tương tác bản đồ; tile và geocoding là các dịch vụ riêng. Liên kết Google Maps ngoài hệ thống từ `full_address` tiếp tục là fallback/tiện ích độc lập.
 
@@ -298,11 +298,18 @@ Phase này mở rộng foundation địa chỉ đã nghiệm thu ở Phase 1.2 b
 
 ### 1.3F – Final QA / Acceptance
 
-**Trạng thái: PLANNED – CHƯA BẮT ĐẦU**
+**Trạng thái: DONE / ACCEPTED (03/09/2026)**
 
-- Functional/regression tests.
-- Desktop/mobile visual review.
-- Kiểm tra attribution, lỗi tile/geocoding, manual fallback và missing-coordinate states.
+- Functional audit toàn bộ Owner location lifecycle, dữ liệu Venue hiện có, Venue Detail map, Find Venue map và `Sân gần tôi` đạt; không phát hiện regression nghiệp vụ.
+- Geocoding chỉ chạy theo thao tác Owner, kết quả chỉ là gợi ý, ghim phải được xác nhận; stale location và thay đổi tọa độ của Venue ACTIVE vẫn đưa Venue về PENDING, geocoder lỗi vẫn có manual-marker fallback.
+- Public map chỉ nhận latitude/longitude hợp lệ cùng tên, địa chỉ và link chi tiết cần thiết; không geocode public, không có marker giả hoặc dữ liệu Owner/Admin bị lộ.
+- Nearby chỉ kích hoạt theo thao tác user, validate cặp vị trí, tính Haversine server-side, sắp xếp gần nhất và không lưu vị trí user.
+- Audit development data tại thời điểm đóng Phase: 16 Venue, 6 cặp tọa độ hợp lệ và 10 Venue thiếu cả cặp; không có partial pair, `0,0` hoặc tọa độ ngoài phạm vi. Coverage 4/16 ở 1.3B2 vẫn là snapshot nghiệm thu population ngày 02/09/2026.
+- UI wording đã đổi các câu kỹ thuật như “có tọa độ” sang ngôn ngữ tự nhiên về sân/vị trí; Owner wording vẫn phân biệt rõ gợi ý, chưa xác nhận và đã xác nhận.
+- Tài liệu kỹ thuật đã đồng bộ trách nhiệm: Leaflet render bản đồ, OSM-compatible tiles cung cấp tile/attribution, Nominatim geocode địa chỉ, browser geolocation lấy vị trí user và Haversine tính khoảng cách; ADR lịch sử được giữ kèm supersession rõ ràng.
+- Focused Owner/Public Venue, location, map, nearby và geocoding tests: 88 passed trong 25.53 giây; full regression: 345 passed trong 146.10 giây.
+- Browser QA xác nhận microcopy mới, marker Venue/vị trí user phân biệt, attribution hiển thị, không horizontal overflow, không có browser log error hoặc static-resource issue quan sát được.
+- `git diff --check`, Python/JavaScript syntax checks và `flask db check` đều đạt; không thay đổi model/schema/migration/dependency; Alembic current/head giữ nguyên `a6d8e4f2c913`.
 
 ---
 
@@ -577,7 +584,7 @@ Hiện tại:
 - Phase 1A: DONE.
 - Phase 1B: DONE.
 - Phase 1.2: DONE / ACCEPTED (30/08/2026).
-- Phase 1.3: IN PROGRESS; 1.3A, 1.3B0, 1.3B1, 1.3B2, 1.3C, 1.3D và 1.3E DONE / ACCEPTED; 1.3F PLANNED.
+- Phase 1.3: DONE / ACCEPTED (03/09/2026); 1.3A đến 1.3F đều đã nghiệm thu.
 - Phase 2: NOT STARTED / DEFERRED BY USER DECISION.
 - Phase 3: DONE / ACCEPTED (02/09/2026).
 - Phase 4: NOT YET AUDITED / ACCEPTED.
@@ -621,9 +628,9 @@ DONE:
 
 ### TASK TIẾP THEO
 
-**PHASE 1.3F – FINAL QA / ACCEPTANCE — PLANNED**
+**PHASE 1.3 – LOCATION & MAP ENHANCEMENT — DONE / ACCEPTED**
 
-Phase 1.3E đã được nghiệm thu: nearby chỉ kích hoạt theo hành động người dùng, khoảng cách tính server-side bằng Haversine, vị trí người dùng không được lưu và các bộ lọc/pagination hiện có được giữ nguyên. Bước tiếp theo chỉ là audit/acceptance toàn bộ Phase 1.3; Phase 2 vẫn tạm hoãn và không tự khởi động.
+Toàn bộ 1.3A–1.3F đã được nghiệm thu với full regression 345 passed, browser QA đạt và Alembic current/head giữ nguyên `a6d8e4f2c913`. Không có phase tiếp theo được tự động bắt đầu; Phase 2 vẫn `NOT STARTED / DEFERRED BY USER DECISION`.
 
 ---
 

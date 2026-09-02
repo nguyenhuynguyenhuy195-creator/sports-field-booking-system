@@ -149,8 +149,10 @@ Availability và quote không khóa chỗ. Transaction tạo booking phải ki�
 
 1. Owner chọn tỉnh/thành phố và phường/xã từ catalog.
 2. Owner nhập địa chỉ chi tiết.
-3. Backend validate catalog và lưu tên đơn vị hành chính từ mã đã chọn.
-4. Venue mới ở PENDING; Admin kiểm tra địa chỉ trước khi duyệt ACTIVE.
+3. Owner chủ động tìm vị trí; Nominatim chỉ trả gợi ý để Leaflet đặt ghim.
+4. Owner kiểm tra, sửa nếu cần và xác nhận ghim trước khi lưu.
+5. Backend validate catalog/tọa độ và lưu tên đơn vị hành chính từ mã đã chọn.
+6. Venue mới ở PENDING; Venue ACTIVE đổi địa chỉ hoặc vị trí cũng trở lại PENDING.
 
 ### User mở chỉ đường
 
@@ -158,7 +160,7 @@ Availability và quote không khóa chỗ. Transaction tạo booking phải ki�
 2. User bấm “Mở chỉ đường trên Google Maps”.
 3. Trình duyệt mở Google Maps ở tab mới bằng địa chỉ đầy đủ hiện tại.
 
-Ứng dụng không nhúng bản đồ, không xin quyền Geolocation và không gọi Maps/Places API.
+Venue Detail và Find Venue dùng Leaflet với tile tương thích OpenStreetMap cho Venue có tọa độ hợp lệ. Find Venue chỉ xin browser geolocation sau khi user bấm `Sân gần tôi`; backend tính khoảng cách Haversine và không lưu vị trí user. Ứng dụng không gọi Google Maps/Places API.
 
 ## 4.12. Xử lý MoMo Sandbox
 

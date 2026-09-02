@@ -86,7 +86,7 @@
         }
         clearMarkerAndCoordinates(true);
         setLocationState("unconfirmed");
-        setStatus("Địa chỉ đã thay đổi. Tọa độ cũ không còn được tin cậy; hãy tìm hoặc đặt và xác nhận lại ghim.", "warning");
+        setStatus("Địa chỉ đã thay đổi. Vị trí cũ không còn được tin cậy; hãy tìm hoặc đặt và xác nhận lại ghim.", "warning");
     }
 
     async function searchLocation() {
@@ -184,7 +184,7 @@
         updateCoordinates(position.lat, position.lng, true);
         confirmedInput.value = "1";
         setLocationState("confirmed");
-        setStatus("Đã xác nhận ghim. Tọa độ này sẽ được gửi khi bạn lưu cơ sở.", "success");
+        setStatus("Đã xác nhận ghim. Vị trí này sẽ được lưu cùng cơ sở.", "success");
     }
 
     function validateBeforeSubmit(event) {

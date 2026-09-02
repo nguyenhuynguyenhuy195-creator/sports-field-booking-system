@@ -23,7 +23,7 @@ Hệ thống trực tuyến cho phép:
 - Mỗi sân con thuộc đúng một bộ môn; một cơ sở có thể phục vụ nhiều bộ môn.
 - MVP hỗ trợ bóng đá, cầu lông, pickleball và tennis.
 - User tìm cơ sở theo từ khóa, bộ môn, loại sân, giá và địa chỉ hành chính.
-- Owner chọn tỉnh/thành phố, phường/xã và nhập địa chỉ chi tiết; user có thể mở Google Maps để chỉ đường.
+- Owner chọn tỉnh/thành phố, phường/xã, nhập địa chỉ chi tiết và xác nhận ghim trên Leaflet; user có thể xem bản đồ hoặc mở Google Maps để chỉ đường.
 - User xem lịch trống, đặt sân và chọn hình thức thi đấu phù hợp.
 - Hệ thống tự kiểm tra trùng lịch, bảo trì, độ phủ giá và giữ chỗ 15 phút.
 - User thanh toán khoản cọc đầu tiên qua MoMo Sandbox; số còn lại thanh toán tại sân.
@@ -83,4 +83,4 @@ MoMo Sandbox chỉ mô phỏng tích hợp, không giao dịch tiền thật. Pr
 
 ## 1.8. Trạng thái triển khai
 
-Thiết kế ngày 12/08/2026 đã được triển khai tuần tự bằng bốn migration: danh mục đa môn và dữ liệu vị trí legacy; chính sách cọc 30%; URL checkout MoMo; snapshot liên hệ riêng của người đăng kèo. Theo ADR-032, luồng hiện tại chỉ dùng địa chỉ hành chính và liên kết Google Maps, không tải Maps/Places API; cột Place ID/tọa độ cũ được giữ để tương thích. ADR-027 và ADR-028 được triển khai ở service/UI/test: booking mới bỏ deadline cũ và đối thủ tự giữ suất thanh toán, còn booking legacy có deadline vẫn giữ luồng duyệt cũ. ADR-029 bổ sung số Zalo có sự đồng ý, chỉ hiển thị sau khi tham gia chính thức và đưa kèo đã tham gia vào lịch cá nhân ở chế độ chỉ xem. Provider `MOCK` là mặc định an toàn; giao dịch MoMo Sandbox đầu-cuối cần credential M4B và URL HTTPS công khai của môi trường chạy.
+Thiết kế ngày 12/08/2026 đã được triển khai tuần tự bằng bốn migration: danh mục đa môn và dữ liệu vị trí legacy; chính sách cọc 30%; URL checkout MoMo; snapshot liên hệ riêng của người đăng kèo. ADR-036 và Phase 1.3 đã thay thế ranh giới no-map của ADR-032: Leaflet hiển thị bản đồ, Nominatim gợi ý vị trí cho Owner xác nhận, còn `Sân gần tôi` dùng browser geolocation và Haversine mà không lưu vị trí người dùng. Hệ thống vẫn không tải Google Maps/Places API; liên kết Google Maps chỉ dùng để mở chỉ đường ngoài hệ thống. ADR-027 và ADR-028 được triển khai ở service/UI/test: booking mới bỏ deadline cũ và đối thủ tự giữ suất thanh toán, còn booking legacy có deadline vẫn giữ luồng duyệt cũ. ADR-029 bổ sung số Zalo có sự đồng ý, chỉ hiển thị sau khi tham gia chính thức và đưa kèo đã tham gia vào lịch cá nhân ở chế độ chỉ xem. Provider `MOCK` là mặc định an toàn; giao dịch MoMo Sandbox đầu-cuối cần credential M4B và URL HTTPS công khai của môi trường chạy.

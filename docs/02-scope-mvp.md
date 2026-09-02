@@ -23,7 +23,7 @@
 - Owner tạo và sửa venue; venue mới ở trạng thái PENDING.
 - Admin duyệt venue thành ACTIVE hoặc ẩn venue.
 - Owner chọn tỉnh/thành phố, phường/xã và nhập địa chỉ chi tiết.
-- Dữ liệu Place ID/tọa độ cũ được giữ để tương thích nhưng không bắt buộc trong luồng mới.
+- Owner dùng Nominatim để nhận gợi ý khi chủ động tìm, kiểm tra/sửa ghim Leaflet và xác nhận trước khi lưu tọa độ; Venue cũ chưa có tọa độ vẫn hợp lệ.
 - Owner tạo field; field mới mặc định INACTIVE.
 - Owner cấu hình giá theo field, ngày trong tuần và khoảng giờ.
 - Owner tạo lịch bảo trì; không cho bảo trì trùng booking đang chiếm chỗ.
@@ -34,7 +34,7 @@
 - Tìm theo tên, địa chỉ chi tiết, phường/xã/đặc khu hoặc tỉnh/thành phố.
 - Lọc theo bộ môn, loại sân và khoảng giá.
 - Hiển thị nút mở Google Maps để chỉ đường theo địa chỉ đầy đủ hiện tại.
-- Không nhúng bản đồ, không yêu cầu quyền vị trí và không dùng Google Maps/Places API.
+- Leaflet hiển thị Venue có tọa độ hợp lệ; `Sân gần tôi` chỉ xin browser geolocation sau thao tác người dùng và không lưu vị trí đó. Không dùng Google Maps/Places API.
 - Không đưa cơ sở ngoài hệ thống vào kết quả.
 
 ### Booking
@@ -124,4 +124,4 @@
 
 ## 2.5. Ranh giới triển khai hiện tại
 
-Danh mục đa môn, địa chỉ hành chính, liên kết chỉ đường Google Maps, cọc 30%, người ghép trả tại sân, nền tảng MoMo Sandbox và khu quản trị Admin đã có code/test. Admin có dashboard, khóa/mở tài khoản và màn hình chỉ xem để giám sát danh mục, booking, contribution, payment, refund và match; lịch sử giao dịch không có thao tác xóa. Maps/Places API, bản đồ nhúng và tìm theo bán kính đã được bỏ theo ADR-032; dữ liệu Place ID/tọa độ cũ vẫn được giữ. ADR-027 và ADR-028 đã được triển khai ở service/UI/test; deadline, top-up, refund 80/20 và bước duyệt đối thủ chỉ còn phục vụ dữ liệu legacy có deadline. Việc gọi Sandbox thật chỉ được xem là đã xác nhận sau khi cấu hình credential M4B, URL HTTPS công khai và chạy một giao dịch thanh toán/hoàn tiền đầu-cuối; trước đó provider `MOCK` vẫn là mặc định.
+Danh mục đa môn, địa chỉ hành chính, bản đồ/vị trí theo ADR-036, cọc 30%, người ghép trả tại sân, nền tảng MoMo Sandbox và khu quản trị Admin đã có code/test. Admin có dashboard, khóa/mở tài khoản và màn hình chỉ xem để giám sát danh mục, booking, contribution, payment, refund và match; lịch sử giao dịch không có thao tác xóa. Leaflet/Nominatim thay thế phần no-map của ADR-032 nhưng không đưa Google Maps/Places API trở lại; nearby chỉ sắp xếp Venue trong database có tọa độ hợp lệ và chưa có radius filter. ADR-027 và ADR-028 đã được triển khai ở service/UI/test; deadline, top-up, refund 80/20 và bước duyệt đối thủ chỉ còn phục vụ dữ liệu legacy có deadline. Việc gọi Sandbox thật chỉ được xem là đã xác nhận sau khi cấu hình credential M4B, URL HTTPS công khai và chạy một giao dịch thanh toán/hoàn tiền đầu-cuối; trước đó provider `MOCK` vẫn là mặc định.

@@ -225,6 +225,7 @@ ADR này thay thế việc gắn contribution/payment cho PLAYER trong ADR-017/0
 ## ADR-025: Google Maps cho venue nội bộ
 
 **Ngày quyết định:** 12/08/2026
+**Trạng thái:** Quyết định lịch sử; hành vi runtime đã bị ADR-032 thay thế, sau đó kiến trúc vị trí/bản đồ được ADR-036 xác lập lại bằng Leaflet/Nominatim.
 
 - Venue lưu `google_place_id`, `latitude`, `longitude`.
 - Owner dùng Places Autocomplete và kiểm tra marker khi tạo/sửa venue.
@@ -322,6 +323,8 @@ Tài liệu tham chiếu:
 
 Foundation này không thay đổi workflow kiểm duyệt venue và chưa redesign màn Admin Step 4.
 
+**Ghi chú supersession:** Các câu về Google Maps/Place ID trong ADR này là bối cảnh lịch sử. ADR-032 đã bỏ Maps/Places API; ADR-036 sau đó chọn Leaflet cho bản đồ và Nominatim cho geocoding, không đưa Google Maps API trở lại.
+
 Tài liệu tham chiếu:
 
 - [Chính phủ: tổ chức chính quyền địa phương hai cấp](https://xaydungchinhsach.chinhphu.vn/trung-uong-thong-nhat-to-chuc-chinh-quyen-dia-phuong-2-cap-ca-nuoc-se-con-34-tinh-thanh-pho-sau-sap-nhap-119250412184121461.htm)
@@ -351,7 +354,7 @@ ADR này mở rộng ADR-006 về sandbox và làm rõ phần đối soát chưa
 ## ADR-032: Bỏ Maps/Places API, chỉ giữ liên kết chỉ đường Google Maps
 
 **Ngày quyết định:** 29/08/2026
-**Trạng thái:** Đã triển khai trong code, UI, test và tài liệu.
+**Trạng thái:** Đã triển khai ngày 29/08/2026; phần cấm bản đồ nhúng/geolocation đã được ADR-036 và Phase 1.3 thay thế. Quyết định không dùng Google Maps/Places API và giữ liên kết chỉ đường ngoài hệ thống vẫn còn hiệu lực.
 
 - Không tải Google Maps JavaScript API hoặc Places API trong bất kỳ giao diện nào.
 - Bỏ bản đồ/marker nhúng, Places Autocomplete, Browser Geolocation và tìm venue theo bán kính 3/5/10 km.
@@ -402,13 +405,13 @@ ADR này chỉ thay thế điều kiện đặt trước 24 giờ của FIND_OPP
 ## ADR-036: Kiến trúc vị trí và bản đồ Leaflet cho MVP
 
 **Ngày quyết định:** 02/09/2026
-**Trạng thái:** Đã chốt kiến trúc tại Phase 1.3B0; chưa triển khai runtime.
+**Trạng thái:** Đã triển khai và nghiệm thu toàn bộ Phase 1.3 ngày 03/09/2026.
 
 ### Quan hệ với các quyết định trước
 
 - ADR-032 được giữ nguyên để ghi lại quyết định và runtime không Maps đã được nghiệm thu ngày 29/08/2026.
 - ADR này thay thế ADR-032 đối với các hành vi vị trí/bản đồ được đưa trở lại theo Phase 1.3: hệ thống được phép dùng bản đồ nhúng Leaflet, geocoding và tọa độ Venue đã được xác nhận.
-- Việc thay thế là theo lộ trình. Runtime hiện tại vẫn chỉ dùng địa chỉ và liên kết chỉ đường ngoài hệ thống cho đến khi từng bước Phase 1.3 được triển khai và nghiệm thu.
+- Việc thay thế đã hoàn tất theo Phase 1.3: Owner location picker, Venue Detail map, Find Venue map và `Sân gần tôi` đã được triển khai, trong khi liên kết chỉ đường ngoài hệ thống vẫn được giữ.
 - Kiến trúc Google Places/Nearby trong ADR-025 không còn là thiết kế runtime được chọn. Phần Google Maps trong ADR-030 cũng không quyết định công nghệ bản đồ mới.
 - Liên kết ngoài “Mở chỉ đường trên Google Maps” từ `full_address` có thể tiếp tục tồn tại như một tiện ích độc lập, trừ khi có quyết định khác sau này.
 
@@ -419,7 +422,7 @@ ADR này chỉ thay thế điều kiện đặt trước 24 giờ của FIND_OPP
 - Leaflet không chuyển địa chỉ thành tọa độ. Geocoding là trách nhiệm riêng.
 - Dịch vụ tile và dịch vụ geocoding là hai dịch vụ độc lập; không được coi tile OpenStreetMap công khai là một geocoder.
 - MVP mới không đưa Google Maps JavaScript API hoặc Google Places trở lại.
-- Nhà cung cấp geocoding chưa được chọn trong ADR này. Phase 1.3B1 phải đánh giá nhà cung cấp thực tế trước khi tích hợp.
+- Tại thời điểm ADR-036/B0, nhà cung cấp geocoding chưa được chọn. Phase 1.3B1 sau đó đã chọn Nominatim công khai cho lưu lượng student/demo thấp, có timeout, cache, giới hạn nhịp và manual-marker fallback.
 
 Nhà cung cấp geocoding được đánh giá ở Phase 1.3B1 phải:
 
@@ -430,7 +433,7 @@ Nhà cung cấp geocoding được đánh giá ở Phase 1.3B1 phải:
 - có yêu cầu attribution/licensing minh bạch;
 - không yêu cầu commit API key hoặc secret vào source code.
 
-Dịch vụ Nominatim công khai, nếu được cân nhắc, không được mặc định xem là hạ tầng production không giới hạn. Việc sử dụng phải được đánh giá theo policy thực tế ở Phase 1.3B1.
+Dịch vụ Nominatim công khai không được xem là hạ tầng production không giới hạn. Tích hợp Phase 1.3B1 chỉ gọi theo hành động tra cứu của Owner, tuân thủ cache/giới hạn nhịp/timeout hiện có và không thực hiện bulk geocoding.
 
 ### Workflow tọa độ kết hợp đã chấp thuận
 
@@ -488,11 +491,17 @@ Phase 1.3B1 phải hỗ trợ:
 - Public page chỉ render Leaflet marker khi Venue có cặp tọa độ hợp lệ đã được xác nhận.
 - Venue thiếu tọa độ phải dùng fallback có chủ đích như `full_address` và liên kết chỉ đường ngoài hệ thống; không được hiển thị marker mặc định hoặc giả như vị trí thật.
 
-Các Venue development hiện có chưa có tọa độ được xác nhận. Phase 1.3B0 không backfill dữ liệu. Phase 1.3B2 sẽ điền tọa độ qua application flow có kiểm soát, dùng cùng nguyên tắc geocode rồi Owner/Admin xác nhận, không cập nhật SQL trực tiếp và không dùng fixture tọa độ bịa như dữ liệu production-like.
+Phase 1.3B2 đã dùng application flow có kiểm soát để nâng coverage development từ 1/16 lên 4/16 Venue có tọa độ được xác nhận. Mười hai Venue có địa chỉ demo/mơ hồ vẫn để lại cho manual review; không cập nhật SQL trực tiếp và không dùng tọa độ bịa làm dữ liệu production-like.
 
 ### Ranh giới Phase 1.3B1 và Nearby
 
-Phase 1.3B1 chỉ thiết lập tọa độ Venue đáng tin cậy. Không đưa “Sân quanh tôi”, radius filter, Haversine query, sắp xếp theo khoảng cách hoặc browser current location vào bước này. Các hành vi đó thuộc Phase 1.3E và chỉ được triển khai sau khi độ phủ/chất lượng tọa độ đủ tốt.
+Phase 1.3B1 chỉ thiết lập tọa độ Venue đáng tin cậy. Browser current location, Haversine và sắp xếp theo khoảng cách được triển khai riêng ở Phase 1.3E; MVP không thêm radius filter hoặc geospatial database extension.
+
+### Current location và nearby đã triển khai
+
+- Browser geolocation chỉ được gọi sau khi người dùng bấm `Sân gần tôi`; lỗi quyền/thiết bị/timeout không làm hỏng tìm kiếm thông thường.
+- Backend xác thực cặp latitude/longitude và tính khoảng cách bằng Haversine; chỉ Venue có tọa độ hợp lệ tham gia nearby mode.
+- Vị trí người dùng chỉ phục vụ request hiện tại, không được lưu vào database, session, localStorage hoặc sessionStorage.
 
 ### Rủi ro yêu cầu Google Maps
 

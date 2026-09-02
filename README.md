@@ -44,6 +44,7 @@ Với `FIND_OPPONENT`, bài tìm đối thủ tồn tại đến giờ trận b�
 - Bootstrap 5
 - Jinja2
 - JavaScript
+- Leaflet với tile tương thích OpenStreetMap
 
 ### Database
 - Microsoft SQL Server
@@ -77,7 +78,7 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-Sao chép `.env.example` thành `.env` và cập nhật thông tin SQL Server. Không commit `.env` hoặc secret key. Ứng dụng chỉ mở liên kết chỉ đường Google Maps và không cần Maps API key.
+Sao chép `.env.example` thành `.env` và cập nhật thông tin SQL Server. Không commit `.env` hoặc secret key. Bản đồ nhúng dùng Leaflet với tile tương thích OpenStreetMap; tra cứu địa chỉ của Chủ sân dùng Nominatim và không cần Maps API key. Liên kết Google Maps chỉ mở chỉ đường ngoài hệ thống.
 
 Mặc định `MOMO_ENABLED=false`, nên môi trường local tiếp tục dùng provider `MOCK` và không trừ tiền thật. Để kiểm thử MoMo Sandbox, cần bộ khóa M4B Sandbox và hai URL HTTPS công khai, sau đó cấu hình `MOMO_PARTNER_CODE`, `MOMO_ACCESS_KEY`, `MOMO_SECRET_KEY`, `MOMO_REDIRECT_URL`, `MOMO_IPN_URL` và đổi `MOMO_ENABLED=true`.
 
@@ -91,7 +92,7 @@ Khởi tạo hoặc cập nhật cấu trúc database trước lần chạy đ�
 .\.venv\Scripts\python.exe -m flask --app run.py db upgrade
 ```
 
-Lệnh trên đọc các migration trong `migrations/` và áp dụng chúng theo đúng thứ tự. Các migration hiện tại tạo thêm danh mục `sports`, `field_types`, vị trí Maps của venue, snapshot chính sách cọc trên booking và URL checkout MoMo trên payment. Bảng `alembic_version` do Flask-Migrate dùng để ghi nhận phiên bản database.
+Lệnh trên đọc các migration trong `migrations/` và áp dụng chúng theo đúng thứ tự. Các migration hiện tại tạo thêm danh mục `sports`, `field_types`, các cột vị trí của venue, snapshot chính sách cọc trên booking và URL checkout MoMo trên payment. Bảng `alembic_version` do Flask-Migrate dùng để ghi nhận phiên bản database.
 
 Sau đó chạy website:
 
@@ -113,7 +114,7 @@ GET http://127.0.0.1:5000/venues
 
 ## 7. Trạng thái triển khai
 
-Ba giai đoạn đã được triển khai vào model, migration, service, route, giao diện và test: danh mục đa môn + địa chỉ hành chính; booking theo chính sách cọc 30%; MoMo Sandbox với HMAC, redirect, IPN, query và refund. Dữ liệu vị trí Google cũ được giữ để tương thích nhưng luồng hiện tại không tải Maps/Places API. Dữ liệu payment cũ được giữ nhãn `LEGACY_FULL_ONLINE`, không đổi nghĩa thành cọc 30%. Kết nối MoMo thật trên Sandbox chỉ hoạt động khi người triển khai cung cấp credential M4B và URL HTTPS công khai; nếu chưa có, hệ thống chủ động giữ `MOCK`.
+Các nền tảng chính đã được triển khai vào model, migration, service, route, giao diện và test: danh mục đa môn + địa chỉ hành chính; booking theo chính sách cọc 30%; MoMo Sandbox với HMAC, redirect, IPN, query và refund; cùng luồng vị trí/bản đồ theo ADR-036. Hệ thống không tải Google Maps/Places API: Leaflet hiển thị bản đồ, Nominatim gợi ý vị trí khi Chủ sân chủ động tra cứu, và tọa độ chỉ được tin cậy sau khi Chủ sân xác nhận ghim. Dữ liệu payment cũ được giữ nhãn `LEGACY_FULL_ONLINE`, không đổi nghĩa thành cọc 30%. Kết nối MoMo thật trên Sandbox chỉ hoạt động khi người triển khai cung cấp credential M4B và URL HTTPS công khai; nếu chưa có, hệ thống chủ động giữ `MOCK`.
 
 **Cập nhật ngày 14/08/2026:** chính sách `FIND_OPPONENT` mới theo ADR-027 đã được triển khai: cọc 15% của creator đủ giữ sân, bài tìm đối thủ tồn tại đến giờ bắt đầu, không có top-up bắt buộc và người chủ động hủy không được hoàn cọc. Booking legacy có deadline vẫn được diễn giải theo chính sách cũ.
 
@@ -167,7 +168,7 @@ Ba giai đoạn đã được triển khai vào model, migration, service, route
 - Danh mục `sports` và `field_types` hỗ trợ bóng đá, cầu lông, pickleball và tennis.
 - Mỗi field thuộc đúng một loại sân và qua đó thuộc đúng một bộ môn.
 - Cầu lông, pickleball và tennis chọn `SINGLES` hoặc `DOUBLES` khi booking.
-- Venue dùng địa chỉ hành chính để tìm kiếm; nút chỉ đường mở Google Maps ở tab mới mà không dùng Maps API. Place ID/tọa độ cũ chỉ được giữ làm dữ liệu legacy.
+- Venue dùng địa chỉ hành chính để tìm kiếm; Chủ sân xác nhận vị trí qua Nominatim gợi ý và ghim Leaflet. Trang chi tiết và Tìm sân chỉ hiển thị marker cho Venue có tọa độ hợp lệ; `Sân gần tôi` dùng browser geolocation theo hành động người dùng và tính khoảng cách Haversine ở backend mà không lưu vị trí người dùng. Nút chỉ đường vẫn mở Google Maps ở tab mới, không dùng Google Maps API.
 - DIRECT_BOOKING/FIND_PLAYERS thu cọc 30%; FIND_OPPONENT thu 15% từ creator và thêm 15% nếu có đối thủ.
 - Số còn lại tại sân bằng tổng tiền trừ số cọc online thực thu: 85% khi FIND_OPPONENT chưa có đối thủ, 70% khi đã đủ hai phía.
 - Kèo tìm đối thủ chia đôi khoản cọc; kèo tìm thêm người chỉ thu cọc từ người tạo.

@@ -442,11 +442,11 @@ def test_nearby_search_sorts_valid_coordinate_venues_and_excludes_missing(app):
 @pytest.mark.parametrize(
     ("kwargs", "message"),
     [
-        ({"latitude": "91", "longitude": "106"}, "Tọa độ vị trí hiện tại không hợp lệ."),
-        ({"latitude": "abc", "longitude": "106"}, "Tọa độ vị trí hiện tại không hợp lệ."),
-        ({"latitude": "10", "longitude": None}, "phải được gửi cùng nhau"),
+        ({"latitude": "91", "longitude": "106"}, "Thông tin vị trí hiện tại không hợp lệ."),
+        ({"latitude": "abc", "longitude": "106"}, "Thông tin vị trí hiện tại không hợp lệ."),
+        ({"latitude": "10", "longitude": None}, "Thông tin vị trí hiện tại chưa đầy đủ."),
         ({"sort": "nearest"}, "cung cấp vị trí hiện tại"),
-        ({"sort": "unknown"}, "Kiểu sắp xếp vị trí không hợp lệ."),
+        ({"sort": "unknown"}, "Cách sắp xếp không hợp lệ."),
     ],
 )
 def test_nearby_search_service_rejects_invalid_location_input(app, kwargs, message):
@@ -493,7 +493,9 @@ def test_nearby_search_page_shows_distance_user_location_and_preserves_filters(
     assert "Sân nearby phân trang 10" not in page
     assert "Cách bạn" in page
     assert 'data-user-location=' in page
-    assert "Sân gần tôi · gần nhất" in page
+    assert "Sân gần tôi" in page
+    assert "Đang hiển thị các cơ sở gần bạn nhất." in page
+    assert "Tắt tìm gần tôi" in page
     assert "latitude=10.000000" in page
     assert "longitude=106.000000" in page
     assert "sort=nearest" in page
@@ -503,9 +505,9 @@ def test_nearby_search_page_shows_distance_user_location_and_preserves_filters(
 @pytest.mark.parametrize(
     ("query_string", "message"),
     [
-        ({"latitude": "91", "longitude": "106"}, "Vĩ độ vị trí hiện tại không hợp lệ."),
-        ({"latitude": "10"}, "phải được gửi cùng nhau"),
-        ({"latitude": "abc", "longitude": "106"}, "Vĩ độ vị trí hiện tại không hợp lệ."),
+        ({"latitude": "91", "longitude": "106"}, "Thông tin vị trí hiện tại không hợp lệ."),
+        ({"latitude": "10"}, "Thông tin vị trí hiện tại chưa đầy đủ."),
+        ({"latitude": "abc", "longitude": "106"}, "Thông tin vị trí hiện tại không hợp lệ."),
         ({"sort": "nearest"}, "Hãy cho phép truy cập vị trí"),
     ],
 )

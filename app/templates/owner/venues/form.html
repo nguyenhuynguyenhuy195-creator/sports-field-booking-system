@@ -42,7 +42,7 @@
         <div class="owner-venue-form-card venue-form-card">
 
             {% if venue and venue.status == 'ACTIVE' %}
-                <div class="alert alert-info owner-venue-review-note"><i class="bi bi-info-circle" aria-hidden="true"></i><span><strong>Cơ sở đang hoạt động.</strong> Đổi tên, địa chỉ hành chính hoặc tọa độ sẽ đưa cơ sở về trạng thái chờ duyệt; các thay đổi khác vẫn giữ trạng thái hiện tại.</span></div>
+                <div class="alert alert-info owner-venue-review-note"><i class="bi bi-info-circle" aria-hidden="true"></i><span><strong>Cơ sở đang hoạt động.</strong> Đổi tên, địa chỉ hành chính hoặc vị trí trên bản đồ sẽ đưa cơ sở về trạng thái chờ duyệt; các thay đổi khác vẫn giữ trạng thái hiện tại.</span></div>
             {% endif %}
 
             <form method="post" novalidate>
@@ -91,7 +91,7 @@
                 <section class="owner-venue-form-section" aria-labelledby="venue-location-heading">
                     <div class="owner-venue-form-section-heading">
                         <i class="bi bi-geo-alt" aria-hidden="true"></i>
-                        <div><h2 id="venue-location-heading">Xác nhận vị trí trên bản đồ</h2><p>Kết quả tìm kiếm chỉ là gợi ý. Ghim do bạn xác nhận mới là tọa độ được lưu.</p></div>
+                        <div><h2 id="venue-location-heading">Xác nhận vị trí trên bản đồ</h2><p>Kết quả tìm kiếm chỉ là gợi ý. Ghim do bạn xác nhận mới là vị trí được lưu.</p></div>
                     </div>
                     {% set location_errors = form.latitude.errors + form.longitude.errors %}
                     {% for error in location_errors %}
@@ -126,16 +126,16 @@
                     ></div>
                     <div id="venue-location-status" class="owner-location-status" role="status" aria-live="polite">
                         {% if venue and venue.has_coordinates %}
-                            Tọa độ hiện tại đang được giữ nguyên. Kéo ghim hoặc bấm lên bản đồ để chỉnh.
+                            Vị trí hiện tại đang được giữ nguyên. Kéo ghim hoặc bấm lên bản đồ để chỉnh.
                         {% elif venue %}
-                            Cơ sở này chưa có tọa độ. Thông tin vẫn hợp lệ; hãy tìm vị trí hoặc đặt ghim thủ công khi cần cập nhật vị trí.
+                            Cơ sở này chưa có vị trí trên bản đồ. Thông tin vẫn hợp lệ; hãy tìm vị trí hoặc đặt ghim thủ công khi cần cập nhật.
                         {% else %}
                             Nhập đủ địa chỉ rồi tìm vị trí, hoặc bấm trực tiếp lên bản đồ để đặt ghim thủ công.
                         {% endif %}
                     </div>
                     <p id="venue-location-coordinates" class="owner-location-coordinates mb-0" aria-live="polite"></p>
                     <p class="form-text mb-0">Có thể kéo ghim hoặc bấm lên bản đồ để sửa vị trí. Mỗi thay đổi ghim phải được xác nhận lại trước khi lưu.</p>
-                    <noscript><div class="alert alert-warning mt-2 mb-0">Cần bật JavaScript để chọn và xác nhận tọa độ trên bản đồ.</div></noscript>
+                    <noscript><div class="alert alert-warning mt-2 mb-0">Cần bật JavaScript để chọn và xác nhận vị trí trên bản đồ.</div></noscript>
                 </section>
 
                 <section class="owner-venue-form-section" aria-labelledby="venue-contact-heading">

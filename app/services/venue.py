@@ -142,7 +142,7 @@ def search_public_venues(
     if nearby_origin is not None and not normalized_sort:
         normalized_sort = "nearest"
     if normalized_sort not in ("", "nearest"):
-        raise VenueError("Kiểu sắp xếp vị trí không hợp lệ.")
+        raise VenueError("Cách sắp xếp không hợp lệ.")
     if normalized_sort == "nearest" and nearby_origin is None:
         raise VenueError(
             "Hãy cung cấp vị trí hiện tại trước khi sắp xếp gần nhất."
@@ -424,7 +424,7 @@ def _normalize_search_coordinates(
     raw_longitude = str(longitude).strip() if longitude is not None else ""
     if bool(raw_latitude) != bool(raw_longitude):
         raise VenueError(
-            "Vĩ độ và kinh độ vị trí hiện tại phải được gửi cùng nhau."
+            "Thông tin vị trí hiện tại chưa đầy đủ. Vui lòng thử lại."
         )
     if not raw_latitude:
         return None
@@ -433,14 +433,18 @@ def _normalize_search_coordinates(
         normalized_latitude = Decimal(raw_latitude)
         normalized_longitude = Decimal(raw_longitude)
     except InvalidOperation as exc:
-        raise VenueError("Tọa độ vị trí hiện tại không hợp lệ.") from exc
+        raise VenueError(
+            "Thông tin vị trí hiện tại không hợp lệ. Vui lòng thử lại."
+        ) from exc
     if (
         not normalized_latitude.is_finite()
         or not normalized_longitude.is_finite()
         or not Decimal("-90") <= normalized_latitude <= Decimal("90")
         or not Decimal("-180") <= normalized_longitude <= Decimal("180")
     ):
-        raise VenueError("Tọa độ vị trí hiện tại không hợp lệ.")
+        raise VenueError(
+            "Thông tin vị trí hiện tại không hợp lệ. Vui lòng thử lại."
+        )
     return float(normalized_latitude), float(normalized_longitude)
 
 
@@ -666,7 +670,9 @@ def _normalize_coordinates(
     raw_latitude = str(latitude).strip() if latitude is not None else ""
     raw_longitude = str(longitude).strip() if longitude is not None else ""
     if bool(raw_latitude) != bool(raw_longitude):
-        raise VenueError("Vĩ độ và kinh độ phải được cung cấp cùng nhau.")
+        raise VenueError(
+            "Thông tin vị trí chưa đầy đủ. Vui lòng đặt và xác nhận lại ghim."
+        )
     if not raw_latitude:
         return None
     try:
@@ -678,13 +684,17 @@ def _normalize_coordinates(
             or not Decimal("-90") <= normalized_latitude <= Decimal("90")
             or not Decimal("-180") <= normalized_longitude <= Decimal("180")
         ):
-            raise VenueError("Tọa độ nằm ngoài phạm vi hợp lệ.")
+            raise VenueError(
+                "Vị trí đã chọn không hợp lệ. Vui lòng đặt lại ghim trên bản đồ."
+            )
         return (
             normalized_latitude.quantize(Decimal("0.000001")),
             normalized_longitude.quantize(Decimal("0.000001")),
         )
     except (InvalidOperation, ValueError) as exc:
-        raise VenueError("Tọa độ không đúng định dạng.") from exc
+        raise VenueError(
+            "Vị trí đã chọn không hợp lệ. Vui lòng đặt lại ghim trên bản đồ."
+        ) from exc
 
 
 def moderate_venue(

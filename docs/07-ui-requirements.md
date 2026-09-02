@@ -15,10 +15,10 @@
 
 - Ô tìm theo tên, địa chỉ chi tiết, phường/xã/đặc khu hoặc tỉnh/thành phố.
 - Bộ lọc sport, field type và khoảng giá; khi user đổi sport, trang tự áp dụng bộ lọc để hiển thị toàn bộ venue có field thuộc sport đó. Chỉ các field type thực tế thuộc sport đã chọn được hiển thị trực tiếp thành nút, không có nút “Tất cả”; khi chưa chọn nút field type nào thì sport vẫn bao gồm mọi loại sân của chính nó. Bấm lại field type đang chọn để bỏ lọc chi tiết. Card kết quả chỉ liệt kê field type thuộc sport/field type đang lọc.
-- Kết quả hiển thị dạng danh sách/card; không có bản đồ nhúng hoặc bộ lọc bán kính.
+- Kết quả hiển thị dạng danh sách/card liên quan trực quan với bản đồ Leaflet; chưa có bộ lọc bán kính.
 - Mỗi card có nút mở chỉ đường trên Google Maps ở tab mới.
 - Card venue hiển thị địa chỉ, sport/field type đang hoạt động, giờ hoạt động, giá từ và khoảng cách nếu có.
-- Marker hiển thị tên, khoảng cách, giá từ và nút xem chi tiết.
+- Marker hiển thị tên, địa chỉ, khoảng cách khi bật `Sân gần tôi` và nút xem chi tiết.
 - Điều kiện đang lọc hiển thị thành chip; phân trang giữ nguyên query.
 - Chỉ venue ACTIVE có field ACTIVE xuất hiện.
 
@@ -27,15 +27,15 @@
 - Nhập tên, số liên hệ, mô tả và giờ hoạt động.
 - Owner chọn `Tỉnh/Thành phố`, sau đó chỉ chọn được `Phường/Xã/Đặc khu` thuộc địa phương đó; danh mục không cho nhập tự do.
 - Owner nhập địa chỉ chi tiết riêng. Backend tự tra catalog và lưu snapshot tên theo mã đã chọn.
-- Không hiển thị Places Autocomplete, bản đồ hoặc trường tọa độ.
-- Dữ liệu Place ID/tọa độ legacy không xuất hiện trong form và không bị xóa khi Owner sửa thông tin khác.
+- Không hiển thị Places Autocomplete hoặc trường tọa độ thô; dùng Leaflet để đặt/sửa ghim và chỉ gọi Nominatim khi Owner bấm `Tìm vị trí`.
+- Kết quả tìm chỉ là gợi ý; Owner phải xác nhận ghim. Đổi địa chỉ hành chính hoặc di chuyển ghim phải xác nhận lại trước khi lưu.
 
-Venue cũ và venue mới đều tìm kiếm theo địa chỉ hành chính; tọa độ không phải điều kiện công khai.
+Venue cũ chưa có tọa độ vẫn hợp lệ. Chỉ Venue có tọa độ hợp lệ mới xuất hiện dưới dạng marker hoặc tham gia `Sân gần tôi`.
 
 ## 7.4. Trang chi tiết venue/field
 
 - Hiển thị venue, địa chỉ, giờ hoạt động và các field theo từng sport.
-- Có nút “Mở chỉ đường trên Google Maps”; không nhúng bản đồ.
+- Có bản đồ Leaflet cho Venue có vị trí đã xác nhận; trường hợp còn lại hiển thị fallback địa chỉ. Nút “Mở chỉ đường trên Google Maps” luôn được giữ.
 - Field hiển thị sport, field type, capacity, trạng thái và khung giá.
 - Nút đặt sân chỉ bật với field ACTIVE.
 - Không hiển thị đánh giá Google hoặc cơ sở bên ngoài trong MVP.

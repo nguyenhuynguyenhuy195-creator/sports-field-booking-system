@@ -29,11 +29,11 @@
 ## AC-004: Địa chỉ và chỉ đường
 
 - Owner chọn tỉnh rồi chỉ thấy phường/xã/đặc khu trực thuộc; edit load đúng lựa chọn hiện tại.
-- Owner nhập địa chỉ chi tiết; backend lưu tên tỉnh/phường từ catalog và không yêu cầu Place ID/tọa độ.
-- Form không tải Maps/Places API, không hiển thị bản đồ và không xin quyền vị trí.
-- Dữ liệu Place ID/tọa độ legacy được giữ khi Owner sửa thông tin khác.
+- Owner nhập địa chỉ chi tiết; backend lưu tên tỉnh/phường từ catalog và không yêu cầu Place ID.
+- Form không tải Google Maps/Places API; Leaflet hiển thị ghim và Nominatim chỉ được gọi khi Owner bấm `Tìm vị trí`.
+- Kết quả geocoding chỉ là gợi ý; tạo Venue mới hoặc đổi địa chỉ/vị trí phải xác nhận ghim. Venue cũ chưa có tọa độ vẫn sửa được nếu không đổi location identity.
 - Nút chỉ đường mở Google Maps ở tab mới; hệ thống không tự xây tuyến đường.
-- Không có venue ngoài database xuất hiện do Nearby Search.
+- `Sân gần tôi` chỉ xin browser geolocation sau thao tác user, không lưu vị trí, và không đưa Venue ngoài database vào kết quả.
 
 ## AC-005: Tìm kiếm và lọc
 

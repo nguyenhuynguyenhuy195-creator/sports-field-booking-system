@@ -73,10 +73,11 @@ User phải đăng nhập trước khi tạo booking, tạo kèo, gửi yêu c�
 - “Giá từ” là hourly_price thấp nhất của price slot ACTIVE trên field ACTIVE còn phù hợp với bộ lọc.
 - Giá tối thiểu không được lớn hơn giá tối đa; điều kiện được giữ khi chuyển trang.
 
-### BR-011: Chỉ đường ngoài hệ thống
+### BR-011: Bản đồ và chỉ đường ngoài hệ thống
 
 - Nút chỉ đường mở Google Maps bằng địa chỉ đầy đủ hiện tại.
-- Hệ thống không nhúng bản đồ, không tự tính tuyến đường và không dùng Maps/Places API.
+- Hệ thống nhúng Leaflet cho Venue có tọa độ hợp lệ nhưng không tự tính tuyến đường và không dùng Google Maps/Places API.
+- `Sân gần tôi` chỉ dùng browser geolocation theo thao tác người dùng, tính khoảng cách Haversine tới Venue nội bộ và không lưu vị trí người dùng.
 - Kết quả tìm kiếm chỉ gồm venue nội bộ đã ACTIVE.
 
 ### BR-012: Khung giá

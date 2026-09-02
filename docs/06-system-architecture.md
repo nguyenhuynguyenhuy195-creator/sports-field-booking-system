@@ -87,12 +87,16 @@ Trách nhiệm:
 
 Credential và endpoint phải đọc từ biến môi trường. Sandbox và production phải tách cấu hình; MVP chỉ bật sandbox.
 
-## 6.6. Địa chỉ và liên kết chỉ đường
+## 6.6. Địa chỉ, bản đồ và tìm gần tôi
 
 - Owner chọn tỉnh/thành phố và phường/xã từ catalog rồi nhập địa chỉ chi tiết.
-- Backend chỉ tìm trong bảng `venues` theo văn bản/khu vực; không gọi dịch vụ địa điểm bên ngoài.
+- Endpoint chỉ dành cho Owner gọi Nominatim sau thao tác `Tìm vị trí`; kết quả geocoding là gợi ý, còn ghim Leaflet do Owner xác nhận mới là tọa độ tin cậy.
+- Leaflet dùng tile tương thích OpenStreetMap với attribution; tile map và Nominatim geocoding là hai dịch vụ độc lập.
+- Public map không geocode; chỉ dùng tọa độ Venue hợp lệ trong database. Venue thiếu tọa độ vẫn hiển thị bằng địa chỉ/fallback.
+- `Sân gần tôi` chỉ gọi browser geolocation sau thao tác user; backend validate cặp latitude/longitude và tính Haversine, không dùng geospatial extension.
+- Vị trí user không được lưu vào database, session, localStorage hoặc sessionStorage.
 - Nút chỉ đường tạo URL Google Maps từ địa chỉ đầy đủ hiện tại.
-- Frontend không tải Maps JavaScript API, Places API hoặc yêu cầu Geolocation.
+- Frontend không tải Google Maps JavaScript API hoặc Places API.
 - Không cần Maps API key trong cấu hình môi trường.
 
 ## 6.7. Model Layer
@@ -188,7 +192,7 @@ Availability service cũng phải bỏ qua dữ liệu đã quá hạn theo time
 - Bật CSRF cho form người dùng.
 - IPN không dùng CSRF nhưng phải xác minh HMAC.
 - Secret, connection string và MoMo key chỉ nằm trong biến môi trường.
-- Liên kết Google Maps không chứa API key; dữ liệu Place ID/tọa độ legacy không được đưa vào form chỉnh sửa mới.
+- Liên kết Google Maps không chứa API key; `google_place_id` không được dùng trong form mới. Latitude/longitude nằm ở trường ẩn và chỉ được lưu sau khi Owner xác nhận ghim.
 - Không log password, secret key hoặc toàn bộ payload nhạy cảm.
 - Không log/công khai số điện thoại của hai bên. Service lưu snapshot có sự đồng ý và template chỉ trả số khi participant `JOINED`, booking còn hiệu lực và user hiện tại là creator hoặc chính participant đó.
 - Trang lịch cá nhân hợp nhất booking do user tạo với match user đã `JOINED`; match tham gia là liên kết chỉ xem, không làm thay đổi kiểm tra quyền sở hữu booking ở service.

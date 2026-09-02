@@ -95,11 +95,11 @@ class VenueSearchForm(FlaskForm):
         normalized_sort = (self.sort.data or "").strip().lower()
 
         if normalized_sort not in ("", "nearest"):
-            self.sort.errors.append("Kiểu sắp xếp vị trí không hợp lệ.")
+            self.sort.errors.append("Cách sắp xếp không hợp lệ.")
             is_valid = False
         if bool(raw_latitude) != bool(raw_longitude):
             self.latitude.errors.append(
-                "Vĩ độ và kinh độ vị trí hiện tại phải được gửi cùng nhau."
+                "Thông tin vị trí hiện tại chưa đầy đủ. Vui lòng thử lại."
             )
             return False
         if not raw_latitude:
@@ -110,9 +110,9 @@ class VenueSearchForm(FlaskForm):
                 return False
             return is_valid
 
-        for field, minimum, maximum, label in (
-            (self.latitude, Decimal("-90"), Decimal("90"), "Vĩ độ"),
-            (self.longitude, Decimal("-180"), Decimal("180"), "Kinh độ"),
+        for field, minimum, maximum in (
+            (self.latitude, Decimal("-90"), Decimal("90")),
+            (self.longitude, Decimal("-180"), Decimal("180")),
         ):
             try:
                 value = Decimal(field.data)
@@ -121,7 +121,7 @@ class VenueSearchForm(FlaskForm):
                 in_range = False
             if not in_range:
                 field.errors.append(
-                    f"{label} vị trí hiện tại không hợp lệ."
+                    "Thông tin vị trí hiện tại không hợp lệ. Vui lòng thử lại."
                 )
                 is_valid = False
         if is_valid and not normalized_sort:
@@ -223,16 +223,16 @@ class VenueForm(FlaskForm):
         latitude = (self.latitude.data or "").strip()
         longitude = (self.longitude.data or "").strip()
         if bool(latitude) != bool(longitude):
-            message = "Vĩ độ và kinh độ phải được gửi cùng nhau."
+            message = "Thông tin vị trí chưa đầy đủ. Vui lòng đặt và xác nhận lại ghim."
             self.latitude.errors.append(message)
             self.longitude.errors.append(message)
             return False
         if not latitude:
             return is_valid
 
-        for field, minimum, maximum, label in (
-            (self.latitude, -90, 90, "Vĩ độ"),
-            (self.longitude, -180, 180, "Kinh độ"),
+        for field, minimum, maximum in (
+            (self.latitude, -90, 90),
+            (self.longitude, -180, 180),
         ):
             try:
                 value = Decimal(field.data)
@@ -241,7 +241,7 @@ class VenueForm(FlaskForm):
                 in_range = False
             if not in_range:
                 field.errors.append(
-                    f"{label} phải là số từ {minimum} đến {maximum}."
+                    "Vị trí đã chọn không hợp lệ. Vui lòng đặt lại ghim trên bản đồ."
                 )
                 is_valid = False
         return is_valid

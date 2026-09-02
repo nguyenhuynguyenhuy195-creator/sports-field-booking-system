@@ -60,15 +60,23 @@ Danh sách, chi tiết và Admin đều có nút mở Google Maps ở tab mới;
 
 ### TC-DIRECTIONS-002: Không nhúng Google Maps
 
-HTML không tải `maps.googleapis.com`, không chứa map container, Places Autocomplete, API key hoặc script bản đồ.
+HTML không tải `maps.googleapis.com`, Places Autocomplete hoặc Google Maps API key. Bản đồ nhúng dùng Leaflet/OSM-compatible tiles và hiển thị attribution.
 
 ### TC-DIRECTIONS-003: Giữ dữ liệu legacy
 
-Owner sửa địa chỉ hoặc thông tin khác không làm mất Place ID/tọa độ legacy; form mới không hiển thị các trường này.
+Owner sửa thông tin không liên quan vẫn giữ vị trí đã xác nhận. Đổi địa chỉ hoặc di chuyển ghim bắt buộc xác nhận lại; Venue ACTIVE trở về PENDING.
 
 ### TC-DIRECTIONS-004: Duyệt không phụ thuộc tọa độ
 
 Admin có thể duyệt venue có địa chỉ hành chính hợp lệ mà không cần Place ID/tọa độ.
+
+### TC-LOCATION-001: Owner xác nhận vị trí
+
+Nominatim chỉ được gọi sau thao tác `Tìm vị trí`; kết quả là gợi ý. Owner kéo/bấm sửa ghim, xác nhận rồi lưu; lỗi geocoder vẫn cho đặt ghim thủ công.
+
+### TC-LOCATION-002: Public map và nearby
+
+Venue Detail/Find Venue chỉ tạo marker cho Venue có tọa độ hợp lệ. `Sân gần tôi` validate cặp vị trí, sắp xếp Haversine gần nhất và không lưu vị trí user; lỗi quyền/thiết bị/timeout không làm hỏng tìm kiếm thường.
 
 ### TC-SEARCH-001: Kết hợp bộ lọc
 
