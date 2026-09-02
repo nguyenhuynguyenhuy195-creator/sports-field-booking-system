@@ -298,8 +298,9 @@ def test_owner_mode_switching_and_final_navigation(app):
     assert "Lịch sân" in owner_html
     assert "Booking" in owner_html
     assert "Cơ sở &amp; Sân" in owner_html
-    assert "Bảng giá" in owner_html
-    assert "Bảo trì" in owner_html
+    assert "owner-sidebar-link-nested" not in owner_html
+    assert "Bảng giá — quản lý theo từng sân" not in owner_html
+    assert "Bảo trì — quản lý theo từng sân" not in owner_html
     assert "Tài chính" in owner_html
     assert "Hồ sơ" not in owner_html
     assert 'data-bs-target="#ownerSidebar"' in owner_html
@@ -332,8 +333,10 @@ def test_existing_owner_pages_render_inside_owner_shell(app):
 
     pricing_html = client.get(urls[3]).get_data(as_text=True)
     maintenance_html = client.get(urls[4]).get_data(as_text=True)
-    assert "owner-sidebar-link owner-sidebar-link-nested active" in pricing_html
-    assert "owner-sidebar-link owner-sidebar-link-nested active" in maintenance_html
+    assert 'class="owner-sidebar-link active" href="/owner/venues"' in pricing_html
+    assert 'class="owner-sidebar-link active" href="/owner/venues"' in maintenance_html
+    assert "owner-sidebar-link-nested" not in pricing_html
+    assert "owner-sidebar-link-nested" not in maintenance_html
 
 
 def test_shared_booking_detail_selects_owner_or_player_shell(app):

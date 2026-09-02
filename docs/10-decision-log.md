@@ -389,3 +389,12 @@ ADR này thay thế phần quy định play format mới trong ADR-022 và ADR-0
 - Matchmaking, payment, deposit, cancellation và refund không đổi.
 
 ADR này chỉ thay thế điều kiện đặt trước 24 giờ của FIND_OPPONENT trong ADR-023 và các tài liệu dẫn xuất; các quyết định còn lại vẫn giữ nguyên.
+
+## ADR-035: Điều hướng Owner Pricing và Maintenance theo Field
+
+**Ngày quyết định:** 02/09/2026
+**Trạng thái:** Đã áp dụng và nghiệm thu trong Phase 3 – Owner Console.
+
+- Bảng giá và Bảo trì là thao tác theo từng Field, vì rule giá, trạng thái kích hoạt Field, lịch bảo trì và kiểm tra chồng lịch đều có phạm vi Field.
+- Owner đi từ Cơ sở & Sân theo ngữ cảnh Venue → Field đến Bảng giá hoặc Bảo trì; không tạo menu global, route global hay màn danh sách chéo Field mới chỉ để điều hướng.
+- Các nested route, service, permission và ownership validation hiện có là source of truth; quyết định này chỉ chuẩn hóa hierarchy điều hướng và không thay đổi nghiệp vụ.

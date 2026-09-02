@@ -58,7 +58,7 @@
             {% endfor %}
         </div>
     {% else %}
-        <div class="owner-media-empty">
+        <div class="owner-media-empty owner-empty-state owner-empty-state--compact">
             <i class="bi bi-image" aria-hidden="true"></i>
             <div><h3>Chưa có hình ảnh</h3><p>Tải ảnh đầu tiên để tạo ảnh đại diện cho {{ 'cơ sở' if media_scope == 'venue' else 'sân' }}.</p></div>
         </div>

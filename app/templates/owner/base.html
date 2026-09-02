@@ -20,9 +20,7 @@
     {% set dashboard_active = endpoint == 'owner.dashboard' %}
     {% set schedule_active = endpoint == 'owner.schedule' %}
     {% set bookings_active = endpoint.startswith('bookings.owner_') %}
-    {% set venues_active = endpoint.startswith('venues.owner_') or endpoint.startswith('fields.owner_') %}
-    {% set pricing_active = endpoint.startswith('pricing.owner_') %}
-    {% set maintenance_active = endpoint.startswith('maintenance.owner_') %}
+    {% set venues_active = endpoint.startswith('venues.owner_') or endpoint.startswith('fields.owner_') or endpoint.startswith('pricing.owner_') or endpoint.startswith('maintenance.owner_') %}
 
     <div class="owner-shell">
         <aside class="offcanvas-lg offcanvas-start owner-sidebar" tabindex="-1" id="ownerSidebar" aria-labelledby="ownerSidebarLabel" data-owner-sidebar>
@@ -49,13 +47,7 @@
                     <a class="owner-sidebar-link{% if venues_active %} active{% endif %}" href="{{ url_for('venues.owner_index') }}"{% if venues_active %} aria-current="page"{% endif %} aria-label="Cơ sở &amp; Sân" title="Cơ sở &amp; Sân">
                         <i class="bi bi-buildings" aria-hidden="true"></i><span>Cơ sở &amp; Sân</span>
                     </a>
-                    <span class="owner-sidebar-link owner-sidebar-link-nested{% if pricing_active %} active{% endif %}" aria-label="Bảng giá — quản lý theo từng sân" aria-disabled="true"{% if pricing_active %} aria-current="page"{% endif %} title="Bảng giá — quản lý theo từng sân">
-                        <i class="bi bi-tags" aria-hidden="true"></i><span>Bảng giá</span>
-                    </span>
-                    <span class="owner-sidebar-link owner-sidebar-link-nested{% if maintenance_active %} active{% endif %}" aria-label="Bảo trì — quản lý theo từng sân" aria-disabled="true"{% if maintenance_active %} aria-current="page"{% endif %} title="Bảo trì — quản lý theo từng sân">
-                        <i class="bi bi-tools" aria-hidden="true"></i><span>Bảo trì</span>
-                    </span>
-                    <a class="owner-sidebar-link{% if request.endpoint == 'owner.finance' %} active{% endif %}" href="{{ url_for('owner.finance') }}"{% if request.endpoint == 'owner.finance' %} aria-current="page"{% endif %}>
+                    <a class="owner-sidebar-link{% if request.endpoint == 'owner.finance' %} active{% endif %}" href="{{ url_for('owner.finance') }}"{% if request.endpoint == 'owner.finance' %} aria-current="page"{% endif %} aria-label="Tài chính" title="Tài chính">
                         <i class="bi bi-wallet2" aria-hidden="true"></i><span>Tài chính</span>
                     </a>
                 </nav>

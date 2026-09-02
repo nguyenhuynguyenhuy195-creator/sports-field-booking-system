@@ -51,7 +51,7 @@
             {% if current_or_upcoming %}
                 <div class="owner-maintenance-list">{% for maintenance in current_or_upcoming %}{{ maintenance_row(maintenance) }}{% endfor %}</div>
             {% else %}
-                <div class="owner-operation-inline-empty"><i class="bi bi-calendar2-check" aria-hidden="true"></i><div><strong>Không có lịch bảo trì đang hoạt động</strong><p>Sân hiện không có khoảng bảo trì nào đang diễn ra hoặc sắp tới.</p></div></div>
+                <div class="owner-operation-inline-empty owner-empty-state owner-empty-state--compact"><i class="bi bi-calendar2-check" aria-hidden="true"></i><div><strong>Không có lịch bảo trì đang hoạt động</strong><p>Sân hiện không có khoảng bảo trì nào đang diễn ra hoặc sắp tới.</p></div></div>
             {% endif %}
         </section>
 
@@ -62,8 +62,8 @@
             </section>
         {% endif %}
     {% else %}
-        <div class="empty-state text-center owner-operation-empty">
-            <div class="empty-state-icon" aria-hidden="true"><i class="bi bi-tools"></i></div>
+        <div class="empty-state text-center owner-operation-empty owner-empty-state owner-empty-state--full">
+            <div class="empty-state-icon owner-empty-state-icon" aria-hidden="true"><i class="bi bi-tools"></i></div>
             <h2 class="h5 fw-bold">Sân chưa có lịch bảo trì</h2>
             <p class="text-secondary">Thêm lịch khi sân cần tạm ngừng nhận đặt trong một khoảng giờ.</p>
             <a class="btn btn-primary" href="{{ url_for('maintenance.owner_create', venue_id=field.venue_id, field_id=field.id) }}">Thêm lịch bảo trì đầu tiên</a>

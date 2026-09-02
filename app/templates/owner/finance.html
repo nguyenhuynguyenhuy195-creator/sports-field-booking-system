@@ -136,10 +136,10 @@
                         {% for activity in summary.activities %}
                             <tr>
                                 <td data-label="Thời gian"><strong>{{ activity.occurred_at.strftime('%H:%M') }}</strong><small>{{ activity.occurred_at.strftime('%d/%m/%Y') }}</small></td>
-                                <td data-label="Booking"><strong>{{ activity.booking.booking_code }}</strong><small>{{ activity.reference }}</small></td>
+                                <td data-label="Booking"><strong>{{ activity.booking.booking_code }}</strong><small class="owner-finance-reference">Mã giao dịch: {{ activity.reference }}</small></td>
                                 <td data-label="Cơ sở / Sân"><strong>{{ activity.booking.field.venue.name }}</strong><small>{{ activity.booking.field.name }}</small></td>
                                 <td data-label="Khách / người nhận">{{ activity.payer_name }}</td>
-                                <td data-label="Giao dịch"><span class="owner-finance-type is-{{ activity.activity_type|lower }}">{{ activity_type_labels[activity.activity_type] }}</span><small>{{ provider_labels.get(activity.provider, activity.provider) }}</small></td>
+                                <td data-label="Giao dịch"><span class="owner-finance-type is-{{ activity.activity_type|lower }}">{{ activity_type_labels[activity.activity_type] }}</span><small>{{ provider_labels.get(activity.provider, 'Kênh chưa xác định') }}</small></td>
                                 <td data-label="Trạng thái"><span class="status-badge status-{{ activity.status|lower|replace('_', '-') }}">{{ finance_status_labels[activity.status] }}</span></td>
                                 <td data-label="Số tiền" class="owner-finance-amount{% if activity.activity_type == 'REFUND' %} is-refund{% endif %}">{% if activity.activity_type == 'REFUND' %}−{% else %}+{% endif %}{{ activity.amount|vnd_currency }}</td>
                                 <td><a class="owner-row-link" href="{{ url_for('bookings.owner_detail', booking_code=activity.booking.booking_code) }}" aria-label="Xem booking {{ activity.booking.booking_code }}"><i class="bi bi-chevron-right" aria-hidden="true"></i></a></td>
@@ -149,7 +149,7 @@
                 </table>
             </div>
         {% else %}
-            <div class="owner-dashboard-empty owner-finance-empty">
+            <div class="owner-dashboard-empty owner-finance-empty owner-empty-state owner-empty-state--compact">
                 <i class="bi bi-receipt-cutoff" aria-hidden="true"></i>
                 <div><strong>Chưa có hoạt động phù hợp</strong><p>Hoạt động thanh toán hoặc hoàn tiền thuộc phạm vi đã chọn sẽ xuất hiện tại đây.</p></div>
             </div>

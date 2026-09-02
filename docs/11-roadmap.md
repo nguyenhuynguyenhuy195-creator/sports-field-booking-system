@@ -271,7 +271,7 @@ Theo quyết định của người dùng ngày 31/08/2026:
 
 ## PHASE 3 – OWNER CONSOLE
 
-**Trạng thái: IN PROGRESS**
+**Trạng thái: DONE / ACCEPTED (02/09/2026)**
 
 - Dedicated `/owner` workspace dùng sidebar/topbar riêng, không dùng navbar ngang dài như giao diện User.
 - Một tài khoản `OWNER` vẫn có thể chuyển giữa Trang người chơi và Quản lý sân.
@@ -364,16 +364,14 @@ Theo quyết định của người dùng ngày 31/08/2026:
 - Settlement/payout và cấu hình đích nhận chi trả được hoãn sang Phase 2.6 cùng thiết kế đối soát.
 - Verification: Finance-focused 5 passed; Payment/Refund/Booking 73 passed; full regression 317 passed; migration head `a6d8e4f2c913`; `flask db check` sạch.
 
-### Step 3.6 – Owner Console Final Polish & Audit — NOT STARTED
+### Step 3.6 – Owner Console Final Polish & Audit — DONE / ACCEPTED (02/09/2026)
 
-- Responsive.
-- UX consistency.
-- Permissions.
-- Empty states.
-- UX wording.
-- Browser QA.
-- Full regression.
-- Phase 3 acceptance.
+- Final visual review đạt cho toàn bộ Owner Console, gồm Owner Schedule Matrix: hierarchy giờ tròn/nửa giờ, header sân, event Booking xanh, event Bảo trì amber, lịch sử muted, legend compact, trạng thái trống “Trống” và chỉ báo “Bây giờ” trong ngày/giờ hoạt động.
+- Responsive/browser QA đạt ở desktop 1440×900, 1366×768, tablet và mobile 390×844; matrix giữ vị trí, sticky rail/header, internal scroll và semantics hiện có.
+- Permission/ownership audit đạt; không thay đổi route, ownership validation, query, filter, Matrix/List switch hoặc booking/maintenance rules.
+- Focused Owner audit: 166 passed. Schedule-focused: 14 passed. Final full regression: 317 passed, 0 failed.
+- `compileall` đạt; `flask db check` không phát hiện upgrade operation; migration current/head giữ `a6d8e4f2c913`.
+- Không có thay đổi model, schema, migration hoặc dependency. Final visual review: PASSED.
 
 ---
 
@@ -474,7 +472,7 @@ Hiện tại:
 - Phase 1B: DONE.
 - Phase 1.2: DONE / ACCEPTED (30/08/2026).
 - Phase 2: NOT STARTED / DEFERRED BY USER DECISION.
-- Phase 3: IN PROGRESS (Step 3.4 và Step 3.5 DONE / ACCEPTED; Step 3.6 NOT STARTED).
+- Phase 3: DONE / ACCEPTED (02/09/2026).
 - Phase 4: NOT YET AUDITED / ACCEPTED.
 - Phase 4.1: NOT STARTED.
 - Phase 5: NOT STARTED.
@@ -516,9 +514,9 @@ DONE:
 
 ### TASK TIẾP THEO
 
-**PHASE 3 – STEP 3.6 OWNER CONSOLE FINAL POLISH & AUDIT — NOT STARTED**
+**PHASE 2 – ADMIN OPERATIONS — NOT STARTED / DEFERRED BY USER DECISION**
 
-Step 3.4 Pricing & Maintenance Operations đã hoàn tất ngày 01/09/2026 và Step 3.5 Owner Finance Foundation đã được nghiệm thu ngày 02/09/2026. Step 3.6 chưa bắt đầu và chỉ triển khai khi có yêu cầu riêng; Phase 2 vẫn được tạm hoãn theo quyết định của người dùng.
+Phase 3 – Owner Console đã DONE / ACCEPTED ngày 02/09/2026. Phase 2 vẫn tạm hoãn và không tự khởi động cho đến khi có yêu cầu riêng của người dùng.
 
 ---
 

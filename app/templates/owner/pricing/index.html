@@ -63,8 +63,8 @@
             {% endfor %}
         </div>
     {% else %}
-        <div class="empty-state text-center owner-operation-empty">
-            <div class="empty-state-icon" aria-hidden="true"><i class="bi bi-tags"></i></div>
+        <div class="empty-state text-center owner-operation-empty owner-empty-state owner-empty-state--full">
+            <div class="empty-state-icon owner-empty-state-icon" aria-hidden="true"><i class="bi bi-tags"></i></div>
             <h2 class="h5 fw-bold">Sân chưa có khung giá</h2>
             <p class="text-secondary">Thêm khung giá đầu tiên trong giờ hoạt động để chuẩn bị bật sân.</p>
             <a class="btn btn-primary" href="{{ url_for('pricing.owner_create', venue_id=field.venue_id, field_id=field.id) }}">Thêm khung giá đầu tiên</a>

@@ -77,8 +77,8 @@
                             {% endfor %}
                         </div>
                     {% else %}
-                        <div class="booking-panel-empty">
-                            <div class="booking-panel-empty-icon" aria-hidden="true">📋</div>
+                        <div class="booking-panel-empty owner-empty-state owner-empty-state--compact">
+                            <div class="booking-panel-empty-icon owner-empty-state-icon" aria-hidden="true"><i class="bi bi-journal-x"></i></div>
                             <div>
                                 <h2 class="h6 fw-bold mb-1">Chưa có lịch đặt trong mục này</h2>
                                 <p class="text-secondary mb-0">Lịch đặt phù hợp sẽ tự động xuất hiện tại đây.</p>
@@ -89,8 +89,8 @@
             {% endfor %}
         </div>
     {% else %}
-        <div class="empty-state text-center">
-            <div class="empty-state-icon" aria-hidden="true">📋</div>
+        <div class="empty-state text-center owner-empty-state owner-empty-state--full">
+            <div class="empty-state-icon owner-empty-state-icon" aria-hidden="true"><i class="bi bi-journal-x"></i></div>
             <h2 class="h5 fw-bold">Chưa có lịch đặt sân</h2>
             <p class="text-secondary mb-0">Lịch đặt mới sẽ xuất hiện tại đây.</p>
         </div>

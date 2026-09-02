@@ -10,13 +10,26 @@
     --owner-border-strong: #cedcd5;
     --owner-text: #17261f;
     --owner-muted: #64756c;
+    --owner-muted-soft: #788981;
+    --owner-font-xs: 0.68rem;
+    --owner-font-sm: 0.75rem;
+    --owner-font-md: 0.85rem;
+    --owner-space-3: 1rem;
+    --owner-space-4: 1.5rem;
+    --owner-radius-sm: 8px;
+    --owner-radius-md: 10px;
+    --owner-radius-lg: 14px;
+    --owner-shadow-card: 0 8px 22px rgba(16, 63, 53, 0.045);
+    --owner-shadow-card-hover: 0 12px 28px rgba(16, 63, 53, 0.07);
+    --owner-control-height: 40px;
+    --owner-focus-ring: rgba(22, 118, 77, 0.24);
     --owner-sidebar-width: 238px;
     --owner-sidebar-collapsed-width: 68px;
     --owner-sidebar-expanded-width: 238px;
     --owner-sidebar-transition: 210ms;
     --owner-content-width: 1280px;
     --owner-page-width: 1220px;
-    --owner-radius: 14px;
+    --owner-radius: var(--owner-radius-lg);
 }
 
 html,
@@ -372,25 +385,40 @@ a.owner-sidebar-link:hover {
 }
 
 .owner-page-heading {
-    margin-bottom: 1.5rem;
+    margin-bottom: var(--owner-space-4);
 }
 
-.owner-page-heading .eyebrow {
+.owner-page-heading .eyebrow,
+.owner-fields-header .eyebrow,
+.owner-operation-heading .eyebrow,
+.owner-operation-form-heading .eyebrow {
     color: var(--owner-primary-dark);
-    font-size: 0.66rem;
+    font-size: var(--owner-font-xs);
+    font-weight: 700;
     letter-spacing: 0.12em;
+    text-transform: uppercase;
 }
 
-.owner-page-heading h1 {
+.owner-page-heading h1,
+.owner-fields-header h1,
+.owner-operation-heading h1,
+.owner-operation-form-heading h1 {
+    margin: 0.42rem 0 0.28rem;
     color: #152b21;
     font-size: clamp(1.55rem, 2.4vw, 2rem);
+    font-weight: 700;
     letter-spacing: -0.025em;
 }
 
-.owner-page-heading > div > p {
-    max-width: 620px;
+.owner-page-heading p,
+.owner-fields-header p,
+.owner-operation-heading p,
+.owner-operation-form-heading p {
+    max-width: 680px;
+    margin-bottom: 0;
     color: var(--owner-muted) !important;
-    font-size: 0.86rem;
+    font-size: var(--owner-font-md);
+    line-height: 1.55;
 }
 
 .owner-page-heading > .btn {
@@ -494,15 +522,19 @@ a.owner-sidebar-link:hover {
     margin-top: 1rem;
 }
 
-.owner-kpi-card {
+.owner-kpi-card,
+.owner-finance-kpi {
     position: relative;
     min-width: 0;
-    min-height: 132px;
-    padding: 1rem;
+    padding: var(--owner-space-3);
     background: var(--owner-surface);
     border: 1px solid var(--owner-border);
     border-radius: var(--owner-radius);
-    box-shadow: 0 8px 22px rgba(16, 63, 53, 0.045);
+    box-shadow: var(--owner-shadow-card);
+}
+
+.owner-kpi-card {
+    min-height: 132px;
     transition: border-color 160ms ease, box-shadow 160ms ease;
 }
 
@@ -550,7 +582,7 @@ a.owner-sidebar-link:hover {
 @media (hover: hover) {
     .owner-kpi-card:hover {
         border-color: #c7ddd0;
-        box-shadow: 0 12px 28px rgba(16, 63, 53, 0.07);
+        box-shadow: var(--owner-shadow-card-hover);
     }
 }
 
@@ -1150,7 +1182,7 @@ a.owner-sidebar-link:hover {
 
 .owner-venue-form-actions .btn {
     min-width: 118px;
-    min-height: 40px;
+    min-height: var(--owner-control-height);
     font-size: 0.72rem;
     font-weight: 700;
 }
@@ -1184,21 +1216,26 @@ a.owner-sidebar-link:hover {
 
 .owner-fields-header .eyebrow {
     color: var(--owner-primary-dark);
-    font-size: 0.65rem;
-    font-weight: 800;
-    letter-spacing: 0.11em;
+    font-size: var(--owner-font-xs);
+    font-weight: 700;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
 }
 
 .owner-fields-header h1 {
+    margin: 0.42rem 0 0.28rem;
     color: #152b21;
-    font-size: clamp(1.55rem, 2.2vw, 1.9rem);
+    font-size: clamp(1.55rem, 2.4vw, 2rem);
+    font-weight: 700;
     letter-spacing: -0.025em;
 }
 
 .owner-fields-header p {
+    max-width: 680px;
+    margin-bottom: 0;
     color: var(--owner-muted) !important;
-    font-size: 0.76rem;
+    font-size: var(--owner-font-md);
+    line-height: 1.55;
 }
 
 .owner-fields-add {
@@ -1206,11 +1243,11 @@ a.owner-sidebar-link:hover {
     flex: 0 0 auto;
     gap: 0.38rem;
     align-items: center;
-    min-height: 38px;
+    min-height: var(--owner-control-height);
     padding: 0.52rem 0.78rem;
     font-size: 0.72rem;
     font-weight: 700;
-    border-radius: 9px;
+    border-radius: var(--owner-radius-sm);
     box-shadow: 0 7px 16px rgba(22, 118, 77, 0.14);
 }
 
@@ -2033,14 +2070,7 @@ a.owner-sidebar-link:hover {
 }
 
 .owner-finance-kpi {
-    position: relative;
-    min-width: 0;
     min-height: 142px;
-    padding: 1rem;
-    background: var(--owner-surface);
-    border: 1px solid var(--owner-border);
-    border-radius: var(--owner-radius);
-    box-shadow: 0 8px 22px rgba(16, 63, 53, 0.04);
 }
 
 .owner-finance-kpi p {
@@ -3931,20 +3961,25 @@ a.owner-sidebar-link:hover {
 .owner-schedule-legend {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.75rem;
+    gap: 0.4rem;
     color: var(--owner-muted);
-    font-size: 0.68rem;
+    font-size: 0.64rem;
 }
 
 .owner-schedule-legend span {
     display: inline-flex;
-    gap: 0.34rem;
+    gap: 0.3rem;
     align-items: center;
+    padding: 0.22rem 0.42rem;
+    background: #f7faf8;
+    border: 1px solid #e2ebe6;
+    border-radius: 999px;
+    line-height: 1;
 }
 
 .owner-legend-dot {
-    width: 8px;
-    height: 8px;
+    width: 7px;
+    height: 7px;
     border-radius: 50%;
 }
 
@@ -3971,7 +4006,7 @@ a.owner-sidebar-link:hover {
     background: var(--owner-surface);
     border: 1px solid var(--owner-border-strong);
     border-radius: var(--owner-radius);
-    box-shadow: 0 14px 30px rgba(16, 63, 53, 0.07);
+    box-shadow: 0 10px 24px rgba(16, 63, 53, 0.06);
     scrollbar-color: #9db4a9 #eef3f0;
 }
 
@@ -3991,9 +4026,9 @@ a.owner-sidebar-link:hover {
     position: sticky;
     z-index: 4;
     top: 0;
-    min-height: 76px;
-    padding: 0.75rem;
-    background: #fff;
+    min-height: 80px;
+    padding: 0.7rem 0.75rem;
+    background: #fcfdfc;
     border-bottom: 1px solid var(--owner-border-strong);
 }
 
@@ -4014,20 +4049,22 @@ a.owner-sidebar-link:hover {
 .owner-schedule-field-heading {
     display: grid;
     align-content: center;
+    gap: 0.08rem;
     border-right: 1px solid var(--owner-border);
 }
 
 .owner-schedule-field-heading strong {
     overflow: hidden;
     color: #183126;
-    font-size: 0.79rem;
+    font-size: 0.84rem;
+    font-weight: 700;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
 .owner-schedule-field-heading > span {
     overflow: hidden;
-    margin-top: 0.12rem;
+    margin-top: 0.08rem;
     color: var(--owner-muted);
     font-size: 0.65rem;
     text-overflow: ellipsis;
@@ -4037,7 +4074,7 @@ a.owner-sidebar-link:hover {
 .owner-schedule-field-heading > small {
     width: max-content;
     padding: 0.16rem 0.36rem;
-    margin-top: 0.3rem;
+    margin-top: 0.24rem;
     font-size: 0.56rem;
     font-weight: 700;
     border-radius: 999px;
@@ -4085,6 +4122,17 @@ a.owner-sidebar-link:hover {
     transform: translateY(-50%);
 }
 
+.owner-schedule-time-rail span.is-hour {
+    color: #3e5a4c;
+    font-size: 0.67rem;
+    font-weight: 700;
+}
+
+.owner-schedule-time-rail span.is-half-hour {
+    color: #8a9991;
+    font-size: 0.57rem;
+}
+
 .owner-schedule-timeline {
     min-width: 0;
     background-color: #fff;
@@ -4103,15 +4151,43 @@ a.owner-sidebar-link:hover {
         to bottom,
         transparent 0,
         transparent calc((30 * var(--owner-minute-height)) - 1px),
-        #e7ede9 calc((30 * var(--owner-minute-height)) - 1px),
-        #e7ede9 calc(30 * var(--owner-minute-height))
+        #edf2ef calc((30 * var(--owner-minute-height)) - 1px),
+        #edf2ef calc(30 * var(--owner-minute-height))
     );
-    border-top: 1px solid #e7ede9;
+    border-top: 1px solid #d5e1da;
+}
+
+.owner-schedule-hour-guide {
+    position: absolute;
+    z-index: 1;
+    top: calc(
+        var(--owner-time-edge-space)
+        + (var(--owner-guide-offset) * var(--owner-minute-height))
+    );
+    right: 0;
+    left: 0;
+    pointer-events: none;
+    border-top: 1px solid #d5e1da;
+}
+
+.owner-schedule-matrix.has-current-time .owner-schedule-timeline::after {
+    position: absolute;
+    z-index: 2;
+    top: calc(
+        var(--owner-time-edge-space)
+        + (var(--owner-now-offset) * var(--owner-minute-height))
+    );
+    right: 0;
+    left: 0;
+    content: "";
+    pointer-events: none;
+    border-top: 1px solid #198754;
+    box-shadow: 0 1px 0 rgba(25, 135, 84, 0.16);
 }
 
 .owner-schedule-block {
     position: absolute;
-    z-index: 2;
+    z-index: 3;
     top: calc(
         var(--owner-time-edge-space)
         + (var(--owner-block-offset) * var(--owner-minute-height))
@@ -4130,7 +4206,7 @@ a.owner-sidebar-link:hover {
     border: 1px solid #bfe1d1;
     border-left: 3px solid #20865d;
     border-radius: 8px;
-    box-shadow: 0 5px 12px rgba(16, 63, 53, 0.07);
+    box-shadow: 0 4px 10px rgba(16, 63, 53, 0.06);
     transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
 }
 
@@ -4147,6 +4223,17 @@ a.owner-sidebar-link:hover {
     background: #fff1dc;
     border-color: #f1d2a3;
     border-left-color: #d98c22;
+}
+
+.owner-schedule-block.is-compact {
+    align-items: center;
+    justify-content: center;
+    padding: 0.24rem 0.42rem;
+}
+
+.owner-schedule-block.is-compact > strong {
+    margin-top: 0;
+    font-size: 0.66rem;
 }
 
 .owner-schedule-block.is-historical {
@@ -4187,12 +4274,29 @@ a.owner-sidebar-link:hover {
 
 .owner-schedule-column-empty {
     position: absolute;
-    top: 3rem;
+    top: 3.35rem;
     right: 0;
     left: 0;
-    color: #94a199;
-    font-size: 0.66rem;
+    color: #a3afa8;
+    font-size: 0.6rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
     text-align: center;
+    text-transform: uppercase;
+}
+
+.owner-schedule-now-marker {
+    z-index: 7;
+    right: 0.32rem;
+    width: max-content;
+    padding: 0.1rem 0.24rem;
+    color: #0f6b43 !important;
+    font-size: 0.54rem !important;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    background: #f8fcfa;
+    border: 1px solid #b9dfcb;
+    border-radius: 999px;
 }
 
 .owner-schedule-agenda {
@@ -4465,16 +4569,16 @@ a.owner-sidebar-link:hover {
 .owner-operation-heading .eyebrow,
 .owner-operation-form-heading .eyebrow {
     color: var(--owner-primary-dark);
-    font-size: 0.66rem;
+    font-size: var(--owner-font-xs);
     font-weight: 700;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
 }
 
 .owner-operation-heading h1,
 .owner-operation-form-heading h1 {
     margin: 0.42rem 0 0.28rem;
-    color: #15382b;
+    color: #152b21;
     font-size: clamp(1.55rem, 2.4vw, 2rem);
     font-weight: 700;
     letter-spacing: -0.025em;
@@ -4485,7 +4589,7 @@ a.owner-sidebar-link:hover {
     max-width: 680px;
     margin: 0;
     color: var(--owner-muted);
-    font-size: 0.78rem;
+    font-size: var(--owner-font-md);
     line-height: 1.55;
 }
 
@@ -4496,12 +4600,12 @@ a.owner-sidebar-link:hover {
     gap: 0.4rem;
     align-items: center;
     justify-content: center;
-    min-height: 40px;
+    min-height: var(--owner-control-height);
     padding: 0.55rem 0.78rem;
     font-size: 0.72rem;
     font-weight: 700;
     white-space: nowrap;
-    border-radius: 9px;
+    border-radius: var(--owner-radius-sm);
 }
 
 .owner-operation-context {
@@ -5063,5 +5167,237 @@ a.owner-sidebar-link:hover {
     .owner-operation-form-actions {
         display: grid;
         grid-template-columns: 1fr 1fr;
+    }
+}
+
+/* Step 3.6 — shared polish for hierarchy, readability and interaction states. */
+.owner-dashboard-card,
+.owner-finance-scope,
+.owner-finance-balance-note,
+.owner-schedule-toolbar,
+.owner-schedule-agenda,
+.owner-operation-context,
+.owner-price-row,
+.owner-maintenance-row {
+    box-shadow: var(--owner-shadow-card);
+}
+
+.owner-section-heading p,
+.owner-dashboard-empty p,
+.owner-media-empty p,
+.owner-operation-list-heading p,
+.owner-operation-context-main small,
+.owner-operation-context-status small,
+.owner-operation-note,
+.owner-price-day small,
+.owner-price-time small,
+.owner-price-amount small,
+.owner-maintenance-date small,
+.owner-maintenance-reason small,
+.owner-operation-no-action,
+.owner-operation-inline-empty p {
+    font-size: var(--owner-font-xs);
+    line-height: 1.5;
+}
+
+.owner-booking-table th,
+.owner-finance-table th {
+    font-size: var(--owner-font-xs);
+    letter-spacing: 0.035em;
+}
+
+.owner-booking-table td,
+.owner-finance-table td {
+    font-size: var(--owner-font-sm);
+    line-height: 1.45;
+}
+
+.owner-booking-table td small,
+.owner-finance-table td small,
+.owner-finance-count,
+.owner-finance-balance-note small,
+.owner-finance-filter-actions p {
+    font-size: var(--owner-font-xs);
+    line-height: 1.45;
+}
+
+.owner-finance-reference {
+    overflow-wrap: anywhere;
+    color: var(--owner-muted-soft) !important;
+}
+
+.owner-operation-list strong,
+.owner-price-day span,
+.owner-price-time strong,
+.owner-price-amount strong,
+.owner-maintenance-time strong,
+.owner-maintenance-reason strong {
+    font-size: var(--owner-font-sm);
+}
+
+.owner-bookings-page .booking-tab,
+.owner-finance-filter-grid .form-select,
+.owner-finance-filter-grid .form-control,
+.owner-schedule-toolbar .form-select,
+.owner-schedule-toolbar .form-control,
+.owner-schedule-field-picker .form-select {
+    min-height: var(--owner-control-height);
+    font-size: var(--owner-font-sm);
+    border-color: var(--owner-border-strong);
+    border-radius: var(--owner-radius-sm);
+}
+
+.owner-finance-filter-grid label > span,
+.owner-schedule-filter label,
+.owner-schedule-date-input > span,
+.owner-schedule-field-picker label,
+.owner-booking-meta-label {
+    font-size: var(--owner-font-xs) !important;
+    line-height: 1.35;
+}
+
+.owner-finance-filter-actions .btn,
+.owner-operation-row-actions .btn {
+    min-height: 36px;
+    font-size: var(--owner-font-xs);
+    border-radius: var(--owner-radius-sm);
+}
+
+.owner-finance-type,
+.owner-body .status-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 0.28rem 0.55rem;
+    font-size: 0.7rem;
+    line-height: 1.2;
+    white-space: nowrap;
+    border-radius: 999px;
+}
+
+.owner-schedule-field-heading > small,
+.owner-schedule-block-kind,
+.owner-schedule-block > span:not(.owner-schedule-block-kind),
+.owner-schedule-block > small,
+.owner-agenda-item time small,
+.owner-agenda-copy small {
+    font-size: var(--owner-font-xs);
+}
+
+.owner-schedule-date-nav,
+.owner-schedule-view-switch {
+    min-height: var(--owner-control-height);
+    border-radius: var(--owner-radius-md);
+}
+
+.owner-schedule-date-nav a,
+.owner-schedule-view-switch a {
+    min-height: 34px;
+    font-size: var(--owner-font-sm);
+}
+
+.owner-empty-state {
+    color: var(--owner-muted);
+}
+
+.owner-empty-state .owner-empty-state-icon,
+.owner-empty-state--compact > i {
+    display: inline-grid;
+    flex: 0 0 42px;
+    width: 42px;
+    height: 42px;
+    margin-bottom: 0;
+    place-items: center;
+    color: var(--owner-primary);
+    font-size: 1.05rem;
+    background: #eaf5ef;
+    border: 1px solid #dcece3;
+    border-radius: var(--owner-radius-md);
+}
+
+.owner-empty-state--compact {
+    min-height: 96px;
+}
+
+.owner-empty-state--compact strong,
+.owner-empty-state--compact h2,
+.owner-empty-state--compact h3 {
+    color: #25483a;
+    font-size: 0.82rem;
+}
+
+.owner-empty-state--compact p {
+    margin-top: 0.18rem;
+    font-size: var(--owner-font-xs);
+    line-height: 1.5;
+}
+
+.owner-empty-state--full {
+    min-height: 260px;
+    border-color: var(--owner-border);
+    border-radius: var(--owner-radius);
+    box-shadow: var(--owner-shadow-card);
+}
+
+.owner-empty-state--full .owner-empty-state-icon {
+    margin-bottom: var(--owner-space-3);
+}
+
+.owner-empty-state--full h2 {
+    color: #173b2e;
+    font-size: 1rem;
+}
+
+.owner-empty-state--full p {
+    max-width: 560px;
+    margin-right: auto;
+    margin-left: auto;
+    font-size: var(--owner-font-sm);
+    line-height: 1.55;
+}
+
+.owner-row-link {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--owner-radius-sm);
+}
+
+.owner-body .form-text,
+.owner-body .invalid-feedback {
+    font-size: var(--owner-font-xs);
+    line-height: 1.45;
+}
+
+.owner-body :where(
+    .owner-menu-toggle,
+    .owner-topbar-account,
+    .owner-row-link,
+    .booking-tab,
+    .owner-venue-public-link,
+    .owner-fields-back,
+    .owner-venue-form-back,
+    .owner-schedule-date-nav a,
+    .owner-schedule-view-switch a,
+    .owner-schedule-block,
+    .owner-agenda-item
+):focus-visible {
+    outline: 3px solid var(--owner-focus-ring);
+    outline-offset: 2px;
+    box-shadow: none;
+}
+
+@media (max-width: 767.98px) {
+    .owner-finance-filter-actions .btn,
+    .owner-operation-row-actions .btn,
+    .owner-schedule-date-nav a,
+    .owner-schedule-view-switch a,
+    .owner-row-link {
+        min-width: 40px;
+        min-height: 40px;
+    }
+
+    .owner-empty-state--full {
+        min-height: 220px;
+        padding: var(--owner-space-4) var(--owner-space-3);
     }
 }

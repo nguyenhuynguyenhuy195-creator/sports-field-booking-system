@@ -4,13 +4,15 @@
 {% block owner_page_label %}Lịch sân{% endblock %}
 
 {% macro block_content(block, compact=false) %}
-    <span class="owner-schedule-block-kind">
-        {% if block.kind == 'booking' %}
-            <i class="bi bi-calendar2-check" aria-hidden="true"></i> Booking
-        {% else %}
-            <i class="bi bi-tools" aria-hidden="true"></i> Bảo trì
-        {% endif %}
-    </span>
+    {% if not compact %}
+        <span class="owner-schedule-block-kind">
+            {% if block.kind == 'booking' %}
+                <i class="bi bi-calendar2-check" aria-hidden="true"></i> Booking
+            {% else %}
+                <i class="bi bi-tools" aria-hidden="true"></i> Bảo trì
+            {% endif %}
+        </span>
+    {% endif %}
     <strong>
         {{ block.start_time.strftime('%H:%M') }}–{{ block.end_time.strftime('%H:%M') }}
     </strong>
@@ -103,8 +105,12 @@
 
         {% if summary.fields %}
             {% if schedule_view == 'matrix' %}
+                {% set grid_start_minutes = (summary.grid_start.hour * 60) + summary.grid_start.minute %}
+                {% set now_minutes = (summary.generated_at.hour * 60) + summary.generated_at.minute %}
+                {% set now_offset_minutes = now_minutes - grid_start_minutes %}
+                {% set show_now_indicator = summary.schedule_date == summary.generated_at.date() and now_offset_minutes >= 0 and now_offset_minutes <= summary.grid_minutes %}
                 <div class="owner-schedule-matrix-scroll" tabindex="0" aria-label="Ma trận lịch theo sân; có thể cuộn ngang và dọc">
-                    <div class="owner-schedule-matrix" style="--owner-field-count: {{ summary.columns|length }}; --owner-matrix-min-width: {{ 74 + (summary.columns|length * 230) }}px; --owner-grid-minutes: {{ summary.grid_minutes }};">
+                    <div class="owner-schedule-matrix{% if show_now_indicator %} has-current-time{% endif %}" style="--owner-field-count: {{ summary.columns|length }}; --owner-matrix-min-width: {{ 74 + (summary.columns|length * 230) }}px; --owner-grid-minutes: {{ summary.grid_minutes }};{% if show_now_indicator %} --owner-now-offset: {{ now_offset_minutes }};{% endif %}">
                         <div class="owner-schedule-corner">Thời gian</div>
                         {% for column in summary.columns %}
                             <div class="owner-schedule-field-heading">
@@ -116,24 +122,30 @@
 
                         <div class="owner-schedule-time-rail" style="--owner-grid-minutes: {{ summary.grid_minutes }};">
                             {% for guide in summary.guides %}
-                                <span style="--owner-guide-offset: {{ guide.offset_minutes }};">{{ guide.label }}</span>
+                                <span class="{% if guide.label[-2:] == '00' %}is-hour{% else %}is-half-hour{% endif %}" style="--owner-guide-offset: {{ guide.offset_minutes }};">{{ guide.label }}</span>
                             {% endfor %}
+                            {% if show_now_indicator %}
+                                <span class="owner-schedule-now-marker" style="--owner-guide-offset: {{ now_offset_minutes }};">Bây giờ</span>
+                            {% endif %}
                         </div>
                         {% for column in summary.columns %}
                             <div class="owner-schedule-timeline" style="--owner-grid-minutes: {{ summary.grid_minutes }};">
+                                {% for guide in summary.guides if guide.label[-2:] == '00' %}
+                                    <span class="owner-schedule-hour-guide" style="--owner-guide-offset: {{ guide.offset_minutes }};" aria-hidden="true"></span>
+                                {% endfor %}
                                 {% for block in column.blocks if block.is_visible %}
                                     {% if block.booking %}
-                                        <a class="owner-schedule-block owner-schedule-booking{% if block.is_historical %} is-historical{% endif %}" style="--owner-block-offset: {{ block.offset_minutes }}; --owner-block-duration: {{ block.duration_minutes }};" href="{{ url_for('bookings.owner_detail', booking_code=block.booking.booking_code) }}" title="{{ block.start_time.strftime('%H:%M') }}–{{ block.end_time.strftime('%H:%M') }} · {{ block.booking.user.full_name }}">
-                                            {{ block_content(block) }}
+                                        <a class="owner-schedule-block owner-schedule-booking{% if block.duration_minutes <= 30 %} is-compact{% endif %}{% if block.is_historical %} is-historical{% endif %}" style="--owner-block-offset: {{ block.offset_minutes }}; --owner-block-duration: {{ block.duration_minutes }};" href="{{ url_for('bookings.owner_detail', booking_code=block.booking.booking_code) }}" title="{{ block.start_time.strftime('%H:%M') }}–{{ block.end_time.strftime('%H:%M') }} · {{ block.booking.user.full_name }}">
+                                            {{ block_content(block, compact=block.duration_minutes <= 30) }}
                                         </a>
                                     {% else %}
-                                        <a class="owner-schedule-block owner-schedule-maintenance{% if block.is_historical %} is-historical{% endif %}" style="--owner-block-offset: {{ block.offset_minutes }}; --owner-block-duration: {{ block.duration_minutes }};" href="{{ url_for('maintenance.owner_index', venue_id=summary.selected_venue.id, field_id=column.field.id) }}" title="{{ block.start_time.strftime('%H:%M') }}–{{ block.end_time.strftime('%H:%M') }} · {{ block.maintenance.reason }}">
-                                            {{ block_content(block) }}
+                                        <a class="owner-schedule-block owner-schedule-maintenance{% if block.duration_minutes <= 30 %} is-compact{% endif %}{% if block.is_historical %} is-historical{% endif %}" style="--owner-block-offset: {{ block.offset_minutes }}; --owner-block-duration: {{ block.duration_minutes }};" href="{{ url_for('maintenance.owner_index', venue_id=summary.selected_venue.id, field_id=column.field.id) }}" title="{{ block.start_time.strftime('%H:%M') }}–{{ block.end_time.strftime('%H:%M') }} · {{ block.maintenance.reason }}">
+                                            {{ block_content(block, compact=block.duration_minutes <= 30) }}
                                         </a>
                                     {% endif %}
                                 {% endfor %}
                                 {% if not column.blocks|selectattr('is_visible')|list %}
-                                    <span class="owner-schedule-column-empty">Không có lịch</span>
+                                    <span class="owner-schedule-column-empty" aria-label="Không có lịch trong ngày">Trống</span>
                                 {% endif %}
                             </div>
                             {% endfor %}
@@ -165,7 +177,7 @@
                             </a>
                         {% endfor %}
                     {% else %}
-                        <div class="owner-schedule-empty">
+                        <div class="owner-schedule-empty owner-empty-state owner-empty-state--compact">
                             <i class="bi bi-calendar2" aria-hidden="true"></i>
                             <div><strong>Không có lịch</strong><p>Không có booking hoặc bảo trì trong ngày đã chọn.</p></div>
                         </div>
@@ -173,14 +185,14 @@
                 </div>
             {% endif %}
         {% else %}
-            <div class="owner-schedule-empty">
+            <div class="owner-schedule-empty owner-empty-state owner-empty-state--compact">
                 <i class="bi bi-grid-3x3" aria-hidden="true"></i>
                 <div><strong>Cơ sở chưa có sân</strong><p>Thêm sân trong khu vực Cơ sở &amp; Sân để bắt đầu theo dõi lịch.</p></div>
                 <a class="btn btn-outline-primary" href="{{ url_for('fields.owner_index', venue_id=summary.selected_venue.id) }}">Cơ sở &amp; Sân</a>
             </div>
         {% endif %}
     {% else %}
-        <div class="owner-schedule-empty">
+        <div class="owner-schedule-empty owner-empty-state owner-empty-state--compact">
             <i class="bi bi-buildings" aria-hidden="true"></i>
             <div><strong>Chưa có cơ sở</strong><p>Tạo cơ sở trước khi sử dụng lịch vận hành.</p></div>
             <a class="btn btn-primary" href="{{ url_for('venues.owner_create') }}">Thêm cơ sở</a>

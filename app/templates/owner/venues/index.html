@@ -50,8 +50,8 @@
             {% endfor %}
         </div>
     {% else %}
-        <div class="empty-state text-center">
-            <div class="empty-state-icon" aria-hidden="true"><i class="bi bi-buildings"></i></div>
+        <div class="empty-state text-center owner-empty-state owner-empty-state--full">
+            <div class="empty-state-icon owner-empty-state-icon" aria-hidden="true"><i class="bi bi-buildings"></i></div>
             <h2 class="h5 fw-bold">Bạn chưa có cơ sở nào</h2>
             <p class="text-secondary">Cơ sở mới sẽ ở trạng thái chờ duyệt và chưa xuất hiện công khai.</p>
             <a class="btn btn-primary" href="{{ url_for('venues.owner_create') }}">Tạo cơ sở đầu tiên</a>
