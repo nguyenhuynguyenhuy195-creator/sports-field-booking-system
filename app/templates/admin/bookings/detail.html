@@ -1,0 +1,235 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Chi tiết {{ booking.booking_code }} · Sân Thể Thao{% endblock %}
+{% block admin_page_label %}Chi tiết lịch đặt sân{% endblock %}
+
+{% block content %}
+<section class="admin-page admin-booking-detail-page" data-admin-booking-detail>
+    <div class="container-fluid admin-bookings-container py-4 py-lg-5">
+        <a class="admin-detail-back" href="{{ url_for('admin.booking_operations', **booking_list_params) }}">
+            <i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại Lịch đặt sân
+        </a>
+
+        <header class="admin-detail-hero">
+            <div>
+                <span class="admin-booking-code">{{ booking.booking_code }}</span>
+                <h1>{{ booking.field.venue.name }} · {{ booking.field.name }}</h1>
+                <p>{{ booking.field.field_type.sport.name }} · {{ booking_mode_labels[booking.booking_mode] }}</p>
+            </div>
+            <div class="admin-booking-detail-state">
+                <span class="status-badge status-{{ booking.status|lower }}">{{ booking_status_labels[booking.status] }}</span>
+                <span class="admin-readonly-note"><i class="bi bi-eye" aria-hidden="true"></i>Chỉ xem</span>
+            </div>
+        </header>
+
+        <div class="admin-detail-layout">
+            <main class="admin-detail-main">
+                <section class="admin-detail-card" aria-labelledby="booking-information-title">
+                    <div class="admin-detail-card-heading">
+                        <div>
+                            <span class="admin-section-kicker">THÔNG TIN LỊCH ĐẶT</span>
+                            <h2 id="booking-information-title">Người đặt và lịch sử dụng sân</h2>
+                        </div>
+                    </div>
+                    <dl class="admin-detail-info-grid">
+                        <div><dt>Khách hàng</dt><dd><strong>{{ booking.user.full_name }}</strong><small>{{ booking.user.email }}</small></dd></div>
+                        <div><dt>Chủ sân</dt><dd><strong>{{ booking.field.venue.owner.full_name }}</strong><small>{{ booking.field.venue.owner.email }}</small></dd></div>
+                        <div><dt>Cơ sở / sân</dt><dd><strong>{{ booking.field.venue.name }}</strong><small>{{ booking.field.name }} · {{ booking.field.field_type.name }}</small></dd></div>
+                        <div><dt>Ngày và giờ chơi</dt><dd><strong>{{ booking.booking_date.strftime('%d/%m/%Y') }}</strong><small>{{ booking.start_time.strftime('%H:%M') }}–{{ booking.end_time.strftime('%H:%M') }}</small></dd></div>
+                        <div><dt>Hình thức</dt><dd><strong>{{ booking_mode_labels[booking.booking_mode] }}</strong><small>{{ booking.field.field_type.sport.name }}</small></dd></div>
+                        <div><dt>Thời điểm tạo</dt><dd><strong>{{ booking.created_at.strftime('%d/%m/%Y') }}</strong><small>{{ booking.created_at.strftime('%H:%M') }}</small></dd></div>
+                    </dl>
+                    {% if booking.note %}<div class="admin-detail-note"><strong>Ghi chú của khách hàng</strong><p>{{ booking.note }}</p></div>{% endif %}
+                </section>
+
+                <section class="admin-detail-card" aria-labelledby="booking-financial-title" data-financial-summary>
+                    <div class="admin-detail-card-heading">
+                        <div>
+                            <span class="admin-section-kicker">TÀI CHÍNH</span>
+                            <h2 id="booking-financial-title">Số tiền hiện được ghi nhận</h2>
+                        </div>
+                        <span class="admin-booking-policy admin-booking-policy-{{ booking.payment_policy|lower }}">{{ booking_payment_policy_labels[booking.payment_policy] }}</span>
+                    </div>
+                    <dl class="admin-money-grid admin-booking-detail-money">
+                        <div><dt>Tổng tiền sân</dt><dd>{{ booking.total_amount|vnd_currency }}</dd></div>
+                        <div><dt>{{ 'Khoản online lịch sử' if booking.payment_policy == 'LEGACY_FULL_ONLINE' else 'Cọc theo chính sách' }}</dt><dd>{{ booking.deposit_amount|vnd_currency }}</dd></div>
+                        <div><dt>Online ròng đang ghi nhận</dt><dd>{{ booking.paid_amount|vnd_currency }}</dd></div>
+                        <div><dt>Còn thanh toán tại sân</dt><dd>{{ booking.balance_due_at_venue|vnd_currency }}</dd></div>
+                    </dl>
+                    <p class="admin-detail-definition">Số online ròng đang ghi nhận là số tiền ròng hiện tại trên Booking. Phần tại sân được tính bằng tổng tiền sân trừ số online này.</p>
+                    {% if detail.missing_payment_history_kind == 'legacy' %}
+                        <div class="admin-detail-notice tone-neutral" data-missing-payment-history="legacy">
+                            <i class="bi bi-clock-history" aria-hidden="true"></i>
+                            <div><strong>Dữ liệu thanh toán lịch sử</strong><p>Số tiền online được giữ từ bản ghi legacy; hệ thống không có Payment chi tiết để đối chiếu và không tạo giao dịch thay thế.</p></div>
+                        </div>
+                    {% elif detail.missing_payment_history_kind == 'investigate' %}
+                        <div class="admin-detail-notice tone-warning" data-missing-payment-history="investigate">
+                            <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+                            <div><strong>Cần đối chiếu</strong><p>Booking dùng chính sách cọc mới và có tiền online được ghi nhận nhưng không có Payment tương ứng.</p></div>
+                        </div>
+                    {% endif %}
+                </section>
+
+                <section class="admin-detail-card" aria-labelledby="booking-contribution-title">
+                    <div class="admin-detail-card-heading">
+                        <div>
+                            <span class="admin-section-kicker">KHOẢN ĐÓNG GÓP</span>
+                            <h2 id="booking-contribution-title">Đối chiếu nghĩa vụ và số tiền hiện tại</h2>
+                        </div>
+                        <span class="admin-detail-count">{{ detail.contributions|length }} khoản</span>
+                    </div>
+                    {% if detail.contributions %}
+                        <div class="table-responsive">
+                            <table class="table admin-table admin-contribution-table align-middle mb-0">
+                                <thead><tr><th>Khoản đóng góp</th><th>Phải đóng</th><th>Đã thanh toán thành công</th><th>Đã hoàn tiền thành công</th><th>Hiện ghi nhận</th><th>Trạng thái</th></tr></thead>
+                                <tbody>
+                                    {% for row in detail.contributions %}
+                                        {% set contribution = row.contribution %}
+                                        <tr data-contribution-row="{{ contribution.id }}">
+                                            <td><strong>{{ contribution_type_labels[contribution.contribution_type] }}</strong><small>{{ contribution.user.full_name if contribution.user else 'Chưa có người nhận' }}{% if contribution.slot_number %} · Vị trí {{ contribution.slot_number }}{% endif %}</small></td>
+                                            <td>{{ contribution.amount_due|vnd_currency }}</td>
+                                            <td>{{ row.gross_successful_payment_amount|vnd_currency }}</td>
+                                            <td>{{ row.successful_refund_amount|vnd_currency }}</td>
+                                            <td><strong>{{ contribution.amount_paid|vnd_currency }}</strong>{% if row.legacy_history_only %}<small class="admin-reconciliation-note">Theo số liệu legacy</small>{% elif row.requires_reconciliation %}<small class="admin-reconciliation-warning" data-financial-reconciliation-warning>Cần đối chiếu</small>{% endif %}</td>
+                                            <td><span class="status-badge status-{{ contribution.status|lower }}">{{ contribution_status_labels[contribution.status] }}</span></td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-secondary mb-0">Booking chưa có khoản đóng góp được lưu.</p>
+                    {% endif %}
+                </section>
+
+                <section class="admin-detail-card" aria-labelledby="booking-payment-title">
+                    <div class="admin-detail-card-heading">
+                        <div><span class="admin-section-kicker">PAYMENT</span><h2 id="booking-payment-title">Lịch sử thanh toán</h2></div>
+                        <span class="admin-detail-count">{{ detail.payments|length }} giao dịch</span>
+                    </div>
+                    {% if detail.payments %}
+                        <div class="admin-transaction-list">
+                            {% for item in detail.payments %}
+                                {% set payment = item.payment %}
+                                <article class="admin-transaction-item admin-booking-transaction" data-payment-history-item="{{ payment.id }}">
+                                    <div class="admin-transaction-heading">
+                                        <div><strong>{{ payment.amount|vnd_currency }}</strong><span>{{ payment.payer.full_name }} · {{ payment_provider_labels[payment.provider] }}</span></div>
+                                        <span class="status-badge status-{{ payment.status|lower }}">{{ payment_status_labels[payment.status] }}</span>
+                                    </div>
+                                    <dl class="admin-transaction-metadata">
+                                        <div><dt>Mã đơn hàng</dt><dd>{{ payment.order_id }}</dd></div>
+                                        <div><dt>Mã yêu cầu</dt><dd>{{ payment.request_id }}</dd></div>
+                                        <div><dt>Mã giao dịch nhà cung cấp</dt><dd>{{ payment.provider_trans_id or 'Chưa có' }}</dd></div>
+                                        <div><dt>Thời điểm thanh toán</dt><dd>{{ payment.paid_at.strftime('%d/%m/%Y %H:%M') if payment.paid_at else 'Chưa có thời điểm thanh toán thành công' }}</dd></div>
+                                    </dl>
+                                    <div class="admin-related-records">
+                                        <span>Refund liên quan</span>
+                                        {% if item.related_refunds %}
+                                            <div>{% for refund in item.related_refunds %}<a href="#refund-{{ refund.id }}">{{ refund.order_id }}</a><span class="status-badge status-{{ refund.status|lower }}">{{ refund_status_labels[refund.status] }}</span>{% endfor %}</div>
+                                        {% else %}<small>Không có Refund liên quan.</small>{% endif %}
+                                    </div>
+                                </article>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-secondary mb-0">Không có Payment chi tiết được lưu cho Booking này.</p>
+                    {% endif %}
+                </section>
+
+                <section class="admin-detail-card" aria-labelledby="booking-refund-title">
+                    <div class="admin-detail-card-heading">
+                        <div><span class="admin-section-kicker">REFUND</span><h2 id="booking-refund-title">Lịch sử hoàn tiền</h2></div>
+                        <span class="admin-detail-count">{{ detail.refunds|length }} yêu cầu</span>
+                    </div>
+                    {% if detail.refunds %}
+                        <div class="admin-transaction-list">
+                            {% for refund in detail.refunds %}
+                                <article class="admin-transaction-item admin-booking-transaction" id="refund-{{ refund.id }}" data-refund-history-item="{{ refund.id }}">
+                                    <div class="admin-transaction-heading">
+                                        <div><strong>{{ refund.amount|vnd_currency }}</strong><span>{{ refund.recipient.full_name }} · Payment gốc: {{ refund.payment.order_id }}</span></div>
+                                        <span class="status-badge status-{{ refund.status|lower }}">{{ refund_status_labels[refund.status] }}</span>
+                                    </div>
+                                    <p class="admin-transaction-reason"><strong>Lý do:</strong> {{ refund.reason }}</p>
+                                    <dl class="admin-transaction-metadata">
+                                        <div><dt>Mã đơn hàng</dt><dd>{{ refund.order_id }}</dd></div>
+                                        <div><dt>Mã yêu cầu</dt><dd>{{ refund.request_id }}</dd></div>
+                                        <div><dt>Mã giao dịch hoàn tiền</dt><dd>{{ refund.provider_refund_trans_id or 'Chưa có' }}</dd></div>
+                                        <div><dt>Thời điểm hoàn tiền</dt><dd>{{ refund.refunded_at.strftime('%d/%m/%Y %H:%M') if refund.refunded_at else 'Chưa hoàn tiền thành công' }}</dd></div>
+                                    </dl>
+                                </article>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-secondary mb-0">Chưa có Refund được ghi nhận.</p>
+                    {% endif %}
+                </section>
+
+                <section class="admin-detail-card" aria-labelledby="booking-match-title">
+                    <div class="admin-detail-card-heading">
+                        <div><span class="admin-section-kicker">KÈO LIÊN QUAN</span><h2 id="booking-match-title">Thông tin kèo chơi</h2></div>
+                    </div>
+                    {% if detail.match_context %}
+                        {% set context = detail.match_context %}
+                        <div class="admin-match-summary" data-match-context="{{ context.match.id }}">
+                            <div><span>Kèo #{{ context.match.id }}</span><strong>{{ context.match.title }}</strong><small>{{ match_type_labels[context.match.match_type] }} · Tạo bởi {{ context.match.creator.full_name }}</small></div>
+                            <span class="status-badge status-{{ context.match.status|lower }}">{{ match_status_labels[context.match.status] }}</span>
+                            <dl><div><dt>Tổng yêu cầu</dt><dd>{{ context.total_participants }}</dd></div><div><dt>Đã tham gia</dt><dd>{{ context.joined_participants }}</dd></div><div><dt>Đang xử lý</dt><dd>{{ context.pending_participants }}</dd></div><div><dt>Đã kết thúc</dt><dd>{{ context.closed_participants }}</dd></div></dl>
+                        </div>
+                        <p class="admin-detail-definition mb-0">Quản lý đầy đủ kèo chơi thuộc Phase 2.3; trang này chỉ cung cấp ngữ cảnh liên quan.</p>
+                    {% else %}
+                        <p class="text-secondary mb-0">Booking này không có kèo chơi liên quan.</p>
+                    {% endif %}
+                </section>
+
+                <section class="admin-detail-card" aria-labelledby="booking-events-title" data-admin-history-events>
+                    <div class="admin-detail-card-heading">
+                        <div><span class="admin-section-kicker">LỊCH SỬ CÓ MỐC THỜI GIAN</span><h2 id="booking-events-title">Sự kiện đã ghi nhận</h2></div>
+                    </div>
+                    <ol class="admin-recorded-events">
+                        {% for event in detail.historical_events %}
+                            <li data-event-type="{{ event.event_type }}">
+                                <time datetime="{{ event.occurred_at.isoformat() }}">{{ event.occurred_at.strftime('%d/%m/%Y %H:%M') }}</time>
+                                <div>
+                                    {% if event.event_type == 'booking_created' %}<strong>Booking được tạo</strong><span>{{ booking.booking_code }}</span>
+                                    {% elif event.event_type == 'payment_success' %}<strong>Thanh toán thành công</strong><span>{{ event.record.amount|vnd_currency }} · {{ event.record.order_id }}</span>
+                                    {% elif event.event_type == 'refund_success' %}<strong>Hoàn tiền thành công</strong><span>{{ event.record.amount|vnd_currency }} · {{ event.record.order_id }}</span>
+                                    {% elif event.event_type == 'match_created' %}<strong>Kèo chơi được tạo</strong><span>Kèo #{{ event.record.id }} · {{ event.record.title }}</span>
+                                    {% elif event.event_type == 'participant_decided' %}<strong>Cập nhật người tham gia</strong><span>{{ event.record.user.full_name }} · {{ participant_status_labels[event.record.status] }}</span>
+                                    {% endif %}
+                                </div>
+                            </li>
+                        {% endfor %}
+                    </ol>
+                </section>
+            </main>
+
+            <aside class="admin-detail-sidebar">
+                <section class="admin-detail-card admin-current-state" aria-labelledby="booking-current-state-title">
+                    <span class="admin-section-kicker">TRẠNG THÁI HIỆN TẠI</span>
+                    <h2 id="booking-current-state-title">Booking và kèo liên quan</h2>
+                    <div class="admin-current-state-row" data-current-booking-status="{{ booking.status }}"><span>Booking</span><span class="status-badge status-{{ booking.status|lower }}">{{ booking_status_labels[booking.status] }}</span></div>
+                    {% if booking.cancellation_reason %}<div class="admin-detail-note tone-danger"><strong>Lý do hủy</strong><p>{{ booking.cancellation_reason }}</p></div>{% endif %}
+                    {% if detail.match_context %}<div class="admin-current-state-row"><span>Kèo #{{ detail.match_context.match.id }}</span><span class="status-badge status-{{ detail.match_context.match.status|lower }}">{{ match_status_labels[detail.match_context.match.status] }}</span></div>{% endif %}
+                    <p class="admin-detail-definition mb-0">Trạng thái hiện tại không được dùng để suy diễn thời điểm chuyển trạng thái.</p>
+                </section>
+
+                <section class="admin-detail-card admin-investigation-summary" aria-labelledby="booking-investigation-title">
+                    <span class="admin-section-kicker">ĐIỀU TRA READ-ONLY</span>
+                    <h2 id="booking-investigation-title">Tóm tắt cần kiểm tra</h2>
+                    <ul>
+                        <li>Booking hiện ở trạng thái <strong>{{ booking_status_labels[booking.status] }}</strong>.</li>
+                        <li>Có <strong>{{ detail.payments|length }}</strong> Payment và <strong>{{ detail.refunds|length }}</strong> Refund được lưu.</li>
+                        <li>Online ròng đang ghi nhận: <strong>{{ booking.paid_amount|vnd_currency }}</strong>; còn tại sân: <strong>{{ booking.balance_due_at_venue|vnd_currency }}</strong>.</li>
+                        {% if detail.payment_attention %}<li class="tone-warning"><strong>{{ detail.payment_attention|length }} Payment cần theo dõi.</strong> PENDING là đang chờ xác nhận, không đồng nghĩa thất bại.</li>{% endif %}
+                        {% if detail.refund_attention %}<li class="tone-warning"><strong>{{ detail.refund_attention|length }} Refund cần theo dõi.</strong> Chỉ Refund SUCCESS được tính là đã hoàn.</li>{% endif %}
+                        {% if detail.missing_payment_history_kind == 'legacy' %}<li>Dữ liệu legacy giữ số online tổng hợp nhưng không có Payment chi tiết.</li>{% endif %}
+                        {% if detail.financial_history_requires_reconciliation %}<li class="tone-danger" data-financial-reconciliation-warning><strong>Cần đối chiếu:</strong> lịch sử giao dịch và số tiền hiện ghi nhận chưa khớp.</li>{% endif %}
+                        {% if booking.cancellation_reason %}<li>Lý do hủy được ghi nhận: <strong>{{ booking.cancellation_reason }}</strong></li>{% endif %}
+                    </ul>
+                    <p>Trang này không thay đổi Booking, Payment, Refund hoặc contribution.</p>
+                </section>
+            </aside>
+        </div>
+    </div>
+</section>
+{% endblock %}

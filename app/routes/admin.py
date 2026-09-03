@@ -29,8 +29,8 @@ from app.services import (
     AdminError,
     get_admin_account_detail,
     get_admin_account_summary,
+    get_admin_booking_detail,
     get_admin_booking_filter_options,
-    get_admin_booking,
     get_admin_dashboard_summary,
     get_admin_monitoring_location,
     list_admin_accounts,
@@ -181,6 +181,18 @@ LEGACY_MONITORING_FOCUS = {
     "payments": "payment_issue",
     "refunds": "refund_pending",
 }
+
+BOOKING_LIST_RETURN_PARAMETERS = (
+    "q",
+    "status",
+    "sport",
+    "date",
+    "province_code",
+    "ward_code",
+    "venue",
+    "field",
+    "page",
+)
 
 OWNER_APPLICATION_FILTERS = {
     OwnerApplicationStatus.PENDING.value: {
@@ -467,6 +479,34 @@ def booking_operations():
     )
 
 
+@admin_bp.get("/bookings/<string:booking_code>")
+@roles_required(UserRole.ADMIN)
+def booking_detail(booking_code: str):
+    try:
+        detail = get_admin_booking_detail(booking_code)
+    except AdminError as exc:
+        flash(str(exc), "warning")
+        return redirect(url_for("admin.booking_operations"))
+
+    return render_template(
+        "admin/bookings/detail.html",
+        detail=detail,
+        booking=detail.booking,
+        booking_list_params=_booking_list_return_params(),
+        booking_status_labels=BOOKING_STATUS_LABELS,
+        booking_mode_labels=BOOKING_MODE_LABELS,
+        booking_payment_policy_labels=BOOKING_PAYMENT_POLICY_LABELS,
+        contribution_status_labels=CONTRIBUTION_STATUS_LABELS,
+        contribution_type_labels=CONTRIBUTION_TYPE_LABELS,
+        payment_status_labels=PAYMENT_STATUS_LABELS,
+        payment_provider_labels=PAYMENT_PROVIDER_LABELS,
+        refund_status_labels=REFUND_STATUS_LABELS,
+        match_status_labels=MATCH_STATUS_LABELS,
+        match_type_labels=MATCH_TYPE_LABELS,
+        participant_status_labels=PARTICIPANT_STATUS_LABELS,
+    )
+
+
 @admin_bp.get("/monitoring")
 @roles_required(UserRole.ADMIN)
 def monitoring():
@@ -612,26 +652,12 @@ def monitoring():
 @admin_bp.get("/monitoring/bookings/<string:booking_code>")
 @roles_required(UserRole.ADMIN)
 def booking_monitoring_detail(booking_code: str):
-    try:
-        booking = get_admin_booking(booking_code)
-    except AdminError as exc:
-        flash(str(exc), "warning")
-        return redirect(url_for("admin.monitoring", section="bookings"))
-
-    return render_template(
-        "admin/booking_detail.html",
-        booking=booking,
-        booking_status_labels=BOOKING_STATUS_LABELS,
-        booking_mode_labels=BOOKING_MODE_LABELS,
-        contribution_status_labels=CONTRIBUTION_STATUS_LABELS,
-        contribution_type_labels=CONTRIBUTION_TYPE_LABELS,
-        payment_status_labels=PAYMENT_STATUS_LABELS,
-        payment_provider_labels=PAYMENT_PROVIDER_LABELS,
-        refund_status_labels=REFUND_STATUS_LABELS,
-        match_status_labels=MATCH_STATUS_LABELS,
-        match_type_labels=MATCH_TYPE_LABELS,
-        participant_type_labels=PARTICIPANT_TYPE_LABELS,
-        participant_status_labels=PARTICIPANT_STATUS_LABELS,
+    return redirect(
+        url_for(
+            "admin.booking_detail",
+            booking_code=booking_code,
+            **_booking_list_return_params(),
+        )
     )
 
 
@@ -668,6 +694,25 @@ def _load_monitoring_page(
             booking_date=booking_date,
         )
     return None
+
+
+def _booking_list_return_params() -> dict[str, str | int]:
+    """Keep only controlled Booking-list state for canonical back links."""
+    params: dict[str, str | int] = {}
+    for parameter in BOOKING_LIST_RETURN_PARAMETERS:
+        raw_value = (request.args.get(parameter) or "").strip()
+        if not raw_value:
+            continue
+        if parameter in {"venue", "field", "page"}:
+            try:
+                numeric_value = int(raw_value)
+            except ValueError:
+                continue
+            if numeric_value > 0:
+                params[parameter] = numeric_value
+            continue
+        params[parameter] = raw_value[:100]
+    return params
 
 
 def _parse_booking_filter_id(parameter: str, label: str) -> int | None:

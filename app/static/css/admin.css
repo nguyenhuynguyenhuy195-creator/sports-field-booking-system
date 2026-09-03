@@ -3997,3 +3997,536 @@
         grid-row: 1;
     }
 }
+
+/* Phase 2.2: dedicated Booking Detail */
+.admin-booking-detail-page .admin-detail-back {
+    width: fit-content;
+    margin-bottom: 1rem;
+    color: var(--admin-primary);
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.admin-booking-detail-page .admin-detail-back:hover {
+    color: var(--admin-primary-dark);
+    text-decoration: underline;
+}
+
+.admin-booking-detail-page .admin-detail-hero {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 1.35rem;
+    margin-bottom: 1rem;
+    background: #fff;
+    border: 1px solid var(--admin-border);
+}
+
+.admin-booking-detail-page .admin-detail-hero h1 {
+    margin: 0.35rem 0 0.3rem;
+    color: var(--admin-sidebar);
+    font-size: clamp(1.35rem, 2.1vw, 1.85rem);
+    font-weight: 700;
+    letter-spacing: -0.025em;
+}
+
+.admin-booking-detail-page .admin-detail-hero p {
+    margin: 0;
+    color: var(--admin-muted);
+    font-size: 0.82rem;
+}
+
+.admin-booking-detail-state {
+    display: flex;
+    gap: 0.55rem;
+    flex: 0 0 auto;
+    align-items: center;
+}
+
+.admin-booking-detail-page .admin-detail-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+    gap: 1rem;
+    align-items: start;
+}
+
+.admin-booking-detail-page .admin-detail-main,
+.admin-booking-detail-page .admin-detail-sidebar {
+    display: grid;
+    gap: 1rem;
+}
+
+.admin-booking-detail-page .admin-detail-sidebar {
+    position: sticky;
+    top: calc(var(--admin-topbar-height) + 1rem);
+}
+
+.admin-booking-detail-page .admin-detail-card {
+    min-width: 0;
+    padding: 1.2rem;
+    background: #fff;
+    border: 1px solid var(--admin-border);
+}
+
+.admin-booking-detail-page .admin-detail-card-heading {
+    display: flex;
+    gap: 0.8rem;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.admin-booking-detail-page .admin-detail-card-heading h2,
+.admin-booking-detail-page .admin-detail-sidebar h2 {
+    margin: 0.25rem 0 0;
+    color: var(--admin-sidebar);
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.4;
+}
+
+.admin-booking-detail-page .admin-detail-count {
+    flex: 0 0 auto;
+    padding: 0.28rem 0.55rem;
+    color: var(--admin-muted);
+    font-size: 0.68rem;
+    font-weight: 700;
+    background: #f3f6f8;
+    border-radius: 999px;
+}
+
+.admin-booking-detail-page .admin-detail-info-grid,
+.admin-booking-detail-page .admin-money-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0;
+    margin: 0;
+    overflow: hidden;
+    border: 1px solid var(--admin-border);
+}
+
+.admin-booking-detail-page .admin-detail-info-grid > div,
+.admin-booking-detail-page .admin-money-grid > div {
+    min-width: 0;
+    padding: 0.9rem;
+    border-bottom: 1px solid var(--admin-border);
+}
+
+.admin-booking-detail-page .admin-detail-info-grid > div:nth-child(odd),
+.admin-booking-detail-page .admin-money-grid > div:nth-child(odd) {
+    border-right: 1px solid var(--admin-border);
+}
+
+.admin-booking-detail-page .admin-detail-info-grid > div:nth-last-child(-n + 2),
+.admin-booking-detail-page .admin-money-grid > div:nth-last-child(-n + 2) {
+    border-bottom: 0;
+}
+
+.admin-booking-detail-page dt,
+.admin-related-records > span,
+.admin-match-summary > div > span {
+    margin-bottom: 0.25rem;
+    color: var(--admin-muted);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.045em;
+    text-transform: uppercase;
+}
+
+.admin-booking-detail-page dd {
+    min-width: 0;
+    margin: 0;
+    color: var(--admin-sidebar);
+    font-size: 0.82rem;
+    overflow-wrap: anywhere;
+}
+
+.admin-booking-detail-page dd strong,
+.admin-booking-detail-page dd small {
+    display: block;
+}
+
+.admin-booking-detail-page dd small,
+.admin-contribution-table small {
+    margin-top: 0.2rem;
+    color: var(--admin-muted);
+    font-size: 0.7rem;
+    font-weight: 500;
+}
+
+.admin-booking-detail-page .admin-detail-note,
+.admin-detail-notice {
+    display: flex;
+    gap: 0.65rem;
+    padding: 0.85rem;
+    margin-top: 0.85rem;
+    background: #f6f9f8;
+    border: 1px solid var(--admin-border);
+    border-radius: 10px;
+}
+
+.admin-booking-detail-page .admin-detail-note {
+    display: block;
+}
+
+.admin-booking-detail-page .admin-detail-note p,
+.admin-detail-notice p {
+    margin: 0.2rem 0 0;
+    color: var(--admin-muted);
+    font-size: 0.76rem;
+    line-height: 1.55;
+}
+
+.admin-detail-notice > i {
+    flex: 0 0 auto;
+    color: var(--admin-primary);
+}
+
+.admin-detail-notice.tone-warning {
+    background: #fff8e7;
+    border-color: #ecd7a8;
+}
+
+.admin-detail-notice.tone-warning > i {
+    color: #8a4b08;
+}
+
+.admin-booking-detail-page .tone-danger {
+    color: #8b2f36;
+    background: #fff4f5;
+    border-color: #efcbd0;
+}
+
+.admin-detail-definition {
+    margin: 0.8rem 0 0;
+    color: var(--admin-muted);
+    font-size: 0.72rem;
+    line-height: 1.55;
+}
+
+.admin-contribution-table {
+    min-width: 820px;
+    font-size: 0.76rem;
+}
+
+.admin-contribution-table th {
+    color: var(--admin-muted);
+    font-size: 0.64rem;
+    letter-spacing: 0.035em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.admin-contribution-table td:first-child strong,
+.admin-contribution-table td:first-child small,
+.admin-reconciliation-note,
+.admin-reconciliation-warning {
+    display: block;
+}
+
+.admin-reconciliation-note,
+.admin-reconciliation-warning {
+    margin-top: 0.25rem;
+    font-size: 0.66rem;
+    font-weight: 700;
+}
+
+.admin-reconciliation-note {
+    color: var(--admin-muted);
+}
+
+.admin-reconciliation-warning {
+    color: #9a3c24;
+}
+
+.admin-booking-detail-page .admin-transaction-list {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.admin-booking-detail-page .admin-transaction-item {
+    display: grid;
+    gap: 0.8rem;
+    min-width: 0;
+    padding: 0.95rem;
+    background: #fbfcfc;
+    border: 1px solid var(--admin-border);
+}
+
+.admin-transaction-heading {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    justify-content: space-between;
+}
+
+.admin-transaction-heading > div {
+    min-width: 0;
+}
+
+.admin-transaction-heading strong,
+.admin-transaction-heading span {
+    display: block;
+}
+
+.admin-transaction-heading > div > strong {
+    color: var(--admin-sidebar);
+    font-size: 0.95rem;
+}
+
+.admin-transaction-heading > div > span {
+    margin-top: 0.18rem;
+    color: var(--admin-muted);
+    font-size: 0.72rem;
+}
+
+.admin-transaction-metadata {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem 1rem;
+    padding-top: 0.75rem;
+    margin: 0;
+    border-top: 1px solid var(--admin-border);
+}
+
+.admin-transaction-metadata dt {
+    text-transform: none;
+}
+
+.admin-transaction-metadata dd {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.72rem;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.admin-transaction-reason {
+    margin: 0;
+    color: var(--admin-muted);
+    font-size: 0.75rem;
+}
+
+.admin-related-records {
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--admin-border);
+}
+
+.admin-related-records > div {
+    display: flex;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.admin-related-records a {
+    color: var(--admin-primary);
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.admin-related-records small {
+    color: var(--admin-muted);
+    font-size: 0.72rem;
+}
+
+.admin-match-summary {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.8rem;
+    align-items: start;
+}
+
+.admin-match-summary > div > strong,
+.admin-match-summary > div > small {
+    display: block;
+}
+
+.admin-match-summary > div > small {
+    margin-top: 0.2rem;
+    color: var(--admin-muted);
+    font-size: 0.72rem;
+}
+
+.admin-match-summary dl {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.55rem;
+    margin: 0;
+}
+
+.admin-match-summary dl > div {
+    padding: 0.65rem;
+    background: #f6f9f8;
+    border-radius: 9px;
+}
+
+.admin-match-summary dl dd {
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+.admin-recorded-events {
+    display: grid;
+    gap: 0;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+}
+
+.admin-recorded-events li {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(130px, 0.28fr) minmax(0, 1fr);
+    gap: 0.9rem;
+    padding: 0.8rem 0 0.8rem 1.1rem;
+    border-bottom: 1px solid var(--admin-border);
+}
+
+.admin-recorded-events li::before {
+    position: absolute;
+    top: 1.1rem;
+    left: 0;
+    width: 0.48rem;
+    height: 0.48rem;
+    content: "";
+    background: var(--admin-primary);
+    border-radius: 50%;
+}
+
+.admin-recorded-events li:last-child {
+    border-bottom: 0;
+}
+
+.admin-recorded-events time {
+    color: var(--admin-muted);
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+.admin-recorded-events strong,
+.admin-recorded-events span {
+    display: block;
+}
+
+.admin-recorded-events strong {
+    color: var(--admin-sidebar);
+    font-size: 0.78rem;
+}
+
+.admin-recorded-events span {
+    margin-top: 0.18rem;
+    color: var(--admin-muted);
+    font-size: 0.7rem;
+    overflow-wrap: anywhere;
+}
+
+.admin-current-state-row {
+    display: flex;
+    gap: 0.65rem;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--admin-border);
+}
+
+.admin-current-state-row > span:first-child {
+    color: var(--admin-muted);
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.admin-investigation-summary ul {
+    display: grid;
+    gap: 0.55rem;
+    padding-left: 1.1rem;
+    margin: 0.9rem 0;
+    color: var(--admin-muted);
+    font-size: 0.74rem;
+    line-height: 1.5;
+}
+
+.admin-investigation-summary > p {
+    padding-top: 0.75rem;
+    margin: 0;
+    color: var(--admin-muted);
+    font-size: 0.7rem;
+    border-top: 1px solid var(--admin-border);
+}
+
+@media (max-width: 1199.98px) {
+    .admin-booking-detail-page .admin-detail-layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .admin-booking-detail-page .admin-detail-sidebar {
+        position: static;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 767.98px) {
+    .admin-booking-detail-page .admin-detail-hero,
+    .admin-booking-detail-page .admin-detail-card-heading,
+    .admin-transaction-heading {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .admin-booking-detail-state {
+        flex-wrap: wrap;
+    }
+
+    .admin-booking-detail-page .admin-detail-info-grid,
+    .admin-booking-detail-page .admin-money-grid,
+    .admin-booking-detail-page .admin-transaction-metadata,
+    .admin-booking-detail-page .admin-detail-sidebar {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .admin-booking-detail-page .admin-detail-info-grid > div,
+    .admin-booking-detail-page .admin-money-grid > div,
+    .admin-booking-detail-page .admin-detail-info-grid > div:nth-child(odd),
+    .admin-booking-detail-page .admin-money-grid > div:nth-child(odd),
+    .admin-booking-detail-page .admin-detail-info-grid > div:nth-last-child(2),
+    .admin-booking-detail-page .admin-money-grid > div:nth-last-child(2) {
+        border-right: 0;
+        border-bottom: 1px solid var(--admin-border);
+    }
+
+    .admin-booking-detail-page .admin-detail-info-grid > div:last-child,
+    .admin-booking-detail-page .admin-money-grid > div:last-child {
+        border-bottom: 0;
+    }
+
+    .admin-match-summary dl {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .admin-recorded-events li {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0.25rem;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .admin-booking-detail-page .admin-detail-card,
+    .admin-booking-detail-page .admin-detail-hero {
+        padding: 1rem;
+    }
+
+    .admin-booking-detail-page .admin-booking-code {
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
+    .admin-match-summary {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .admin-match-summary dl {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}

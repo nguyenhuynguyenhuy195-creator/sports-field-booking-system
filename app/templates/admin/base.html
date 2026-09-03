@@ -18,7 +18,7 @@
 <body class="admin-body">
     {% set monitoring_section = request.args.get('section', 'bookings') %}
     {% set monitoring_focus = request.args.get('focus', '') %}
-    {% set bookings_nav_active = request.endpoint == 'admin.booking_operations' %}
+    {% set bookings_nav_active = request.endpoint in ['admin.booking_operations', 'admin.booking_detail'] %}
     {% set matches_nav_active = request.endpoint == 'admin.monitoring' and monitoring_section == 'matches' %}
     {% set payments_nav_active = request.endpoint == 'admin.monitoring' and monitoring_focus == 'payment_issue' %}
     {% set refunds_nav_active = request.endpoint == 'admin.monitoring' and monitoring_focus == 'refund_pending' %}

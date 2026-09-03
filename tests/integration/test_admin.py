@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import date, time, timedelta
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
 from app.extensions import db
@@ -127,7 +127,7 @@ def seed_monitoring_data(app, *, user_id: int, owner_id: int) -> str:
             total_amount=Decimal("300000"),
             deposit_rate=Decimal("0.3000"),
             deposit_amount=Decimal("90000"),
-            paid_amount=Decimal("90000"),
+            paid_amount=Decimal("80000"),
             cancellation_fee_amount=Decimal("0"),
             status=BookingStatus.PAID.value,
             initial_payment_due_at=utc_now() + timedelta(minutes=15),
@@ -140,8 +140,8 @@ def seed_monitoring_data(app, *, user_id: int, owner_id: int) -> str:
             user_id=user_id,
             contribution_type=ContributionType.CREATOR.value,
             amount_due=Decimal("90000"),
-            amount_paid=Decimal("90000"),
-            status=ContributionStatus.PAID.value,
+            amount_paid=Decimal("80000"),
+            status=ContributionStatus.PARTIALLY_REFUNDED.value,
         )
         db.session.add(contribution)
         db.session.flush()
@@ -495,6 +495,340 @@ def seed_booking_operations_data(app, *, user_id: int, owner_id: int) -> dict:
         }
 
 
+def seed_booking_detail_data(app, *, user_id: int, owner_id: int) -> dict:
+    list_data = seed_booking_operations_data(
+        app,
+        user_id=user_id,
+        owner_id=owner_id,
+    )
+    with app.app_context():
+        field = db.session.get(Field, list_data["field_id"])
+        occurred_at = datetime(2026, 9, 3, 8, 0)
+        scheduled_date = date(2030, 1, 15)
+
+        def add_booking(
+            code: str,
+            *,
+            mode=BookingMode.DIRECT_BOOKING.value,
+            policy=BookingPaymentPolicy.DEPOSIT_30.value,
+            total=Decimal("180000"),
+            deposit=Decimal("54000"),
+            paid=Decimal("0"),
+            status=BookingStatus.CONFIRMED.value,
+            cancellation_reason=None,
+        ):
+            booking = Booking(
+                booking_code=code,
+                user_id=user_id,
+                field_id=field.id,
+                booking_date=scheduled_date,
+                start_time=time(18, 0),
+                end_time=time(19, 0),
+                booking_mode=mode,
+                payment_policy=policy,
+                total_amount=total,
+                deposit_rate=(
+                    Decimal("1.0000")
+                    if policy == BookingPaymentPolicy.LEGACY_FULL_ONLINE.value
+                    else Decimal("0.3000")
+                ),
+                deposit_amount=deposit,
+                paid_amount=paid,
+                cancellation_fee_amount=Decimal("0"),
+                status=status,
+                cancellation_reason=cancellation_reason,
+                created_at=occurred_at,
+            )
+            db.session.add(booking)
+            db.session.flush()
+            return booking
+
+        def add_contribution(
+            booking,
+            *,
+            due,
+            paid,
+            status,
+            contribution_type=ContributionType.CREATOR.value,
+            slot_number=None,
+            user=user_id,
+        ):
+            contribution = BookingContribution(
+                booking_id=booking.id,
+                user_id=user,
+                contribution_type=contribution_type,
+                slot_number=slot_number,
+                amount_due=due,
+                amount_paid=paid,
+                status=status,
+                created_at=occurred_at,
+            )
+            db.session.add(contribution)
+            db.session.flush()
+            return contribution
+
+        def add_payment(
+            booking,
+            contribution,
+            *,
+            amount,
+            token,
+            paid_at,
+        ):
+            payment = Payment(
+                booking_id=booking.id,
+                contribution_id=contribution.id,
+                payer_id=user_id,
+                provider=PaymentProvider.MOMO.value,
+                payment_method=PaymentMethod.MOMO_WALLET.value,
+                amount=amount,
+                order_id=f"ORDER-{token}",
+                request_id=f"REQUEST-{token}",
+                provider_trans_id=f"TRANS-{token}",
+                status=PaymentStatus.SUCCESS.value,
+                result_code="0",
+                paid_at=paid_at,
+                created_at=occurred_at,
+            )
+            db.session.add(payment)
+            db.session.flush()
+            return payment
+
+        def add_refund(
+            booking,
+            payment,
+            *,
+            amount,
+            token,
+            status,
+            refunded_at=None,
+        ):
+            refund = Refund(
+                booking_id=booking.id,
+                payment_id=payment.id,
+                recipient_id=user_id,
+                amount=amount,
+                reason=f"Hoàn tiền {token}",
+                order_id=f"REFUND-{token}",
+                request_id=f"REFUND-REQUEST-{token}",
+                provider_refund_trans_id=(
+                    f"REFUND-TRANS-{token}"
+                    if status == RefundStatus.SUCCESS.value
+                    else None
+                ),
+                status=status,
+                result_code="0" if status == RefundStatus.SUCCESS.value else None,
+                refunded_at=refunded_at,
+                created_at=occurred_at,
+            )
+            db.session.add(refund)
+            db.session.flush()
+            return refund
+
+        normal = add_booking(
+            "BK-DETAIL-DEPOSIT",
+            paid=Decimal("54000"),
+            status=BookingStatus.PAID.value,
+        )
+        normal_contribution = add_contribution(
+            normal,
+            due=Decimal("54000"),
+            paid=Decimal("54000"),
+            status=ContributionStatus.PAID.value,
+        )
+        normal_payment = add_payment(
+            normal,
+            normal_contribution,
+            amount=Decimal("54000"),
+            token="DETAIL-NORMAL",
+            paid_at=occurred_at + timedelta(hours=1),
+        )
+
+        legacy = add_booking(
+            "BK-DETAIL-LEGACY",
+            policy=BookingPaymentPolicy.LEGACY_FULL_ONLINE.value,
+            total=Decimal("200000"),
+            deposit=Decimal("200000"),
+            paid=Decimal("200000"),
+            status=BookingStatus.PAID.value,
+        )
+        add_contribution(
+            legacy,
+            due=Decimal("200000"),
+            paid=Decimal("200000"),
+            status=ContributionStatus.PAID.value,
+        )
+
+        missing_payment = add_booking(
+            "BK-DETAIL-MISSING-PAYMENT",
+            total=Decimal("300000"),
+            deposit=Decimal("90000"),
+            paid=Decimal("45000"),
+            status=BookingStatus.PARTIALLY_PAID.value,
+        )
+        add_contribution(
+            missing_payment,
+            due=Decimal("90000"),
+            paid=Decimal("45000"),
+            status=ContributionStatus.PENDING.value,
+        )
+
+        partial_refund = add_booking(
+            "BK-DETAIL-PARTIAL-REFUND",
+            paid=Decimal("40000"),
+            status=BookingStatus.PARTIALLY_PAID.value,
+        )
+        partial_contribution = add_contribution(
+            partial_refund,
+            due=Decimal("54000"),
+            paid=Decimal("40000"),
+            status=ContributionStatus.PARTIALLY_REFUNDED.value,
+        )
+        partial_payment = add_payment(
+            partial_refund,
+            partial_contribution,
+            amount=Decimal("54000"),
+            token="DETAIL-PARTIAL",
+            paid_at=occurred_at + timedelta(hours=2),
+        )
+        partial_refund_record = add_refund(
+            partial_refund,
+            partial_payment,
+            amount=Decimal("14000"),
+            token="DETAIL-PARTIAL",
+            status=RefundStatus.SUCCESS.value,
+            refunded_at=occurred_at + timedelta(hours=3),
+        )
+
+        full_refund = add_booking(
+            "BK-DETAIL-FULL-REFUND",
+            paid=Decimal("0"),
+            status=BookingStatus.CANCELLED.value,
+            cancellation_reason="Chủ sân hủy do sự cố kiểm thử",
+        )
+        full_contribution = add_contribution(
+            full_refund,
+            due=Decimal("54000"),
+            paid=Decimal("0"),
+            status=ContributionStatus.REFUNDED.value,
+        )
+        full_payment = add_payment(
+            full_refund,
+            full_contribution,
+            amount=Decimal("54000"),
+            token="DETAIL-FULL",
+            paid_at=occurred_at + timedelta(hours=2),
+        )
+        add_refund(
+            full_refund,
+            full_payment,
+            amount=Decimal("54000"),
+            token="DETAIL-FULL",
+            status=RefundStatus.SUCCESS.value,
+            refunded_at=occurred_at + timedelta(hours=4),
+        )
+
+        refund_attention = add_booking(
+            "BK-DETAIL-REFUND-ATTENTION",
+            paid=Decimal("54000"),
+            status=BookingStatus.REFUND_PENDING.value,
+        )
+        attention_contribution = add_contribution(
+            refund_attention,
+            due=Decimal("54000"),
+            paid=Decimal("54000"),
+            status=ContributionStatus.REFUND_PENDING.value,
+        )
+        attention_payment = add_payment(
+            refund_attention,
+            attention_contribution,
+            amount=Decimal("54000"),
+            token="DETAIL-ATTENTION",
+            paid_at=occurred_at + timedelta(hours=1),
+        )
+        for index, refund_status in enumerate(
+            (
+                RefundStatus.PENDING.value,
+                RefundStatus.PROCESSING.value,
+                RefundStatus.FAILED.value,
+            ),
+            start=1,
+        ):
+            add_refund(
+                refund_attention,
+                attention_payment,
+                amount=Decimal("5000"),
+                token=f"DETAIL-ATTENTION-{index}",
+                status=refund_status,
+            )
+
+        completed_match = add_booking(
+            "BK-DETAIL-COMPLETED-MATCH",
+            mode=BookingMode.FIND_OPPONENT.value,
+            total=Decimal("300000"),
+            deposit=Decimal("90000"),
+            paid=Decimal("45000"),
+            status=BookingStatus.COMPLETED.value,
+        )
+        creator_contribution = add_contribution(
+            completed_match,
+            due=Decimal("45000"),
+            paid=Decimal("45000"),
+            status=ContributionStatus.PAID.value,
+        )
+        add_contribution(
+            completed_match,
+            due=Decimal("45000"),
+            paid=Decimal("0"),
+            status=ContributionStatus.EXPIRED.value,
+            contribution_type=ContributionType.OPPONENT.value,
+            slot_number=1,
+            user=None,
+        )
+        add_payment(
+            completed_match,
+            creator_contribution,
+            amount=Decimal("45000"),
+            token="DETAIL-MATCH",
+            paid_at=occurred_at + timedelta(hours=1),
+        )
+        match = Match(
+            creator_id=user_id,
+            booking_id=completed_match.id,
+            match_type=MatchType.FIND_OPPONENT.value,
+            title="Kèo liên quan Booking Detail",
+            required_players=1,
+            status=MatchStatus.COMPLETED.value,
+            created_at=occurred_at + timedelta(minutes=30),
+        )
+        db.session.add(match)
+        db.session.flush()
+        participant = MatchParticipant(
+            match_id=match.id,
+            user_id=user_id,
+            contribution_id=creator_contribution.id,
+            participant_type=MatchParticipantType.OPPONENT_REPRESENTATIVE.value,
+            status=MatchParticipantStatus.JOINED.value,
+            created_at=occurred_at + timedelta(minutes=35),
+            decided_at=occurred_at + timedelta(hours=2),
+        )
+        db.session.add(participant)
+        db.session.commit()
+
+        return {
+            **list_data,
+            "normal": normal.booking_code,
+            "normal_payment_id": normal_payment.id,
+            "legacy_no_payment": legacy.booking_code,
+            "missing_payment": missing_payment.booking_code,
+            "partial_refund": partial_refund.booking_code,
+            "partial_refund_id": partial_refund_record.id,
+            "full_refund": full_refund.booking_code,
+            "refund_attention": refund_attention.booking_code,
+            "completed_match": completed_match.booking_code,
+        }
+
+
 def test_admin_pages_require_admin_role(app, client):
     user = create_user(app, email="player-admin-denied@example.com")
     login(client, email=user.email)
@@ -508,6 +842,7 @@ def test_admin_pages_require_admin_role(app, client):
         "/admin/venues",
         "/admin/monitoring",
         "/admin/bookings",
+        "/admin/bookings/UNKNOWN",
         "/admin/monitoring/bookings/UNKNOWN",
     )
     for path in admin_paths:
@@ -984,7 +1319,8 @@ def test_admin_booking_operations_is_dedicated_compact_read_only_list(app, clien
     assert "Lịch sử thanh toán" not in page
     assert "Lịch sử hoàn tiền" not in page
     assert "PAY-OPS-OPPONENT" not in page
-    assert f"/admin/monitoring/bookings/{data['opponent']}" in page
+    assert f"/admin/bookings/{data['opponent']}" in page
+    assert f"/admin/monitoring/bookings/{data['opponent']}" not in page
     assert "/static/js/administrative-unit-picker.js" in page
     assert "/static/js/admin-bookings.js" in page
     assert 'href="/admin/bookings">Xóa lọc</a>' in page
@@ -1273,20 +1609,261 @@ def test_admin_monitoring_explains_data_and_opens_booking_detail(app, client):
     assert "data-admin-workspace-detail-link" in monitoring_page
     assert f"/admin/monitoring/bookings/{booking_code}" in monitoring_page
 
-    detail = client.get(f"/admin/monitoring/bookings/{booking_code}")
+    legacy_detail = client.get(f"/admin/monitoring/bookings/{booking_code}")
+    assert legacy_detail.status_code == 302
+    assert legacy_detail.headers["Location"].endswith(
+        f"/admin/bookings/{booking_code}"
+    )
+
+    detail = client.get(f"/admin/bookings/{booking_code}")
     detail_page = detail.get_data(as_text=True)
 
     assert detail.status_code == 200
     assert booking_code in detail_page
-    assert "Lịch đặt sân đang ở bước nào?" in detail_page
-    assert "Các khoản tiền cọc" in detail_page
+    assert "Số tiền hiện được ghi nhận" in detail_page
+    assert "Đối chiếu nghĩa vụ và số tiền hiện tại" in detail_page
     assert "Lịch sử thanh toán" in detail_page
-    assert "Cổng thanh toán" in detail_page
-    assert "Mã giao dịch" in detail_page
-    assert "Mã nhà cung cấp" not in detail_page
+    assert "Lịch sử hoàn tiền" in detail_page
+    assert "Sự kiện đã ghi nhận" in detail_page
+    assert "Trạng thái hiện tại" in detail_page
     assert "PAY-ADMIN-MONITOR" in detail_page
+    assert "REFUND-ADMIN-MONITOR" in detail_page
     assert "Kèo Admin Test" in detail_page
-    assert 'data-admin-workspace-return="monitoring"' in detail_page
+    assert "90.000 đ" in detail_page
+    assert "10.000 đ" in detail_page
+    assert "80.000 đ" in detail_page
+    assert "220.000 đ" in detail_page
+
+
+def test_admin_booking_detail_shows_canonical_read_only_deposit_record(app, client):
+    admin = create_user(app, email="detail-admin@example.com", role=UserRole.ADMIN)
+    owner = create_user(app, email="detail-owner@example.com", role=UserRole.OWNER)
+    player = create_user(app, email="detail-player@example.com")
+    data = seed_booking_detail_data(app, user_id=player.id, owner_id=owner.id)
+
+    with app.app_context():
+        booking = db.session.scalar(
+            db.select(Booking).where(Booking.booking_code == data["normal"])
+        )
+        before = (
+            booking.status,
+            booking.paid_amount,
+            booking.contributions[0].status,
+            booking.contributions[0].amount_paid,
+            db.session.scalar(db.select(db.func.count()).select_from(Payment)),
+            db.session.scalar(db.select(db.func.count()).select_from(Refund)),
+        )
+
+    login(client, email=admin.email)
+    response = client.get(
+        f"/admin/bookings/{data['normal']}",
+        query_string={
+            "q": "booking detail",
+            "status": BookingStatus.PAID.value,
+            "page": 2,
+            "next": "https://example.com/not-allowed",
+        },
+    )
+    page = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "data-admin-booking-detail" in page
+    assert data["normal"] in page
+    assert "Cọc online theo chính sách" in page
+    assert "180.000 đ" in page
+    assert "54.000 đ" in page
+    assert "126.000 đ" in page
+    assert "ORDER-DETAIL-NORMAL" in page
+    assert "REQUEST-DETAIL-NORMAL" in page
+    assert "TRANS-DETAIL-NORMAL" in page
+    assert "Mã đơn hàng" in page
+    assert "Mã yêu cầu" in page
+    assert "Mã giao dịch nhà cung cấp" in page
+    assert "Thời điểm thanh toán" in page
+    assert "Online ròng đang ghi nhận" in page
+    assert "Đã thanh toán thành công" in page
+    assert "Đã hoàn tiền thành công" in page
+    assert "Ví MoMo" in page
+    assert "03/09/2026 09:00" in page
+    assert 'title="Lịch đặt sân" aria-current="page"' in page
+    assert "q=booking+detail" in page
+    assert "status=PAID" in page
+    assert "page=2" in page
+    assert "https://example.com/not-allowed" not in page
+    assert "Chỉ xem" in page
+
+    with app.app_context():
+        booking = db.session.scalar(
+            db.select(Booking).where(Booking.booking_code == data["normal"])
+        )
+        after = (
+            booking.status,
+            booking.paid_amount,
+            booking.contributions[0].status,
+            booking.contributions[0].amount_paid,
+            db.session.scalar(db.select(db.func.count()).select_from(Payment)),
+            db.session.scalar(db.select(db.func.count()).select_from(Refund)),
+        )
+        assert after == before
+
+
+def test_admin_booking_detail_preserves_financial_policy_edge_cases(app, client):
+    admin = create_user(app, email="detail-money-admin@example.com", role=UserRole.ADMIN)
+    owner = create_user(app, email="detail-money-owner@example.com", role=UserRole.OWNER)
+    player = create_user(app, email="detail-money-player@example.com")
+    data = seed_booking_detail_data(app, user_id=player.id, owner_id=owner.id)
+    login(client, email=admin.email)
+
+    opponent_page = client.get(
+        f"/admin/bookings/{data['opponent']}"
+    ).get_data(as_text=True)
+    assert "300.000 đ" in opponent_page
+    assert "45.000 đ" in opponent_page
+    assert "255.000 đ" in opponent_page
+    assert "Tìm đối thủ" in opponent_page
+
+    legacy_page = client.get(
+        f"/admin/bookings/{data['legacy_no_payment']}"
+    ).get_data(as_text=True)
+    assert "Online toàn phần (lịch sử)" in legacy_page
+    assert "Khoản online lịch sử" in legacy_page
+    assert 'data-missing-payment-history="legacy"' in legacy_page
+    assert "không có Payment chi tiết" in legacy_page
+    assert "Cần đối chiếu:</strong>" not in legacy_page
+
+    inconsistent_page = client.get(
+        f"/admin/bookings/{data['missing_payment']}"
+    ).get_data(as_text=True)
+    assert "Cọc online theo chính sách" in inconsistent_page
+    assert 'data-missing-payment-history="investigate"' in inconsistent_page
+    assert "không có Payment tương ứng" in inconsistent_page
+    assert "Cần đối chiếu:</strong>" in inconsistent_page
+
+
+def test_admin_booking_detail_reconciles_successful_payments_and_refunds(app, client):
+    admin = create_user(app, email="detail-refund-admin@example.com", role=UserRole.ADMIN)
+    owner = create_user(app, email="detail-refund-owner@example.com", role=UserRole.OWNER)
+    player = create_user(app, email="detail-refund-player@example.com")
+    data = seed_booking_detail_data(app, user_id=player.id, owner_id=owner.id)
+    login(client, email=admin.email)
+
+    partial_page = client.get(
+        f"/admin/bookings/{data['partial_refund']}"
+    ).get_data(as_text=True)
+    contribution_table = partial_page.split(
+        '<table class="table admin-table admin-contribution-table', 1
+    )[1].split("</table>", 1)[0]
+    assert "54.000 đ" in contribution_table
+    assert "14.000 đ" in contribution_table
+    assert "40.000 đ" in contribution_table
+    assert "Hoàn một phần" in contribution_table
+    assert "ORDER-DETAIL-PARTIAL" in partial_page
+    assert f'href="#refund-{data["partial_refund_id"]}"' in partial_page
+    assert "REFUND-DETAIL-PARTIAL" in partial_page
+    assert "REFUND-REQUEST-DETAIL-PARTIAL" in partial_page
+    assert "REFUND-TRANS-DETAIL-PARTIAL" in partial_page
+    assert "Payment gốc: ORDER-DETAIL-PARTIAL" in partial_page
+    assert "Mã giao dịch hoàn tiền" in partial_page
+    assert "Thời điểm hoàn tiền" in partial_page
+    assert "Cần đối chiếu:</strong>" not in partial_page
+
+    full_page = client.get(
+        f"/admin/bookings/{data['full_refund']}"
+    ).get_data(as_text=True)
+    full_table = full_page.split(
+        '<table class="table admin-table admin-contribution-table', 1
+    )[1].split("</table>", 1)[0]
+    assert full_table.count("54.000 đ") >= 2
+    assert "0 đ" in full_table
+    assert "Đã hoàn" in full_table
+    assert "Chủ sân hủy do sự cố kiểm thử" in full_page
+    assert "Cần đối chiếu:</strong>" not in full_page
+
+    attention_page = client.get(
+        f"/admin/bookings/{data['refund_attention']}"
+    ).get_data(as_text=True)
+    attention_table = attention_page.split(
+        '<table class="table admin-table admin-contribution-table', 1
+    )[1].split("</table>", 1)[0]
+    assert attention_table.count("54.000 đ") >= 2
+    assert "0 đ" in attention_table
+    assert "3 Refund cần theo dõi" in attention_page
+    assert "Chờ xử lý" in attention_page
+    assert "Đang xử lý" in attention_page
+    assert "Hoàn tiền thất bại" in attention_page
+    assert "Cần đối chiếu:</strong>" not in attention_page
+    assert 'data-event-type="refund_success"' not in attention_page
+
+
+def test_admin_booking_detail_separates_recorded_events_from_current_state(app, client):
+    admin = create_user(app, email="detail-events-admin@example.com", role=UserRole.ADMIN)
+    owner = create_user(app, email="detail-events-owner@example.com", role=UserRole.OWNER)
+    player = create_user(app, email="detail-events-player@example.com")
+    data = seed_booking_detail_data(app, user_id=player.id, owner_id=owner.id)
+    login(client, email=admin.email)
+
+    completed_page = client.get(
+        f"/admin/bookings/{data['completed_match']}"
+    ).get_data(as_text=True)
+    assert 'data-current-booking-status="COMPLETED"' in completed_page
+    assert "Kèo liên quan Booking Detail" in completed_page
+    assert "Quản lý đầy đủ kèo chơi thuộc Phase 2.3" in completed_page
+    assert 'data-event-type="booking_created"' in completed_page
+    assert 'data-event-type="match_created"' in completed_page
+    assert 'data-event-type="payment_success"' in completed_page
+    assert 'data-event-type="participant_decided"' in completed_page
+    assert 'data-event-type="booking_completed"' not in completed_page
+    assert "completed_at" not in completed_page
+    assert "updated_at" not in completed_page
+    assert completed_page.index('data-event-type="booking_created"') < completed_page.index(
+        'data-event-type="match_created"'
+    )
+    assert completed_page.index('data-event-type="match_created"') < completed_page.index(
+        'data-event-type="payment_success"'
+    )
+
+    cancelled_page = client.get(
+        f"/admin/bookings/{data['full_refund']}"
+    ).get_data(as_text=True)
+    assert 'data-current-booking-status="CANCELLED"' in cancelled_page
+    assert "Lý do hủy" in cancelled_page
+    assert 'data-event-type="booking_cancelled"' not in cancelled_page
+    assert "cancelled_at" not in cancelled_page
+    assert 'data-event-type="payment_success"' in cancelled_page
+    assert 'data-event-type="refund_success"' in cancelled_page
+
+
+def test_admin_booking_detail_legacy_route_redirects_to_canonical_with_safe_filters(
+    app,
+    client,
+):
+    admin = create_user(app, email="detail-route-admin@example.com", role=UserRole.ADMIN)
+    owner = create_user(app, email="detail-route-owner@example.com", role=UserRole.OWNER)
+    player = create_user(app, email="detail-route-player@example.com")
+    data = seed_booking_detail_data(app, user_id=player.id, owner_id=owner.id)
+    login(client, email=admin.email)
+
+    response = client.get(
+        f"/admin/monitoring/bookings/{data['normal']}",
+        query_string={
+            "q": "safe",
+            "province_code": data["province_code"],
+            "venue": data["venue_id"],
+            "page": 2,
+            "next": "https://example.com/not-allowed",
+            "section": "payments",
+        },
+    )
+
+    assert response.status_code == 302
+    location = response.headers["Location"]
+    assert location.startswith(f"/admin/bookings/{data['normal']}?")
+    assert "q=safe" in location
+    assert f"province_code={data['province_code']}" in location
+    assert f"venue={data['venue_id']}" in location
+    assert "page=2" in location
+    assert "example.com" not in location
+    assert "section=" not in location
 
 
 def test_admin_booking_detail_redirects_when_booking_does_not_exist(app, client):

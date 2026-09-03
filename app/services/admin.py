@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from math import ceil
 from typing import Any
@@ -14,12 +14,14 @@ from app.extensions import db
 from app.models import (
     Booking,
     BookingContribution,
+    BookingPaymentPolicy,
     BookingStatus,
     ContributionStatus,
     Field,
     FieldType,
     Match,
     MatchParticipant,
+    MatchParticipantStatus,
     MatchStatus,
     OwnerApplication,
     OwnerApplicationStatus,
@@ -159,6 +161,52 @@ class AdminBookingFilterOptions:
     wards: tuple[Any, ...]
     venues: tuple[Venue, ...]
     fields: tuple[Field, ...]
+
+
+@dataclass(frozen=True)
+class AdminContributionBreakdown:
+    contribution: BookingContribution
+    gross_successful_payment_amount: Decimal
+    successful_refund_amount: Decimal
+    history_net_amount: Decimal
+    requires_reconciliation: bool
+    legacy_history_only: bool
+
+
+@dataclass(frozen=True)
+class AdminPaymentHistoryItem:
+    payment: Payment
+    related_refunds: tuple[Refund, ...]
+
+
+@dataclass(frozen=True)
+class AdminHistoricalEvent:
+    occurred_at: datetime
+    event_type: str
+    record: Any
+
+
+@dataclass(frozen=True)
+class AdminMatchContext:
+    match: Match
+    total_participants: int
+    joined_participants: int
+    pending_participants: int
+    closed_participants: int
+
+
+@dataclass(frozen=True)
+class AdminBookingDetail:
+    booking: Booking
+    contributions: tuple[AdminContributionBreakdown, ...]
+    payments: tuple[AdminPaymentHistoryItem, ...]
+    refunds: tuple[Refund, ...]
+    match_context: AdminMatchContext | None
+    historical_events: tuple[AdminHistoricalEvent, ...]
+    payment_attention: tuple[Payment, ...]
+    refund_attention: tuple[Refund, ...]
+    missing_payment_history_kind: str | None
+    financial_history_requires_reconciliation: bool
 
 
 def get_admin_dashboard_summary() -> AdminDashboardSummary:
@@ -445,6 +493,151 @@ def get_admin_booking(booking_code: str) -> Booking:
     if booking is None:
         raise AdminError("Không tìm thấy lịch đặt sân cần theo dõi.")
     return booking
+
+
+def get_admin_booking_detail(booking_code: str) -> AdminBookingDetail:
+    """Build the read-only investigation model for one Booking."""
+    booking = get_admin_booking(booking_code)
+    payments = tuple(booking.payments)
+    refunds = tuple(booking.refunds)
+
+    refunds_by_payment: dict[int, list[Refund]] = {}
+    for refund in refunds:
+        refunds_by_payment.setdefault(refund.payment_id, []).append(refund)
+
+    payment_items = tuple(
+        AdminPaymentHistoryItem(
+            payment=payment,
+            related_refunds=tuple(refunds_by_payment.get(payment.id, ())),
+        )
+        for payment in payments
+    )
+
+    successful_payment_amounts: dict[int, Decimal] = {}
+    for payment in payments:
+        if payment.status == PaymentStatus.SUCCESS.value:
+            successful_payment_amounts[payment.contribution_id] = (
+                successful_payment_amounts.get(
+                    payment.contribution_id,
+                    Decimal("0.00"),
+                )
+                + Decimal(payment.amount)
+            )
+
+    successful_refund_amounts: dict[int, Decimal] = {}
+    for refund in refunds:
+        if refund.status != RefundStatus.SUCCESS.value:
+            continue
+        contribution_id = refund.payment.contribution_id
+        successful_refund_amounts[contribution_id] = (
+            successful_refund_amounts.get(contribution_id, Decimal("0.00"))
+            + Decimal(refund.amount)
+        )
+
+    legacy_history_only = bool(
+        booking.payment_policy == BookingPaymentPolicy.LEGACY_FULL_ONLINE.value
+        and Decimal(booking.paid_amount) > 0
+        and not payments
+    )
+    contribution_rows = []
+    for contribution in booking.contributions:
+        gross_amount = successful_payment_amounts.get(
+            contribution.id,
+            Decimal("0.00"),
+        )
+        refunded_amount = successful_refund_amounts.get(
+            contribution.id,
+            Decimal("0.00"),
+        )
+        history_net_amount = gross_amount - refunded_amount
+        contribution_uses_legacy_history = bool(
+            legacy_history_only and Decimal(contribution.amount_paid) > 0
+        )
+        contribution_rows.append(
+            AdminContributionBreakdown(
+                contribution=contribution,
+                gross_successful_payment_amount=gross_amount,
+                successful_refund_amount=refunded_amount,
+                history_net_amount=history_net_amount,
+                requires_reconciliation=bool(
+                    not contribution_uses_legacy_history
+                    and history_net_amount != Decimal(contribution.amount_paid)
+                ),
+                legacy_history_only=contribution_uses_legacy_history,
+            )
+        )
+
+    missing_payment_history_kind = None
+    if Decimal(booking.paid_amount) > 0 and not payments:
+        missing_payment_history_kind = (
+            "legacy"
+            if booking.payment_policy
+            == BookingPaymentPolicy.LEGACY_FULL_ONLINE.value
+            else "investigate"
+        )
+
+    gross_successful_amount = sum(
+        (
+            Decimal(payment.amount)
+            for payment in payments
+            if payment.status == PaymentStatus.SUCCESS.value
+        ),
+        Decimal("0.00"),
+    )
+    successful_refund_amount = sum(
+        (
+            Decimal(refund.amount)
+            for refund in refunds
+            if refund.status == RefundStatus.SUCCESS.value
+        ),
+        Decimal("0.00"),
+    )
+    history_net_amount = gross_successful_amount - successful_refund_amount
+    financial_history_requires_reconciliation = bool(
+        missing_payment_history_kind == "investigate"
+        or (
+            not legacy_history_only
+            and history_net_amount != Decimal(booking.paid_amount)
+        )
+        or any(row.requires_reconciliation for row in contribution_rows)
+    )
+
+    payment_attention = tuple(
+        payment
+        for payment in payments
+        if payment.status
+        in {
+            PaymentStatus.PENDING.value,
+            PaymentStatus.FAILED.value,
+            PaymentStatus.CANCELLED.value,
+            PaymentStatus.EXPIRED.value,
+        }
+    )
+    refund_attention = tuple(
+        refund
+        for refund in refunds
+        if refund.status
+        in {
+            RefundStatus.PENDING.value,
+            RefundStatus.PROCESSING.value,
+            RefundStatus.FAILED.value,
+        }
+    )
+
+    return AdminBookingDetail(
+        booking=booking,
+        contributions=tuple(contribution_rows),
+        payments=payment_items,
+        refunds=refunds,
+        match_context=_admin_match_context(booking.match),
+        historical_events=_admin_booking_historical_events(booking),
+        payment_attention=payment_attention,
+        refund_attention=refund_attention,
+        missing_payment_history_kind=missing_payment_history_kind,
+        financial_history_requires_reconciliation=(
+            financial_history_requires_reconciliation
+        ),
+    )
 
 
 def list_admin_accounts(
@@ -1165,6 +1358,98 @@ def _venue_matches_admin_location(
         if not ward_matches:
             return False
     return True
+
+
+def _admin_match_context(match: Match | None) -> AdminMatchContext | None:
+    if match is None:
+        return None
+    total = len(match.participants)
+    joined = sum(
+        participant.status == MatchParticipantStatus.JOINED.value
+        for participant in match.participants
+    )
+    pending = sum(
+        participant.status
+        in {
+            MatchParticipantStatus.PENDING.value,
+            MatchParticipantStatus.ACCEPTED_AWAITING_PAYMENT.value,
+        }
+        for participant in match.participants
+    )
+    return AdminMatchContext(
+        match=match,
+        total_participants=total,
+        joined_participants=joined,
+        pending_participants=pending,
+        closed_participants=total - joined - pending,
+    )
+
+
+def _admin_booking_historical_events(
+    booking: Booking,
+) -> tuple[AdminHistoricalEvent, ...]:
+    events = [
+        AdminHistoricalEvent(
+            occurred_at=booking.created_at,
+            event_type="booking_created",
+            record=booking,
+        )
+    ]
+    events.extend(
+        AdminHistoricalEvent(
+            occurred_at=payment.paid_at,
+            event_type="payment_success",
+            record=payment,
+        )
+        for payment in booking.payments
+        if payment.status == PaymentStatus.SUCCESS.value
+        and payment.paid_at is not None
+    )
+    events.extend(
+        AdminHistoricalEvent(
+            occurred_at=refund.refunded_at,
+            event_type="refund_success",
+            record=refund,
+        )
+        for refund in booking.refunds
+        if refund.status == RefundStatus.SUCCESS.value
+        and refund.refunded_at is not None
+    )
+    if booking.match is not None:
+        events.append(
+            AdminHistoricalEvent(
+                occurred_at=booking.match.created_at,
+                event_type="match_created",
+                record=booking.match,
+            )
+        )
+        meaningful_participant_statuses = {
+            MatchParticipantStatus.ACCEPTED_AWAITING_PAYMENT.value,
+            MatchParticipantStatus.JOINED.value,
+            MatchParticipantStatus.REJECTED.value,
+            MatchParticipantStatus.EXPIRED.value,
+            MatchParticipantStatus.WITHDRAWN.value,
+        }
+        events.extend(
+            AdminHistoricalEvent(
+                occurred_at=participant.decided_at,
+                event_type="participant_decided",
+                record=participant,
+            )
+            for participant in booking.match.participants
+            if participant.decided_at is not None
+            and participant.status in meaningful_participant_statuses
+        )
+    return tuple(
+        sorted(
+            events,
+            key=lambda event: (
+                event.occurred_at,
+                event.event_type,
+                event.record.id,
+            ),
+        )
+    )
 
 
 def _admin_booking_list_item(
