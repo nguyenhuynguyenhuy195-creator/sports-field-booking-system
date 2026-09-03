@@ -37,7 +37,7 @@ Các nhóm nghiệp vụ chính:
 - Kiểm duyệt cơ sở.
 - Giám sát booking.
 - Giám sát kèo chơi.
-- Quản lý payment / refund / settlement.
+- Giám sát Payment/Refund trong Booking Detail; quản lý settlement/đối soát ở Step 2.6.
 - Quản lý tài khoản.
 - Moderation và xử lý ngoại lệ.
 
@@ -319,53 +319,65 @@ Theo quyết định ngày 31/08/2026 và bổ sung Phase 1.3 ngày 02/09/2026:
 
 > **Phase 1.2 → Phase 3 → Phase 1.3 → Phase 2 → Phase 4 → Phase 4.1 → Phase 5 → Phase 6 → Final**
 
-- Phase 2 không bị loại khỏi roadmap; Phase này chỉ được tạm hoãn để ưu tiên hoàn thiện giao diện và nghiệp vụ Owner Console trước.
-- Sau Phase 3, Phase 1.3 Location & Map Enhancement được ưu tiên theo quyết định mới; Phase 2 tiếp tục deferred cho đến khi có yêu cầu riêng.
+- Lịch sử: Phase 2 từng được tạm hoãn để ưu tiên Owner Console và Phase 1.3
+  Location & Map Enhancement.
+- Sau khi các phần ưu tiên đã hoàn tất, Phase 2 đã được kích hoạt: Step 2.1 và
+  2.2 accepted; Step 2.3 và 2.6 là phần implementation còn lại.
 
 ---
 
 ## PHASE 2 – ADMIN OPERATIONS
 
-**Trạng thái: NOT STARTED – DEFERRED BY USER DECISION**
+**Trạng thái: IN PROGRESS — Step 2.1 và Step 2.2 DONE / ACCEPTED**
 
-- Phase 2 vẫn giữ nguyên phạm vi và không bị bỏ.
-- Admin Operations được chủ động tạm hoãn vì Owner Console được ưu tiên thực hiện trước.
-- Actual payment, refund và settlement/payout engine vẫn được hoàn thiện tại Step 2.4–2.6 sau khi Phase 3 kết thúc.
+- Step 2.1 và 2.2 đã hoàn thành trên các route canonical `/admin/bookings` và
+  `/admin/bookings/<booking_code>`.
+- Payment/Refund backend engines, database records và immutable history được
+  giữ nguyên; Admin điều tra chúng trong Booking Detail, không qua module UI riêng.
+- Step 2.3 và Step 2.6 là phần implementation còn lại của Phase 2.
 
 ### Step 2.1 – Lịch đặt sân
 
-- Admin monitoring toàn hệ thống.
-- Search/filter/status.
+**Trạng thái: DONE / ACCEPTED**
+
+- Booking Operations tại `/admin/bookings`.
+- Search/filter/status, location và attention read-only.
 
 ### Step 2.2 – Chi tiết Booking
 
-- Booking info.
-- Payment.
-- Refund.
-- Settlement.
-- Timeline.
-- Audit.
+**Trạng thái: DONE / ACCEPTED**
+
+- Booking information, financial summary, contribution breakdown và Match context.
+- Payment/Refund immutable history, quan hệ Payment ↔ Refund, transaction IDs,
+  attention state, historical events và current financial state.
+- Không bao gồm Settlement/Payout action.
 
 ### Step 2.3 – Kèo chơi
+
+**Trạng thái: PENDING**
 
 - Monitoring.
 - Moderation-related information.
 
-### Step 2.4 – Thanh toán
+### Step 2.4 – Dedicated Payment Operations
 
-- Payment transactions.
-- Gateway.
-- Status.
-- Failures.
+**Trạng thái: ĐÃ LOẠI KHỎI IMPLEMENTATION SCOPE**
 
-### Step 2.5 – Hoàn tiền
+- Không tạo `/admin/payments` hoặc `/admin/payments/<id>`.
+- Payment engine, database records, immutable history và test coverage được giữ nguyên.
+- Admin giám sát Payment qua Booking Operations và Booking Detail.
 
-- Refund queue.
-- Refund detail.
-- Reason.
-- Status.
+### Step 2.5 – Dedicated Refund Operations
+
+**Trạng thái: ĐÃ LOẠI KHỎI IMPLEMENTATION SCOPE**
+
+- Không tạo `/admin/refunds` hoặc `/admin/refunds/<id>`.
+- Refund engine, database records, immutable history và test coverage được giữ nguyên.
+- Admin giám sát Refund cùng Payment gốc qua Booking Detail.
 
 ### Step 2.6 – Settlement / đối soát chủ sân
+
+**Trạng thái: PENDING**
 
 - PENDING.
 - ELIGIBLE.
@@ -373,12 +385,6 @@ Theo quyết định ngày 31/08/2026 và bổ sung Phase 1.3 ngày 02/09/2026:
 - FAILED.
 - ON_HOLD.
 - Payout sandbox hoặc simulated payout.
-
-### Step 2.7 – Admin Operations polish
-
-- Responsive.
-- Consistency.
-- UX wording.
 
 ---
 
@@ -585,7 +591,7 @@ Hiện tại:
 - Phase 1B: DONE.
 - Phase 1.2: DONE / ACCEPTED (30/08/2026).
 - Phase 1.3: DONE / ACCEPTED (03/09/2026); 1.3A đến 1.3F đều đã nghiệm thu.
-- Phase 2: NOT STARTED / DEFERRED BY USER DECISION.
+- Phase 2: IN PROGRESS — Step 2.1 và 2.2 DONE / ACCEPTED; Step 2.3 và 2.6 PENDING.
 - Phase 3: DONE / ACCEPTED (02/09/2026).
 - Phase 4: NOT YET AUDITED / ACCEPTED.
 - Phase 4.1: NOT STARTED.
@@ -596,7 +602,10 @@ Thứ tự thực hiện hiện hành:
 
 > **Phase 1.2 → Phase 3 → Phase 1.3 → Phase 2 → Phase 4 → Phase 4.1 → Phase 5 → Phase 6 → Final**
 
-Lý do: Owner Console đã hoàn tất; Location & Map Enhancement được ưu tiên tiếp theo, còn Admin Operations vẫn deferred theo quyết định của người dùng.
+Lý do: Owner Console và Location & Map Enhancement đã hoàn tất; Phase 2 tiếp tục
+với Match Operations (Step 2.3), Settlement/Payout (Step 2.6), sau đó là review
+consistency/regression cuối. Step 2.4 và 2.5 được giữ số lịch sử nhưng không có
+dedicated Admin UI.
 
 ### Phase 1B
 
@@ -628,9 +637,13 @@ DONE:
 
 ### TASK TIẾP THEO
 
-**PHASE 1.3 – LOCATION & MAP ENHANCEMENT — DONE / ACCEPTED**
+**PHASE 2 – ADMIN OPERATIONS — IN PROGRESS**
 
-Toàn bộ 1.3A–1.3F đã được nghiệm thu với full regression 345 passed, browser QA đạt và Alembic current/head giữ nguyên `a6d8e4f2c913`. Không có phase tiếp theo được tự động bắt đầu; Phase 2 vẫn `NOT STARTED / DEFERRED BY USER DECISION`.
+Step 2.1 Booking Operations và Step 2.2 Booking Detail đã DONE / ACCEPTED.
+Payment/Refund tiếp tục được bảo toàn là engine và immutable history, được Admin
+giám sát trong Booking Detail thay vì dedicated screen. Phần còn lại là Step 2.3
+Match Operations, Step 2.6 Settlement/Payout và review consistency/regression
+cuối; không có Step 2.7.
 
 ---
 

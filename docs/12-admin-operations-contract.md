@@ -1,14 +1,15 @@
 # CONTRACT – PHASE 2 ADMIN OPERATIONS
 
-**Trạng thái:** Design contract – chờ review trước khi triển khai
-**Baseline áp dụng:** `e65dc27`, Alembic `a6d8e4f2c913`
+**Trạng thái:** ACCEPTED – cập nhật sau Step 2.1 và Step 2.2
+**Baseline áp dụng:** `ac955c2`, Alembic `a6d8e4f2c913`
 **Tài liệu liên quan:** `docs/11-roadmap.md`, `docs/10-decision-log.md`
 
 ## 1. Mục tiêu và phạm vi
 
-Phase 2 tách Admin Operations thành các module nghiệp vụ độc lập. Mỗi module
-có list và detail riêng, thay vì tiếp tục mở rộng trang `/admin/monitoring`
-đang gộp nhiều loại dữ liệu.
+Phase 2 tách các Admin Operations còn lại thành module nghiệp vụ độc lập, thay
+vì tiếp tục mở rộng trang `/admin/monitoring` đang gộp nhiều loại dữ liệu.
+Booking là workspace điều tra cho Payment/Refund liên quan; không tạo module
+Payment hoặc Refund primary riêng.
 
 Contract này chỉ chốt kiến trúc, trách nhiệm và guardrail. Nó không tự tạo
 route, template, service, CSS, JavaScript, migration hoặc thao tác dữ liệu.
@@ -20,7 +21,7 @@ Nguyên tắc tổ chức:
 - List là màn hình vận hành nhanh: tìm, lọc, nhận diện trạng thái và mở hồ sơ.
 - Detail là màn hình điều tra đầy đủ: đọc dữ liệu liên quan và dấu vết đã có.
 - Một màn hình chỉ có một thực thể vận hành chính; không dùng tab/focus để biến
-  Booking list thành Payment, Refund hoặc Match list.
+  Booking list thành Match list hoặc danh sách Payment/Refund độc lập.
 - Các engine Booking, Payment, Refund và Matchmaking hiện có là source of
   truth. Phase 2 trình bày hoặc gọi đúng capability đã được chấp thuận, không
   viết lại lifecycle hay sửa trực tiếp dữ liệu lịch sử.
@@ -43,9 +44,7 @@ VẬN HÀNH
   Kèo chơi
 
 TÀI CHÍNH
-  Thanh toán
-  Hoàn tiền
-  Đối soát
+  Đối soát (chỉ sau khi Step 2.6 được implement)
 
 HỆ THỐNG
   Tài khoản
@@ -54,8 +53,9 @@ HỆ THỐNG
 - Một link Phase 2 chỉ được hiển thị/active như module vận hành sau khi module
   đó đã được implement và accepted; không tạo dead link, placeholder page hay
   trang Settlement giả.
-- Tiến độ link: Step 2.1 có thể đưa link Booking vào vận hành; Match ở Step
-  2.3, Payment ở Step 2.4, Refund ở Step 2.5 và Settlement ở Step 2.6.
+- Tiến độ link: Step 2.1 đã đưa link Booking vào vận hành; Match chỉ trở thành
+  operational ở Step 2.3 và Settlement/Đối soát chỉ ở Step 2.6. Không tạo link
+  Thanh toán hoặc Hoàn tiền riêng.
 - Khi đã vận hành, mỗi link dẫn tới module dedicated tương ứng, không dẫn tới
   một `focus` của `/admin/monitoring`; chỉ link của module hoặc detail đang xem
   được active.
@@ -70,8 +70,6 @@ Route đích của Phase 2 là:
 | --- | --- | --- | --- |
 | Booking Operations | `/admin/bookings` | `/admin/bookings/<booking_code>` | `booking_code` |
 | Match Operations | `/admin/matches` | `/admin/matches/<id>` | `Match.id` |
-| Payment Operations | `/admin/payments` | `/admin/payments/<id>` | `Payment.id` |
-| Refund Operations | `/admin/refunds` | `/admin/refunds/<id>` | `Refund.id` |
 | Settlement Operations | `/admin/settlements` | `/admin/settlements/<id>` | `Settlement.id` khi Step 2.6 chốt model |
 
 Quy tắc route:
@@ -81,8 +79,14 @@ Quy tắc route:
 - URL list dùng query string cho filter, search và page; link pagination,
   clear filter và detail/back phải giữ filter đang có khi điều đó hữu ích cho
   luồng điều tra.
-- Detail liên kết chéo bằng URL canonical: Booking ↔ Match, Booking ↔ Payment,
-  Payment ↔ Refund và, từ Step 2.6, Booking/Payment/Refund ↔ Settlement.
+- Booking Detail là nơi Admin điều tra Payment/Refund: contribution, immutable
+  Payment history, immutable Refund history, quan hệ Payment ↔ Refund,
+  transaction IDs, attention state, historical events và số tiền hiện tại.
+  Không có route primary `/admin/payments`, `/admin/payments/<id>`,
+  `/admin/refunds` hoặc `/admin/refunds/<id>`.
+- Booking ↔ Match chỉ dùng canonical detail sau khi Step 2.3 được accepted;
+  từ Step 2.6, Booking/Payment/Refund có thể liên kết với Settlement theo
+  thiết kế được duyệt.
 - `/admin/monitoring` là Admin Foundation accepted và có thể tạm thời tồn tại
   để compatibility trong Phase 2. Không tiếp tục xây capability Phase 2 mới
   tại đó. Khi một module dedicated được accepted, legacy link/URL liên quan
@@ -118,7 +122,8 @@ quan, status hiện tại và các sự kiện có timestamp được lưu.
 Timeline chỉ được nêu những sự kiện có dữ liệu thời gian nguồn. Không dùng
 `updated_at`, giờ kết thúc sân, hoặc một status hiện tại để suy diễn một mốc
 lifecycle không được lưu. Cancellation reason được hiển thị khi bản ghi có.
-Step này không trở thành Payment, Refund hoặc Settlement detail thay thế.
+Step này là nơi điều tra Payment/Refund theo Booking context, nhưng không tạo
+Payment/Refund primary module hoặc Settlement detail thay thế.
 
 ### Step 2.3 – Match Operations
 
@@ -128,26 +133,21 @@ Moderation hoặc exception action chỉ được thêm khi có policy, permissi
 service capability tương ứng; không dùng Admin UI để sửa participant,
 contribution hoặc booking lifecycle thủ công.
 
-### Step 2.4 – Payment Operations
+### Step 2.4 – Dedicated Payment Operations (đã loại khỏi implementation scope)
 
-Chủ thể chính là `Payment`. List ưu tiên tra cứu giao dịch, provider, order
-id/request id, Booking, payer, amount, status, thời điểm và attention state.
-Detail cho phép đối chiếu metadata provider và các Refund liên quan.
+Không implement list/detail hay route Payment primary. `Payment` vẫn được giữ
+nguyên là backend engine, database record và immutable financial history có
+test coverage. Admin tra cứu và điều tra Payment trong `/admin/bookings` và
+`/admin/bookings/<booking_code>`; Payment attention vẫn giữ đúng nghĩa,
+trong đó `PENDING` là chờ completion/confirmation, không phải failure.
 
-Step này không được đánh dấu `SUCCESS`/`FAILED` thủ công, sửa provider
-transaction id, tạo Payment thay cho gateway, hoặc viết lại Payment engine.
-PENDING là trạng thái đang chờ completion/confirmation, không được trình bày
-như giao dịch thất bại.
+### Step 2.5 – Dedicated Refund Operations (đã loại khỏi implementation scope)
 
-### Step 2.5 – Refund Operations
-
-Chủ thể chính là `Refund`. List là queue/tra cứu Refund theo status, Booking,
-Payment gốc, recipient, amount, reason, request/order id và thời điểm. Detail
-đối chiếu Refund với Payment gốc và ảnh hưởng đã được engine ghi nhận.
-
-Không được xóa Refund, sửa amount/reason lịch sử, hoặc tự chuyển trạng thái
-Refund trong database. Nếu một thao tác Refund được chấp thuận sau này, UI chỉ
-được gọi service idempotent hiện có với authorization/validation phù hợp.
+Không implement queue/detail hay route Refund primary. `Refund` vẫn được giữ
+nguyên là backend engine, database record và immutable financial history có
+test coverage. Admin điều tra Refund, Payment gốc, reason, status và metadata
+trong Booking Detail; không xóa, sửa amount/reason lịch sử hoặc tự chuyển
+trạng thái Refund trong database.
 
 ### Step 2.6 – Settlement / đối soát chủ sân
 
@@ -166,14 +166,12 @@ Booking/Payment/Refund, trạng thái `PENDING`, `ELIGIBLE`, `SETTLED`, `FAILED`
 | --- | --- | --- | --- |
 | Booking | Tóm tắt lịch, location, khách, mode, status, tiền online/tại sân, attention | Điều tra đầy đủ Booking và liên kết nghiệp vụ | Xử lý gateway/refund/payout trực tiếp |
 | Match | Tóm tắt kèo, Booking context, participant count, status | Thành phần kèo và mốc đã ghi nhận | Sửa Booking hoặc Payment |
-| Payment | Tra cứu/attention giao dịch và provider | Metadata Payment, Booking và Refund liên quan | Xác nhận gateway thủ công |
-| Refund | Queue/attention Refund và Payment gốc | Lý do, metadata Refund, Payment/Booking liên quan | Ghi đè lịch sử hoặc trực tiếp đổi trạng thái |
 | Settlement | Queue/status đối soát và payout khi đã có engine | Căn cứ online, exception và payout audit | Thu phần tiền trả tại sân |
 
 List desktop ưu tiên table-first, mỗi dòng mở đúng detail. List mobile chuyển
 thành card có các trường tóm tắt tương đương, không giấu status/attention hay
 liên kết điều tra. Không đặt danh sách Payment/Refund lồng trong từng Booking
-row; chỉ hiển thị count/attention/link khi cần.
+row; Payment/Refund được điều tra read-only trong Booking Detail.
 
 ## 6. Quy tắc UI dùng chung
 
@@ -263,18 +261,17 @@ balance_due_at_venue = total_amount - paid_amount
 
 Mỗi step được tách thành một prompt/PR nhỏ, review được độc lập:
 
-1. Chuẩn bị route/module shell, sidebar link và list Booking cho Step 2.1;
-   giữ `/admin/monitoring` accepted cho đến khi compatibility được chốt.
-2. Bổ sung Booking Detail Step 2.2 với read model tối thiểu từ dữ liệu hiện có.
+1. Step 2.1 Booking Operations — DONE / ACCEPTED.
+2. Step 2.2 Booking Detail — DONE / ACCEPTED.
 3. Tách Match Operations Step 2.3, không đổi matchmaking engine.
-4. Tách Payment Operations Step 2.4, giữ gateway/payment engine nguyên vẹn.
-5. Tách Refund Operations Step 2.5, giữ refund engine nguyên vẹn.
-6. Audit riêng schema và architecture trước Step 2.6; chỉ sau approval mới tạo
+4. Step 2.4 và 2.5 được giữ số lịch sử nhưng đã loại khỏi dedicated Admin UI;
+   Payment/Refund engine và history vẫn được bảo toàn trong Booking Detail.
+5. Audit riêng schema và architecture trước Step 2.6; chỉ sau approval mới tạo
    Settlement/Payout engine, UI và migration nếu cần.
 
-Sau khi Steps 2.1–2.6 đều accepted, thực hiện UI consistency, full regression
-và polish cuối nếu cần. Đây là phần hoàn tất Phase 2, không phải một Step 2.7
-độc lập.
+Sau khi các Step còn lại 2.3 và 2.6 được accepted, thực hiện UI consistency,
+full regression và polish cuối nếu cần. Đây là phần hoàn tất Phase 2, không
+phải một Step 2.7 độc lập.
 
 Không gộp nhiều step trong một thay đổi. Bất kỳ phát hiện schema thiếu,
 business-rule mơ hồ hoặc requirement mâu thuẫn phải được báo cáo để quyết định
@@ -302,7 +299,7 @@ Mỗi module phải đi qua workflow sau:
 
 ## 11. Tiêu chí hoàn thành kiến trúc
 
-Phase 2 chỉ bắt đầu implement khi contract này được review/accepted. Một step
-được xem là hoàn thành khi module dedicated của chính nó hoạt động, các
-guardrail tài chính còn đúng, engine đã có không regression, scope tiếp theo
-không bị kéo vào, và validation trong workflow nghiệm thu đều có bằng chứng.
+Một step còn implementation scope được xem là hoàn thành khi module dedicated
+của chính nó hoạt động, các guardrail tài chính còn đúng, engine đã có không
+regression, scope tiếp theo không bị kéo vào, và validation trong workflow
+nghiệm thu đều có bằng chứng.
