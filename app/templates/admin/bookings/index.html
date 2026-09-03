@@ -1,0 +1,166 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Lịch đặt sân · Sân Thể Thao{% endblock %}
+{% block admin_page_label %}Lịch đặt sân{% endblock %}
+
+{% block content %}
+<section class="admin-page admin-bookings-page" data-admin-bookings-root>
+    <div class="container-fluid admin-bookings-container py-4 py-lg-5">
+        <div class="admin-page-heading">
+            <div>
+                <span class="eyebrow">VẬN HÀNH</span>
+                <h1 class="display-6 fw-bold mt-2 mb-2">Lịch đặt sân</h1>
+                <p class="text-secondary mb-0">Tra cứu nhanh lịch đặt và nhận diện bản ghi cần theo dõi.</p>
+            </div>
+            <span class="admin-readonly-note"><i class="bi bi-eye" aria-hidden="true"></i>Chỉ xem · Không thay đổi dữ liệu</span>
+        </div>
+
+        <form class="admin-booking-filters" method="get" action="{{ url_for('admin.booking_operations') }}" data-admin-booking-filters>
+            <div class="admin-booking-filter-primary">
+                <div class="admin-filter-control admin-booking-search">
+                    <label for="admin-booking-query">Tìm nhanh</label>
+                    <input class="form-control" id="admin-booking-query" name="q" type="search" maxlength="100" value="{{ query }}" placeholder="Mã lịch, khách hàng, mã thanh toán/hoàn tiền">
+                </div>
+                <div class="admin-filter-control">
+                    <label for="admin-booking-status">Trạng thái</label>
+                    <select class="form-select" id="admin-booking-status" name="status">
+                        <option value="">Tất cả trạng thái</option>
+                        {% for value, label in booking_status_labels.items() %}<option value="{{ value }}"{% if selected_status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="admin-filter-control">
+                    <label for="admin-booking-sport">Bộ môn</label>
+                    <select class="form-select" id="admin-booking-sport" name="sport">
+                        <option value="">Tất cả bộ môn</option>
+                        {% for sport in catalog %}<option value="{{ sport.code }}"{% if selected_sport == sport.code %} selected{% endif %}>{{ sport.name }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="admin-filter-control">
+                    <label for="admin-booking-date">Ngày chơi</label>
+                    <input class="form-control" id="admin-booking-date" name="date" type="date" value="{{ selected_date }}">
+                </div>
+            </div>
+
+            <div class="admin-booking-filter-location" aria-labelledby="admin-booking-location-label">
+                <div class="admin-booking-filter-section-label" id="admin-booking-location-label">Khu vực và sân</div>
+                <div class="admin-filter-control">
+                    <label for="province_code">Tỉnh/Thành phố</label>
+                    <select class="form-select" id="province_code" name="province_code" data-wards-url="{{ url_for('venues.administrative_wards') }}">
+                        <option value="">Tất cả tỉnh/thành phố</option>
+                        {% for province in filter_options.provinces %}<option value="{{ province.code }}" data-province-name="{{ province.name }}"{% if selected_province_code == province.code %} selected{% endif %}>{{ province.name }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="admin-filter-control">
+                    <label for="ward_code">Phường/Xã/Đặc khu</label>
+                    <select class="form-select" id="ward_code" name="ward_code"{% if not selected_province_code %} disabled{% endif %}>
+                        <option value="">Tất cả phường/xã/đặc khu</option>
+                        {% for ward in filter_options.wards %}<option value="{{ ward.code }}"{% if selected_ward_code == ward.code %} selected{% endif %}>{{ ward.full_name }}</option>{% endfor %}
+                    </select>
+                    <small id="administrative-unit-status" class="admin-filter-status" role="status" aria-live="polite"></small>
+                </div>
+                <div class="admin-filter-control">
+                    <label for="admin-booking-venue">Cơ sở</label>
+                    <select class="form-select" id="admin-booking-venue" name="venue">
+                        <option value="">Tất cả cơ sở</option>
+                        {% for venue in filter_options.venues %}
+                            <option value="{{ venue.id }}"
+                                data-province-code="{{ venue.province_code or '' }}"
+                                data-province-name="{{ venue.province_name or venue.city or '' }}"
+                                data-ward-code="{{ venue.ward_code or '' }}"
+                                data-ward-name="{{ venue.ward_name or venue.district or '' }}"
+                                {% if selected_venue_id == venue.id %}selected{% endif %}>{{ venue.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="admin-filter-control">
+                    <label for="admin-booking-field">Sân</label>
+                    <select class="form-select" id="admin-booking-field" name="field"{% if not selected_venue_id %} disabled{% endif %}>
+                        <option value="">Tất cả sân</option>
+                        {% for field in filter_options.fields %}<option value="{{ field.id }}" data-venue-id="{{ field.venue_id }}"{% if selected_field_id == field.id %} selected{% endif %}>{{ field.name }}</option>{% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="admin-booking-filter-actions">
+                <button class="btn btn-primary" type="submit"><i class="bi bi-funnel" aria-hidden="true"></i>Áp dụng</button>
+                <a class="btn btn-outline-secondary" href="{{ url_for('admin.booking_operations') }}">Xóa lọc</a>
+            </div>
+        </form>
+
+        <p class="admin-booking-result-summary" role="status">Hiển thị <strong>{{ booking_page.items|length }}</strong> trong <strong>{{ booking_page.total }}</strong> lịch đặt.</p>
+
+        {% if booking_page.items %}
+            <div class="admin-booking-table-shell">
+                <table class="admin-booking-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Lịch đặt</th>
+                            <th scope="col">Khách hàng</th>
+                            <th scope="col">Địa điểm</th>
+                            <th scope="col">Hình thức</th>
+                            <th scope="col">Tài chính</th>
+                            <th scope="col">Trạng thái / Theo dõi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in booking_page.items %}
+                            {% set booking = item.booking %}
+                            <tr>
+                                <td data-label="Lịch đặt">
+                                    <strong class="admin-booking-code">{{ booking.booking_code }}</strong>
+                                    <span>{{ booking.booking_date.strftime('%d/%m/%Y') }}</span>
+                                    <small>{{ booking.start_time.strftime('%H:%M') }}–{{ booking.end_time.strftime('%H:%M') }}</small>
+                                </td>
+                                <td data-label="Khách hàng">
+                                    <strong>{{ booking.user.full_name }}</strong>
+                                    <small>{{ booking.user.email }}</small>
+                                </td>
+                                <td data-label="Địa điểm">
+                                    <strong>{{ booking.field.venue.name }}</strong>
+                                    <span>{{ booking.field.name }}</span>
+                                    <small>{{ booking.field.field_type.sport.name }}</small>
+                                </td>
+                                <td data-label="Hình thức">
+                                    <strong>{{ booking_mode_labels[booking.booking_mode] }}</strong>
+                                    <small class="admin-booking-policy admin-booking-policy-{{ booking.payment_policy|lower }}">{{ booking_payment_policy_labels[booking.payment_policy] }}</small>
+                                </td>
+                                <td data-label="Tài chính">
+                                    <dl class="admin-booking-money">
+                                        <div><dt>Tổng</dt><dd>{{ booking.total_amount|vnd_currency }}</dd></div>
+                                        <div><dt>Online đã ghi nhận</dt><dd>{{ booking.paid_amount|vnd_currency }}</dd></div>
+                                        <div><dt>Tại sân</dt><dd>{{ booking.balance_due_at_venue|vnd_currency }}</dd></div>
+                                    </dl>
+                                </td>
+                                <td data-label="Trạng thái / Theo dõi">
+                                    <span class="status-badge status-{{ booking.status|lower }}">{{ booking_status_labels[booking.status] }}</span>
+                                    {% if item.attention_label %}<span class="admin-booking-attention attention-{{ item.attention_kind }}"><i class="bi bi-exclamation-circle" aria-hidden="true"></i>{{ item.attention_label }}</span>{% endif %}
+                                    <a class="admin-booking-detail-link" href="{{ url_for('admin.booking_monitoring_detail', booking_code=booking.booking_code) }}">Xem chi tiết <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% if booking_page.pages > 1 %}
+                <nav class="admin-booking-pagination" aria-label="Phân trang lịch đặt">
+                    {% if booking_page.has_prev %}<a class="btn btn-outline-secondary" href="{{ url_for('admin.booking_operations', page=booking_page.page - 1, **pagination_params) }}"><i class="bi bi-arrow-left" aria-hidden="true"></i>Trang trước</a>{% else %}<span class="btn btn-outline-secondary disabled" aria-disabled="true"><i class="bi bi-arrow-left" aria-hidden="true"></i>Trang trước</span>{% endif %}
+                    <span>Trang <strong>{{ booking_page.page }}</strong> / {{ booking_page.pages }}</span>
+                    {% if booking_page.has_next %}<a class="btn btn-outline-secondary" href="{{ url_for('admin.booking_operations', page=booking_page.page + 1, **pagination_params) }}">Trang sau<i class="bi bi-arrow-right" aria-hidden="true"></i></a>{% else %}<span class="btn btn-outline-secondary disabled" aria-disabled="true">Trang sau<i class="bi bi-arrow-right" aria-hidden="true"></i></span>{% endif %}
+                </nav>
+            {% endif %}
+        {% else %}
+            <div class="admin-booking-empty">
+                <i class="bi bi-calendar2-x" aria-hidden="true"></i>
+                <h2>Không tìm thấy lịch đặt</h2>
+                <p>Hãy thử thay đổi từ khóa hoặc bộ lọc.</p>
+            </div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+    <script src="{{ url_for('static', filename='js/administrative-unit-picker.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/admin-bookings.js') }}"></script>
+{% endblock %}

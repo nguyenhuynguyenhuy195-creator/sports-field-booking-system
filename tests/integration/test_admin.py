@@ -27,6 +27,7 @@ from app.models import (
     PaymentMethod,
     PaymentProvider,
     PaymentStatus,
+    Province,
     Refund,
     RefundStatus,
     User,
@@ -34,6 +35,7 @@ from app.models import (
     UserStatus,
     Venue,
     VenueStatus,
+    Ward,
 )
 from app.models.user import utc_now
 from app.routes.admin import (
@@ -190,6 +192,309 @@ def seed_monitoring_data(app, *, user_id: int, owner_id: int) -> str:
         return booking_code
 
 
+def seed_booking_operations_data(app, *, user_id: int, owner_id: int) -> dict:
+    """Create financially consistent records dedicated to the Phase 2.1 list."""
+    with app.app_context():
+        provinces = tuple(
+            db.session.scalars(db.select(Province).order_by(Province.code).limit(2))
+        )
+        first_ward = db.session.scalar(
+            db.select(Ward)
+            .where(Ward.province_code == provinces[0].code)
+            .order_by(Ward.code)
+        )
+        second_ward = db.session.scalar(
+            db.select(Ward)
+            .where(Ward.province_code == provinces[1].code)
+            .order_by(Ward.code)
+        )
+        all_field_types = tuple(
+            db.session.scalars(db.select(FieldType).order_by(FieldType.id))
+        )
+        field_types = (
+            all_field_types[0],
+            next(
+                field_type
+                for field_type in all_field_types[1:]
+                if field_type.sport_id != all_field_types[0].sport_id
+            ),
+        )
+        venues = (
+            Venue(
+                owner_id=owner_id,
+                name="Cơ sở Booking Ops A",
+                address="1 Đường Vận Hành",
+                province_code=provinces[0].code,
+                province_name=provinces[0].name,
+                ward_code=first_ward.code,
+                ward_name=first_ward.full_name,
+                opening_time=time(6, 0),
+                closing_time=time(23, 0),
+                status=VenueStatus.ACTIVE.value,
+            ),
+            Venue(
+                owner_id=owner_id,
+                name="Cơ sở Booking Ops B",
+                address="2 Đường Vận Hành",
+                province_code=provinces[1].code,
+                province_name=provinces[1].name,
+                ward_code=second_ward.code,
+                ward_name=second_ward.full_name,
+                opening_time=time(6, 0),
+                closing_time=time(23, 0),
+                status=VenueStatus.ACTIVE.value,
+            ),
+            Venue(
+                owner_id=owner_id,
+                name="Cơ sở Booking Ops Legacy",
+                address="3 Đường Vận Hành",
+                province_name=provinces[0].name,
+                ward_name=first_ward.full_name,
+                opening_time=time(6, 0),
+                closing_time=time(23, 0),
+                status=VenueStatus.ACTIVE.value,
+            ),
+        )
+        db.session.add_all(venues)
+        db.session.flush()
+        fields = (
+            Field(
+                venue_id=venues[0].id,
+                name="Sân Booking Ops A",
+                field_type_id=field_types[0].id,
+                capacity=10,
+                status=FieldStatus.ACTIVE.value,
+            ),
+            Field(
+                venue_id=venues[1].id,
+                name="Sân Booking Ops B",
+                field_type_id=field_types[1].id,
+                capacity=4,
+                status=FieldStatus.ACTIVE.value,
+            ),
+            Field(
+                venue_id=venues[2].id,
+                name="Sân Booking Ops Legacy",
+                field_type_id=field_types[0].id,
+                capacity=10,
+                status=FieldStatus.ACTIVE.value,
+            ),
+        )
+        db.session.add_all(fields)
+        db.session.flush()
+
+        scheduled_date = date.today() + timedelta(days=7)
+
+        def add_booking(
+            code,
+            *,
+            field=fields[0],
+            mode=BookingMode.DIRECT_BOOKING.value,
+            policy=BookingPaymentPolicy.DEPOSIT_30.value,
+            total=Decimal("180000"),
+            deposit=Decimal("54000"),
+            paid=Decimal("0"),
+            status=BookingStatus.CONFIRMED.value,
+        ):
+            booking = Booking(
+                booking_code=code,
+                user_id=user_id,
+                field_id=field.id,
+                booking_date=scheduled_date,
+                start_time=time(18, 0),
+                end_time=time(19, 0),
+                booking_mode=mode,
+                payment_policy=policy,
+                total_amount=total,
+                deposit_rate=(
+                    Decimal("1.0000")
+                    if policy == BookingPaymentPolicy.LEGACY_FULL_ONLINE.value
+                    else Decimal("0.3000")
+                ),
+                deposit_amount=deposit,
+                paid_amount=paid,
+                cancellation_fee_amount=Decimal("0"),
+                status=status,
+            )
+            db.session.add(booking)
+            db.session.flush()
+            return booking
+
+        def add_payment(booking, status, suffix, *, amount=None):
+            contribution = BookingContribution(
+                booking_id=booking.id,
+                user_id=user_id,
+                contribution_type=ContributionType.CREATOR.value,
+                amount_due=booking.deposit_amount,
+                amount_paid=booking.paid_amount,
+                status=(
+                    ContributionStatus.PAID.value
+                    if booking.paid_amount >= booking.deposit_amount
+                    else ContributionStatus.PENDING.value
+                ),
+            )
+            db.session.add(contribution)
+            db.session.flush()
+            payment = Payment(
+                booking_id=booking.id,
+                contribution_id=contribution.id,
+                payer_id=user_id,
+                provider=PaymentProvider.MOCK.value,
+                payment_method=PaymentMethod.SIMULATED.value,
+                amount=amount or booking.deposit_amount,
+                order_id=f"PAY-OPS-{suffix}",
+                request_id=f"REQ-OPS-{suffix}",
+                status=status,
+                paid_at=utc_now() if status == PaymentStatus.SUCCESS.value else None,
+            )
+            db.session.add(payment)
+            db.session.flush()
+            return payment
+
+        main = add_booking(
+            "BK-OPS-MAIN",
+            paid=Decimal("40000"),
+            status=BookingStatus.PARTIALLY_PAID.value,
+        )
+        main_payment = add_payment(
+            main,
+            PaymentStatus.SUCCESS.value,
+            "SEARCH-TARGET",
+            amount=Decimal("54000"),
+        )
+        db.session.add(
+            Refund(
+                booking_id=main.id,
+                payment_id=main_payment.id,
+                recipient_id=user_id,
+                amount=Decimal("14000"),
+                reason="Hoàn một phần hợp lệ",
+                order_id="REFUND-OPS-SEARCH-TARGET",
+                request_id="REFUND-REQ-OPS-SEARCH-TARGET",
+                status=RefundStatus.SUCCESS.value,
+                refunded_at=utc_now(),
+            )
+        )
+
+        opponent = add_booking(
+            "BK-OPS-OPPONENT",
+            mode=BookingMode.FIND_OPPONENT.value,
+            total=Decimal("300000"),
+            deposit=Decimal("90000"),
+            paid=Decimal("45000"),
+            status=BookingStatus.PARTIALLY_PAID.value,
+        )
+        add_payment(
+            opponent,
+            PaymentStatus.SUCCESS.value,
+            "OPPONENT",
+            amount=Decimal("45000"),
+        )
+
+        legacy = add_booking(
+            "BK-OPS-LEGACY",
+            field=fields[1],
+            policy=BookingPaymentPolicy.LEGACY_FULL_ONLINE.value,
+            total=Decimal("200000"),
+            deposit=Decimal("200000"),
+            paid=Decimal("200000"),
+            status=BookingStatus.PAID.value,
+        )
+        add_payment(legacy, PaymentStatus.SUCCESS.value, "LEGACY")
+
+        legacy_location = add_booking("BK-OPS-LEGACY-LOCATION", field=fields[2])
+
+        payment_attention_codes = {}
+        for payment_status in (
+            PaymentStatus.PENDING.value,
+            PaymentStatus.FAILED.value,
+            PaymentStatus.CANCELLED.value,
+            PaymentStatus.EXPIRED.value,
+        ):
+            booking = add_booking(f"BK-OPS-PAY-{payment_status}")
+            add_payment(booking, payment_status, payment_status)
+            payment_attention_codes[payment_status] = booking.booking_code
+
+        refund_attention_codes = {}
+        for refund_status in (
+            RefundStatus.PENDING.value,
+            RefundStatus.PROCESSING.value,
+            RefundStatus.FAILED.value,
+        ):
+            booking = add_booking(
+                f"BK-OPS-REF-{refund_status}",
+                paid=Decimal("54000"),
+                status=BookingStatus.PAID.value,
+            )
+            payment = add_payment(
+                booking,
+                PaymentStatus.SUCCESS.value,
+                f"REF-{refund_status}",
+            )
+            db.session.add(
+                Refund(
+                    booking_id=booking.id,
+                    payment_id=payment.id,
+                    recipient_id=user_id,
+                    amount=Decimal("10000"),
+                    reason="Theo dõi hoàn tiền",
+                    order_id=f"REFUND-OPS-{refund_status}",
+                    request_id=f"REFUND-REQ-OPS-{refund_status}",
+                    status=refund_status,
+                )
+            )
+            refund_attention_codes[refund_status] = booking.booking_code
+
+        combined = add_booking(
+            "BK-OPS-COMBINED",
+            paid=Decimal("54000"),
+            status=BookingStatus.REFUND_PENDING.value,
+        )
+        combined_payment = add_payment(
+            combined,
+            PaymentStatus.SUCCESS.value,
+            "COMBINED-SUCCESS",
+        )
+        add_payment(combined, PaymentStatus.FAILED.value, "COMBINED-FAILED")
+        db.session.add(
+            Refund(
+                booking_id=combined.id,
+                payment_id=combined_payment.id,
+                recipient_id=user_id,
+                amount=Decimal("10000"),
+                reason="Theo dõi kết hợp",
+                order_id="REFUND-OPS-COMBINED",
+                request_id="REFUND-REQ-OPS-COMBINED",
+                status=RefundStatus.PENDING.value,
+            )
+        )
+
+        db.session.commit()
+        return {
+            "main": main.booking_code,
+            "opponent": opponent.booking_code,
+            "legacy": legacy.booking_code,
+            "legacy_location": legacy_location.booking_code,
+            "scheduled_date": scheduled_date.isoformat(),
+            "province_code": provinces[0].code,
+            "province_name": provinces[0].name,
+            "ward_code": first_ward.code,
+            "ward_name": first_ward.full_name,
+            "other_province_code": provinces[1].code,
+            "venue_id": venues[0].id,
+            "field_id": fields[0].id,
+            "sport_code": field_types[0].sport.code,
+            "other_sport_code": field_types[1].sport.code,
+            "other_venue_id": venues[1].id,
+            "other_field_id": fields[1].id,
+            "customer_email": db.session.get(User, user_id).email,
+            "customer_name": db.session.get(User, user_id).full_name,
+            "payment_attention_codes": payment_attention_codes,
+            "refund_attention_codes": refund_attention_codes,
+            "combined": combined.booking_code,
+        }
+
+
 def test_admin_pages_require_admin_role(app, client):
     user = create_user(app, email="player-admin-denied@example.com")
     login(client, email=user.email)
@@ -202,6 +507,7 @@ def test_admin_pages_require_admin_role(app, client):
         "/admin/owner-applications",
         "/admin/venues",
         "/admin/monitoring",
+        "/admin/bookings",
         "/admin/monitoring/bookings/UNKNOWN",
     )
     for path in admin_paths:
@@ -234,7 +540,7 @@ def test_admin_dashboard_and_navigation_are_available(app, client):
     assert "/static/js/admin-navigation.js" in page
     assert "app-footer" not in page
     assert "/admin/users" in page
-    assert "/admin/monitoring" in page
+    assert 'href="/admin/bookings" title="Lịch đặt sân"' in page
 
 
 def test_admin_dashboard_uses_database_counts_for_phase_one_kpis(app, client):
@@ -334,7 +640,7 @@ def test_admin_sidebar_only_uses_registered_phase_one_endpoints(app, client):
         "/admin",
         "/admin/owner-applications",
         "/admin/venues",
-        "/admin/monitoring?section=bookings",
+        "/admin/bookings",
         "/admin/monitoring?section=matches",
         "/admin/users",
         "/auth/logout",
@@ -650,6 +956,279 @@ def test_account_status_action_keeps_current_filters_and_role(app, client):
         account = db.session.get(User, target.id)
         assert account.status == UserStatus.LOCKED.value
         assert account.role == UserRole.USER.value
+
+
+def test_admin_booking_operations_is_dedicated_compact_read_only_list(app, client):
+    admin = create_user(app, email="booking-ops-admin@example.com", role=UserRole.ADMIN)
+    owner = create_user(app, email="booking-ops-owner@example.com", role=UserRole.OWNER)
+    player = create_user(
+        app,
+        email="booking-ops-player@example.com",
+        full_name="Nguyễn Khách Vận Hành",
+    )
+    data = seed_booking_operations_data(app, user_id=player.id, owner_id=owner.id)
+    login(client, email=admin.email)
+
+    response = client.get("/admin/bookings", query_string={"q": data["opponent"]})
+    page = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "data-admin-bookings-root" in page
+    assert "data-admin-booking-filters" in page
+    assert data["opponent"] in page
+    assert "300.000 đ" in page
+    assert "45.000 đ" in page
+    assert "255.000 đ" in page
+    assert "Online đã ghi nhận" in page
+    assert "Tại sân" in page
+    assert "Lịch sử thanh toán" not in page
+    assert "Lịch sử hoàn tiền" not in page
+    assert "PAY-OPS-OPPONENT" not in page
+    assert f"/admin/monitoring/bookings/{data['opponent']}" in page
+    assert "/static/js/administrative-unit-picker.js" in page
+    assert "/static/js/admin-bookings.js" in page
+    assert 'href="/admin/bookings">Xóa lọc</a>' in page
+    assert "admin-booking-code" in page
+
+
+def test_admin_booking_operations_searches_all_accepted_sources(app, client):
+    admin = create_user(app, email="booking-search-admin@example.com", role=UserRole.ADMIN)
+    owner = create_user(app, email="booking-search-owner@example.com", role=UserRole.OWNER)
+    player = create_user(
+        app,
+        email="booking-search-player@example.com",
+        full_name="Trần Minh Booking Ops",
+    )
+    data = seed_booking_operations_data(app, user_id=player.id, owner_id=owner.id)
+    login(client, email=admin.email)
+
+    for query in (
+        data["main"],
+        data["customer_name"],
+        data["customer_email"],
+        "PAY-OPS-SEARCH-TARGET",
+        "REFUND-OPS-SEARCH-TARGET",
+    ):
+        response = client.get("/admin/bookings", query_string={"q": query})
+        page = response.get_data(as_text=True)
+        assert response.status_code == 200
+        if query in {data["customer_name"], data["customer_email"]}:
+            assert data["customer_email"] in page
+        else:
+            assert data["main"] in page, query
+            assert data["opponent"] not in page
+
+
+def test_admin_booking_operations_filters_status_sport_date_and_location(app, client):
+    admin = create_user(app, email="booking-filter-admin@example.com", role=UserRole.ADMIN)
+    owner = create_user(app, email="booking-filter-owner@example.com", role=UserRole.OWNER)
+    player = create_user(app, email="booking-filter-player@example.com")
+    data = seed_booking_operations_data(app, user_id=player.id, owner_id=owner.id)
+    login(client, email=admin.email)
+
+    filters = {
+        "status": BookingStatus.PARTIALLY_PAID.value,
+        "sport": data["sport_code"],
+        "date": data["scheduled_date"],
+        "province_code": data["province_code"],
+        "ward_code": data["ward_code"],
+        "venue": data["venue_id"],
+        "field": data["field_id"],
+    }
+    response = client.get("/admin/bookings", query_string=filters)
+    page = response.get_data(as_text=True)
+    assert response.status_code == 200
+    assert data["main"] in page
+    assert data["opponent"] in page
+    assert data["legacy"] not in page
+    assert f'value="{data["province_code"]}"' in page
+    assert data["ward_name"] in page
+    assert "Cơ sở Booking Ops A" in page
+    assert "Sân Booking Ops A" in page
+
+    status_page = client.get(
+        "/admin/bookings",
+        query_string={"status": BookingStatus.PAID.value, "q": data["legacy"]},
+    ).get_data(as_text=True)
+    assert data["legacy"] in status_page
+    assert data["main"] not in status_page
+
+    sport_page = client.get(
+        "/admin/bookings",
+        query_string={"sport": data["other_sport_code"]},
+    ).get_data(as_text=True)
+    assert data["legacy"] in sport_page
+    assert data["main"] not in sport_page
+
+    wrong_date_page = client.get(
+        "/admin/bookings",
+        query_string={"date": (date.today() + timedelta(days=30)).isoformat()},
+    ).get_data(as_text=True)
+    assert "Không tìm thấy lịch đặt" in wrong_date_page
+
+    other_location_page = client.get(
+        "/admin/bookings",
+        query_string={
+            "province_code": data["other_province_code"],
+            "venue": data["other_venue_id"],
+            "field": data["other_field_id"],
+        },
+    ).get_data(as_text=True)
+    assert data["legacy"] in other_location_page
+    assert data["main"] not in other_location_page
+
+    legacy_fallback = client.get(
+        "/admin/bookings",
+        query_string={
+            "q": data["legacy_location"],
+            "province_code": data["province_code"],
+            "ward_code": data["ward_code"],
+        },
+    ).get_data(as_text=True)
+    assert data["legacy_location"] in legacy_fallback
+
+    invalid_ward = client.get(
+        "/admin/bookings",
+        query_string={"ward_code": data["ward_code"]},
+        follow_redirects=True,
+    ).get_data(as_text=True)
+    assert "chọn tỉnh hoặc thành phố trước" in invalid_ward
+
+    invalid_chain = client.get(
+        "/admin/bookings",
+        query_string={
+            "province_code": data["other_province_code"],
+            "venue": data["venue_id"],
+        },
+        follow_redirects=True,
+    ).get_data(as_text=True)
+    assert "Cơ sở không thuộc khu vực đã chọn" in invalid_chain
+
+
+def test_admin_booking_operations_paginates_six_and_preserves_filters(app, client):
+    admin = create_user(app, email="booking-page-admin@example.com", role=UserRole.ADMIN)
+    owner = create_user(app, email="booking-page-owner@example.com", role=UserRole.OWNER)
+    player = create_user(app, email="booking-page-player@example.com")
+    data = seed_booking_operations_data(app, user_id=player.id, owner_id=owner.id)
+    login(client, email=admin.email)
+
+    response = client.get(
+        "/admin/bookings",
+        query_string={
+            "q": "BK-OPS",
+            "date": data["scheduled_date"],
+            "province_code": data["province_code"],
+            "page": 1,
+        },
+    )
+    page = response.get_data(as_text=True)
+    assert response.status_code == 200
+    assert page.count('class="admin-booking-code"') == 6
+    assert "Trang <strong>1</strong> / 2" in page
+    assert "q=BK-OPS" in page
+    assert f"date={data['scheduled_date']}" in page
+    assert f"province_code={data['province_code']}" in page
+
+    second_page = client.get(
+        "/admin/bookings",
+        query_string={
+            "q": "BK-OPS",
+            "date": data["scheduled_date"],
+            "province_code": data["province_code"],
+            "page": 2,
+        },
+    ).get_data(as_text=True)
+    assert "Trang <strong>2</strong> / 2" in second_page
+
+
+def test_admin_booking_operations_distinguishes_legacy_policy_and_attention(app, client):
+    admin = create_user(app, email="booking-attention-admin@example.com", role=UserRole.ADMIN)
+    owner = create_user(app, email="booking-attention-owner@example.com", role=UserRole.OWNER)
+    player = create_user(app, email="booking-attention-player@example.com")
+    data = seed_booking_operations_data(app, user_id=player.id, owner_id=owner.id)
+    login(client, email=admin.email)
+
+    legacy = client.get(
+        "/admin/bookings", query_string={"q": "PAY-OPS-LEGACY"}
+    ).get_data(as_text=True)
+    assert "Online toàn phần (lịch sử)" in legacy
+    assert "Cọc online theo chính sách" not in legacy
+
+    pending = client.get(
+        "/admin/bookings",
+        query_string={"q": data["payment_attention_codes"][PaymentStatus.PENDING.value]},
+    ).get_data(as_text=True)
+    assert "Thanh toán chờ xác nhận" in pending
+    assert "Thanh toán cần kiểm tra" not in pending
+
+    for payment_status in (
+        PaymentStatus.FAILED.value,
+        PaymentStatus.CANCELLED.value,
+        PaymentStatus.EXPIRED.value,
+    ):
+        page = client.get(
+            "/admin/bookings",
+            query_string={"q": data["payment_attention_codes"][payment_status]},
+        ).get_data(as_text=True)
+        assert "Thanh toán cần kiểm tra" in page
+
+    for refund_status in (
+        RefundStatus.PENDING.value,
+        RefundStatus.PROCESSING.value,
+        RefundStatus.FAILED.value,
+    ):
+        page = client.get(
+            "/admin/bookings",
+            query_string={"q": data["refund_attention_codes"][refund_status]},
+        ).get_data(as_text=True)
+        assert "Hoàn tiền cần theo dõi" in page
+
+    combined = client.get(
+        "/admin/bookings", query_string={"q": data["combined"]}
+    ).get_data(as_text=True)
+    assert "Thanh toán và hoàn tiền cần theo dõi" in combined
+
+    success_only = client.get(
+        "/admin/bookings", query_string={"q": data["main"]}
+    ).get_data(as_text=True)
+    assert "Hoàn tiền cần theo dõi" not in success_only
+    assert "Thanh toán và hoàn tiền cần theo dõi" not in success_only
+    assert "Thanh toán cần kiểm tra" not in success_only
+    assert "Thanh toán chờ xác nhận" not in success_only
+
+
+def test_admin_booking_operations_get_does_not_mutate_financial_data(app, client):
+    admin = create_user(app, email="booking-read-admin@example.com", role=UserRole.ADMIN)
+    owner = create_user(app, email="booking-read-owner@example.com", role=UserRole.OWNER)
+    player = create_user(app, email="booking-read-player@example.com")
+    data = seed_booking_operations_data(app, user_id=player.id, owner_id=owner.id)
+    with app.app_context():
+        booking = db.session.scalar(
+            db.select(Booking).where(Booking.booking_code == data["main"])
+        )
+        before = (booking.status, booking.paid_amount)
+        payment_count = db.session.scalar(db.select(db.func.count()).select_from(Payment))
+        refund_count = db.session.scalar(db.select(db.func.count()).select_from(Refund))
+        contribution_count = db.session.scalar(
+            db.select(db.func.count()).select_from(BookingContribution)
+        )
+
+    login(client, email=admin.email)
+    assert client.get("/admin/bookings").status_code == 200
+
+    with app.app_context():
+        booking = db.session.scalar(
+            db.select(Booking).where(Booking.booking_code == data["main"])
+        )
+        assert (booking.status, booking.paid_amount) == before
+        assert db.session.scalar(db.select(db.func.count()).select_from(Payment)) == payment_count
+        assert db.session.scalar(db.select(db.func.count()).select_from(Refund)) == refund_count
+        assert (
+            db.session.scalar(
+                db.select(db.func.count()).select_from(BookingContribution)
+            )
+            == contribution_count
+        )
 
 
 def test_admin_monitoring_lists_all_mvp_records(app, client):

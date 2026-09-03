@@ -6,7 +6,7 @@ from decimal import Decimal
 from math import ceil
 from typing import Any
 
-from sqlalchemy import case, func, or_
+from sqlalchemy import and_, case, func, or_
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload, selectinload
 
@@ -36,10 +36,18 @@ from app.models import (
 )
 
 from .locking import with_update_lock
+from .administrative_unit import (
+    AdministrativeUnitError,
+    list_provinces,
+    list_wards,
+    resolve_administrative_address,
+    resolve_province,
+)
 
 
 ADMIN_PAGE_SIZE = 20
 ADMIN_MONITORING_PAGE_SIZE = 6
+ADMIN_BOOKING_PAGE_SIZE = 6
 ADMIN_VENUE_PAGE_SIZE = 10
 
 
@@ -136,6 +144,21 @@ class AdminPage:
     @property
     def has_next(self) -> bool:
         return self.page < self.pages
+
+
+@dataclass(frozen=True)
+class AdminBookingListItem:
+    booking: Booking
+    attention_label: str | None
+    attention_kind: str | None
+
+
+@dataclass(frozen=True)
+class AdminBookingFilterOptions:
+    provinces: tuple[Any, ...]
+    wards: tuple[Any, ...]
+    venues: tuple[Venue, ...]
+    fields: tuple[Field, ...]
 
 
 def get_admin_dashboard_summary() -> AdminDashboardSummary:
@@ -529,6 +552,225 @@ def list_admin_catalog() -> tuple[Sport, ...]:
     return tuple(db.session.scalars(statement))
 
 
+def get_admin_booking_filter_options(
+    *,
+    province_code: str | None = None,
+    ward_code: str | None = None,
+    venue_id: int | None = None,
+    field_id: int | None = None,
+) -> AdminBookingFilterOptions:
+    """Build and validate the dependent filters for Booking Operations."""
+    normalized_province = (province_code or "").strip()
+    normalized_ward = (ward_code or "").strip()
+    selected_province = None
+    selected_ward = None
+
+    if normalized_ward and not normalized_province:
+        raise AdminError("Vui lòng chọn tỉnh hoặc thành phố trước phường/xã.")
+    try:
+        if normalized_ward:
+            address = resolve_administrative_address(
+                province_code=normalized_province,
+                ward_code=normalized_ward,
+            )
+            selected_province = address.province
+            selected_ward = address.ward
+        elif normalized_province:
+            selected_province = resolve_province(
+                province_code=normalized_province
+            )
+    except AdministrativeUnitError as exc:
+        raise AdminError(str(exc)) from exc
+
+    provinces = list_provinces()
+    wards = (
+        list_wards(province_code=normalized_province)
+        if selected_province is not None
+        else ()
+    )
+    venues = tuple(
+        db.session.scalars(db.select(Venue).order_by(Venue.name.asc(), Venue.id.asc()))
+    )
+    fields = tuple(
+        db.session.scalars(
+            db.select(Field)
+            .options(
+                joinedload(Field.venue),
+                joinedload(Field.field_type).joinedload(FieldType.sport),
+            )
+            .order_by(Field.name.asc(), Field.id.asc())
+        )
+    )
+
+    selected_venue = next(
+        (venue for venue in venues if venue.id == venue_id),
+        None,
+    )
+    if venue_id is not None and selected_venue is None:
+        raise AdminError("Cơ sở được chọn không hợp lệ.")
+    if selected_venue is not None and not _venue_matches_admin_location(
+        selected_venue,
+        selected_province,
+        selected_ward,
+    ):
+        raise AdminError("Cơ sở không thuộc khu vực đã chọn.")
+
+    if field_id is not None and selected_venue is None:
+        raise AdminError("Vui lòng chọn cơ sở trước khi chọn sân.")
+    selected_field = next(
+        (field for field in fields if field.id == field_id),
+        None,
+    )
+    if field_id is not None and (
+        selected_field is None or selected_field.venue_id != selected_venue.id
+    ):
+        raise AdminError("Sân không thuộc cơ sở đã chọn.")
+
+    return AdminBookingFilterOptions(
+        provinces=provinces,
+        wards=wards,
+        venues=venues,
+        fields=fields,
+    )
+
+
+def list_admin_booking_operations(
+    *,
+    query: str | None = None,
+    status: str | None = None,
+    sport_code: str | None = None,
+    booking_date: date | None = None,
+    province_code: str | None = None,
+    ward_code: str | None = None,
+    venue_id: int | None = None,
+    field_id: int | None = None,
+    page: int = 1,
+) -> AdminPage:
+    """Return the compact, read-only model for the dedicated booking list."""
+    normalized_province = (province_code or "").strip()
+    normalized_ward = (ward_code or "").strip()
+    selected_province = None
+    selected_ward = None
+    try:
+        if normalized_ward:
+            address = resolve_administrative_address(
+                province_code=normalized_province,
+                ward_code=normalized_ward,
+            )
+            selected_province = address.province
+            selected_ward = address.ward
+        elif normalized_province:
+            selected_province = resolve_province(
+                province_code=normalized_province
+            )
+    except AdministrativeUnitError as exc:
+        raise AdminError(str(exc)) from exc
+
+    statement = (
+        db.select(Booking)
+        .join(User, User.id == Booking.user_id)
+        .join(Field, Field.id == Booking.field_id)
+        .join(Venue, Venue.id == Field.venue_id)
+        .join(FieldType, FieldType.id == Field.field_type_id)
+        .join(Sport, Sport.id == FieldType.sport_id)
+        .options(
+            joinedload(Booking.user),
+            joinedload(Booking.field).joinedload(Field.venue),
+            joinedload(Booking.field)
+            .joinedload(Field.field_type)
+            .joinedload(FieldType.sport),
+        )
+    )
+    search_query = (query or "").strip()[:100]
+    if search_query:
+        pattern = _contains_pattern(search_query)
+        statement = statement.where(
+            or_(
+                Booking.booking_code.like(pattern, escape="\\"),
+                User.full_name.like(pattern, escape="\\"),
+                User.email.like(pattern, escape="\\"),
+                Booking.payments.any(
+                    Payment.order_id.like(pattern, escape="\\")
+                ),
+                Booking.refunds.any(
+                    Refund.order_id.like(pattern, escape="\\")
+                ),
+            )
+        )
+    if status:
+        _require_choice(status, BookingStatus, "Trạng thái lịch đặt sân")
+        statement = statement.where(Booking.status == status)
+    if sport_code:
+        if db.session.scalar(
+            db.select(Sport.id).where(Sport.code == sport_code)
+        ) is None:
+            raise AdminError("Bộ môn lọc không hợp lệ.")
+        statement = statement.where(Sport.code == sport_code)
+    if booking_date:
+        statement = statement.where(Booking.booking_date == booking_date)
+    if selected_province is not None:
+        statement = statement.where(
+            _admin_province_condition(selected_province)
+        )
+    if selected_ward is not None:
+        statement = statement.where(_admin_ward_condition(selected_ward))
+    if venue_id is not None:
+        statement = statement.where(Venue.id == venue_id)
+    if field_id is not None:
+        statement = statement.where(Field.id == field_id)
+
+    booking_page = _paginate(
+        statement.order_by(Booking.created_at.desc(), Booking.id.desc()),
+        page,
+        per_page=ADMIN_BOOKING_PAGE_SIZE,
+    )
+    payment_states: dict[int, set[str]] = {}
+    refund_states: dict[int, set[str]] = {}
+    booking_ids = [booking.id for booking in booking_page.items]
+    if booking_ids:
+        for booking_id, payment_status in db.session.execute(
+            db.select(Payment.booking_id, Payment.status).where(
+                Payment.booking_id.in_(booking_ids),
+                Payment.status.in_(
+                    (
+                        PaymentStatus.PENDING.value,
+                        PaymentStatus.FAILED.value,
+                        PaymentStatus.CANCELLED.value,
+                        PaymentStatus.EXPIRED.value,
+                    )
+                ),
+            )
+        ):
+            payment_states.setdefault(booking_id, set()).add(payment_status)
+        for booking_id, refund_status in db.session.execute(
+            db.select(Refund.booking_id, Refund.status).where(
+                Refund.booking_id.in_(booking_ids),
+                Refund.status.in_(
+                    (
+                        RefundStatus.PENDING.value,
+                        RefundStatus.PROCESSING.value,
+                        RefundStatus.FAILED.value,
+                    )
+                ),
+            )
+        ):
+            refund_states.setdefault(booking_id, set()).add(refund_status)
+
+    return AdminPage(
+        items=tuple(
+            _admin_booking_list_item(
+                booking,
+                payment_states.get(booking.id, set()),
+                refund_states.get(booking.id, set()),
+            )
+            for booking in booking_page.items
+        ),
+        page=booking_page.page,
+        per_page=booking_page.per_page,
+        total=booking_page.total,
+    )
+
+
 def list_admin_bookings(
     *,
     query: str | None = None,
@@ -881,3 +1123,91 @@ def _require_choice(value: str, enum_type: Any, field_name: str) -> None:
     allowed = {item.value for item in enum_type}
     if value not in allowed:
         raise AdminError(f"{field_name} không hợp lệ.")
+
+
+def _admin_province_condition(province: Any) -> Any:
+    return or_(
+        Venue.province_code == province.code,
+        and_(
+            Venue.province_code.is_(None),
+            func.coalesce(Venue.province_name, Venue.city) == province.name,
+        ),
+    )
+
+
+def _admin_ward_condition(ward: Any) -> Any:
+    return or_(
+        Venue.ward_code == ward.code,
+        and_(
+            Venue.ward_code.is_(None),
+            func.coalesce(Venue.ward_name, Venue.district) == ward.full_name,
+        ),
+    )
+
+
+def _venue_matches_admin_location(
+    venue: Venue,
+    province: Any | None,
+    ward: Any | None,
+) -> bool:
+    if province is not None:
+        province_matches = venue.province_code == province.code or (
+            venue.province_code is None
+            and (venue.province_name or venue.city) == province.name
+        )
+        if not province_matches:
+            return False
+    if ward is not None:
+        ward_matches = venue.ward_code == ward.code or (
+            venue.ward_code is None
+            and (venue.ward_name or venue.district) == ward.full_name
+        )
+        if not ward_matches:
+            return False
+    return True
+
+
+def _admin_booking_list_item(
+    booking: Booking,
+    payment_states: set[str],
+    refund_states: set[str],
+) -> AdminBookingListItem:
+    has_refund_attention = bool(refund_states)
+    has_payment_problem = bool(
+        payment_states
+        & {
+            PaymentStatus.FAILED.value,
+            PaymentStatus.CANCELLED.value,
+            PaymentStatus.EXPIRED.value,
+        }
+    )
+    has_pending_payment = PaymentStatus.PENDING.value in payment_states
+    if (has_payment_problem or has_pending_payment) and has_refund_attention:
+        return AdminBookingListItem(
+            booking=booking,
+            attention_label="Thanh toán và hoàn tiền cần theo dõi",
+            attention_kind="combined",
+        )
+    if has_payment_problem:
+        return AdminBookingListItem(
+            booking=booking,
+            attention_label="Thanh toán cần kiểm tra",
+            attention_kind="payment",
+        )
+    if has_pending_payment:
+        return AdminBookingListItem(
+            booking=booking,
+            attention_label="Thanh toán chờ xác nhận",
+            attention_kind="pending",
+        )
+    if has_refund_attention:
+        return AdminBookingListItem(
+            booking=booking,
+            attention_label="Hoàn tiền cần theo dõi",
+            attention_kind="refund",
+        )
+    return AdminBookingListItem(
+        booking=booking,
+        attention_label=None,
+        attention_kind=None,
+    )

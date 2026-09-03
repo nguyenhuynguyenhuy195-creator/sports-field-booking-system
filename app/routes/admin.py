@@ -10,6 +10,7 @@ from app.decorators import roles_required
 from app.forms import AdminAccountStatusForm, ReviewOwnerApplicationForm
 from app.models import (
     BookingMode,
+    BookingPaymentPolicy,
     BookingStatus,
     ContributionStatus,
     ContributionType,
@@ -28,10 +29,12 @@ from app.services import (
     AdminError,
     get_admin_account_detail,
     get_admin_account_summary,
+    get_admin_booking_filter_options,
     get_admin_booking,
     get_admin_dashboard_summary,
     get_admin_monitoring_location,
     list_admin_accounts,
+    list_admin_booking_operations,
     list_admin_bookings,
     list_admin_catalog,
     list_admin_matches,
@@ -141,6 +144,11 @@ BOOKING_MODE_LABELS = {
     BookingMode.DIRECT_BOOKING.value: "Đặt sân cho nhóm",
     BookingMode.FIND_OPPONENT.value: "Tìm đối thủ",
     BookingMode.FIND_PLAYERS.value: "Tìm thêm người",
+}
+
+BOOKING_PAYMENT_POLICY_LABELS = {
+    BookingPaymentPolicy.DEPOSIT_30.value: "Cọc online theo chính sách",
+    BookingPaymentPolicy.LEGACY_FULL_ONLINE.value: "Online toàn phần (lịch sử)",
 }
 
 MONITORING_SECTIONS = (
@@ -386,6 +394,79 @@ def review_owner_application_route(application_id: int):
     return redirect(url_for("admin.owner_applications"))
 
 
+@admin_bp.get("/bookings")
+@roles_required(UserRole.ADMIN)
+def booking_operations():
+    query = (request.args.get("q") or "").strip()
+    status = (request.args.get("status") or "").strip()
+    sport_code = (request.args.get("sport") or "").strip()
+    booking_date_raw = (request.args.get("date") or "").strip()
+    province_code = (request.args.get("province_code") or "").strip()
+    ward_code = (request.args.get("ward_code") or "").strip()
+    page = max(request.args.get("page", 1, type=int) or 1, 1)
+
+    try:
+        venue_id = _parse_booking_filter_id("venue", "Cơ sở")
+        field_id = _parse_booking_filter_id("field", "Sân")
+        booking_date = (
+            date.fromisoformat(booking_date_raw) if booking_date_raw else None
+        )
+    except (AdminError, ValueError):
+        flash("Bộ lọc lịch đặt không hợp lệ.", "warning")
+        return redirect(url_for("admin.booking_operations"))
+
+    try:
+        filter_options = get_admin_booking_filter_options(
+            province_code=province_code,
+            ward_code=ward_code,
+            venue_id=venue_id,
+            field_id=field_id,
+        )
+        booking_page = list_admin_booking_operations(
+            query=query,
+            status=status,
+            sport_code=sport_code,
+            booking_date=booking_date,
+            province_code=province_code,
+            ward_code=ward_code,
+            venue_id=venue_id,
+            field_id=field_id,
+            page=page,
+        )
+    except AdminError as exc:
+        flash(str(exc), "warning")
+        return redirect(url_for("admin.booking_operations"))
+
+    pagination_params = {
+        "q": query or None,
+        "status": status or None,
+        "sport": sport_code or None,
+        "date": booking_date_raw or None,
+        "province_code": province_code or None,
+        "ward_code": ward_code or None,
+        "venue": venue_id,
+        "field": field_id,
+    }
+    return render_template(
+        "admin/bookings/index.html",
+        booking_page=booking_page,
+        catalog=list_admin_catalog(),
+        filter_options=filter_options,
+        query=query,
+        selected_status=status,
+        selected_sport=sport_code,
+        selected_date=booking_date_raw,
+        selected_province_code=province_code,
+        selected_ward_code=ward_code,
+        selected_venue_id=venue_id,
+        selected_field_id=field_id,
+        pagination_params=pagination_params,
+        booking_status_labels=BOOKING_STATUS_LABELS,
+        booking_mode_labels=BOOKING_MODE_LABELS,
+        booking_payment_policy_labels=BOOKING_PAYMENT_POLICY_LABELS,
+    )
+
+
 @admin_bp.get("/monitoring")
 @roles_required(UserRole.ADMIN)
 def monitoring():
@@ -587,6 +668,19 @@ def _load_monitoring_page(
             booking_date=booking_date,
         )
     return None
+
+
+def _parse_booking_filter_id(parameter: str, label: str) -> int | None:
+    raw_value = (request.args.get(parameter) or "").strip()
+    if not raw_value:
+        return None
+    try:
+        value = int(raw_value)
+    except ValueError as exc:
+        raise AdminError(f"{label} được chọn không hợp lệ.") from exc
+    if value <= 0:
+        raise AdminError(f"{label} được chọn không hợp lệ.")
+    return value
 
 
 def _parse_monitoring_location(*, section: str):
