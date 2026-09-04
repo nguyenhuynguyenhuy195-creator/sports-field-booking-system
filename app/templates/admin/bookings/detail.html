@@ -175,7 +175,7 @@
                             <span class="status-badge status-{{ context.match.status|lower }}">{{ match_status_labels[context.match.status] }}</span>
                             <dl><div><dt>Tổng yêu cầu</dt><dd>{{ context.total_participants }}</dd></div><div><dt>Đã tham gia</dt><dd>{{ context.joined_participants }}</dd></div><div><dt>Đang xử lý</dt><dd>{{ context.pending_participants }}</dd></div><div><dt>Đã kết thúc</dt><dd>{{ context.closed_participants }}</dd></div></dl>
                         </div>
-                        <p class="admin-detail-definition mb-0">Quản lý đầy đủ kèo chơi thuộc Phase 2.3; trang này chỉ cung cấp ngữ cảnh liên quan.</p>
+                        <a class="admin-booking-detail-link" href="{{ url_for('admin.match_detail', match_id=context.match.id) }}">Mở Match Detail <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
                     {% else %}
                         <p class="text-secondary mb-0">Booking này không có kèo chơi liên quan.</p>
                     {% endif %}

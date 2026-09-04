@@ -3042,6 +3042,7 @@
 }
 
 .status-completed,
+.status-ended,
 .status-expired,
 .status-inactive,
 .status-withdrawn,
@@ -4528,5 +4529,301 @@
 
     .admin-match-summary dl {
         grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+/* Dedicated Admin Match Operations */
+.admin-matches-page .admin-page-heading {
+    margin-bottom: 1.15rem;
+}
+
+.admin-match-filters .admin-booking-filter-primary {
+    grid-template-columns: minmax(220px, 1.35fr) repeat(4, minmax(130px, 0.7fr));
+}
+
+.admin-match-table th:nth-child(1) { width: 12%; }
+.admin-match-table th:nth-child(2) { width: 13%; }
+.admin-match-table th:nth-child(3) { width: 15%; }
+.admin-match-table th:nth-child(4) { width: 16%; }
+.admin-match-table th:nth-child(5) { width: 15%; }
+.admin-match-table th:nth-child(6) { width: 20%; }
+.admin-match-table th:nth-child(7) { width: 9%; }
+
+.admin-match-id,
+.admin-match-booking-link {
+    color: var(--admin-primary) !important;
+    text-decoration: none;
+}
+
+.admin-match-table .admin-match-booking-code {
+    min-width: max-content;
+    white-space: nowrap;
+    overflow-wrap: normal;
+    word-break: normal;
+}
+
+.admin-match-booking-link:hover {
+    color: var(--admin-primary-dark) !important;
+    text-decoration: underline;
+}
+
+.attention-awaiting-payment {
+    color: #744210 !important;
+}
+
+.admin-participant-table-shell {
+    overflow: hidden;
+    border: 1px solid var(--admin-border);
+    border-radius: 0.75rem;
+}
+
+.admin-participant-table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+}
+
+.admin-participant-table th {
+    padding: 0.72rem;
+    color: #526177;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-align: left;
+    text-transform: uppercase;
+    background: #f8fafc;
+    border-bottom: 1px solid var(--admin-border);
+}
+
+.admin-participant-table th:nth-child(1) { width: 19%; }
+.admin-participant-table th:nth-child(2) { width: 15%; }
+.admin-participant-table th:nth-child(3) { width: 16%; }
+.admin-participant-table th:nth-child(4) { width: 23%; }
+.admin-participant-table th:nth-child(5) { width: 27%; }
+
+.admin-participant-table td {
+    padding: 0.8rem 0.72rem;
+    vertical-align: top;
+    border-bottom: 1px solid var(--admin-border);
+    overflow-wrap: anywhere;
+}
+
+.admin-participant-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.admin-participant-table td > strong,
+.admin-participant-table td > span,
+.admin-participant-table td > small {
+    display: block;
+}
+
+.admin-participant-table td > strong {
+    color: var(--admin-text);
+    font-size: 0.78rem;
+}
+
+.admin-participant-table td > span,
+.admin-participant-table td > small {
+    margin-top: 0.22rem;
+    color: var(--admin-muted);
+    font-size: 0.69rem;
+    line-height: 1.45;
+}
+
+.admin-participant-table td > .status-badge {
+    display: inline-flex;
+    margin-top: 0;
+}
+
+.admin-participant-deadline {
+    color: #744210 !important;
+    font-weight: 600;
+}
+
+.admin-match-money {
+    display: grid;
+    gap: 0.55rem;
+    margin: 1rem 0;
+}
+
+.admin-match-money > div {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: space-between;
+    padding-bottom: 0.55rem;
+    border-bottom: 1px solid var(--admin-border);
+}
+
+.admin-match-money > div:last-child {
+    padding-bottom: 0;
+    border-bottom: 0;
+}
+
+.admin-match-money dt {
+    color: var(--admin-muted);
+    font-size: 0.72rem;
+    font-weight: 500;
+}
+
+.admin-match-money dd {
+    margin: 0;
+    color: var(--admin-sidebar);
+    font-size: 0.76rem;
+    font-weight: 700;
+    text-align: right;
+}
+
+@media (max-width: 1199.98px) {
+    .admin-match-filters .admin-booking-filter-primary {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .admin-matches-page .admin-booking-table-shell {
+        overflow: visible;
+        background: transparent;
+        border: 0;
+    }
+
+    .admin-match-table,
+    .admin-match-table tbody {
+        display: block;
+    }
+
+    .admin-match-table thead {
+        display: none;
+    }
+
+    .admin-match-table tr {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        margin-bottom: 0.75rem;
+        overflow: hidden;
+        background: #fff;
+        border: 1px solid var(--admin-border);
+        border-radius: var(--admin-card-radius);
+    }
+
+    .admin-match-table td {
+        min-width: 0;
+        border-right: 1px solid var(--admin-border);
+        border-bottom: 1px solid var(--admin-border);
+    }
+
+    .admin-match-table td:nth-child(even) {
+        border-right: 0;
+    }
+
+    .admin-match-table td::before {
+        display: block;
+        margin-bottom: 0.35rem;
+        color: #718096;
+        content: attr(data-label);
+        font-size: 0.62rem;
+        font-weight: 700;
+        letter-spacing: 0.055em;
+        text-transform: uppercase;
+    }
+
+    .admin-match-table td:last-child {
+        grid-column: 1 / -1;
+        border-right: 0;
+        border-bottom: 0;
+    }
+
+    .admin-match-table .admin-match-booking-code {
+        min-width: 0;
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+}
+
+@media (max-width: 991.98px) {
+    .admin-match-filters .admin-booking-filter-primary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .admin-match-table td:last-child {
+        grid-column: 1 / -1;
+        border-right: 0;
+    }
+
+    .admin-participant-table-shell {
+        overflow: visible;
+        border: 0;
+    }
+
+    .admin-participant-table,
+    .admin-participant-table tbody {
+        display: block;
+    }
+
+    .admin-participant-table thead {
+        display: none;
+    }
+
+    .admin-participant-table tr {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        margin-bottom: 0.75rem;
+        overflow: hidden;
+        border: 1px solid var(--admin-border);
+        border-radius: 0.75rem;
+    }
+
+    .admin-participant-table td {
+        min-width: 0;
+        border-right: 1px solid var(--admin-border);
+    }
+
+    .admin-participant-table td:nth-child(even) {
+        border-right: 0;
+    }
+
+    .admin-participant-table td::before {
+        display: block;
+        margin-bottom: 0.35rem;
+        color: #718096;
+        content: attr(data-label);
+        font-size: 0.61rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+
+    .admin-participant-table td:last-child {
+        grid-column: 1 / -1;
+        border-right: 0;
+        border-bottom: 0;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .admin-match-filters .admin-booking-filter-primary,
+    .admin-match-table tr,
+    .admin-participant-table tr {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .admin-match-table td,
+    .admin-match-table td:nth-child(even) {
+        border-right: 0;
+        border-bottom: 1px solid var(--admin-border);
+    }
+
+    .admin-match-table td:last-child {
+        grid-column: auto;
+        border-bottom: 0;
+    }
+
+    .admin-participant-table td,
+    .admin-participant-table td:nth-child(even) {
+        border-right: 0;
+        border-bottom: 1px solid var(--admin-border);
+    }
+
+    .admin-participant-table td:last-child {
+        grid-column: auto;
+        border-bottom: 0;
     }
 }

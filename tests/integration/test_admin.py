@@ -495,6 +495,274 @@ def seed_booking_operations_data(app, *, user_id: int, owner_id: int) -> dict:
         }
 
 
+def seed_match_operations_data(
+    app,
+    *,
+    creator_id: int,
+    owner_id: int,
+    participant_ids: tuple[int, ...],
+) -> dict:
+    """Create varied read-only records for the dedicated Match module."""
+    booking_data = seed_booking_operations_data(
+        app,
+        user_id=creator_id,
+        owner_id=owner_id,
+    )
+    with app.app_context():
+        primary_field = db.session.get(Field, booking_data["field_id"])
+        other_field = db.session.get(Field, booking_data["other_field_id"])
+        legacy_booking = db.session.scalar(
+            db.select(Booking).where(
+                Booking.booking_code == booking_data["legacy_location"]
+            )
+        )
+        legacy_field = legacy_booking.field
+        scheduled_date = date.today() + timedelta(days=9)
+        recorded_at = datetime(2026, 9, 4, 8, 0)
+
+        def add_match(
+            suffix,
+            *,
+            field,
+            match_type=MatchType.FIND_PLAYERS.value,
+            match_status=MatchStatus.OPEN.value,
+            paid=Decimal("90000"),
+            booking_status=BookingStatus.PAID.value,
+            title=None,
+            created_offset=0,
+        ):
+            booking = Booking(
+                booking_code=f"BK-MATCH-OPS-{suffix}",
+                user_id=creator_id,
+                field_id=field.id,
+                booking_date=scheduled_date,
+                start_time=time(18, 0),
+                end_time=time(19, 0),
+                booking_mode=match_type,
+                requested_players=(
+                    2 if match_type == MatchType.FIND_PLAYERS.value else None
+                ),
+                payment_policy=BookingPaymentPolicy.DEPOSIT_30.value,
+                total_amount=Decimal("300000"),
+                deposit_rate=Decimal("0.3000"),
+                deposit_amount=Decimal("90000"),
+                paid_amount=paid,
+                cancellation_fee_amount=Decimal("0"),
+                status=booking_status,
+                created_at=recorded_at + timedelta(minutes=created_offset),
+            )
+            db.session.add(booking)
+            db.session.flush()
+            match = Match(
+                creator_id=creator_id,
+                booking_id=booking.id,
+                match_type=match_type,
+                title=title or f"Kèo vận hành {suffix}",
+                total_players=(
+                    10 if match_type == MatchType.FIND_PLAYERS.value else None
+                ),
+                required_players=(
+                    2 if match_type == MatchType.FIND_PLAYERS.value else 1
+                ),
+                status=match_status,
+                created_at=recorded_at + timedelta(minutes=created_offset),
+            )
+            db.session.add(match)
+            db.session.flush()
+            return booking, match
+
+        players_booking, players_match = add_match(
+            "PLAYERS",
+            field=primary_field,
+            title="Kèo cầu lông Alpha",
+            created_offset=1,
+        )
+        player_states = (
+            MatchParticipantStatus.PENDING.value,
+            MatchParticipantStatus.JOINED.value,
+            MatchParticipantStatus.REJECTED.value,
+            MatchParticipantStatus.WITHDRAWN.value,
+        )
+        for index, participant_status in enumerate(player_states):
+            db.session.add(
+                MatchParticipant(
+                    match_id=players_match.id,
+                    user_id=participant_ids[index],
+                    participant_type=MatchParticipantType.PLAYER.value,
+                    status=participant_status,
+                    created_at=recorded_at + timedelta(minutes=10 + index),
+                    decided_at=(
+                        None
+                        if participant_status == MatchParticipantStatus.PENDING.value
+                        else recorded_at + timedelta(minutes=20 + index)
+                    ),
+                )
+            )
+
+        awaiting_booking, awaiting_match = add_match(
+            "OPPONENT-AWAITING",
+            field=primary_field,
+            match_type=MatchType.FIND_OPPONENT.value,
+            paid=Decimal("45000"),
+            booking_status=BookingStatus.PARTIALLY_PAID.value,
+            title="Kèo đối thủ chờ cọc",
+            created_offset=2,
+        )
+        awaiting_contribution = BookingContribution(
+            booking_id=awaiting_booking.id,
+            user_id=participant_ids[0],
+            contribution_type=ContributionType.OPPONENT.value,
+            slot_number=1,
+            amount_due=Decimal("45000"),
+            amount_paid=Decimal("0"),
+            status=ContributionStatus.PENDING.value,
+            created_at=recorded_at + timedelta(minutes=30),
+        )
+        db.session.add(awaiting_contribution)
+        db.session.flush()
+        awaiting_participant = MatchParticipant(
+            match_id=awaiting_match.id,
+            user_id=participant_ids[0],
+            contribution_id=awaiting_contribution.id,
+            participant_type=MatchParticipantType.OPPONENT_REPRESENTATIVE.value,
+            status=MatchParticipantStatus.ACCEPTED_AWAITING_PAYMENT.value,
+            payment_due_at=recorded_at + timedelta(minutes=45),
+            created_at=recorded_at + timedelta(minutes=31),
+            decided_at=recorded_at + timedelta(minutes=31),
+        )
+        db.session.add(awaiting_participant)
+
+        joined_booking, joined_match = add_match(
+            "OPPONENT-JOINED",
+            field=primary_field,
+            match_type=MatchType.FIND_OPPONENT.value,
+            match_status=MatchStatus.CONFIRMED.value,
+            title="Kèo đối thủ đã nhận",
+            created_offset=3,
+        )
+        joined_contribution = BookingContribution(
+            booking_id=joined_booking.id,
+            user_id=participant_ids[1],
+            contribution_type=ContributionType.OPPONENT.value,
+            slot_number=1,
+            amount_due=Decimal("45000"),
+            amount_paid=Decimal("45000"),
+            status=ContributionStatus.PAID.value,
+            created_at=recorded_at + timedelta(minutes=40),
+        )
+        db.session.add(joined_contribution)
+        db.session.flush()
+        db.session.add(
+            MatchParticipant(
+                match_id=joined_match.id,
+                user_id=participant_ids[1],
+                contribution_id=joined_contribution.id,
+                participant_type=(
+                    MatchParticipantType.OPPONENT_REPRESENTATIVE.value
+                ),
+                status=MatchParticipantStatus.JOINED.value,
+                created_at=recorded_at + timedelta(minutes=41),
+                decided_at=recorded_at + timedelta(minutes=42),
+            )
+        )
+
+        completed_booking, completed_match = add_match(
+            "COMPLETED",
+            field=other_field,
+            match_status=MatchStatus.COMPLETED.value,
+            booking_status=BookingStatus.COMPLETED.value,
+            created_offset=4,
+        )
+        completed_booking.updated_at = recorded_at + timedelta(hours=5)
+        completed_match.updated_at = recorded_at + timedelta(hours=5)
+
+        cancelled_booking, cancelled_match = add_match(
+            "CANCELLED",
+            field=other_field,
+            match_status=MatchStatus.CANCELLED.value,
+            booking_status=BookingStatus.CANCELLED.value,
+            created_offset=5,
+        )
+        cancelled_booking.cancellation_reason = "Chủ sân hủy lịch kiểm thử"
+        cancelled_match.updated_at = recorded_at + timedelta(hours=6)
+
+        _, full_match = add_match(
+            "FULL",
+            field=primary_field,
+            match_status=MatchStatus.FULL.value,
+            created_offset=6,
+        )
+        _, legacy_location_match = add_match(
+            "LEGACY-LOCATION",
+            field=legacy_field,
+            created_offset=7,
+        )
+        past_open_booking, past_open_match = add_match(
+            "PAST-OPEN",
+            field=primary_field,
+            title="Kèo đã qua giờ nhưng còn mở trong dữ liệu",
+            created_offset=8,
+        )
+        past_open_booking.booking_date = date.today() - timedelta(days=1)
+
+        db.session.commit()
+        return {
+            **booking_data,
+            "scheduled_date": scheduled_date.isoformat(),
+            "players_match_id": players_match.id,
+            "players_booking_code": players_booking.booking_code,
+            "awaiting_match_id": awaiting_match.id,
+            "awaiting_booking_code": awaiting_booking.booking_code,
+            "joined_match_id": joined_match.id,
+            "joined_booking_code": joined_booking.booking_code,
+            "completed_match_id": completed_match.id,
+            "cancelled_match_id": cancelled_match.id,
+            "full_match_id": full_match.id,
+            "legacy_location_match_id": legacy_location_match.id,
+            "past_open_match_id": past_open_match.id,
+            "past_open_booking_code": past_open_booking.booking_code,
+        }
+
+
+def setup_admin_match_operations(app, client, token: str) -> dict:
+    admin = create_user(
+        app,
+        email=f"match-{token}-admin@example.com",
+        role=UserRole.ADMIN,
+    )
+    owner = create_user(
+        app,
+        email=f"match-{token}-owner@example.com",
+        role=UserRole.OWNER,
+    )
+    creator = create_user(
+        app,
+        email=f"match-{token}-creator@example.com",
+        full_name="Nguyễn Người Tạo Kèo",
+    )
+    participants = tuple(
+        create_user(
+            app,
+            email=f"match-{token}-participant-{index}@example.com",
+            full_name=f"Người tham gia {index}",
+        )
+        for index in range(4)
+    )
+    data = seed_match_operations_data(
+        app,
+        creator_id=creator.id,
+        owner_id=owner.id,
+        participant_ids=tuple(participant.id for participant in participants),
+    )
+    login(client, email=admin.email)
+    data["creator_name"] = "Nguyễn Người Tạo Kèo"
+    data["creator_email"] = creator.email
+    data["participant_emails"] = tuple(
+        participant.email for participant in participants
+    )
+    return data
+
+
 def seed_booking_detail_data(app, *, user_id: int, owner_id: int) -> dict:
     list_data = seed_booking_operations_data(
         app,
@@ -843,6 +1111,8 @@ def test_admin_pages_require_admin_role(app, client):
         "/admin/monitoring",
         "/admin/bookings",
         "/admin/bookings/UNKNOWN",
+        "/admin/matches",
+        "/admin/matches/999",
         "/admin/monitoring/bookings/UNKNOWN",
     )
     for path in admin_paths:
@@ -963,7 +1233,7 @@ def test_admin_status_labels_use_vietnamese_business_language():
     }
 
 
-def test_admin_sidebar_only_uses_registered_phase_one_endpoints(app, client):
+def test_admin_sidebar_uses_accepted_operations_endpoints(app, client):
     admin = create_user(app, email="sidebar-admin@example.com", role=UserRole.ADMIN)
     login(client, email=admin.email)
 
@@ -976,23 +1246,16 @@ def test_admin_sidebar_only_uses_registered_phase_one_endpoints(app, client):
         "/admin/owner-applications",
         "/admin/venues",
         "/admin/bookings",
-        "/admin/monitoring?section=matches",
+        "/admin/matches",
         "/admin/users",
         "/auth/logout",
     ):
         assert expected_href in page
+    assert "/admin/monitoring?section=matches" not in page
+    assert 'title="Thanh toán"' not in page
+    assert 'title="Hoàn tiền"' not in page
 
-    payment_page = client.get(
-        "/admin/monitoring?section=bookings&focus=payment_issue"
-    ).get_data(as_text=True)
-    refund_page = client.get(
-        "/admin/monitoring?section=bookings&focus=refund_pending"
-    ).get_data(as_text=True)
-    match_page = client.get(
-        "/admin/monitoring?section=matches"
-    ).get_data(as_text=True)
-    assert 'title="Thanh toán" aria-current="page"' in payment_page
-    assert 'title="Hoàn tiền" aria-current="page"' in refund_page
+    match_page = client.get("/admin/matches").get_data(as_text=True)
     assert 'title="Kèo chơi" aria-current="page"' in match_page
 
 
@@ -1567,6 +1830,406 @@ def test_admin_booking_operations_get_does_not_mutate_financial_data(app, client
         )
 
 
+def test_admin_match_operations_search_filters_and_paginates(app, client):
+    data = setup_admin_match_operations(app, client, "list")
+
+    response = client.get("/admin/matches")
+    page = response.get_data(as_text=True)
+    assert response.status_code == 200
+    assert page.count("data-match-row=") == 6
+    assert "Kèo" in page
+    assert "Lịch đặt" in page
+    assert "Người tạo" in page
+    assert "Địa điểm" in page
+    assert "Loại &amp; số người" in page
+    assert "Trạng thái / Theo dõi" in page
+    assert "/static/js/administrative-unit-picker.js" in page
+    assert "data-admin-dependent-location" in page
+
+    searches = (
+        str(data["players_match_id"]),
+        "Kèo cầu lông Alpha",
+        data["players_booking_code"],
+    )
+    for query in searches:
+        search_page = client.get(
+            "/admin/matches", query_string={"q": query}
+        ).get_data(as_text=True)
+        assert "Kèo cầu lông Alpha" in search_page, query
+
+    for creator_query in (data["creator_name"], data["creator_email"]):
+        creator_page = client.get(
+            "/admin/matches", query_string={"q": creator_query}
+        ).get_data(as_text=True)
+        assert creator_page.count("data-match-row=") == 6
+        assert data["creator_email"] in creator_page
+
+    completed_page = client.get(
+        "/admin/matches",
+        query_string={"status": MatchStatus.COMPLETED.value},
+    ).get_data(as_text=True)
+    assert f'data-match-row="{data["completed_match_id"]}"' in completed_page
+    assert f'data-match-row="{data["players_match_id"]}"' not in completed_page
+
+    opponent_page = client.get(
+        "/admin/matches",
+        query_string={"match_type": MatchType.FIND_OPPONENT.value},
+    ).get_data(as_text=True)
+    assert "Kèo đối thủ chờ cọc" in opponent_page
+    assert "Kèo đối thủ đã nhận" in opponent_page
+    assert "Kèo cầu lông Alpha" not in opponent_page
+
+    sport_page = client.get(
+        "/admin/matches",
+        query_string={"sport": data["other_sport_code"]},
+    ).get_data(as_text=True)
+    assert f'data-match-row="{data["completed_match_id"]}"' in sport_page
+    assert f'data-match-row="{data["players_match_id"]}"' not in sport_page
+
+    date_page = client.get(
+        "/admin/matches",
+        query_string={"date": data["scheduled_date"]},
+    ).get_data(as_text=True)
+    assert "7</strong> kèo chơi" in date_page
+
+    location_filters = {
+        "province_code": data["province_code"],
+        "ward_code": data["ward_code"],
+        "venue": data["venue_id"],
+        "field": data["field_id"],
+    }
+    location_page = client.get(
+        "/admin/matches", query_string=location_filters
+    ).get_data(as_text=True)
+    assert "Kèo cầu lông Alpha" in location_page
+    assert f'data-match-row="{data["completed_match_id"]}"' not in location_page
+
+    legacy_location_page = client.get(
+        "/admin/matches",
+        query_string={
+            "q": "LEGACY-LOCATION",
+            "province_code": data["province_code"],
+            "ward_code": data["ward_code"],
+        },
+    ).get_data(as_text=True)
+    assert f'data-match-row="{data["legacy_location_match_id"]}"' in legacy_location_page
+
+    invalid_ward = client.get(
+        "/admin/matches",
+        query_string={"ward_code": data["ward_code"]},
+        follow_redirects=True,
+    ).get_data(as_text=True)
+    assert "chọn tỉnh hoặc thành phố trước" in invalid_ward
+
+    invalid_chain = client.get(
+        "/admin/matches",
+        query_string={
+            "province_code": data["other_province_code"],
+            "venue": data["venue_id"],
+        },
+        follow_redirects=True,
+    ).get_data(as_text=True)
+    assert "Cơ sở không thuộc khu vực đã chọn" in invalid_chain
+
+    invalid_type = client.get(
+        "/admin/matches",
+        query_string={"match_type": "UNKNOWN"},
+        follow_redirects=True,
+    ).get_data(as_text=True)
+    assert "Loại kèo không hợp lệ" in invalid_type
+
+    first_page = client.get(
+        "/admin/matches",
+        query_string={
+            "q": "BK-MATCH-OPS",
+            "date": data["scheduled_date"],
+            "page": 1,
+        },
+    ).get_data(as_text=True)
+    assert first_page.count("data-match-row=") == 6
+    assert "Trang <strong>1</strong> / 2" in first_page
+    assert "q=BK-MATCH-OPS" in first_page
+    assert f"date={data['scheduled_date']}" in first_page
+
+    second_page = client.get(
+        "/admin/matches",
+        query_string={
+            "q": "BK-MATCH-OPS",
+            "date": data["scheduled_date"],
+            "page": 2,
+        },
+    ).get_data(as_text=True)
+    assert "Trang <strong>2</strong> / 2" in second_page
+    assert f'data-match-row="{data["players_match_id"]}"' in second_page
+
+
+def test_admin_match_operations_attention_and_detail_context(app, client):
+    data = setup_admin_match_operations(app, client, "detail")
+
+    pending_list = client.get(
+        "/admin/matches", query_string={"q": data["players_booking_code"]}
+    ).get_data(as_text=True)
+    assert "1 yêu cầu tham gia đang chờ xử lý" in pending_list
+
+    awaiting_list = client.get(
+        "/admin/matches", query_string={"q": data["awaiting_booking_code"]}
+    ).get_data(as_text=True)
+    assert "1 người đang chờ thanh toán cọc" in awaiting_list
+    assert "thanh toán thất bại" not in awaiting_list.lower()
+
+    detail_response = client.get(
+        f'/admin/matches/{data["awaiting_match_id"]}'
+    )
+    detail_page = detail_response.get_data(as_text=True)
+    assert detail_response.status_code == 200
+    assert data["awaiting_booking_code"] in detail_page
+    assert f'/admin/bookings/{data["awaiting_booking_code"]}' in detail_page
+    assert "Đại diện đội đối thủ" in detail_page
+    assert "Chờ đặt cọc" in detail_page
+    assert "Hạn thanh toán cọc" in detail_page
+    assert "Đội đối thủ" in detail_page
+    assert "45.000 đ" in detail_page
+    assert "255.000 đ" in detail_page
+    assert "Đây là trạng thái theo dõi, không tự động là lỗi" in detail_page
+    assert "Lịch sử thanh toán" not in detail_page
+    assert "Lịch sử hoàn tiền" not in detail_page
+    assert "Mã giao dịch nhà cung cấp" not in detail_page
+
+    players_page = client.get(
+        f'/admin/matches/{data["players_match_id"]}'
+    ).get_data(as_text=True)
+    for label in ("Đang chờ", "Đã tham gia", "Đã từ chối", "Đã rút"):
+        assert label in players_page
+    assert "Không có nghĩa vụ online được liên kết" in players_page
+    assert "1 yêu cầu tham gia đang chờ xử lý" in players_page
+    assert 'data-closed-participants="2"' in players_page
+    assert "yêu cầu đã từ chối, hết hạn hoặc rút khỏi kèo" in players_page
+
+    joined_page = client.get(
+        f'/admin/matches/{data["joined_match_id"]}'
+    ).get_data(as_text=True)
+    assert "Đã có đối thủ" in joined_page
+    assert "Hiện ghi nhận: 45.000 đ" in joined_page
+
+
+def test_admin_match_effective_status_is_read_only_and_filterable(app, client):
+    data = setup_admin_match_operations(app, client, "effective-status")
+    with app.app_context():
+        before_match_states = tuple(
+            db.session.execute(
+                db.select(Match.id, Match.status).order_by(Match.id)
+            ).all()
+        )
+        before_booking_states = tuple(
+            db.session.execute(
+                db.select(Booking.id, Booking.status).order_by(Booking.id)
+            ).all()
+        )
+
+    past_list = client.get(
+        "/admin/matches",
+        query_string={"q": data["past_open_booking_code"]},
+    ).get_data(as_text=True)
+    assert (
+        f'data-match-row="{data["past_open_match_id"]}" '
+        'data-match-effective-status="ENDED"'
+    ) in past_list
+    assert "Đã kết thúc" in past_list
+
+    future_list = client.get(
+        "/admin/matches",
+        query_string={"q": data["players_booking_code"]},
+    ).get_data(as_text=True)
+    assert (
+        f'data-match-row="{data["players_match_id"]}" '
+        'data-match-effective-status="OPEN"'
+    ) in future_list
+    assert "Đang mở" in future_list
+
+    open_filter = client.get(
+        "/admin/matches",
+        query_string={"status": MatchStatus.OPEN.value},
+    ).get_data(as_text=True)
+    assert f'data-match-row="{data["players_match_id"]}"' in open_filter
+    assert f'data-match-row="{data["past_open_match_id"]}"' not in open_filter
+
+    ended_filter = client.get(
+        "/admin/matches",
+        query_string={"status": "ENDED"},
+    ).get_data(as_text=True)
+    assert f'data-match-row="{data["past_open_match_id"]}"' in ended_filter
+    assert 'data-match-effective-status="ENDED"' in ended_filter
+
+    past_detail = client.get(
+        f'/admin/matches/{data["past_open_match_id"]}'
+    ).get_data(as_text=True)
+    assert 'data-current-match-status="OPEN"' in past_detail
+    assert 'data-current-match-effective-status="ENDED"' in past_detail
+    assert "Đã kết thúc" in past_detail
+
+    with app.app_context():
+        assert tuple(
+            db.session.execute(
+                db.select(Match.id, Match.status).order_by(Match.id)
+            ).all()
+        ) == before_match_states
+        assert tuple(
+            db.session.execute(
+                db.select(Booking.id, Booking.status).order_by(Booking.id)
+            ).all()
+        ) == before_booking_states
+
+
+def test_admin_match_detail_uses_only_recorded_historical_timestamps(app, client):
+    data = setup_admin_match_operations(app, client, "history")
+
+    players_page = client.get(
+        f'/admin/matches/{data["players_match_id"]}'
+    ).get_data(as_text=True)
+    assert 'data-event-type="match_created"' in players_page
+    assert players_page.count('data-event-type="participant_created"') == 4
+    assert players_page.count('data-event-type="participant_decided"') == 3
+    assert "Sự kiện đã ghi nhận" in players_page
+
+    completed_page = client.get(
+        f'/admin/matches/{data["completed_match_id"]}'
+    ).get_data(as_text=True)
+    assert "Đã hoàn thành" in completed_page
+    assert completed_page.count("data-event-type=") == 1
+    assert "04/09/2026 13:00" not in completed_page
+    assert "Hoàn tất kèo" not in completed_page
+
+    cancelled_page = client.get(
+        f'/admin/matches/{data["cancelled_match_id"]}'
+    ).get_data(as_text=True)
+    assert "Đã hủy" in cancelled_page
+    assert "Chủ sân hủy lịch kiểm thử" in cancelled_page
+    assert cancelled_page.count("data-event-type=") == 1
+    assert "04/09/2026 14:00" not in cancelled_page
+
+
+def test_admin_match_get_routes_do_not_mutate_domain_data(app, client):
+    data = setup_admin_match_operations(app, client, "readonly")
+    with app.app_context():
+        match_states = tuple(
+            db.session.execute(
+                db.select(Match.id, Match.status).order_by(Match.id)
+            ).all()
+        )
+        participant_states = tuple(
+            db.session.execute(
+                db.select(
+                    MatchParticipant.id,
+                    MatchParticipant.status,
+                    MatchParticipant.decided_at,
+                ).order_by(MatchParticipant.id)
+            ).all()
+        )
+        booking_states = tuple(
+            db.session.execute(
+                db.select(Booking.id, Booking.status, Booking.paid_amount).order_by(
+                    Booking.id
+                )
+            ).all()
+        )
+        counts = (
+            db.session.scalar(db.select(db.func.count()).select_from(Match)),
+            db.session.scalar(
+                db.select(db.func.count()).select_from(MatchParticipant)
+            ),
+            db.session.scalar(
+                db.select(db.func.count()).select_from(BookingContribution)
+            ),
+            db.session.scalar(db.select(db.func.count()).select_from(Payment)),
+            db.session.scalar(db.select(db.func.count()).select_from(Refund)),
+        )
+
+    assert client.get("/admin/matches").status_code == 200
+    assert client.get(f'/admin/matches/{data["awaiting_match_id"]}').status_code == 200
+
+    with app.app_context():
+        assert tuple(
+            db.session.execute(
+                db.select(Match.id, Match.status).order_by(Match.id)
+            ).all()
+        ) == match_states
+        assert tuple(
+            db.session.execute(
+                db.select(
+                    MatchParticipant.id,
+                    MatchParticipant.status,
+                    MatchParticipant.decided_at,
+                ).order_by(MatchParticipant.id)
+            ).all()
+        ) == participant_states
+        assert tuple(
+            db.session.execute(
+                db.select(Booking.id, Booking.status, Booking.paid_amount).order_by(
+                    Booking.id
+                )
+            ).all()
+        ) == booking_states
+        assert (
+            db.session.scalar(db.select(db.func.count()).select_from(Match)),
+            db.session.scalar(
+                db.select(db.func.count()).select_from(MatchParticipant)
+            ),
+            db.session.scalar(
+                db.select(db.func.count()).select_from(BookingContribution)
+            ),
+            db.session.scalar(db.select(db.func.count()).select_from(Payment)),
+            db.session.scalar(db.select(db.func.count()).select_from(Refund)),
+        ) == counts
+
+
+def test_admin_match_legacy_mapping_sidebar_and_booking_cross_link(app, client):
+    data = setup_admin_match_operations(app, client, "compat")
+
+    legacy = client.get(
+        "/admin/monitoring",
+        query_string={
+            "section": "matches",
+            "q": "BK-MATCH-OPS",
+            "status": MatchStatus.OPEN.value,
+            "venue": data["venue_id"],
+            "field": data["field_id"],
+            "page": 2,
+            "focus": "payment_issue",
+            "venue_q": "khong-mang-theo",
+        },
+    )
+    assert legacy.status_code == 302
+    assert legacy.location.startswith("/admin/matches?")
+    for expected in (
+        "q=BK-MATCH-OPS",
+        "status=OPEN",
+        f'venue={data["venue_id"]}',
+        f'field={data["field_id"]}',
+        "page=2",
+    ):
+        assert expected in legacy.location
+    assert "section=" not in legacy.location
+    assert "focus=" not in legacy.location
+    assert "venue_q=" not in legacy.location
+
+    match_page = client.get(
+        f'/admin/matches/{data["players_match_id"]}'
+    ).get_data(as_text=True)
+    assert 'title="Kèo chơi" aria-current="page"' in match_page
+    assert 'title="Thanh toán"' not in match_page
+    assert 'title="Hoàn tiền"' not in match_page
+
+    booking_page = client.get(
+        f'/admin/bookings/{data["players_booking_code"]}'
+    ).get_data(as_text=True)
+    assert f'/admin/matches/{data["players_match_id"]}' in booking_page
+    assert "Mở Match Detail" in booking_page
+
+    missing = client.get("/admin/matches/999999", follow_redirects=True)
+    assert missing.status_code == 200
+    assert "Không tìm thấy kèo chơi cần theo dõi" in missing.get_data(as_text=True)
+
+
 def test_admin_monitoring_lists_all_mvp_records(app, client):
     admin = create_user(app, email="monitor-admin@example.com", role=UserRole.ADMIN)
     owner = create_user(app, email="monitor-owner@example.com", role=UserRole.OWNER)
@@ -1576,7 +2239,6 @@ def test_admin_monitoring_lists_all_mvp_records(app, client):
 
     expected = {
         "bookings": booking_code,
-        "matches": "Kèo Admin Test",
         "catalog": "Sân bóng đá 5 người",
     }
     for section, marker in expected.items():
@@ -1807,7 +2469,8 @@ def test_admin_booking_detail_separates_recorded_events_from_current_state(app, 
     ).get_data(as_text=True)
     assert 'data-current-booking-status="COMPLETED"' in completed_page
     assert "Kèo liên quan Booking Detail" in completed_page
-    assert "Quản lý đầy đủ kèo chơi thuộc Phase 2.3" in completed_page
+    assert "Mở Match Detail" in completed_page
+    assert "/admin/matches/" in completed_page
     assert 'data-event-type="booking_created"' in completed_page
     assert 'data-event-type="match_created"' in completed_page
     assert 'data-event-type="payment_success"' in completed_page
@@ -1895,7 +2558,7 @@ def test_admin_monitoring_filters_by_venue_and_field_with_friendly_labels(
         field_id = booking.field_id
     login(client, email=admin.email)
 
-    for section in ("bookings", "matches"):
+    for section in ("bookings",):
         response = client.get(
             f"/admin/monitoring?section={section}&venue={venue_id}&field={field_id}"
         )
@@ -2067,7 +2730,10 @@ def test_admin_monitoring_redirects_legacy_finance_sections(app, client):
         assert "venue=7" in response.location
 
 
-def test_admin_monitoring_shows_only_joined_match_recipients(app, client):
+def test_admin_match_detail_shows_participant_states_without_private_contacts(
+    app,
+    client,
+):
     admin = create_user(app, email="match-recipient-admin@example.com", role=UserRole.ADMIN)
     owner = create_user(app, email="match-recipient-owner@example.com", role=UserRole.OWNER)
     creator = create_user(app, email="match-recipient-creator@example.com")
@@ -2087,27 +2753,30 @@ def test_admin_monitoring_shows_only_joined_match_recipients(app, client):
                 user_id=joined_user.id,
                 participant_type=MatchParticipantType.PLAYER.value,
                 status=MatchParticipantStatus.JOINED.value,
+                contact_phone="0901111222",
             )
         )
-        for _ in range(4):
-            db.session.add(
-                MatchParticipant(
-                    match_id=match.id,
-                    user_id=withdrawn_user.id,
-                    participant_type=MatchParticipantType.PLAYER.value,
-                    status=MatchParticipantStatus.WITHDRAWN.value,
-                )
+        db.session.add(
+            MatchParticipant(
+                match_id=match.id,
+                user_id=withdrawn_user.id,
+                participant_type=MatchParticipantType.PLAYER.value,
+                status=MatchParticipantStatus.WITHDRAWN.value,
+                contact_phone="0903333444",
             )
+        )
         db.session.commit()
+        match_id = match.id
 
     login(client, email=admin.email)
-    response = client.get("/admin/monitoring?section=matches")
+    response = client.get(f"/admin/matches/{match_id}")
     page = response.get_data(as_text=True)
 
     assert response.status_code == 200
     assert "Người đã nhận kèo" in page
-    assert "Người đã rút kèo" not in page
-    assert "1 người" in page
-    assert "4 yêu cầu đã kết thúc hoặc rút khỏi kèo" in page
-    assert "5 người/yêu cầu" not in page
-    assert f"/admin/monitoring/bookings/{booking_code}" in page
+    assert "Người đã rút kèo" in page
+    assert "Đã tham gia" in page
+    assert "Đã rút" in page
+    assert "0901111222" not in page
+    assert "0903333444" not in page
+    assert f"/admin/bookings/{booking_code}" in page

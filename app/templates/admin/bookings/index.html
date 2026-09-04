@@ -15,7 +15,7 @@
             <span class="admin-readonly-note"><i class="bi bi-eye" aria-hidden="true"></i>Chỉ xem · Không thay đổi dữ liệu</span>
         </div>
 
-        <form class="admin-booking-filters" method="get" action="{{ url_for('admin.booking_operations') }}" data-admin-booking-filters>
+        <form class="admin-booking-filters" method="get" action="{{ url_for('admin.booking_operations') }}" data-admin-booking-filters data-admin-dependent-location>
             <div class="admin-booking-filter-primary">
                 <div class="admin-filter-control admin-booking-search">
                     <label for="admin-booking-query">Tìm nhanh</label>
@@ -60,7 +60,7 @@
                 </div>
                 <div class="admin-filter-control">
                     <label for="admin-booking-venue">Cơ sở</label>
-                    <select class="form-select" id="admin-booking-venue" name="venue">
+                    <select class="form-select" id="admin-booking-venue" name="venue" data-admin-venue-filter>
                         <option value="">Tất cả cơ sở</option>
                         {% for venue in filter_options.venues %}
                             <option value="{{ venue.id }}"
@@ -74,7 +74,7 @@
                 </div>
                 <div class="admin-filter-control">
                     <label for="admin-booking-field">Sân</label>
-                    <select class="form-select" id="admin-booking-field" name="field"{% if not selected_venue_id %} disabled{% endif %}>
+                    <select class="form-select" id="admin-booking-field" name="field" data-admin-field-filter{% if not selected_venue_id %} disabled{% endif %}>
                         <option value="">Tất cả sân</option>
                         {% for field in filter_options.fields %}<option value="{{ field.id }}" data-venue-id="{{ field.venue_id }}"{% if selected_field_id == field.id %} selected{% endif %}>{{ field.name }}</option>{% endfor %}
                     </select>

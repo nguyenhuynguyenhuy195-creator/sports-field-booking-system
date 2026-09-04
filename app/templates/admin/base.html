@@ -16,12 +16,8 @@
     {% block head %}{% endblock %}
 </head>
 <body class="admin-body">
-    {% set monitoring_section = request.args.get('section', 'bookings') %}
-    {% set monitoring_focus = request.args.get('focus', '') %}
     {% set bookings_nav_active = request.endpoint in ['admin.booking_operations', 'admin.booking_detail'] %}
-    {% set matches_nav_active = request.endpoint == 'admin.monitoring' and monitoring_section == 'matches' %}
-    {% set payments_nav_active = request.endpoint == 'admin.monitoring' and monitoring_focus == 'payment_issue' %}
-    {% set refunds_nav_active = request.endpoint == 'admin.monitoring' and monitoring_focus == 'refund_pending' %}
+    {% set matches_nav_active = request.endpoint in ['admin.match_operations', 'admin.match_detail'] %}
     <div class="admin-shell">
         <aside class="offcanvas-lg offcanvas-start admin-sidebar" tabindex="-1" id="adminSidebar" aria-labelledby="adminSidebarLabel">
             <div class="offcanvas-header admin-sidebar-header">
@@ -50,16 +46,8 @@
                     <a class="admin-sidebar-link{% if bookings_nav_active %} active{% endif %}" href="{{ url_for('admin.booking_operations') }}" title="Lịch đặt sân"{% if bookings_nav_active %} aria-current="page"{% endif %}>
                         <i class="bi bi-calendar2-week" aria-hidden="true"></i><span>Lịch đặt sân</span>
                     </a>
-                    <a class="admin-sidebar-link{% if matches_nav_active %} active{% endif %}" href="{{ url_for('admin.monitoring', section='matches') }}" title="Kèo chơi"{% if matches_nav_active %} aria-current="page"{% endif %}>
+                    <a class="admin-sidebar-link{% if matches_nav_active %} active{% endif %}" href="{{ url_for('admin.match_operations') }}" title="Kèo chơi"{% if matches_nav_active %} aria-current="page"{% endif %}>
                         <i class="bi bi-people" aria-hidden="true"></i><span>Kèo chơi</span>
-                    </a>
-
-                    <span class="admin-sidebar-label">TÀI CHÍNH</span>
-                    <a class="admin-sidebar-link{% if payments_nav_active %} active{% endif %}" href="{{ url_for('admin.monitoring', section='bookings', focus='payment_issue') }}" title="Thanh toán"{% if payments_nav_active %} aria-current="page"{% endif %}>
-                        <i class="bi bi-credit-card" aria-hidden="true"></i><span>Thanh toán</span>
-                    </a>
-                    <a class="admin-sidebar-link{% if refunds_nav_active %} active{% endif %}" href="{{ url_for('admin.monitoring', section='bookings', focus='refund_pending') }}" title="Hoàn tiền"{% if refunds_nav_active %} aria-current="page"{% endif %}>
-                        <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i><span>Hoàn tiền</span>
                     </a>
 
                     <span class="admin-sidebar-label">HỆ THỐNG</span>

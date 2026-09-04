@@ -1,11 +1,11 @@
 (function () {
     "use strict";
 
-    const root = document.querySelector("[data-admin-bookings-root]");
-    const provinceSelect = document.getElementById("province_code");
-    const wardSelect = document.getElementById("ward_code");
-    const venueSelect = document.getElementById("admin-booking-venue");
-    const fieldSelect = document.getElementById("admin-booking-field");
+    const root = document.querySelector("[data-admin-dependent-location]");
+    const provinceSelect = root?.querySelector("#province_code");
+    const wardSelect = root?.querySelector("#ward_code");
+    const venueSelect = root?.querySelector("[data-admin-venue-filter]");
+    const fieldSelect = root?.querySelector("[data-admin-field-filter]");
     if (!root || !provinceSelect || !wardSelect || !venueSelect || !fieldSelect) {
         return;
     }

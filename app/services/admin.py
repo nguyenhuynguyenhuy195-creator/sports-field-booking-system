@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from math import ceil
 from typing import Any
@@ -23,6 +23,7 @@ from app.models import (
     MatchParticipant,
     MatchParticipantStatus,
     MatchStatus,
+    MatchType,
     OwnerApplication,
     OwnerApplicationStatus,
     Payment,
@@ -45,12 +46,22 @@ from .administrative_unit import (
     resolve_administrative_address,
     resolve_province,
 )
+from app.models.user import utc_now
 
 
 ADMIN_PAGE_SIZE = 20
 ADMIN_MONITORING_PAGE_SIZE = 6
 ADMIN_BOOKING_PAGE_SIZE = 6
+ADMIN_MATCH_PAGE_SIZE = 6
 ADMIN_VENUE_PAGE_SIZE = 10
+ADMIN_MATCH_EFFECTIVE_ENDED_STATUS = "ENDED"
+ADMIN_MATCH_OPERATIONAL_STATUSES = frozenset(
+    {
+        MatchStatus.OPEN.value,
+        MatchStatus.FULL.value,
+        MatchStatus.CONFIRMED.value,
+    }
+)
 
 
 class AdminError(ValueError):
@@ -161,6 +172,29 @@ class AdminBookingFilterOptions:
     wards: tuple[Any, ...]
     venues: tuple[Venue, ...]
     fields: tuple[Field, ...]
+
+
+@dataclass(frozen=True)
+class AdminMatchListItem:
+    match: Match
+    effective_status: str
+    total_participants: int
+    joined_participants: int
+    pending_participants: int
+    awaiting_payment_participants: int
+    closed_participants: int
+
+
+@dataclass(frozen=True)
+class AdminMatchDetail:
+    match: Match
+    effective_status: str
+    total_participants: int
+    joined_participants: int
+    pending_participants: int
+    awaiting_payment_participants: int
+    closed_participants: int
+    historical_events: tuple[AdminHistoricalEvent, ...]
 
 
 @dataclass(frozen=True)
@@ -640,6 +674,48 @@ def get_admin_booking_detail(booking_code: str) -> AdminBookingDetail:
     )
 
 
+def get_admin_match_detail(match_id: int) -> AdminMatchDetail:
+    """Build a read-only investigation model for one Match."""
+    statement = (
+        db.select(Match)
+        .where(Match.id == match_id)
+        .options(
+            joinedload(Match.creator),
+            joinedload(Match.booking).joinedload(Booking.user),
+            joinedload(Match.booking)
+            .joinedload(Booking.field)
+            .joinedload(Field.venue),
+            joinedload(Match.booking)
+            .joinedload(Booking.field)
+            .joinedload(Field.field_type)
+            .joinedload(FieldType.sport),
+            selectinload(Match.participants).joinedload(MatchParticipant.user),
+            selectinload(Match.participants).joinedload(
+                MatchParticipant.contribution
+            ),
+        )
+    )
+    match = db.session.scalar(statement)
+    if match is None:
+        raise AdminError("Không tìm thấy kèo chơi cần theo dõi.")
+
+    current_utc = utc_now()
+    counts = _admin_match_participant_counts(match)
+    return AdminMatchDetail(
+        match=match,
+        effective_status=_admin_match_effective_status(
+            match,
+            current_utc=current_utc,
+        ),
+        total_participants=counts["total"],
+        joined_participants=counts["joined"],
+        pending_participants=counts["pending"],
+        awaiting_payment_participants=counts["awaiting_payment"],
+        closed_participants=counts["closed"],
+        historical_events=_admin_match_historical_events(match),
+    )
+
+
 def list_admin_accounts(
     *,
     query: str | None = None,
@@ -961,6 +1037,123 @@ def list_admin_booking_operations(
         page=booking_page.page,
         per_page=booking_page.per_page,
         total=booking_page.total,
+    )
+
+
+def list_admin_match_operations(
+    *,
+    query: str | None = None,
+    status: str | None = None,
+    match_type: str | None = None,
+    sport_code: str | None = None,
+    booking_date: date | None = None,
+    province_code: str | None = None,
+    ward_code: str | None = None,
+    venue_id: int | None = None,
+    field_id: int | None = None,
+    page: int = 1,
+) -> AdminPage:
+    """Return the compact, read-only model for dedicated Match Operations."""
+    normalized_province = (province_code or "").strip()
+    normalized_ward = (ward_code or "").strip()
+    selected_province = None
+    selected_ward = None
+    try:
+        if normalized_ward:
+            address = resolve_administrative_address(
+                province_code=normalized_province,
+                ward_code=normalized_ward,
+            )
+            selected_province = address.province
+            selected_ward = address.ward
+        elif normalized_province:
+            selected_province = resolve_province(
+                province_code=normalized_province
+            )
+    except AdministrativeUnitError as exc:
+        raise AdminError(str(exc)) from exc
+
+    current_utc = utc_now()
+    statement = (
+        db.select(Match)
+        .join(User, User.id == Match.creator_id)
+        .join(Booking, Booking.id == Match.booking_id)
+        .join(Field, Field.id == Booking.field_id)
+        .join(Venue, Venue.id == Field.venue_id)
+        .join(FieldType, FieldType.id == Field.field_type_id)
+        .join(Sport, Sport.id == FieldType.sport_id)
+        .options(
+            joinedload(Match.creator),
+            joinedload(Match.booking)
+            .joinedload(Booking.field)
+            .joinedload(Field.venue),
+            joinedload(Match.booking)
+            .joinedload(Booking.field)
+            .joinedload(Field.field_type)
+            .joinedload(FieldType.sport),
+            selectinload(Match.participants).joinedload(MatchParticipant.user),
+        )
+    )
+    normalized_query = _normalize_query(query)
+    if normalized_query:
+        pattern = _contains_pattern(normalized_query)
+        search_conditions = [
+            func.lower(Match.title).like(pattern, escape="\\"),
+            func.lower(Booking.booking_code).like(pattern, escape="\\"),
+            func.lower(User.full_name).like(pattern, escape="\\"),
+            func.lower(User.email).like(pattern, escape="\\"),
+        ]
+        if normalized_query.isdigit():
+            search_conditions.append(Match.id == int(normalized_query))
+        statement = statement.where(or_(*search_conditions))
+    if status:
+        if status == ADMIN_MATCH_EFFECTIVE_ENDED_STATUS:
+            statement = statement.where(
+                Match.status.in_(ADMIN_MATCH_OPERATIONAL_STATUSES),
+                _admin_booking_has_ended_condition(current_utc),
+            )
+        else:
+            _require_choice(status, MatchStatus, "Trạng thái kèo")
+            statement = statement.where(Match.status == status)
+            if status in ADMIN_MATCH_OPERATIONAL_STATUSES:
+                statement = statement.where(
+                    ~_admin_booking_has_ended_condition(current_utc)
+                )
+    if match_type:
+        _require_choice(match_type, MatchType, "Loại kèo")
+        statement = statement.where(Match.match_type == match_type)
+    if sport_code:
+        if db.session.scalar(
+            db.select(Sport.id).where(Sport.code == sport_code)
+        ) is None:
+            raise AdminError("Bộ môn lọc không hợp lệ.")
+        statement = statement.where(Sport.code == sport_code)
+    if booking_date:
+        statement = statement.where(Booking.booking_date == booking_date)
+    if selected_province is not None:
+        statement = statement.where(
+            _admin_province_condition(selected_province)
+        )
+    if selected_ward is not None:
+        statement = statement.where(_admin_ward_condition(selected_ward))
+    if venue_id is not None:
+        statement = statement.where(Venue.id == venue_id)
+    if field_id is not None:
+        statement = statement.where(Field.id == field_id)
+
+    match_page = _paginate(
+        statement.order_by(Match.created_at.desc(), Match.id.desc()),
+        page,
+        per_page=ADMIN_MATCH_PAGE_SIZE,
+    )
+    return AdminPage(
+        items=tuple(
+            _admin_match_list_item(match, current_utc=current_utc)
+            for match in match_page.items
+        ),
+        page=match_page.page,
+        per_page=match_page.per_page,
+        total=match_page.total,
     )
 
 
@@ -1363,25 +1556,146 @@ def _venue_matches_admin_location(
 def _admin_match_context(match: Match | None) -> AdminMatchContext | None:
     if match is None:
         return None
-    total = len(match.participants)
-    joined = sum(
-        participant.status == MatchParticipantStatus.JOINED.value
-        for participant in match.participants
-    )
-    pending = sum(
-        participant.status
-        in {
-            MatchParticipantStatus.PENDING.value,
-            MatchParticipantStatus.ACCEPTED_AWAITING_PAYMENT.value,
-        }
-        for participant in match.participants
-    )
+    counts = _admin_match_participant_counts(match)
     return AdminMatchContext(
         match=match,
-        total_participants=total,
-        joined_participants=joined,
-        pending_participants=pending,
-        closed_participants=total - joined - pending,
+        total_participants=counts["total"],
+        joined_participants=counts["joined"],
+        pending_participants=(counts["pending"] + counts["awaiting_payment"]),
+        closed_participants=counts["closed"],
+    )
+
+
+def _admin_match_list_item(
+    match: Match,
+    *,
+    current_utc: datetime | None = None,
+) -> AdminMatchListItem:
+    counts = _admin_match_participant_counts(match)
+    return AdminMatchListItem(
+        match=match,
+        effective_status=_admin_match_effective_status(
+            match,
+            current_utc=current_utc or utc_now(),
+        ),
+        total_participants=counts["total"],
+        joined_participants=counts["joined"],
+        pending_participants=counts["pending"],
+        awaiting_payment_participants=counts["awaiting_payment"],
+        closed_participants=counts["closed"],
+    )
+
+
+def _admin_match_effective_status(
+    match: Match,
+    *,
+    current_utc: datetime,
+) -> str:
+    """Derive the Admin-only operational status without writing Match.status."""
+    if (
+        match.status in ADMIN_MATCH_OPERATIONAL_STATUSES
+        and _admin_booking_has_ended(match.booking, current_utc=current_utc)
+    ):
+        return ADMIN_MATCH_EFFECTIVE_ENDED_STATUS
+    return match.status
+
+
+def _admin_booking_has_ended(
+    booking: Booking,
+    *,
+    current_utc: datetime,
+) -> bool:
+    local_now = _admin_vietnam_now(current_utc)
+    return datetime.combine(booking.booking_date, booking.end_time) <= local_now
+
+
+def _admin_booking_has_ended_condition(current_utc: datetime):
+    local_now = _admin_vietnam_now(current_utc)
+    return or_(
+        Booking.booking_date < local_now.date(),
+        and_(
+            Booking.booking_date == local_now.date(),
+            Booking.end_time <= local_now.time(),
+        ),
+    )
+
+
+def _admin_vietnam_now(current_utc: datetime) -> datetime:
+    return current_utc.replace(tzinfo=timezone.utc).astimezone(
+        timezone(timedelta(hours=7))
+    ).replace(tzinfo=None)
+
+
+def _admin_match_participant_counts(match: Match) -> dict[str, int]:
+    counts = {
+        "total": len(match.participants),
+        "joined": 0,
+        "pending": 0,
+        "awaiting_payment": 0,
+    }
+    for participant in match.participants:
+        if participant.status == MatchParticipantStatus.JOINED.value:
+            counts["joined"] += 1
+        elif participant.status == MatchParticipantStatus.PENDING.value:
+            counts["pending"] += 1
+        elif (
+            participant.status
+            == MatchParticipantStatus.ACCEPTED_AWAITING_PAYMENT.value
+        ):
+            counts["awaiting_payment"] += 1
+    counts["closed"] = (
+        counts["total"]
+        - counts["joined"]
+        - counts["pending"]
+        - counts["awaiting_payment"]
+    )
+    return counts
+
+
+def _admin_match_historical_events(
+    match: Match,
+) -> tuple[AdminHistoricalEvent, ...]:
+    events = [
+        AdminHistoricalEvent(
+            occurred_at=match.created_at,
+            event_type="match_created",
+            record=match,
+        )
+    ]
+    events.extend(
+        AdminHistoricalEvent(
+            occurred_at=participant.created_at,
+            event_type="participant_created",
+            record=participant,
+        )
+        for participant in match.participants
+    )
+    meaningful_statuses = {
+        MatchParticipantStatus.ACCEPTED_AWAITING_PAYMENT.value,
+        MatchParticipantStatus.JOINED.value,
+        MatchParticipantStatus.REJECTED.value,
+        MatchParticipantStatus.EXPIRED.value,
+        MatchParticipantStatus.WITHDRAWN.value,
+    }
+    events.extend(
+        AdminHistoricalEvent(
+            occurred_at=participant.decided_at,
+            event_type="participant_decided",
+            record=participant,
+        )
+        for participant in match.participants
+        if participant.decided_at is not None
+        and participant.status in meaningful_statuses
+    )
+    return tuple(
+        sorted(
+            events,
+            key=lambda event: (
+                event.occurred_at,
+                event.event_type,
+                event.record.id,
+            ),
+        )
     )
 
 

@@ -1,0 +1,159 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Kèo #{{ match.id }} · Sân Thể Thao{% endblock %}
+{% block admin_page_label %}Chi tiết kèo chơi{% endblock %}
+
+{% block content %}
+<section class="admin-page admin-booking-detail-page admin-match-detail-page" data-admin-match-detail="{{ match.id }}">
+    <div class="container-fluid admin-bookings-container py-4 py-lg-5">
+        <a class="admin-detail-back" href="{{ url_for('admin.match_operations', **match_list_params) }}">
+            <i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại danh sách kèo chơi
+        </a>
+
+        <header class="admin-detail-hero">
+            <div>
+                <span class="eyebrow">KÈO #{{ match.id }}</span>
+                <h1>{{ match.title }}</h1>
+                <p>{{ match_type_labels[match.match_type] }} · {{ booking.booking_date.strftime('%d/%m/%Y') }} · {{ booking.start_time.strftime('%H:%M') }}–{{ booking.end_time.strftime('%H:%M') }}</p>
+            </div>
+            <div class="admin-detail-hero-status">
+                <span>Trạng thái hiện tại</span>
+                <span class="status-badge status-{{ detail.effective_status|lower }}">{{ match_status_labels[detail.effective_status] }}</span>
+            </div>
+        </header>
+
+        <div class="admin-detail-layout">
+            <main class="admin-detail-main">
+                <section class="admin-detail-card" aria-labelledby="match-booking-title">
+                    <div class="admin-detail-card-heading">
+                        <div><span class="admin-section-kicker">LỊCH ĐẶT LIÊN QUAN</span><h2 id="match-booking-title">Bối cảnh Booking</h2></div>
+                        <a class="admin-booking-detail-link mt-0" href="{{ url_for('admin.booking_detail', booking_code=booking.booking_code) }}">Mở Booking Detail <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+                    </div>
+                    <dl class="admin-detail-info-grid">
+                        <div><dt>Mã lịch đặt</dt><dd><a class="admin-match-booking-link" href="{{ url_for('admin.booking_detail', booking_code=booking.booking_code) }}">{{ booking.booking_code }}</a></dd></div>
+                        <div><dt>Trạng thái Booking</dt><dd><span class="status-badge status-{{ booking.status|lower }}">{{ booking_status_labels[booking.status] }}</span></dd></div>
+                        <div><dt>Ngày và giờ chơi</dt><dd>{{ booking.booking_date.strftime('%d/%m/%Y') }} · {{ booking.start_time.strftime('%H:%M') }}–{{ booking.end_time.strftime('%H:%M') }}</dd></div>
+                        <div><dt>Khách đặt sân</dt><dd>{{ booking.user.full_name }}<small>{{ booking.user.email }}</small></dd></div>
+                        <div><dt>Cơ sở</dt><dd>{{ booking.field.venue.name }}</dd></div>
+                        <div><dt>Sân / Bộ môn</dt><dd>{{ booking.field.name }}<small>{{ booking.field.field_type.sport.name }}</small></dd></div>
+                    </dl>
+                    {% if booking.cancellation_reason %}<div class="admin-detail-note tone-danger"><strong>Lý do hủy Booking</strong><p>{{ booking.cancellation_reason }}</p></div>{% endif %}
+                </section>
+
+                <section class="admin-detail-card" aria-labelledby="match-creator-title">
+                    <div class="admin-detail-card-heading">
+                        <div><span class="admin-section-kicker">NGƯỜI TẠO VÀ QUY MÔ</span><h2 id="match-creator-title">Thông tin kèo</h2></div>
+                    </div>
+                    <dl class="admin-detail-info-grid">
+                        <div><dt>Người tạo</dt><dd>{{ match.creator.full_name }}<small>{{ match.creator.email }}</small></dd></div>
+                        <div><dt>Loại kèo</dt><dd>{{ match_type_labels[match.match_type] }}</dd></div>
+                        <div><dt>Số người cần thêm</dt><dd>{{ match.required_players }}</dd></div>
+                        <div><dt>Đã tham gia</dt><dd>{{ detail.joined_participants }}</dd></div>
+                        {% if match.total_players %}<div><dt>Quy mô nhóm dự kiến</dt><dd>{{ match.total_players }} người</dd></div>{% endif %}
+                        <div><dt>Tổng bản ghi người tham gia</dt><dd>{{ detail.total_participants }}</dd></div>
+                    </dl>
+                    {% if match.description %}<div class="admin-detail-note"><strong>Mô tả được lưu</strong><p>{{ match.description }}</p></div>{% endif %}
+                </section>
+
+                <section class="admin-detail-card" aria-labelledby="match-participants-title">
+                    <div class="admin-detail-card-heading">
+                        <div><span class="admin-section-kicker">NGƯỜI THAM GIA</span><h2 id="match-participants-title">Yêu cầu và trạng thái hiện tại</h2></div>
+                        <span class="admin-detail-count">{{ detail.total_participants }} bản ghi</span>
+                    </div>
+                    {% if match.participants %}
+                        <div class="admin-participant-table-shell">
+                            <table class="admin-participant-table">
+                                <thead><tr><th>Người tham gia</th><th>Vai trò</th><th>Trạng thái</th><th>Mốc được lưu</th><th>Khoản đóng góp tham chiếu</th></tr></thead>
+                                <tbody>
+                                    {% for participant in match.participants %}
+                                        <tr data-participant-row="{{ participant.id }}">
+                                            <td data-label="Người tham gia"><strong>{{ participant.user.full_name }}</strong><small>{{ participant.user.email }}</small></td>
+                                            <td data-label="Vai trò"><strong>{{ participant_type_labels[participant.participant_type] }}</strong></td>
+                                            <td data-label="Trạng thái"><span class="status-badge status-{{ participant.status|lower }}">{{ participant_status_labels[participant.status] }}</span></td>
+                                            <td data-label="Mốc được lưu">
+                                                <span>Tạo: {{ participant.created_at.strftime('%d/%m/%Y %H:%M') }}</span>
+                                                <small>Quyết định: {{ participant.decided_at.strftime('%d/%m/%Y %H:%M') if participant.decided_at else 'Chưa có' }}</small>
+                                                {% if participant.payment_due_at %}<small class="admin-participant-deadline">Hạn thanh toán cọc: {{ participant.payment_due_at.strftime('%d/%m/%Y %H:%M') }}</small>{% endif %}
+                                            </td>
+                                            <td data-label="Khoản đóng góp tham chiếu">
+                                                {% if participant.contribution %}
+                                                    {% set contribution = participant.contribution %}
+                                                    <strong>{{ contribution_type_labels[contribution.contribution_type] }}</strong>
+                                                    <span>Phải đóng: {{ contribution.amount_due|vnd_currency }}</span>
+                                                    <small>Hiện ghi nhận: {{ contribution.amount_paid|vnd_currency }}</small>
+                                                    <span class="status-badge status-{{ contribution.status|lower }}">{{ contribution_status_labels[contribution.status] }}</span>
+                                                {% else %}
+                                                    <span>Không có nghĩa vụ online được liên kết.</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-secondary mb-0">Kèo chưa có yêu cầu tham gia được lưu.</p>
+                    {% endif %}
+                </section>
+
+                <section class="admin-detail-card" aria-labelledby="match-events-title" data-admin-match-events>
+                    <div class="admin-detail-card-heading">
+                        <div><span class="admin-section-kicker">LỊCH SỬ CÓ MỐC THỜI GIAN</span><h2 id="match-events-title">Sự kiện đã ghi nhận</h2></div>
+                    </div>
+                    <ol class="admin-recorded-events">
+                        {% for event in detail.historical_events %}
+                            <li data-event-type="{{ event.event_type }}">
+                                <time datetime="{{ event.occurred_at.isoformat() }}">{{ event.occurred_at.strftime('%d/%m/%Y %H:%M') }}</time>
+                                <div>
+                                    {% if event.event_type == 'match_created' %}<strong>Kèo chơi được tạo</strong><span>Kèo #{{ match.id }} · {{ match.title }}</span>
+                                    {% elif event.event_type == 'participant_created' %}<strong>Yêu cầu tham gia được ghi nhận</strong><span>{{ event.record.user.full_name }}</span>
+                                    {% elif event.event_type == 'participant_decided' %}<strong>Quyết định người tham gia được ghi nhận</strong><span>{{ event.record.user.full_name }} · {{ participant_status_labels[event.record.status] }}</span>
+                                    {% endif %}
+                                </div>
+                            </li>
+                        {% endfor %}
+                    </ol>
+                    <p class="admin-detail-definition mb-0">Danh sách chỉ dùng thời điểm đã lưu; trạng thái hiện tại không được dùng để tạo mốc lịch sử.</p>
+                </section>
+            </main>
+
+            <aside class="admin-detail-sidebar">
+                <section class="admin-detail-card admin-current-state" aria-labelledby="match-current-state-title">
+                    <span class="admin-section-kicker">TRẠNG THÁI HIỆN TẠI</span>
+                    <h2 id="match-current-state-title">Match và Booking</h2>
+                    <div class="admin-current-state-row" data-current-match-status="{{ match.status }}" data-current-match-effective-status="{{ detail.effective_status }}"><span>Kèo #{{ match.id }}</span><span class="status-badge status-{{ detail.effective_status|lower }}">{{ match_status_labels[detail.effective_status] }}</span></div>
+                    <div class="admin-current-state-row" data-current-booking-status="{{ booking.status }}"><span>Booking</span><span class="status-badge status-{{ booking.status|lower }}">{{ booking_status_labels[booking.status] }}</span></div>
+                    <p class="admin-detail-definition mb-0">Các trạng thái hiện tại không xác định thời điểm chuyển trạng thái nếu hệ thống không lưu mốc riêng.</p>
+                </section>
+
+                <section class="admin-detail-card" aria-labelledby="match-financial-title">
+                    <span class="admin-section-kicker">THAM CHIẾU TÀI CHÍNH</span>
+                    <h2 id="match-financial-title">Số tiền trên Booking</h2>
+                    <span class="admin-booking-policy admin-booking-policy-{{ booking.payment_policy|lower }}">{{ booking_payment_policy_labels[booking.payment_policy] }}</span>
+                    <dl class="admin-match-money">
+                        <div><dt>Tổng tiền sân</dt><dd>{{ booking.total_amount|vnd_currency }}</dd></div>
+                        <div><dt>Online ròng đang ghi nhận</dt><dd>{{ booking.paid_amount|vnd_currency }}</dd></div>
+                        <div><dt>Còn thanh toán tại sân</dt><dd>{{ booking.balance_due_at_venue|vnd_currency }}</dd></div>
+                    </dl>
+                    <p class="admin-detail-definition mb-0">Số tại sân bằng tổng tiền sân trừ số online ròng đang ghi nhận; không suy ra theo tỷ lệ cố định.</p>
+                </section>
+
+                <section class="admin-detail-card admin-investigation-summary" aria-labelledby="match-investigation-title">
+                    <span class="admin-section-kicker">ĐIỀU TRA READ-ONLY</span>
+                    <h2 id="match-investigation-title">Tóm tắt cần kiểm tra</h2>
+                    <ul>
+                        <li>Kèo hiện ở trạng thái <strong>{{ match_status_labels[detail.effective_status] }}</strong>.</li>
+                        <li>Booking liên quan ở trạng thái <strong>{{ booking_status_labels[booking.status] }}</strong>.</li>
+                        {% if detail.pending_participants %}<li class="tone-warning" data-match-attention="pending"><strong>{{ detail.pending_participants }} yêu cầu tham gia đang chờ xử lý.</strong> Đây là trạng thái theo dõi, không tự động là lỗi.</li>{% endif %}
+                        {% if detail.awaiting_payment_participants %}<li class="tone-warning" data-match-attention="awaiting-payment"><strong>{{ detail.awaiting_payment_participants }} người đang chờ thanh toán cọc.</strong> Đây là trạng thái theo dõi, không tự động là lỗi.</li>{% endif %}
+                        {% if not detail.pending_participants and not detail.awaiting_payment_participants %}<li>Không có yêu cầu tham gia hoặc khoản cọc đối thủ đang chờ xử lý.</li>{% endif %}
+                        {% if detail.closed_participants %}<li data-closed-participants="{{ detail.closed_participants }}">Có <strong>{{ detail.closed_participants }}</strong> yêu cầu đã từ chối, hết hạn hoặc rút khỏi kèo.</li>{% endif %}
+                        {% if booking.cancellation_reason %}<li>Lý do hủy Booking: <strong>{{ booking.cancellation_reason }}</strong></li>{% endif %}
+                    </ul>
+                    <p>Trang này không thay đổi Match, participant, Booking, contribution, Payment hoặc Refund.</p>
+                </section>
+            </aside>
+        </div>
+    </div>
+</section>
+{% endblock %}

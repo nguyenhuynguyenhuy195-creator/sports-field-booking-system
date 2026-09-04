@@ -26,15 +26,18 @@ from app.models import (
     UserStatus,
 )
 from app.services import (
+    ADMIN_MATCH_EFFECTIVE_ENDED_STATUS,
     AdminError,
     get_admin_account_detail,
     get_admin_account_summary,
     get_admin_booking_detail,
     get_admin_booking_filter_options,
     get_admin_dashboard_summary,
+    get_admin_match_detail,
     get_admin_monitoring_location,
     list_admin_accounts,
     list_admin_booking_operations,
+    list_admin_match_operations,
     list_admin_bookings,
     list_admin_catalog,
     list_admin_matches,
@@ -107,6 +110,7 @@ MATCH_STATUS_LABELS = {
     MatchStatus.CONFIRMED.value: "Đã có đối thủ",
     MatchStatus.CANCELLED.value: "Đã hủy",
     MatchStatus.COMPLETED.value: "Đã hoàn thành",
+    ADMIN_MATCH_EFFECTIVE_ENDED_STATUS: "Đã kết thúc",
 }
 
 MATCH_TYPE_LABELS = {
@@ -185,6 +189,19 @@ LEGACY_MONITORING_FOCUS = {
 BOOKING_LIST_RETURN_PARAMETERS = (
     "q",
     "status",
+    "sport",
+    "date",
+    "province_code",
+    "ward_code",
+    "venue",
+    "field",
+    "page",
+)
+
+MATCH_LIST_RETURN_PARAMETERS = (
+    "q",
+    "status",
+    "match_type",
     "sport",
     "date",
     "province_code",
@@ -507,6 +524,108 @@ def booking_detail(booking_code: str):
     )
 
 
+@admin_bp.get("/matches")
+@roles_required(UserRole.ADMIN)
+def match_operations():
+    query = (request.args.get("q") or "").strip()
+    status = (request.args.get("status") or "").strip()
+    match_type = (request.args.get("match_type") or "").strip()
+    sport_code = (request.args.get("sport") or "").strip()
+    booking_date_raw = (request.args.get("date") or "").strip()
+    province_code = (request.args.get("province_code") or "").strip()
+    ward_code = (request.args.get("ward_code") or "").strip()
+    page = max(request.args.get("page", 1, type=int) or 1, 1)
+
+    try:
+        venue_id = _parse_booking_filter_id("venue", "Cơ sở")
+        field_id = _parse_booking_filter_id("field", "Sân")
+        booking_date = (
+            date.fromisoformat(booking_date_raw) if booking_date_raw else None
+        )
+    except (AdminError, ValueError):
+        flash("Bộ lọc kèo chơi không hợp lệ.", "warning")
+        return redirect(url_for("admin.match_operations"))
+
+    try:
+        filter_options = get_admin_booking_filter_options(
+            province_code=province_code,
+            ward_code=ward_code,
+            venue_id=venue_id,
+            field_id=field_id,
+        )
+        match_page = list_admin_match_operations(
+            query=query,
+            status=status,
+            match_type=match_type,
+            sport_code=sport_code,
+            booking_date=booking_date,
+            province_code=province_code,
+            ward_code=ward_code,
+            venue_id=venue_id,
+            field_id=field_id,
+            page=page,
+        )
+    except AdminError as exc:
+        flash(str(exc), "warning")
+        return redirect(url_for("admin.match_operations"))
+
+    pagination_params = {
+        "q": query or None,
+        "status": status or None,
+        "match_type": match_type or None,
+        "sport": sport_code or None,
+        "date": booking_date_raw or None,
+        "province_code": province_code or None,
+        "ward_code": ward_code or None,
+        "venue": venue_id,
+        "field": field_id,
+    }
+    return render_template(
+        "admin/matches/index.html",
+        match_page=match_page,
+        catalog=list_admin_catalog(),
+        filter_options=filter_options,
+        query=query,
+        selected_status=status,
+        selected_match_type=match_type,
+        selected_sport=sport_code,
+        selected_date=booking_date_raw,
+        selected_province_code=province_code,
+        selected_ward_code=ward_code,
+        selected_venue_id=venue_id,
+        selected_field_id=field_id,
+        pagination_params=pagination_params,
+        match_status_labels=MATCH_STATUS_LABELS,
+        match_type_labels=MATCH_TYPE_LABELS,
+    )
+
+
+@admin_bp.get("/matches/<int:match_id>")
+@roles_required(UserRole.ADMIN)
+def match_detail(match_id: int):
+    try:
+        detail = get_admin_match_detail(match_id)
+    except AdminError as exc:
+        flash(str(exc), "warning")
+        return redirect(url_for("admin.match_operations"))
+
+    return render_template(
+        "admin/matches/detail.html",
+        detail=detail,
+        match=detail.match,
+        booking=detail.match.booking,
+        match_list_params=_match_list_return_params(),
+        booking_status_labels=BOOKING_STATUS_LABELS,
+        booking_payment_policy_labels=BOOKING_PAYMENT_POLICY_LABELS,
+        contribution_status_labels=CONTRIBUTION_STATUS_LABELS,
+        contribution_type_labels=CONTRIBUTION_TYPE_LABELS,
+        match_status_labels=MATCH_STATUS_LABELS,
+        match_type_labels=MATCH_TYPE_LABELS,
+        participant_status_labels=PARTICIPANT_STATUS_LABELS,
+        participant_type_labels=PARTICIPANT_TYPE_LABELS,
+    )
+
+
 @admin_bp.get("/monitoring")
 @roles_required(UserRole.ADMIN)
 def monitoring():
@@ -518,6 +637,10 @@ def monitoring():
         redirect_args["section"] = "bookings"
         redirect_args["focus"] = LEGACY_MONITORING_FOCUS[section]
         return redirect(url_for("admin.monitoring", **redirect_args))
+    if section == "matches":
+        return redirect(
+            url_for("admin.match_operations", **_match_list_return_params())
+        )
 
     section_keys = {key for key, _ in MONITORING_SECTIONS}
     if section not in section_keys:
@@ -700,6 +823,25 @@ def _booking_list_return_params() -> dict[str, str | int]:
     """Keep only controlled Booking-list state for canonical back links."""
     params: dict[str, str | int] = {}
     for parameter in BOOKING_LIST_RETURN_PARAMETERS:
+        raw_value = (request.args.get(parameter) or "").strip()
+        if not raw_value:
+            continue
+        if parameter in {"venue", "field", "page"}:
+            try:
+                numeric_value = int(raw_value)
+            except ValueError:
+                continue
+            if numeric_value > 0:
+                params[parameter] = numeric_value
+            continue
+        params[parameter] = raw_value[:100]
+    return params
+
+
+def _match_list_return_params() -> dict[str, str | int]:
+    """Keep only controlled Match-list state for links and legacy mapping."""
+    params: dict[str, str | int] = {}
+    for parameter in MATCH_LIST_RETURN_PARAMETERS:
         raw_value = (request.args.get(parameter) or "").strip()
         if not raw_value:
             continue
