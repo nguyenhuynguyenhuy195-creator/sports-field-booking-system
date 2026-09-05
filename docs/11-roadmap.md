@@ -321,20 +321,22 @@ Theo quyết định ngày 31/08/2026 và bổ sung Phase 1.3 ngày 02/09/2026:
 
 - Lịch sử: Phase 2 từng được tạm hoãn để ưu tiên Owner Console và Phase 1.3
   Location & Map Enhancement.
-- Sau khi các phần ưu tiên đã hoàn tất, Phase 2 đã được kích hoạt: Step 2.1 và
-  2.2 accepted; Step 2.3 và 2.6 là phần implementation còn lại.
+- Sau khi các phần ưu tiên đã hoàn tất, Phase 2 đã được kích hoạt: Step 2.1,
+  2.2 và 2.3 accepted; Step 2.6 là phần implementation còn lại.
 
 ---
 
 ## PHASE 2 – ADMIN OPERATIONS
 
-**Trạng thái: IN PROGRESS — Step 2.1 và Step 2.2 DONE / ACCEPTED**
+**Trạng thái: IN PROGRESS — Step 2.1, Step 2.2 và Step 2.3 DONE / ACCEPTED**
 
-- Step 2.1 và 2.2 đã hoàn thành trên các route canonical `/admin/bookings` và
-  `/admin/bookings/<booking_code>`.
+- Step 2.1, 2.2 và 2.3 đã hoàn thành trên các route canonical
+  `/admin/bookings`, `/admin/bookings/<booking_code>`, `/admin/matches` và
+  `/admin/matches/<id>`.
 - Payment/Refund backend engines, database records và immutable history được
   giữ nguyên; Admin điều tra chúng trong Booking Detail, không qua module UI riêng.
-- Step 2.3 và Step 2.6 là phần implementation còn lại của Phase 2.
+- Business audit và UI/UX contract cho Step 2.6 đã hoàn tất. ADR-037 đã chốt
+  policy Settlement/simulated payout; implementation Step 2.6 vẫn chưa bắt đầu.
 
 ### Step 2.1 – Lịch đặt sân
 
@@ -354,10 +356,12 @@ Theo quyết định ngày 31/08/2026 và bổ sung Phase 1.3 ngày 02/09/2026:
 
 ### Step 2.3 – Kèo chơi
 
-**Trạng thái: PENDING**
+**Trạng thái: DONE / ACCEPTED**
 
-- Monitoring.
-- Moderation-related information.
+- Match Operations read-only tại `/admin/matches` và `/admin/matches/<id>`.
+- Search/filter/pagination, Booking/creator/participant context, effective
+  operational status và historical events từ timestamp thực.
+- Không sửa Match/Booking/contribution lifecycle hoặc matchmaking engine.
 
 ### Step 2.4 – Dedicated Payment Operations
 
@@ -377,14 +381,24 @@ Theo quyết định ngày 31/08/2026 và bổ sung Phase 1.3 ngày 02/09/2026:
 
 ### Step 2.6 – Settlement / đối soát chủ sân
 
-**Trạng thái: PENDING**
+**Trạng thái: AUDIT + UI/UX CONTRACT DONE; POLICY FINALIZED IN ADR-037; IMPLEMENTATION PENDING**
 
 - PENDING.
 - ELIGIBLE.
-- SETTLED.
-- FAILED.
 - ON_HOLD.
-- Payout sandbox hoặc simulated payout.
+- FAILED.
+- SETTLED.
+- CLOSED — “Đã đóng – không chi trả”.
+- Settlement chỉ dùng tiền online thực tế phải trả Owner; không bao gồm phần
+  tiền thanh toán trực tiếp tại sân.
+- Booking lifecycle không chờ Settlement; mốc đủ điều kiện bình thường là
+  thời gian kết thúc lịch đặt cộng 30 phút theo giờ Việt Nam.
+- Chỉ dùng `SimulatedPayoutAdapter`, destination mô phỏng và Flask CLI
+  idempotent `flask settlements sync`; không payout tiền thật hoặc background
+  worker.
+- Admin thực hiện payout từ Settlement Detail; Owner chỉ xem và cấu hình đích
+  nhận mô phỏng. Không tạo sidebar/link Settlement trước khi implementation
+  được accepted.
 
 ---
 
@@ -591,7 +605,8 @@ Hiện tại:
 - Phase 1B: DONE.
 - Phase 1.2: DONE / ACCEPTED (30/08/2026).
 - Phase 1.3: DONE / ACCEPTED (03/09/2026); 1.3A đến 1.3F đều đã nghiệm thu.
-- Phase 2: IN PROGRESS — Step 2.1 và 2.2 DONE / ACCEPTED; Step 2.3 và 2.6 PENDING.
+- Phase 2: IN PROGRESS — Step 2.1, 2.2 và 2.3 DONE / ACCEPTED; Step 2.6 đã
+  hoàn tất business audit, UI/UX contract và ADR-037, implementation PENDING.
 - Phase 3: DONE / ACCEPTED (02/09/2026).
 - Phase 4: NOT YET AUDITED / ACCEPTED.
 - Phase 4.1: NOT STARTED.
@@ -602,10 +617,10 @@ Thứ tự thực hiện hiện hành:
 
 > **Phase 1.2 → Phase 3 → Phase 1.3 → Phase 2 → Phase 4 → Phase 4.1 → Phase 5 → Phase 6 → Final**
 
-Lý do: Owner Console và Location & Map Enhancement đã hoàn tất; Phase 2 tiếp tục
-với Match Operations (Step 2.3), Settlement/Payout (Step 2.6), sau đó là review
-consistency/regression cuối. Step 2.4 và 2.5 được giữ số lịch sử nhưng không có
-dedicated Admin UI.
+Lý do: Owner Console và Location & Map Enhancement đã hoàn tất; Match Operations
+(Step 2.3) cũng đã accepted. Phase 2 tiếp tục với implementation
+Settlement/simulated payout (Step 2.6), sau đó là review consistency/regression
+cuối. Step 2.4 và 2.5 được giữ số lịch sử nhưng không có dedicated Admin UI.
 
 ### Phase 1B
 
@@ -639,11 +654,12 @@ DONE:
 
 **PHASE 2 – ADMIN OPERATIONS — IN PROGRESS**
 
-Step 2.1 Booking Operations và Step 2.2 Booking Detail đã DONE / ACCEPTED.
-Payment/Refund tiếp tục được bảo toàn là engine và immutable history, được Admin
-giám sát trong Booking Detail thay vì dedicated screen. Phần còn lại là Step 2.3
-Match Operations, Step 2.6 Settlement/Payout và review consistency/regression
-cuối; không có Step 2.7.
+Step 2.1 Booking Operations, Step 2.2 Booking Detail và Step 2.3 Match Operations
+đã DONE / ACCEPTED. Payment/Refund tiếp tục được bảo toàn là engine và immutable
+history, được Admin giám sát trong Booking Detail thay vì dedicated screen.
+ADR-037 đã chốt policy; task implementation còn lại là Step 2.6
+Settlement/simulated payout và review consistency/regression cuối; không có
+Step 2.7.
 
 ---
 

@@ -199,13 +199,17 @@ Kiểm tra và tạo booking phải nằm trong cùng transaction.
 
 Booking PAID hoặc FIND_OPPONENT PARTIALLY_PAID hợp lệ được chuyển COMPLETED sau khi thời gian sử dụng kết thúc. MVP không yêu cầu owner xác nhận số còn lại thanh toán tại sân.
 
+Mốc cộng 30 phút không trì hoãn lifecycle Booking; mốc này chỉ được dùng để
+xác định thời điểm đủ điều kiện Settlement sớm nhất theo ADR-037.
+
 ## 3.5. MoMo Sandbox, contribution và refund
 
 ### BR-027: Ranh giới provider
 
 - MoMo Sandbox dùng trong bản trình diễn, không có tiền thật.
 - MOCK dùng cho phát triển/test và áp dụng cùng quy tắc số tiền nhưng không gọi MoMo.
-- MoMo Production, QR ngân hàng thật, ví admin và payout không thuộc MVP.
+- MoMo Production, QR ngân hàng thật, ví admin và payout tiền thật không thuộc
+  MVP. Phase 2.6 chỉ cho phép simulated payout theo ADR-037.
 
 ### BR-028: Phân bổ contribution
 
@@ -294,3 +298,114 @@ Booking PAID hoặc FIND_OPPONENT PARTIALLY_PAID hợp lệ được chuyển CO
 
 - Liên kết chỉ đường không chứa API key và mở ở tab mới với `noopener noreferrer`.
 - Ứng dụng không tải Maps JavaScript API hoặc Places API.
+
+## 3.8. Settlement và simulated payout
+
+Các quy tắc trong mục này là contract cho implementation Phase 2.6; ADR-037 là
+nguồn quyết định đầy đủ.
+
+### BR-038: Phạm vi và số tiền Settlement
+
+- Settlement chỉ đại diện cho tiền online hệ thống đã thu và phải trả cho
+  Owner; tiền dự kiến trả trực tiếp tại sân không thuộc Settlement.
+- `Booking.paid_amount` là số tiền online ròng hiện đang được ghi nhận và
+  `balance_due_at_venue = Booking.total_amount - Booking.paid_amount`.
+- Không hard-code 70%, 30% hoặc 15%; phải đọc chứng cứ tài chính thực tế và
+  giữ đúng `DEPOSIT_30`, trường hợp `FIND_OPPONENT` mới thu 15%, cùng
+  `LEGACY_FULL_ONLINE`.
+- Với Booking hợp lệ, `gross_online_amount` là tổng Payment `SUCCESS` được
+  chấp nhận, `successful_refund_amount` là tổng Refund `SUCCESS` áp dụng và
+  `settlement_amount = gross_online_amount - successful_refund_amount`.
+- Settlement amount phải đối soát với online net hiện hành. Contribution chỉ
+  dùng để kiểm tra phân bổ/nghĩa vụ, không được cộng trùng với Payment.
+- Booking chưa từng có khoản online được nhận diện thì không tạo Settlement.
+
+### BR-039: Trạng thái Settlement
+
+- `PENDING`: có tiền online được nhận diện nhưng chưa đến mốc đủ điều kiện hoặc
+  còn prerequisite không phải ngoại lệ.
+- `ELIGIBLE`: hiện tại an toàn để Admin thực hiện simulated payout.
+- `ON_HOLD`: còn cancellation, refund hoặc sai lệch tài chính chưa giải quyết.
+- `FAILED`: simulated payout gần nhất lỗi kỹ thuật; được retry sau revalidation.
+- `SETTLED`: simulated payout đã thành công và là terminal trong Phase 2.6.
+- `CLOSED`: terminal, nhãn “Đã đóng – không chi trả”, dùng khi Settlement cần
+  được giữ làm chứng cứ nhưng số tiền phải trả cuối cùng bằng 0 trước payout.
+- Không tạo `PayoutAttempt` số tiền 0 và không có payout action cho `PENDING`,
+  `ON_HOLD`, `SETTLED` hoặc `CLOSED`.
+
+### BR-040: Điều kiện đủ để chi trả
+
+- Booking lifecycle hoàn thành ngay sau thời gian sử dụng kết thúc; Settlement
+  chỉ đủ điều kiện bình thường từ thời gian kết thúc cộng 30 phút, theo thời
+  gian địa phương Việt Nam.
+- `ELIGIBLE` yêu cầu Booking ở trạng thái hoàn thành/phải trả được chấp nhận,
+  payable online amount dương, Payment/Refund/contribution đối soát được,
+  không có Refund `PENDING`/`PROCESSING`/`FAILED`, không có late provider
+  payment chưa được xử lý đúng, quan hệ Owner/Venue hợp lệ và có simulated
+  payout destination.
+- Creator-cancelled có khoản cọc bị giữ hợp lệ có thể phải trả sau cùng mốc
+  thời gian nếu refund đã giải quyết, số tiền bị giữ dương, đối soát đạt và có
+  destination. Booking vẫn giữ `CANCELLED`; Settlement không sửa lifecycle đó.
+- Owner-cancelled không bao giờ là trường hợp có số tiền phải trả cho Owner.
+
+### BR-041: Refund, cancellation và zero net
+
+- Refund `SUCCESS` là lịch sử bất biến và được trừ khi tính online net; nó
+  không chặn Settlement vĩnh viễn nếu phần còn lại vẫn phải trả và đối soát.
+- Refund `PENDING`, `PROCESSING` hoặc `FAILED` bắt buộc Settlement `ON_HOLD`.
+  Sau khi ngoại lệ được giải quyết, service được revalidate trạng thái.
+- Tiền online của creator bị giữ theo cancellation policy thuộc Owner như bồi
+  thường cho khung giờ đã giữ, không phải doanh thu nền tảng. Refund phải trả
+  participant khác được xử lý trước khi chốt số tiền phải trả.
+- Owner cancellation giữ Settlement `ON_HOLD` trong lúc refund chưa xong và
+  chuyển `CLOSED` khi số tiền phải trả cuối cùng bằng 0.
+- Full Refund hoặc một ngoại lệ hợp lệ làm zero net trước payout cũng chuyển
+  Settlement hiện có sang `CLOSED`.
+
+### BR-042: Payment và dữ liệu legacy
+
+- Payment `FAILED`, `CANCELLED` hoặc `EXPIRED` lịch sử không giữ Settlement
+  vĩnh viễn nếu Payment được chấp nhận sau đó tạo financial state hợp lệ.
+- Payment `EXPIRED` nhưng được provider xác nhận thành công muộn không được
+  tính là payable nếu chưa thuộc financial state đã chấp nhận; nếu đang chờ
+  refund thì Settlement là `ON_HOLD` hoặc không payable tùy chứng cứ.
+- `LEGACY_FULL_ONLINE` có `paid_amount` nhưng thiếu Payment evidence phải là
+  `ON_HOLD`; không tạo Payment giả.
+- Legacy có Payment/Refund hợp lệ và positive net được tạo `PENDING` hoặc
+  `ELIGIBLE`; financial mismatch là `ON_HOLD`; chứng cứ zero net/full refund
+  có thể tạo `CLOSED` để giữ audit trail.
+
+### BR-043: Simulated payout destination và attempt
+
+- Mỗi Owner có tối đa một destination đang hoạt động với
+  `provider = SIMULATED`, `destination_label` và demo `account_reference`;
+  không lưu credential ngân hàng/MoMo thật.
+- Trước payout, UI hiển thị destination hiện tại sẽ được snapshot khi xác
+  nhận. Mỗi `PayoutAttempt` lưu snapshot riêng; đổi destination không sửa
+  attempt lịch sử.
+- Chỉ Admin POST payout từ Settlement Detail. Owner chỉ xem trạng thái và kết
+  quả, không được sửa amount/status hoặc kích hoạt payout.
+- Chỉ `ELIGIBLE` được payout; `FAILED` được retry sau revalidation. Mỗi attempt
+  có idempotency key/reference duy nhất; request trùng không tạo attempt trùng,
+  retry tạo attempt mới và không có giới hạn retry cố định trong MVP.
+
+### BR-044: SETTLED và ngoại lệ phát sinh muộn
+
+- `SETTLED` không tự reverse, không bị giảm số tiền lịch sử, không tạo payout
+  bù trừ và không gọi adapter lần nữa.
+- Refund hoặc sai lệch xuất hiện sau `SETTLED` giữ nguyên Settlement/attempt và
+  được biểu diễn thành post-settlement variance/manual-review trong Admin read
+  model khi có thể.
+- Clawback, adjustment và Dispute model nằm ngoài Phase 2.6 MVP.
+
+### BR-045: Đồng bộ Settlement
+
+- Dùng Flask CLI idempotent `flask settlements sync`; không dùng Celery,
+  APScheduler hoặc background worker.
+- CLI phát hiện khoản online, tạo/backfill Settlement, refresh số tiền chưa
+  terminal và chuyển `PENDING`/`ELIGIBLE`/`ON_HOLD`/`CLOSED`.
+- CLI được revalidate `FAILED` nhưng không tự retry payout; payout chỉ xảy ra
+  qua POST Admin có kiểm soát.
+- CLI và Admin/Owner GET không sửa Booking lifecycle, Payment, Refund hoặc
+  Match, không payout và không tạo lịch sử giả.
+- Legacy backfill thuộc application service/CLI, không thuộc Alembic migration.
