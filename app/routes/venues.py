@@ -50,6 +50,21 @@ from app.services import (
 
 venues_bp = Blueprint("venues", __name__)
 
+VENUE_SEARCH_CONTEXT_KEYS = (
+    "q", "province_code", "ward_code", "sport", "field_type",
+    "min_price", "max_price", "latitude", "longitude", "sort", "page",
+)
+
+
+def _venue_search_context():
+    """Keep only Find Venue query values; never accept a return URL or host."""
+    return {
+        key: request.args[key]
+        for key in VENUE_SEARCH_CONTEXT_KEYS
+        if request.args.get(key, "").strip()
+    }
+
+
 VENUE_STATUS_LABELS = {
     VenueStatus.PENDING.value: "Đang chờ duyệt",
     VenueStatus.ACTIVE.value: "Đang hoạt động",
@@ -124,12 +139,16 @@ def index():
             flash(str(exc), "danger")
             search_is_valid = False
 
-    venue_map_results = _public_search_map_data(venue_results)
+    search_context = _venue_search_context()
+    if search_page is not None and "page" in search_context:
+        search_context["page"] = search_page.page
+    venue_map_results = _public_search_map_data(venue_results, search_context)
 
     return render_template(
         "venues/index.html",
         form=form,
         venue_results=venue_results,
+        search_context=search_context,
         sport_labels={item.code: item.name for item in sports},
         field_type_labels={item.code: item.name for item in field_types},
         province_labels={item.code: item.name for item in provinces},
@@ -190,6 +209,7 @@ def detail(venue_id: int):
     return render_template(
         "venues/detail.html",
         venue=venue,
+        search_back_url=url_for("venues.index", **_venue_search_context()),
         fields=list_public_fields(venue.id),
         day_labels=DAY_OF_WEEK_LABELS,
         directions_url=directions_url,
@@ -213,7 +233,7 @@ def _public_venue_map_data(venue):
     }
 
 
-def _public_search_map_data(venue_results):
+def _public_search_map_data(venue_results, search_context=None):
     """Build map markers only for the current public search result page."""
     markers = []
     for result in venue_results:
@@ -223,6 +243,7 @@ def _public_search_map_data(venue_results):
         marker["detail_url"] = url_for(
             "venues.detail",
             venue_id=result.venue.id,
+            **(search_context or {}),
         )
         distance_label = _format_distance(result.distance_km)
         if distance_label is not None:

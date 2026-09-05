@@ -11,13 +11,16 @@
 
 {% block content %}
 <section class="container venue-search-content venue-detail-page py-4 pb-lg-5">
-    <a class="venue-back-link" href="{{ url_for('venues.index') }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Quay lại danh sách sân</a>
+    <a class="venue-back-link" href="{{ search_back_url }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Quay lại danh sách sân</a>
 
     <article class="venue-detail venue-detail-hero mt-3">
         <div class="venue-detail-hero-main">
             <p class="venue-detail-area mb-2"><i class="bi bi-pin-map" aria-hidden="true"></i> {{ venue.ward_name or venue.district or 'Chưa rõ phường/xã' }} · {{ venue.province_name or venue.city or 'Chưa rõ tỉnh/thành phố' }}</p>
             <h1 class="venue-detail-title mb-3">{{ venue.name }}</h1>
             <p class="venue-location venue-detail-address mb-0"><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ venue.full_address }}</p>
+            {% if fields %}
+                <a class="btn btn-primary mt-3" href="#venue-fields"><i class="bi bi-calendar3 me-2" aria-hidden="true"></i>Chọn sân và xem lịch trống</a>
+            {% endif %}
         </div>
 
         <aside class="venue-info-panel venue-detail-facts" aria-label="Thông tin cơ sở">
@@ -105,7 +108,7 @@
         </section>
     {% endif %}
 
-    <section class="venue-field-section" aria-labelledby="venue-fields-heading">
+    <section class="venue-field-section" id="venue-fields" tabindex="-1" aria-labelledby="venue-fields-heading">
         <div class="venue-section-heading">
             <div>
                 <span class="eyebrow">SÂN ĐANG NHẬN ĐẶT LỊCH</span>

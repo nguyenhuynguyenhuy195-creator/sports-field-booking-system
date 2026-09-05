@@ -738,8 +738,8 @@ def test_find_venue_map_marks_only_coordinate_results_in_current_set(
     assert "Ban do chua ghim" in page
     assert {marker["name"] for marker in markers} == {"Ban do A", "Ban do B"}
     assert {marker["detail_url"] for marker in markers} == {
-        f"/venues/{first_id}",
-        f"/venues/{second_id}",
+        f"/venues/{first_id}?q=Ban+do",
+        f"/venues/{second_id}?q=Ban+do",
     }
     assert all(
         marker["latitude"] != "0.000000"
@@ -793,7 +793,7 @@ def test_find_venue_map_tracks_the_existing_sport_filter(app, client):
     assert markers == [
         {
             "address": "4 Duong D, Phuong Tan Hung, TP. Ho Chi Minh",
-            "detail_url": f"/venues/{football_id}",
+            "detail_url": f"/venues/{football_id}?sport=FOOTBALL",
             "latitude": "10.781000",
             "longitude": "106.711000",
             "name": "Loc bong da",

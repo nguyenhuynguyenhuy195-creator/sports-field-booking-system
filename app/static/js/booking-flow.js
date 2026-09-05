@@ -517,6 +517,15 @@
     function renderReview(quote) {
         renderPriceQuote(quote);
         const selectedMode = form.querySelector("input[name='booking_mode']:checked");
+        const findingOpponent = selectedMode?.value === "FIND_OPPONENT";
+        const opponentRow = form.querySelector("[data-review-opponent-row]");
+        if (opponentRow) opponentRow.hidden = !findingOpponent;
+        setText(
+            "[data-review-venue-balance-label]",
+            findingOpponent
+                ? "Trả tại sân khi đối thủ đã cọc (70%)"
+                : "Còn lại thanh toán tại sân (70%)",
+        );
         const selectedModeLabel = selectedMode
             ?.closest("label")
             ?.querySelector("strong")
@@ -560,7 +569,7 @@
                 ? `${plan.requested_players} người ghép không cần cọc và thanh toán tại sân.`
                 : "Bạn thanh toán toàn bộ khoản cọc 30%.";
         }
-        return "Bạn trả 15% để giữ sân; đội nhận kèo trả 15% và tham gia ngay sau khi thanh toán. Không có đối thủ, lịch đặt sân vẫn còn hiệu lực.";
+        return "Bạn cọc 15% để giữ sân. Khi đối thủ cọc thêm 15%, tổng cọc là 30% và còn 70% trả tại sân. Nếu chưa có đối thủ thanh toán, phần cọc 15% của bạn vẫn giữ lịch sân hợp lệ và còn 85% trả tại sân.";
     }
 
     function setText(selector, value) {

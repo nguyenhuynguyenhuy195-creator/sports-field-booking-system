@@ -158,7 +158,7 @@
                                         {% if option.data == 'DIRECT_BOOKING' %}
                                             <small>Bạn trả toàn bộ khoản cọc 30%; phần còn lại thanh toán tại sân.</small>
                                         {% elif option.data == 'FIND_OPPONENT' %}
-                                            <small>Bạn trả 15% để giữ sân; đội nhận kèo trả 15% và tham gia ngay sau khi thanh toán.</small>
+                                            <small>Bạn cọc 15% để giữ sân. Khi đối thủ cọc thêm 15%, còn 70% trả tại sân; nếu chưa có đối thủ thanh toán, còn 85% trả tại sân.</small>
                                         {% else %}
                                             <small>Bạn trả cọc 30%; người ghép không cọc và trả phần của họ tại sân.</small>
                                         {% endif %}
@@ -236,12 +236,12 @@
                                 <span>Bạn thanh toán trước</span>
                                 <strong data-review-creator-amount>—</strong>
                             </div>
-                            <div>
+                            <div data-review-opponent-row hidden>
                                 <span>Phần chờ đội đối thủ thanh toán</span>
                                 <strong data-review-external-amount>—</strong>
                             </div>
                             <div>
-                                <span>Còn lại thanh toán tại sân</span>
+                                <span data-review-venue-balance-label>Còn lại thanh toán tại sân</span>
                                 <strong data-review-venue-balance>—</strong>
                             </div>
                             <p class="small text-secondary mb-0" data-review-contribution-note></p>

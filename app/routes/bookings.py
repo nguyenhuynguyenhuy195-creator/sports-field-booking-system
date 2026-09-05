@@ -391,6 +391,10 @@ def detail(booking_code: str):
         "bookings/detail.html",
         booking=booking,
         effective_status=get_effective_booking_status(booking),
+        booking_has_started=(
+            datetime.combine(booking.booking_date, booking.start_time)
+            <= current_vietnam_datetime()
+        ),
         status_labels=BOOKING_STATUS_LABELS,
         booking_mode_labels=BOOKING_MODE_LABELS,
         contribution_type_labels=CONTRIBUTION_TYPE_LABELS,

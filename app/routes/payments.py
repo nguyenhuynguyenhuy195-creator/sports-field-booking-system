@@ -12,8 +12,8 @@ from flask_login import current_user
 
 from app.decorators import roles_required
 from app.forms import BookingActionForm
-from app.extensions import csrf
-from app.models import UserRole
+from app.extensions import csrf, db
+from app.models import ContributionType, Match, MatchParticipant, UserRole
 from app.services import (
     PaymentError,
     PaymentNotFoundError,
@@ -146,7 +146,7 @@ def momo_return():
         payment = inspect_momo_return(request.args.to_dict())
     except PaymentError as exc:
         flash(f"MoMo chưa xác nhận thanh toán: {exc}", "warning")
-        return redirect(url_for("bookings.index"))
+        return _safe_booking_return()
     if payment.status == "SUCCESS":
         flash("MoMo đã xác nhận khoản cọc thành công.", "success")
     elif payment.status == "PENDING":
@@ -156,7 +156,47 @@ def momo_return():
         )
     else:
         flash("Giao dịch MoMo chưa thành công hoặc đã bị hủy.", "warning")
-    return _booking_redirect(payment.booking.booking_code)
+    return _momo_return_redirect(payment)
+
+
+def _momo_return_redirect(payment):
+    """Choose a view from verified payment relationships, never callback URLs."""
+    contribution = payment.contribution
+    if (
+        contribution.booking_id == payment.booking_id
+        and contribution.contribution_type in {
+            ContributionType.OPPONENT.value,
+            ContributionType.PLAYER.value,
+        }
+    ):
+        match_id = db.session.scalar(
+            db.select(Match.id)
+            .join(MatchParticipant, MatchParticipant.match_id == Match.id)
+            .where(
+                Match.booking_id == payment.booking_id,
+                MatchParticipant.contribution_id == payment.contribution_id,
+                MatchParticipant.user_id == payment.payer_id,
+            )
+            .order_by(Match.id)
+        )
+        if match_id is not None:
+            return redirect(url_for("matches.detail", match_id=match_id))
+
+    if (
+        current_user.is_authenticated
+        and current_user.role in {UserRole.USER.value, UserRole.OWNER.value}
+        and current_user.id == payment.booking.user_id
+    ):
+        return _booking_redirect(payment.booking.booking_code)
+    return _safe_booking_return()
+
+
+def _safe_booking_return():
+    if not current_user.is_authenticated:
+        return redirect(url_for("auth.login", next=url_for("bookings.index")))
+    if current_user.role in {UserRole.USER.value, UserRole.OWNER.value}:
+        return redirect(url_for("bookings.index"))
+    return redirect(url_for("main.home"))
 
 
 @payments_bp.post("/payments/momo/ipn")

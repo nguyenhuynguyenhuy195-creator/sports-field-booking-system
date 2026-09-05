@@ -1786,6 +1786,7 @@ a:hover {
 }
 
 .venue-field-section {
+    scroll-margin-top: 6rem;
     padding-top: 1.6rem;
 }
 
