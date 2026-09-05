@@ -519,6 +519,7 @@ def booking_detail(booking_code: str):
         payment_provider_labels=PAYMENT_PROVIDER_LABELS,
         refund_status_labels=REFUND_STATUS_LABELS,
         match_status_labels=MATCH_STATUS_LABELS,
+        match_status_label=_match_status_label,
         match_type_labels=MATCH_TYPE_LABELS,
         participant_status_labels=PARTICIPANT_STATUS_LABELS,
     )
@@ -596,6 +597,7 @@ def match_operations():
         selected_field_id=field_id,
         pagination_params=pagination_params,
         match_status_labels=MATCH_STATUS_LABELS,
+        match_status_label=_match_status_label,
         match_type_labels=MATCH_TYPE_LABELS,
     )
 
@@ -620,10 +622,24 @@ def match_detail(match_id: int):
         contribution_status_labels=CONTRIBUTION_STATUS_LABELS,
         contribution_type_labels=CONTRIBUTION_TYPE_LABELS,
         match_status_labels=MATCH_STATUS_LABELS,
+        match_status_label=_match_status_label,
         match_type_labels=MATCH_TYPE_LABELS,
         participant_status_labels=PARTICIPANT_STATUS_LABELS,
         participant_type_labels=PARTICIPANT_TYPE_LABELS,
     )
+
+
+def _match_status_label(match, status: str | None = None) -> str:
+    """Describe a voluntarily closed opponent listing without implying Booking cancellation."""
+    current_status = status or match.status
+    if (
+        match.match_type == MatchType.FIND_OPPONENT.value
+        and current_status == MatchStatus.CANCELLED.value
+        and match.booking.status
+        in {BookingStatus.PARTIALLY_PAID.value, BookingStatus.PAID.value}
+    ):
+        return "Đã đóng bài tìm đối thủ"
+    return MATCH_STATUS_LABELS[current_status]
 
 
 @admin_bp.get("/monitoring")

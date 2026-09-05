@@ -18,7 +18,7 @@
             </div>
             <div class="admin-detail-hero-status">
                 <span>Trạng thái hiện tại</span>
-                <span class="status-badge status-{{ detail.effective_status|lower }}">{{ match_status_labels[detail.effective_status] }}</span>
+                <span class="status-badge status-{{ detail.effective_status|lower }}">{{ match_status_label(match, detail.effective_status) }}</span>
             </div>
         </header>
 
@@ -121,7 +121,7 @@
                 <section class="admin-detail-card admin-current-state" aria-labelledby="match-current-state-title">
                     <span class="admin-section-kicker">TRẠNG THÁI HIỆN TẠI</span>
                     <h2 id="match-current-state-title">Match và Booking</h2>
-                    <div class="admin-current-state-row" data-current-match-status="{{ match.status }}" data-current-match-effective-status="{{ detail.effective_status }}"><span>Kèo #{{ match.id }}</span><span class="status-badge status-{{ detail.effective_status|lower }}">{{ match_status_labels[detail.effective_status] }}</span></div>
+                    <div class="admin-current-state-row" data-current-match-status="{{ match.status }}" data-current-match-effective-status="{{ detail.effective_status }}"><span>Kèo #{{ match.id }}</span><span class="status-badge status-{{ detail.effective_status|lower }}">{{ match_status_label(match, detail.effective_status) }}</span></div>
                     <div class="admin-current-state-row" data-current-booking-status="{{ booking.status }}"><span>Booking</span><span class="status-badge status-{{ booking.status|lower }}">{{ booking_status_labels[booking.status] }}</span></div>
                     <p class="admin-detail-definition mb-0">Các trạng thái hiện tại không xác định thời điểm chuyển trạng thái nếu hệ thống không lưu mốc riêng.</p>
                 </section>
@@ -142,7 +142,7 @@
                     <span class="admin-section-kicker">ĐIỀU TRA READ-ONLY</span>
                     <h2 id="match-investigation-title">Tóm tắt cần kiểm tra</h2>
                     <ul>
-                        <li>Kèo hiện ở trạng thái <strong>{{ match_status_labels[detail.effective_status] }}</strong>.</li>
+                        <li>Kèo hiện ở trạng thái <strong>{{ match_status_label(match, detail.effective_status) }}</strong>.</li>
                         <li>Booking liên quan ở trạng thái <strong>{{ booking_status_labels[booking.status] }}</strong>.</li>
                         {% if detail.pending_participants %}<li class="tone-warning" data-match-attention="pending"><strong>{{ detail.pending_participants }} yêu cầu tham gia đang chờ xử lý.</strong> Đây là trạng thái theo dõi, không tự động là lỗi.</li>{% endif %}
                         {% if detail.awaiting_payment_participants %}<li class="tone-warning" data-match-attention="awaiting-payment"><strong>{{ detail.awaiting_payment_participants }} người đang chờ thanh toán cọc.</strong> Đây là trạng thái theo dõi, không tự động là lỗi.</li>{% endif %}

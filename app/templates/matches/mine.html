@@ -45,7 +45,7 @@
             {% if created_matches %}
                 <div class="match-list-grid match-personal-grid">
                     {% for match in created_matches %}
-                        {{ match_marketplace_card(match, 'Quản lý kèo', url_for('matches.detail', match_id=match.id), match_status_labels[match.status], 'match-status match-status-' ~ match.status|lower) }}
+                        {{ match_marketplace_card(match, 'Quản lý kèo', url_for('matches.detail', match_id=match.id), 'Đã đóng bài tìm đối thủ' if match.match_type == 'FIND_OPPONENT' and match.status == 'CANCELLED' and match.booking.status in ['PARTIALLY_PAID', 'PAID'] else match_status_labels[match.status], 'match-status match-status-' ~ match.status|lower) }}
                     {% endfor %}
                 </div>
             {% else %}
@@ -61,7 +61,7 @@
             {% if joined_requests %}
                 <div class="match-list-grid match-personal-grid">
                     {% for request in joined_requests %}
-                        {{ match_marketplace_card(request.match, 'Xem kèo', url_for('matches.detail', match_id=request.match_id), participant_status_labels[request.status], 'participant-status participant-status-' ~ request.status|lower|replace('_', '-')) }}
+                        {{ match_marketplace_card(request.match, 'Xem kèo', url_for('matches.detail', match_id=request.match_id), participant_status_labels[participant_view_status(request)], 'participant-status participant-status-' ~ participant_view_status(request)|lower|replace('_', '-')) }}
                     {% endfor %}
                 </div>
             {% else %}
@@ -78,7 +78,7 @@
                 <p class="marketplace-panel-note">Bao gồm yêu cầu đang xử lý và lịch sử yêu cầu của bạn.</p>
                 <div class="match-list-grid match-personal-grid">
                     {% for request in other_requests %}
-                        {{ match_marketplace_card(request.match, 'Xem kèo', url_for('matches.detail', match_id=request.match_id), participant_status_labels[request.status], 'participant-status participant-status-' ~ request.status|lower|replace('_', '-')) }}
+                        {{ match_marketplace_card(request.match, 'Xem kèo', url_for('matches.detail', match_id=request.match_id), participant_status_labels[participant_view_status(request)], 'participant-status participant-status-' ~ participant_view_status(request)|lower|replace('_', '-')) }}
                     {% endfor %}
                 </div>
             {% else %}

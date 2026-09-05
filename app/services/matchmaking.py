@@ -321,6 +321,7 @@ def list_user_match_requests(user_id: int) -> list[MatchParticipant]:
         )
         .where(MatchParticipant.user_id == user_id)
         .order_by(MatchParticipant.created_at.desc())
+        .execution_options(populate_existing=True)
     )
     return list(db.session.scalars(statement).unique())
 
@@ -328,6 +329,7 @@ def list_user_match_requests(user_id: int) -> list[MatchParticipant]:
 def get_match(match_id: int) -> Match:
     record = db.session.scalar(
         _match_details_statement().where(Match.id == match_id)
+        .execution_options(populate_existing=True)
     )
     if record is None:
         raise MatchNotFoundError("Không tìm thấy kèo.")
@@ -514,6 +516,77 @@ def decide_match_request(
     return participant
 
 
+def match_accepts_actions(match: Match, *, now: datetime | None = None) -> bool:
+    """Read-only time/lifecycle guard shared by the User view state."""
+    return bool(
+        match.status not in {MatchStatus.CANCELLED.value, MatchStatus.COMPLETED.value}
+        and match.booking.status in MATCHABLE_BOOKING_STATUSES
+        and not _booking_has_started(match.booking, current_utc=_normalize_utc(now))
+    )
+
+
+def effective_participant_status(
+    participant: MatchParticipant, *, now: datetime | None = None
+) -> str:
+    """Describe stale requests without assigning to any ORM attribute."""
+    current_utc = _normalize_utc(now)
+    if participant.status in {
+        MatchParticipantStatus.PENDING.value,
+        MatchParticipantStatus.ACCEPTED_AWAITING_PAYMENT.value,
+    } and (
+        _booking_has_started(participant.match.booking, current_utc=current_utc)
+        or (
+            participant.status == MatchParticipantStatus.ACCEPTED_AWAITING_PAYMENT.value
+            and participant.payment_due_at is not None
+            and participant.payment_due_at <= current_utc
+        )
+    ):
+        return MatchParticipantStatus.EXPIRED.value
+    return participant.status
+
+
+def close_opponent_listing(
+    *, match_id: int, creator: User, now: datetime | None = None
+) -> Match:
+    """Close discovery only; keep the paid booking and all financial history."""
+    _validate_actor(creator)
+    current_utc = _normalize_utc(now)
+    booking_id = db.session.scalar(
+        db.select(Match.booking_id).where(Match.id == match_id)
+    )
+    if booking_id is None:
+        raise MatchNotFoundError("Không tìm thấy kèo.")
+    # Serialize with payment/cancellation before locking the match and its hold.
+    db.session.scalar(
+        with_update_lock(
+            db.select(Booking)
+            .where(Booking.id == booking_id)
+            .execution_options(populate_existing=True),
+            Booking,
+        )
+    )
+    match = _lock_match(match_id, refresh=True)
+    if match.creator_id != creator.id:
+        raise MatchPermissionError("Chỉ người tạo kèo được đóng bài tìm đối thủ.")
+    if (
+        match.match_type != MatchType.FIND_OPPONENT.value
+        or match.status != MatchStatus.OPEN.value
+        or match.booking.status not in MATCHABLE_BOOKING_STATUSES
+        or _booking_has_started(match.booking, current_utc=current_utc)
+        or any(p.status == MatchParticipantStatus.JOINED.value for p in match.participants)
+    ):
+        raise InvalidMatchStateError("Bài tìm đối thủ này không thể đóng lúc này.")
+    for participant in match.participants:
+        if participant.status in {
+            MatchParticipantStatus.PENDING.value,
+            MatchParticipantStatus.ACCEPTED_AWAITING_PAYMENT.value,
+        }:
+            _expire_participant(participant, current_utc=current_utc)
+    match.status = MatchStatus.CANCELLED.value
+    _commit_matchmaking("Không thể đóng bài tìm đối thủ lúc này.")
+    return match
+
+
 def withdraw_match_request(
     *,
     match_id: int,
@@ -544,13 +617,24 @@ def withdraw_match_request(
     )
     if participant is None:
         raise MatchNotFoundError("Bạn không có yêu cầu đang hoạt động trong kèo này.")
+    if _booking_has_started(match.booking, current_utc=current_utc):
+        if participant.status in {
+            MatchParticipantStatus.PENDING.value,
+            MatchParticipantStatus.ACCEPTED_AWAITING_PAYMENT.value,
+        }:
+            _expire_participant(participant, current_utc=current_utc)
+            _commit_matchmaking("Không thể cập nhật yêu cầu đã hết hạn.")
+        raise InvalidMatchStateError("Kèo đã bắt đầu nên không thể báo rút.")
+    if (
+        match.status in {MatchStatus.CANCELLED.value, MatchStatus.COMPLETED.value}
+        or match.booking.status not in MATCHABLE_BOOKING_STATUSES
+    ):
+        raise InvalidMatchStateError("Kèo không còn hiệu lực nên không thể báo rút.")
     free_player_join = (
         match.match_type == MatchType.FIND_PLAYERS.value
         and match.booking.payment_policy == BookingPaymentPolicy.DEPOSIT_30.value
     )
     if participant.status == MatchParticipantStatus.JOINED.value and not free_player_join:
-        if _booking_has_started(match.booking, current_utc=current_utc):
-            raise InvalidMatchStateError("Kèo đã bắt đầu nên không thể báo rút.")
         contribution = participant.contribution
         if participant_withdrawal_gets_refund(
             match.booking,
@@ -789,7 +873,7 @@ def _lock_booking_by_code(booking_code: str) -> Booking:
     return booking
 
 
-def _lock_match(match_id: int) -> Match:
+def _lock_match(match_id: int, *, refresh: bool = False) -> Match:
     statement = with_update_lock(
         db.select(Match)
         .options(
@@ -798,7 +882,8 @@ def _lock_match(match_id: int) -> Match:
                 MatchParticipant.contribution
             ),
         )
-        .where(Match.id == match_id),
+        .where(Match.id == match_id)
+        .execution_options(populate_existing=refresh),
         Match,
     )
     match = db.session.scalar(statement)

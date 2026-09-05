@@ -22,7 +22,7 @@
         <div>
             <div class="match-detail-badges">
                 <span class="match-type-badge match-type-{{ match.match_type|lower|replace('_', '-') }}">{{ match_type_labels[match.match_type] }}</span>
-                <span class="match-status match-status-{{ match.status|lower }}">{{ match_status_labels[match.status] }}</span>
+                <span class="match-status match-status-{{ match.status|lower }}">{{ 'Đã đóng bài tìm đối thủ' if match.match_type == 'FIND_OPPONENT' and match.status == 'CANCELLED' and match.booking.status in ['PARTIALLY_PAID', 'PAID'] else match_status_labels[match.status] }}</span>
             </div>
             <h1>{{ match.title }}</h1>
             <p class="match-detail-byline"><i class="bi bi-trophy" aria-hidden="true"></i> {{ match.booking.field.field_type.sport.name }} <span>·</span> Đăng bởi {{ match.creator.full_name }}</p>
@@ -31,6 +31,9 @@
             <a class="btn btn-outline-primary" href="{{ url_for('bookings.detail', booking_code=match.booking.booking_code) }}">Xem lịch đặt và tiền sân</a>
         {% endif %}
     </header>
+    {% if match.match_type == 'FIND_OPPONENT' and match.status == 'CANCELLED' and match.booking.status in ['PARTIALLY_PAID', 'PAID'] %}
+        <p class="alert alert-info">Bài tìm đối thủ đã đóng. Lịch đặt sân và tiền cọc vẫn được giữ nguyên.</p>
+    {% endif %}
 
     <div class="match-detail-layout">
         <main class="match-detail-main">
@@ -96,11 +99,12 @@
                     </div>
                     <div class="match-request-list">
                         {% for participant in match.participants %}
+                            {% set participant_status = participant_view_status(participant) %}
                             <article class="match-request-item">
                                 <div class="flex-grow-1">
                                     <div class="d-flex flex-wrap align-items-center gap-2">
                                         <strong>{{ participant.user.full_name }}</strong>
-                                        <span class="participant-status participant-status-{{ participant.status|lower|replace('_', '-') }}">{{ participant_status_labels[participant.status] }}</span>
+                                        <span class="participant-status participant-status-{{ participant_status|lower|replace('_', '-') }}">{{ participant_status_labels[participant_status] }}</span>
                                     </div>
                                     {% if participant.message %}<p class="small text-secondary mt-2 mb-0">{{ participant.message }}</p>{% endif %}
                                     {% if contact_visible and participant.status == 'JOINED' and participant.contact_phone %}
@@ -109,11 +113,11 @@
                                             <a class="ms-2" href="https://zalo.me/{{ participant.contact_phone|phone_digits }}" target="_blank" rel="noopener">Mở Zalo</a>
                                         </div>
                                     {% endif %}
-                                    {% if participant.status == 'ACCEPTED_AWAITING_PAYMENT' %}
+                                    {% if participant_status == 'ACCEPTED_AWAITING_PAYMENT' and actions_available %}
                                         <div class="small mt-2">Hạn thanh toán: <strong>{{ participant.payment_due_at|local_datetime }}</strong></div>
                                     {% endif %}
                                 </div>
-                                {% if participant.status == 'PENDING' and match.status == 'OPEN' and not opponent_auto_join %}
+                                {% if participant_status == 'PENDING' and match.status == 'OPEN' and actions_available and not opponent_auto_join %}
                                     <div class="d-flex gap-2">
                                         <form method="post" action="{{ url_for('matches.reject', match_id=match.id, participant_id=participant.id) }}">
                                             {{ action_form.hidden_tag() }}
@@ -167,7 +171,25 @@
                         </details>
                     </div>
                     <a class="btn btn-primary w-100" href="{{ url_for('bookings.detail', booking_code=match.booking.booking_code) }}">Mở chi tiết lịch đặt sân</a>
-                {% elif current_request and current_request.status == 'ACCEPTED_AWAITING_PAYMENT' %}
+                    {% if match.match_type == 'FIND_OPPONENT' and match.status == 'OPEN' and actions_available and not has_joined_opponent %}
+                        <form class="mt-3" method="post" action="{{ url_for('matches.close', match_id=match.id) }}">
+                            {{ action_form.hidden_tag() }}
+                            <button class="btn btn-outline-danger w-100" type="submit">Đóng bài tìm đối thủ</button>
+                            <p class="small text-secondary mt-2 mb-0">Dừng tìm đối thủ và hết hiệu lực suất chưa thanh toán. Lịch đặt sân và tiền cọc vẫn được giữ nguyên.</p>
+                        </form>
+                    {% endif %}
+                {% elif current_request_status == 'EXPIRED' %}
+                    <div class="alert alert-light border mb-0">Yêu cầu tham gia đã hết hạn. Suất này không còn thanh toán hoặc báo rút được.</div>
+                    {% if match.status == 'OPEN' and actions_available %}
+                        <form class="mt-3" method="post" action="{{ url_for('matches.join', match_id=match.id) }}" data-match-join-form>
+                            {{ join_form.hidden_tag() }}
+                            {{ join_form.contact_phone.label(class="form-label") }}
+                            {{ join_form.contact_phone(class="form-control", type="tel", required=true) }}
+                            {{ consent_row(join_form.share_contact, 'join-consent-expired-error') }}
+                            <button class="btn btn-primary w-100 mt-3" type="submit">Gửi lại yêu cầu tham gia</button>
+                        </form>
+                    {% endif %}
+                {% elif current_request_status == 'ACCEPTED_AWAITING_PAYMENT' and actions_available %}
                     <h2 class="h5 fw-bold">Hoàn tất phần tiền của bạn</h2>
                     <p class="text-secondary">Bạn đang giữ suất đối thủ. Thanh toán trong 15 phút để chính thức vào kèo, không cần chờ người tạo duyệt.</p>
                     <div class="booking-countdown mb-3" data-booking-countdown data-deadline="{{ current_request.payment_due_at.isoformat() }}Z">Đang tính thời gian còn lại…</div>
@@ -186,7 +208,7 @@
                         {{ action_form.hidden_tag() }}
                         <button class="btn btn-outline-danger w-100" type="submit">Rút trước khi thanh toán</button>
                     </form>
-                {% elif current_request and current_request.status == 'JOINED' %}
+                {% elif current_request_status == 'JOINED' %}
                     <div class="alert alert-success">
                         <strong>Bạn đã tham gia kèo.</strong><br>
                         {% if match.match_type == 'FIND_PLAYERS' %}
@@ -239,6 +261,7 @@
                             </form>
                         </details>
                     </div>
+                    {% if actions_available %}
                     <form method="post"
                           action="{{ url_for('matches.withdraw', match_id=match.id) }}"
                           {% if match.match_type == 'FIND_OPPONENT' and current_request.contribution and current_request.contribution.amount_paid > 0 and ((match.booking.matchmaking_deadline is none and match.booking.funding_deadline is none) or not withdrawal_gets_refund) %}
@@ -249,7 +272,8 @@
                         {{ action_form.hidden_tag() }}
                         <button class="btn btn-outline-danger w-100" type="submit">Báo rút khỏi kèo</button>
                     </form>
-                {% elif current_request and current_request.status == 'WITHDRAWN' %}
+                    {% endif %}
+                {% elif current_request_status == 'WITHDRAWN' %}
                     {% if current_request.contribution and current_request.contribution.status == 'REFUNDED' %}
                         <div class="alert alert-success mb-0">
                             <strong>Đã rút và hoàn 100%.</strong><br>
@@ -263,7 +287,7 @@
                     {% else %}
                         <div class="alert alert-light border mb-0">Bạn đã rút yêu cầu tham gia.</div>
                     {% endif %}
-                    {% if match.status == 'OPEN' %}
+                    {% if match.status == 'OPEN' and actions_available %}
                         <form class="mt-3" method="post" action="{{ url_for('matches.join', match_id=match.id) }}" data-match-join-form>
                             {{ join_form.hidden_tag() }}
                             {{ join_form.contact_phone.label(class="form-label") }}
@@ -274,7 +298,7 @@
                             <button class="btn btn-primary w-100 mt-3" type="submit">Gửi lại yêu cầu tham gia</button>
                         </form>
                     {% endif %}
-                {% elif current_request and current_request.status == 'PENDING' %}
+                {% elif current_request_status == 'PENDING' and actions_available %}
                     {% if opponent_auto_join %}
                         <h2 class="h5 fw-bold">Tiếp tục nhận kèo</h2>
                         <p class="text-secondary">Đây là yêu cầu được tạo trước khi áp dụng quy trình tự động. Bấm tiếp tục để giữ suất thanh toán mà không cần người tạo kèo duyệt.</p>
@@ -295,7 +319,7 @@
                             <button class="btn btn-outline-danger w-100" type="submit">Rút yêu cầu</button>
                         </form>
                     {% endif %}
-                {% elif match.status == 'OPEN' %}
+                {% elif match.status == 'OPEN' and actions_available %}
                     <h2 class="h5 fw-bold">{{ 'Nhận kèo' if opponent_auto_join else 'Gửi yêu cầu tham gia' }}</h2>
                     {% if expected_deposit_amount is not none %}
                         <div class="payment-due-box match-expected-deposit mb-3">
@@ -305,7 +329,7 @@
                     {% endif %}
                     {% if current_user.is_authenticated and current_user.role in ['USER', 'OWNER'] %}
                         {% if current_request %}
-                            <div class="alert alert-light border small">Yêu cầu trước của bạn: <strong>{{ participant_status_labels[current_request.status] }}</strong>. Bạn có thể gửi lại khi kèo vẫn còn mở.</div>
+                            <div class="alert alert-light border small">Yêu cầu trước của bạn: <strong>{{ participant_status_labels[current_request_status] }}</strong>. Bạn có thể gửi lại khi kèo vẫn còn mở.</div>
                         {% endif %}
                         <form method="post" action="{{ url_for('matches.join', match_id=match.id) }}" data-match-join-form>
                             {{ join_form.hidden_tag() }}

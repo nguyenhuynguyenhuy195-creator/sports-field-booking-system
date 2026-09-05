@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import (
     Blueprint,
@@ -44,7 +44,6 @@ from app.services import (
     create_match,
     current_vietnam_datetime,
     decide_match_request,
-    expire_stale_match_participants,
     get_match,
     get_user_booking,
     list_active_sports,
@@ -59,6 +58,11 @@ from app.services import (
     update_match_contact,
     validate_match_creation,
     withdraw_match_request,
+)
+from app.services.matchmaking import (
+    close_opponent_listing,
+    effective_participant_status,
+    match_accepts_actions,
 )
 
 
@@ -169,7 +173,7 @@ def index():
 @matches_bp.get("/matches/mine")
 @roles_required(UserRole.USER, UserRole.OWNER)
 def mine():
-    expire_stale_match_participants()
+    view_now = datetime.now(timezone.utc)
     return render_template(
         "matches/mine.html",
         created_matches=list_created_matches(current_user.id),
@@ -179,6 +183,9 @@ def mine():
         participant_status_labels=PARTICIPANT_STATUS_LABELS,
         skill_level_labels=SKILL_LEVEL_LABELS,
         match_has_joined_opponent=_match_has_joined_opponent,
+        participant_view_status=lambda participant: effective_participant_status(
+            participant, now=view_now
+        ),
     )
 
 
@@ -263,7 +270,7 @@ def create(booking_code: str):
 
 @matches_bp.get("/matches/<int:match_id>")
 def detail(match_id: int):
-    expire_stale_match_participants(match_id=match_id)
+    view_now = datetime.now(timezone.utc)
     try:
         match = get_match(match_id)
     except MatchNotFoundError:
@@ -303,6 +310,14 @@ def detail(match_id: int):
         "matches/detail.html",
         match=match,
         current_request=current_request,
+        current_request_status=(
+            effective_participant_status(current_request, now=view_now)
+            if current_request else None
+        ),
+        participant_view_status=lambda participant: effective_participant_status(
+            participant, now=view_now
+        ),
+        actions_available=match_accepts_actions(match, now=view_now),
         joined_count=joined_count,
         match_type_labels=MATCH_TYPE_LABELS,
         match_status_labels=MATCH_STATUS_LABELS,
@@ -324,10 +339,33 @@ def detail(match_id: int):
             and current_request.status == MatchParticipantStatus.JOINED.value
             else False
         ),
-        contact_visible=_contact_visible(match.booking),
+        contact_visible=(
+            _contact_visible(match.booking)
+            and match.status not in {MatchStatus.CANCELLED.value, MatchStatus.COMPLETED.value}
+        ),
         opponent_auto_join=opponent_auto_join,
         momo_enabled=current_app.config.get("MOMO_ENABLED", False),
     )
+
+
+@matches_bp.post("/matches/<int:match_id>/close")
+@roles_required(UserRole.USER, UserRole.OWNER)
+def close(match_id: int):
+    form = MatchActionForm()
+    if not form.validate_on_submit():
+        flash("Yêu cầu đóng bài không hợp lệ.", "danger")
+        return redirect(url_for("matches.detail", match_id=match_id))
+    try:
+        close_opponent_listing(match_id=match_id, creator=current_user)
+    except MatchNotFoundError:
+        abort(404)
+    except MatchPermissionError:
+        abort(403)
+    except MatchmakingError as exc:
+        flash(str(exc), "warning")
+    else:
+        flash("Đã đóng bài tìm đối thủ. Lịch đặt sân và tiền cọc vẫn được giữ nguyên.", "success")
+    return redirect(url_for("matches.detail", match_id=match_id))
 
 
 @matches_bp.post("/matches/<int:match_id>/requests")

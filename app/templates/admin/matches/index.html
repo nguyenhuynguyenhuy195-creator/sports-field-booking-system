@@ -139,7 +139,7 @@
                                     <small>{{ item.total_participants }} người/yêu cầu được ghi nhận</small>
                                 </td>
                                 <td data-label="Trạng thái / Theo dõi">
-                                    <span class="status-badge status-{{ item.effective_status|lower }}">{{ match_status_labels[item.effective_status] }}</span>
+                                    <span class="status-badge status-{{ item.effective_status|lower }}">{{ match_status_label(match, item.effective_status) }}</span>
                                     {% if item.pending_participants %}<span class="admin-booking-attention attention-pending" data-match-attention="pending"><i class="bi bi-hourglass-split" aria-hidden="true"></i>{{ item.pending_participants }} yêu cầu tham gia đang chờ xử lý</span>{% endif %}
                                     {% if item.awaiting_payment_participants %}<span class="admin-booking-attention attention-awaiting-payment" data-match-attention="awaiting-payment"><i class="bi bi-clock-history" aria-hidden="true"></i>{{ item.awaiting_payment_participants }} người đang chờ thanh toán cọc</span>{% endif %}
                                 </td>
