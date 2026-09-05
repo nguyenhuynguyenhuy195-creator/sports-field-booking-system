@@ -173,90 +173,24 @@
 
 ## AC-021: Ranh giới MVP
 
-- Không có MoMo Production, QR ngân hàng thật, ví admin, payout tiền thật,
-  sandbox disbursement hoặc credential nhận tiền thật.
-- Phase 2.6 chỉ dùng `SimulatedPayoutAdapter`; giao diện phải nói rõ không có
-  tiền thật được chuyển.
+- Không có MoMo Production, QR ngân hàng thật, ví admin, Settlement, payout
+  tiền thật, simulated payout, sandbox disbursement hoặc credential nhận tiền
+  thật.
+- Không có Owner payout destination, `PayoutAttempt`, Admin/Owner Settlement
+  module hoặc `flask settlements sync`.
 - Không ghi nhận thanh toán 70% tại sân.
 - Không tự chấm điểm hoặc khóa user vì no-show.
 - Không lấy venue ngoài hệ thống từ Google Nearby Search.
-- README/UI phân biệt rõ phần đã triển khai và thiết kế chờ migration.
+- README/UI phân biệt rõ chức năng MVP đã triển khai với scope future/deferred.
 
-Các tiêu chí sau là contract nghiệm thu cho implementation Phase 2.6 và chưa
-khẳng định model/service/UI đã tồn tại ở baseline hiện tại.
+## AC-022 đến AC-027: Settlement / payout — DEFERRED
 
-## AC-022: Settlement amount và reconciliation
+Các mã AC-022 đến AC-027 được giữ để truy vết thiết kế ADR-037, nhưng ADR-038
+đưa toàn bộ Settlement, simulated payout, destination, `PayoutAttempt`, CLI và
+Admin/Owner module ra khỏi capstone MVP. Chúng không phải điều kiện nghiệm thu
+MVP và không yêu cầu bất kỳ model, migration, service, route, UI hoặc test mới.
 
-- Settlement chỉ bao gồm khoản online phải trả Owner, không bao gồm tiền dự
-  kiến thanh toán tại sân.
-- `gross_online_amount` lấy từ Payment `SUCCESS` được chấp nhận;
-  `successful_refund_amount` chỉ gồm Refund `SUCCESS` áp dụng; số tiền
-  Settlement bằng gross trừ successful refund và đối soát với current online
-  net.
-- Contribution chỉ dùng để reconciliation, không bị cộng trùng với Payment.
-- Không hard-code 70%, 30% hoặc 15%; `FIND_OPPONENT` chỉ thu creator 15% và
-  `LEGACY_FULL_ONLINE` vẫn được xử lý đúng lịch sử.
-- Booking chưa từng có khoản online được nhận diện không tạo Settlement.
-
-## AC-023: Lifecycle và eligibility
-
-- Booking hoàn thành theo lifecycle hiện có khi thời gian sử dụng kết thúc;
-  GET/CLI Settlement không trì hoãn hoặc sửa trạng thái Booking.
-- Mốc đủ điều kiện Settlement sớm nhất là thời gian kết thúc cộng 30 phút theo
-  giờ Việt Nam.
-- Chỉ Settlement thỏa toàn bộ điều kiện tại ADR-037 mới là `ELIGIBLE`.
-- Các trạng thái được hỗ trợ đúng nghĩa: `PENDING`, `ELIGIBLE`, `ON_HOLD`,
-  `FAILED`, `SETTLED`, `CLOSED`.
-- `CLOSED` hiển thị “Đã đóng – không chi trả”, là terminal và không tạo
-  `PayoutAttempt` số tiền 0.
-
-## AC-024: Refund, cancellation và zero net
-
-- Refund `SUCCESS` được trừ khỏi gross nhưng không tự chặn Settlement vĩnh
-  viễn nếu remaining net còn phải trả và đối soát.
-- Refund `PENDING`, `PROCESSING` hoặc `FAILED` làm Settlement `ON_HOLD` cho
-  đến khi ngoại lệ được giải quyết và revalidate.
-- Creator cancellation có khoản bị giữ hợp lệ chỉ được chi trả Owner sau giờ
-  kết thúc cộng 30 phút và sau khi mọi Refund bắt buộc hoàn tất.
-- Owner cancellation không tạo khoản phải trả Owner; Settlement đang có đi từ
-  `ON_HOLD` sang `CLOSED` khi payable net về 0.
-- Full successful refund hoặc zero-net hợp lệ trước payout giữ audit evidence
-  bằng `CLOSED`, không simulated payout.
-
-## AC-025: Simulated payout và destination
-
-- Chỉ Admin được POST payout từ Settlement Detail; Owner chỉ xem.
-- `ELIGIBLE` được payout; `FAILED` chỉ được retry sau service revalidation;
-  các trạng thái khác không có payout action.
-- Mỗi attempt có idempotency key/reference duy nhất; request lặp không tạo
-  duplicate attempt, retry tạo attempt mới và toàn bộ attempt được giữ lại.
-- Payout thành công chuyển `SETTLED`; `SETTLED` không gọi adapter lần nữa và
-  không tự reverse/clawback.
-- Owner có tối đa một destination `SIMULATED`; UI cảnh báo không nhập credential
-  thật. Attempt lưu destination snapshot và thay đổi destination không sửa
-  lịch sử cũ.
-- Trước payout hiển thị destination hiện tại sẽ được snapshot; sau khi attempt
-  tồn tại hiển thị snapshot lịch sử của attempt đó.
-
-## AC-026: CLI và dữ liệu legacy
-
-- `flask settlements sync` chạy lặp idempotent, tạo thiếu/backfill/refresh và
-  chuyển các trạng thái nonterminal theo ADR-037 nhưng không thực hiện payout.
-- CLI không sửa Booking, Payment, Refund hoặc Match và không tạo record lịch sử
-  giả; Admin/Owner GET cũng read-only.
-- Legacy có evidence hợp lệ và positive net trở thành `PENDING`/`ELIGIBLE`;
-  thiếu Payment evidence hoặc mismatch trở thành `ON_HOLD`; không evidence thì
-  không tạo Settlement; full-refund/zero-net evidence có thể là `CLOSED`.
-- Backfill nằm trong application service/CLI, không nằm trong Alembic data
-  migration.
-
-## AC-027: Post-settlement và phạm vi UI
-
-- Refund/sai lệch xuất hiện sau `SETTLED` không sửa lịch sử payout; Admin thấy
-  post-settlement variance/manual-review khi read model có thể xác định.
-- Không triển khai clawback, compensating payout, Dispute model, Celery,
-  APScheduler hoặc background worker trong Phase 2.6.
-- Admin có canonical `/admin/settlements` và detail sau khi module được
-  accepted; sidebar không có dead/placeholder link trước thời điểm đó.
-- Owner chỉ xem Settlement của Venue mình sở hữu qua Finance và không có menu
-  tài chính trùng lặp.
+MVP chỉ nghiệm thu Payment/Refund hiện có: Payment `SUCCESS` và Refund
+`SUCCESS` là lịch sử độc lập; `paid_amount` phản ánh tiền online ròng và phần
+còn lại được trả trực tiếp tại sân. Admin điều tra chứng cứ đó trong Booking
+Detail, không có module Payment, Refund hoặc Settlement riêng.

@@ -190,7 +190,7 @@ AI lọc spam, phân tích cảm xúc, recommendation, chat thời gian thực, 
 
 ## ADR-023: Cọc 30% qua MoMo Sandbox
 
-**Trạng thái:** Mức cọc và ba booking mode còn hiệu lực; deadline 12 giờ, top-up 30 phút và refund 80/20 được thay thế bởi ADR-027. Câu loại mọi payout khỏi MVP được ADR-037 thay thế riêng cho simulated payout Phase 2.6; payout tiền thật vẫn ngoài MVP.
+**Trạng thái:** Mức cọc và ba booking mode còn hiệu lực; deadline 12 giờ, top-up 30 phút và refund 80/20 được thay thế bởi ADR-027. ADR-038 xác nhận Settlement và mọi payout tiếp tục nằm ngoài capstone MVP; ADR-037 chỉ được giữ như thiết kế tương lai.
 
 **Ngày quyết định:** 12/08/2026
 
@@ -335,7 +335,7 @@ Tài liệu tham chiếu:
 ## ADR-031: Thanh toán sandbox và đối soát cho Owner
 
 **Ngày quyết định:** 23/08/2026
-**Trạng thái:** Đã chốt định hướng nghiệp vụ; các điểm mơ hồ về lifecycle, status, exception, destination và payout đã được ADR-037 làm rõ/thay thế cho Phase 2.6.
+**Trạng thái:** Thiết kế lịch sử/future scope. ADR-037 từng làm rõ Phase 2.6; ADR-038 thay thế cả ADR-031 lẫn ADR-037 về phạm vi và ưu tiên của capstone MVP hiện tại.
 
 - Đồ án sử dụng MoMo/ZaloPay sandbox và không thực hiện giao dịch tiền thật.
 - `Payment SUCCESS` là căn cứ để hệ thống tự động xác nhận booking (`CONFIRMED`); không yêu cầu Owner duyệt booking sau thanh toán.
@@ -513,7 +513,7 @@ Phase 1.3B1 chỉ thiết lập tọa độ Venue đáng tin cậy. Browser curr
 ## ADR-037: Chính sách Settlement và simulated payout cho Owner
 
 **Ngày quyết định:** 05/09/2026
-**Trạng thái:** Đã chốt chính sách; implementation thuộc Phase 2.6 và chưa được triển khai.
+**Trạng thái:** Thiết kế lịch sử/future scope. ADR-038 thay thế ADR này riêng về phạm vi MVP và ưu tiên triển khai; không có implementation Phase 2.6 trong capstone hiện tại.
 
 ### Quan hệ với ADR-031
 
@@ -530,8 +530,9 @@ ADR này giữ định hướng tách biệt Payment, Refund và Settlement củ
   nhưng số tiền phải chi trả cuối cùng bằng 0.
 
 Các ADR lịch sử tiếp tục được giữ nguyên. Khi nội dung ADR-031 mâu thuẫn với
-ADR này về lifecycle, trạng thái, payout hoặc ngoại lệ, ADR-037 là quyết định
-hiện hành.
+ADR này về lifecycle, trạng thái, payout hoặc ngoại lệ, ADR-037 là thiết kế
+tham khảo cho phiên bản tương lai. ADR-038 là quyết định hiện hành cho phạm vi
+MVP.
 
 ### Phạm vi và số tiền Settlement
 
@@ -672,3 +673,24 @@ Chính sách legacy:
 - Sai lệch tài chính: `ON_HOLD`.
 
 Backfill thuộc CLI/application service, không thuộc Alembic migration.
+
+## ADR-038: Defer Settlement and Owner payout beyond MVP
+
+**Ngày quyết định:** 05/09/2026
+**Trạng thái:** Quyết định hiện hành cho phạm vi capstone MVP.
+
+Settlement, Owner payout/disbursement, simulated payout, payout destination,
+`PayoutAttempt`, Admin/Owner Settlement module và `flask settlements sync` đều
+được defer sang phiên bản tương lai. MVP hiện tại kết thúc ở Payment và Refund:
+user thanh toán cọc online qua MOCK hoặc MoMo Sandbox, hệ thống lưu Payment,
+xử lý Refund theo rule hiện có, dùng `paid_amount` làm số tiền online ròng và
+chỉ hiển thị `balance_due_at_venue = total_amount - paid_amount` để trả trực
+tiếp tại sân.
+
+ADR-038 thay thế ADR-037 chỉ về current MVP scope và implementation priority.
+ADR-037 được giữ nguyên như tài liệu thiết kế có thể tái sử dụng trong tương
+lai; không tạo Settlement record, payout destination, payout attempt, CLI,
+route, UI hay sidebar trong MVP hiện tại. Không cần rollback schema hoặc code
+vì Phase 2.6 chưa từng được triển khai. Payment và Refund vẫn là chức năng MVP
+hiện hành, là lịch sử bất biến và được Admin điều tra qua Booking Detail; không
+có module Payment, Refund hoặc Settlement độc lập.

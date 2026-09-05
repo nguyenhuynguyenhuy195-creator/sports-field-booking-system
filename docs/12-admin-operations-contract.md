@@ -1,8 +1,8 @@
 # CONTRACT – PHASE 2 ADMIN OPERATIONS
 
-**Trạng thái:** ACCEPTED – cập nhật sau Step 2.1, Step 2.2, Step 2.3 và ADR-037
+**Trạng thái:** ACCEPTED – phạm vi MVP sau Step 2.1, Step 2.2, Step 2.3 và ADR-038
 **Baseline áp dụng:** `5a67ed0`, Alembic `a6d8e4f2c913`
-**Tài liệu liên quan:** `docs/11-roadmap.md`, `docs/10-decision-log.md` và ADR-037
+**Tài liệu liên quan:** `docs/11-roadmap.md`, `docs/10-decision-log.md`, ADR-037 và ADR-038
 
 ## 1. Mục tiêu và phạm vi
 
@@ -43,9 +43,6 @@ VẬN HÀNH
   Lịch đặt sân
   Kèo chơi
 
-TÀI CHÍNH
-  Đối soát (chỉ sau khi Step 2.6 được implement)
-
 HỆ THỐNG
   Tài khoản
 ```
@@ -54,8 +51,8 @@ HỆ THỐNG
   đó đã được implement và accepted; không tạo dead link, placeholder page hay
   trang Settlement giả.
 - Tiến độ link: Step 2.1 đã đưa Booking vào vận hành và Step 2.3 đã đưa Match
-  vào vận hành. Settlement/Đối soát chỉ xuất hiện sau khi Step 2.6 được
-  implement và accepted. Không tạo link Thanh toán hoặc Hoàn tiền riêng.
+  vào vận hành. Theo ADR-038, MVP không có link Settlement/Đối soát, Thanh toán
+  hoặc Hoàn tiền riêng.
 - Khi đã vận hành, mỗi link dẫn tới module dedicated tương ứng, không dẫn tới
   một `focus` của `/admin/monitoring`; chỉ link của module hoặc detail đang xem
   được active.
@@ -70,7 +67,6 @@ Route đích của Phase 2 là:
 | --- | --- | --- | --- |
 | Booking Operations | `/admin/bookings` | `/admin/bookings/<booking_code>` | `booking_code` |
 | Match Operations | `/admin/matches` | `/admin/matches/<id>` | `Match.id` |
-| Settlement Operations | `/admin/settlements` | `/admin/settlements/<id>` | `Settlement.id` khi Step 2.6 chốt model |
 
 Quy tắc route:
 
@@ -84,9 +80,7 @@ Quy tắc route:
   transaction IDs, attention state, historical events và số tiền hiện tại.
   Không có route primary `/admin/payments`, `/admin/payments/<id>`,
   `/admin/refunds` hoặc `/admin/refunds/<id>`.
-- Booking ↔ Match chỉ dùng canonical detail sau khi Step 2.3 được accepted;
-  từ Step 2.6, Booking/Payment/Refund có thể liên kết với Settlement theo
-  thiết kế được duyệt.
+- Booking ↔ Match chỉ dùng canonical detail sau khi Step 2.3 được accepted.
 - `/admin/monitoring` là Admin Foundation accepted và có thể tạm thời tồn tại
   để compatibility trong Phase 2. Không tiếp tục xây capability Phase 2 mới
   tại đó. Khi một module dedicated được accepted, legacy link/URL liên quan
@@ -94,8 +88,7 @@ Quy tắc route:
   được thực hiện trong đúng step. Đến cuối Phase 2, `/admin/monitoring` không
   còn là workspace Admin Operations chính; không duy trì hai primary UI cạnh
   tranh cho cùng một module. Contract này không triển khai redirect.
-- Các route Settlement được dành trước trong contract; không được đăng ký hay
-  giả lập dữ liệu trước Step 2.6.
+- Không dành trước hoặc đăng ký route Settlement trong MVP.
 
 ## 4. Ranh giới Phase 2.1 đến 2.6
 
@@ -155,41 +148,18 @@ trạng thái Refund trong database.
 
 ### Step 2.6 – Settlement / đối soát chủ sân
 
-Chủ thể chính là Settlement. Đây là ranh giới duy nhất của Phase 2 cho model,
-engine, queue và simulated payout, theo ADR-037. Business audit và UI/UX
-contract đã hoàn tất; ADR-037 đã chốt policy nhưng implementation vẫn chưa
-bắt đầu. Trước khi Step 2.6 được implemented/accepted, không đăng ký route,
-thêm sidebar, payout button hoặc hiển thị số Owner payable giả.
-
-Trạng thái chính thức:
-
-- `PENDING`: chờ mốc đủ điều kiện hoặc prerequisite không phải ngoại lệ.
-- `ELIGIBLE`: an toàn để Admin thực hiện simulated payout.
-- `ON_HOLD`: có cancellation/refund/financial mismatch chưa giải quyết.
-- `FAILED`: payout attempt gần nhất lỗi kỹ thuật và được phép retry sau
-  revalidation.
-- `SETTLED`: simulated payout thành công và là terminal trong Phase 2.6.
-- `CLOSED`: terminal, nhãn “Đã đóng – không chi trả”, dùng khi cần giữ chứng
-  cứ nhưng số tiền phải trả cuối cùng bằng 0; không tạo payout attempt số tiền 0.
-
-Mốc cộng 30 phút chỉ áp dụng cho Settlement eligibility và không trì hoãn
-Booking completion. Settlement chỉ đối soát tiền online thực tế phải trả
-Owner; không bao gồm tiền dự kiến thanh toán tại sân. Công thức, cancellation,
-refund, legacy reconciliation, destination, attempt, idempotency và hành vi
-terminal tuân theo ADR-037.
-
-Phase 2.6 chỉ dùng `SimulatedPayoutAdapter`. Admin payout từ Settlement Detail;
-Owner chỉ xem và cấu hình một destination mô phỏng, không trigger payout. Dùng
-Flask CLI idempotent `flask settlements sync` để discover/backfill/refresh
-Settlement; CLI không payout và Admin/Owner GET luôn read-only.
+**Trạng thái: DEFERRED / OUT OF MVP theo ADR-038.** ADR-037 và contract cũ là
+thiết kế lịch sử/future scope, không là backlog bắt buộc của capstone hiện tại.
+MVP không có Settlement model, destination, `PayoutAttempt`, payout adapter,
+CLI, route, UI hoặc sidebar; không có schema hay code cần rollback vì Step 2.6
+chưa được triển khai.
 
 ## 5. Trách nhiệm list và detail
 
 | Module | List chịu trách nhiệm | Detail chịu trách nhiệm | Không thuộc module |
 | --- | --- | --- | --- |
-| Booking | Tóm tắt lịch, location, khách, mode, status, tiền online/tại sân, attention | Điều tra đầy đủ Booking và liên kết nghiệp vụ | Xử lý gateway/refund/payout trực tiếp |
+| Booking | Tóm tắt lịch, location, khách, mode, status, tiền online/tại sân, attention | Điều tra đầy đủ Booking và liên kết nghiệp vụ | Xử lý gateway/refund trực tiếp |
 | Match | Tóm tắt kèo, Booking context, participant count, status | Thành phần kèo và mốc đã ghi nhận | Sửa Booking hoặc Payment |
-| Settlement | Queue/status đối soát và payout khi đã có engine | Căn cứ online, exception và payout audit | Thu phần tiền trả tại sân |
 
 List desktop ưu tiên table-first, mỗi dòng mở đúng detail. List mobile chuyển
 thành card có các trường tóm tắt tương đương, không giấu status/attention hay
@@ -227,37 +197,6 @@ không tự động đồng nghĩa với system failure và không thay đổi l
 - `SUCCESS` không phải attention state. Refund chưa `SUCCESS` không được trình
   bày là đã hoàn thành.
 
-### Settlement UI contract
-
-Admin Settlement list tại `/admin/settlements` dùng table-first trên desktop
-và structured card trên mobile. Mỗi dòng chỉ tóm tắt Settlement, Booking,
-Owner/Venue, căn cứ tiền online, settlement amount, thời gian đủ điều kiện,
-status và payout result/reference; không nhúng Payment/Refund history. Detail
-tại `/admin/settlements/<id>` trình bày căn cứ tài chính, eligibility, blocker,
-cancellation/refund exception, destination, payout attempts, timestamp thật,
-current investigation và canonical link về Booking Detail.
-
-Nhãn trạng thái:
-
-- `PENDING`: “Chờ đủ điều kiện”.
-- `ELIGIBLE`: “Đủ điều kiện chi trả”.
-- `ON_HOLD`: “Tạm giữ đối soát”.
-- `FAILED`: “Chi trả mô phỏng thất bại”.
-- `SETTLED`: “Đã chi trả mô phỏng”.
-- `CLOSED`: “Đã đóng – không chi trả”; số tiền phải trả cuối cùng bằng 0 và
-  không có payout.
-
-Owner xem danh sách tối giản ở `/owner/finance/settlements` và detail read-only
-trong cùng khu vực Finance; không tạo sidebar Owner thứ hai. Owner chỉ thấy
-Settlement thuộc Venue mình sở hữu và không đổi amount/status hoặc trigger
-payout.
-
-Trước payout, UI hiển thị **destination hiện tại** của Owner sẽ được snapshot
-khi Admin xác nhận; không gọi đây là lịch sử. Sau khi `PayoutAttempt` tồn tại,
-UI hiển thị **destination snapshot lịch sử** lưu cùng attempt. Destination chỉ
-là dữ liệu demo `SIMULATED`; UI phải cảnh báo không nhập credential ngân
-hàng/MoMo thật.
-
 ## 7. Guardrail tài chính và nghiệp vụ
 
 Các quy tắc sau bắt buộc ở mọi list/detail/summary Phase 2:
@@ -281,18 +220,10 @@ balance_due_at_venue = total_amount - paid_amount
   giao dịch thành công; trạng thái pending/processing/failed/cancelled/expired
   phải được biểu diễn đúng nghĩa vụ hiện tại.
 - Tiền trả trực tiếp tại sân không trở thành một Payment online chỉ vì cần
-  hiển thị balance. Settlement chỉ đối soát các khoản online hệ thống có căn
-  cứ ghi nhận.
-- Payment `SUCCESS` không đồng nghĩa Owner đã được settlement/payout.
-- Settlement amount thông thường được tính từ Payment `SUCCESS` được chấp nhận
-  trừ Refund `SUCCESS` áp dụng và phải đối soát với current online net.
-  Contribution chỉ dùng để reconciliation, không được cộng trùng với Payment.
-- Refund `PENDING`, `PROCESSING` hoặc `FAILED` giữ Settlement `ON_HOLD`; Refund
-  `SUCCESS` là chứng cứ bất biến nhưng không chặn payout vĩnh viễn nếu phần net
-  còn lại vẫn phải trả và đối soát đúng.
-- Creator cancellation có khoản online bị giữ hợp lệ có thể vẫn phải trả Owner
-  sau giờ kết thúc cộng 30 phút và khi mọi refund đã giải quyết. Owner
-  cancellation không tạo khoản phải trả; zero net trước payout dùng `CLOSED`.
+  hiển thị balance; nền tảng không thu, xác nhận, Settlement hoặc chuyển khoản
+  tiền này cho Owner.
+- Payment `SUCCESS` và Refund `SUCCESS` là chứng cứ lịch sử độc lập. Admin
+  điều tra chúng trong Booking Detail; MVP không suy ra khoản Owner payable.
 
 ## 8. Hành động được phép và bị cấm
 
@@ -303,10 +234,6 @@ balance_due_at_venue = total_amount - paid_amount
 - Hiển thị rõ attention, status và dữ liệu lịch sử nguồn.
 - Duy trì các action Admin Foundation đã được accepted trong chính module của
   chúng: duyệt chủ sân, kiểm duyệt Venue và quản lý trạng thái tài khoản.
-- Ở Step 2.6, thực hiện đúng những action Settlement/Payout đã được thiết kế,
-  có engine, idempotency và audit phù hợp.
-- Chỉ payout `ELIGIBLE`; chỉ retry `FAILED` sau service revalidation. Mỗi retry
-  tạo `PayoutAttempt` mới; request trùng không được tạo attempt trùng.
 
 ### Bị cấm nếu chưa có một thiết kế/engine được duyệt riêng
 
@@ -317,10 +244,8 @@ balance_due_at_venue = total_amount - paid_amount
 - Sửa participant/match lifecycle hay tạo refund để giải quyết bằng tay một
   exception của Booking/Match.
 - Viết lại Payment, Refund, Booking hoặc Matchmaking engine chỉ để phục vụ UI.
-- Tạo Settlement/Payout, receiving account, schema hoặc migration trước Step
-  2.6.
-- Cho payout với `PENDING`, `ON_HOLD`, `SETTLED`, `CLOSED` hoặc số tiền 0; tự
-  retry payout trong CLI/GET; dùng credential tài chính thật.
+- Tạo Settlement/Payout, receiving account, `PayoutAttempt`, schema, migration,
+  CLI, route, sidebar hoặc simulated payout trong capstone MVP.
 - Mở rộng Phase 2 sang moderation nâng cao, dispute, notification hoặc báo
   cáo kế toán khi step hiện tại chưa được acceptance.
 
@@ -333,14 +258,11 @@ Mỗi step được tách thành một prompt/PR nhỏ, review được độc l
 3. Step 2.3 Match Operations — DONE / ACCEPTED; không đổi matchmaking engine.
 4. Step 2.4 và 2.5 được giữ số lịch sử nhưng đã loại khỏi dedicated Admin UI;
    Payment/Refund engine và history vẫn được bảo toàn trong Booking Detail.
-5. Phase 2.6A business audit và UI/UX contract — DONE; ADR-037 đã chốt policy.
-6. Phase 2.6B triển khai model/migration, service/CLI, simulated payout,
-   Admin/Owner list-detail và test theo ADR-037; không mở rộng sang payout thật,
-   dispute hoặc clawback.
+5. Step 2.6 Settlement/simulated payout — DEFERRED / OUT OF MVP theo ADR-038;
+   ADR-037 được giữ làm thiết kế lịch sử/future scope.
 
-Sau khi Step 2.6 được accepted, thực hiện UI consistency, full regression và
-polish cuối nếu cần. Đây là phần hoàn tất Phase 2, không phải một Step 2.7 độc
-lập.
+Phase 2 hoàn tất cho MVP sau Step 2.3. Công việc tiếp theo chuyển sang Phase 4
+audit, rồi Phase 4.1; không có Step 2.7 độc lập.
 
 Không gộp nhiều step trong một thay đổi. Bất kỳ phát hiện schema thiếu,
 business-rule mơ hồ hoặc requirement mâu thuẫn phải được báo cáo để quyết định

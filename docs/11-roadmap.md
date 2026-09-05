@@ -28,7 +28,7 @@ Các nhóm nghiệp vụ chính:
 - Quản lý bảo trì.
 - Theo dõi booking.
 - Theo dõi tài chính cơ bản.
-- Cấu hình đích nhận chi trả ở Phase 2.6 cùng thiết kế settlement/payout.
+- Đích nhận chi trả, Settlement và payout là future scope ngoài MVP.
 
 ### 3. ADMIN
 
@@ -37,7 +37,7 @@ Các nhóm nghiệp vụ chính:
 - Kiểm duyệt cơ sở.
 - Giám sát booking.
 - Giám sát kèo chơi.
-- Giám sát Payment/Refund trong Booking Detail; quản lý settlement/đối soát ở Step 2.6.
+- Giám sát Payment/Refund trong Booking Detail; không có module Settlement/đối soát trong MVP.
 - Quản lý tài khoản.
 - Moderation và xử lý ngoại lệ.
 
@@ -46,7 +46,7 @@ Các nhóm nghiệp vụ chính:
 - Thanh toán tiền cọc bằng MoMo/ZaloPay sandbox.
 - Booking tự xác nhận khi payment SUCCESS.
 - Refund.
-- Settlement cho Owner.
+- Settlement hoặc chi trả cho Owner không thuộc MVP.
 - Không dùng tiền thật trong đồ án.
 
 ---
@@ -322,21 +322,21 @@ Theo quyết định ngày 31/08/2026 và bổ sung Phase 1.3 ngày 02/09/2026:
 - Lịch sử: Phase 2 từng được tạm hoãn để ưu tiên Owner Console và Phase 1.3
   Location & Map Enhancement.
 - Sau khi các phần ưu tiên đã hoàn tất, Phase 2 đã được kích hoạt: Step 2.1,
-  2.2 và 2.3 accepted; Step 2.6 là phần implementation còn lại.
+  2.2 và 2.3 accepted. ADR-038 đưa Step 2.6 ra khỏi MVP.
 
 ---
 
 ## PHASE 2 – ADMIN OPERATIONS
 
-**Trạng thái: IN PROGRESS — Step 2.1, Step 2.2 và Step 2.3 DONE / ACCEPTED**
+**Trạng thái: DONE / ACCEPTED FOR MVP — Step 2.1, Step 2.2 và Step 2.3 DONE / ACCEPTED; Step 2.6 DEFERRED / OUT OF MVP**
 
 - Step 2.1, 2.2 và 2.3 đã hoàn thành trên các route canonical
   `/admin/bookings`, `/admin/bookings/<booking_code>`, `/admin/matches` và
   `/admin/matches/<id>`.
 - Payment/Refund backend engines, database records và immutable history được
   giữ nguyên; Admin điều tra chúng trong Booking Detail, không qua module UI riêng.
-- Business audit và UI/UX contract cho Step 2.6 đã hoàn tất. ADR-037 đã chốt
-  policy Settlement/simulated payout; implementation Step 2.6 vẫn chưa bắt đầu.
+- ADR-037 được giữ như thiết kế lịch sử/future scope. ADR-038 đưa toàn bộ
+  Settlement/simulated payout ra khỏi capstone MVP.
 
 ### Step 2.1 – Lịch đặt sân
 
@@ -381,24 +381,14 @@ Theo quyết định ngày 31/08/2026 và bổ sung Phase 1.3 ngày 02/09/2026:
 
 ### Step 2.6 – Settlement / đối soát chủ sân
 
-**Trạng thái: AUDIT + UI/UX CONTRACT DONE; POLICY FINALIZED IN ADR-037; IMPLEMENTATION PENDING**
+**Trạng thái: DEFERRED / OUT OF MVP theo ADR-038**
 
-- PENDING.
-- ELIGIBLE.
-- ON_HOLD.
-- FAILED.
-- SETTLED.
-- CLOSED — “Đã đóng – không chi trả”.
-- Settlement chỉ dùng tiền online thực tế phải trả Owner; không bao gồm phần
-  tiền thanh toán trực tiếp tại sân.
-- Booking lifecycle không chờ Settlement; mốc đủ điều kiện bình thường là
-  thời gian kết thúc lịch đặt cộng 30 phút theo giờ Việt Nam.
-- Chỉ dùng `SimulatedPayoutAdapter`, destination mô phỏng và Flask CLI
-  idempotent `flask settlements sync`; không payout tiền thật hoặc background
-  worker.
-- Admin thực hiện payout từ Settlement Detail; Owner chỉ xem và cấu hình đích
-  nhận mô phỏng. Không tạo sidebar/link Settlement trước khi implementation
-  được accepted.
+- ADR-037 và business/UI contract cũ được giữ làm thiết kế lịch sử có thể tái
+  sử dụng cho phiên bản tương lai.
+- Capstone MVP không triển khai Settlement, payout/disbursement, destination,
+  `PayoutAttempt`, Flask CLI, Admin/Owner route hoặc sidebar `Đối soát`.
+- Không cần migration, schema rollback hay thay đổi Payment/Refund vì Step 2.6
+  chưa từng có implementation.
 
 ---
 
@@ -493,8 +483,11 @@ Theo quyết định ngày 31/08/2026 và bổ sung Phase 1.3 ngày 02/09/2026:
 - Dashboard có KPI, lọc theo cơ sở/sân, lịch sử thanh toán/hoàn tiền và wording tiếng Việt nghiệp vụ.
 - KPI “Giá trị booking đã giữ sân” là tổng giá trị booking đã giữ sân/hoàn thành, không phải tiền cọc hoặc doanh thu thực nhận.
 - KPI “Dự kiến thanh toán tại sân” chỉ phản ánh phần thanh toán trực tiếp dự kiến của booking còn hiệu lực; không suy diễn khoản đã thu sau khi booking hoàn thành.
-- Giữ trạng thái thông tin “Chưa có dữ liệu đối soát”. Không có settlement/payout engine, tài khoản nhận tiền Owner hoặc trạng thái chi trả giả trong Step 3.5.
-- Settlement/payout và cấu hình đích nhận chi trả được hoãn sang Phase 2.6 cùng thiết kế đối soát.
+- Giữ trạng thái thông tin “Chưa có dữ liệu Payment/Refund cần đối soát”. Không
+  có settlement/payout engine, tài khoản nhận tiền Owner hoặc trạng thái chi trả
+  giả trong Step 3.5.
+- Settlement/payout và cấu hình đích nhận chi trả là future scope theo ADR-038,
+  không còn là bước triển khai của capstone MVP.
 - Verification: Finance-focused 5 passed; Payment/Refund/Booking 73 passed; full regression 317 passed; migration head `a6d8e4f2c913`; `flask db check` sạch.
 
 ### Step 3.6 – Owner Console Final Polish & Audit — DONE / ACCEPTED (02/09/2026)
@@ -564,7 +557,7 @@ Theo quyết định ngày 31/08/2026 và bổ sung Phase 1.3 ngày 02/09/2026:
 - Responsive.
 - Permissions.
 - Booking E2E.
-- Payment/refund/settlement E2E.
+- Payment/refund E2E.
 - Kiểm tra external Google Maps directions link.
 - Xác minh app không tải Maps JavaScript API / Places API và không yêu cầu API key.
 - Owner flow.
@@ -605,8 +598,8 @@ Hiện tại:
 - Phase 1B: DONE.
 - Phase 1.2: DONE / ACCEPTED (30/08/2026).
 - Phase 1.3: DONE / ACCEPTED (03/09/2026); 1.3A đến 1.3F đều đã nghiệm thu.
-- Phase 2: IN PROGRESS — Step 2.1, 2.2 và 2.3 DONE / ACCEPTED; Step 2.6 đã
-  hoàn tất business audit, UI/UX contract và ADR-037, implementation PENDING.
+- Phase 2: DONE / ACCEPTED for MVP — Step 2.1, 2.2 và 2.3 DONE / ACCEPTED;
+  Step 2.6 DEFERRED / OUT OF MVP theo ADR-038.
 - Phase 3: DONE / ACCEPTED (02/09/2026).
 - Phase 4: NOT YET AUDITED / ACCEPTED.
 - Phase 4.1: NOT STARTED.
@@ -617,10 +610,10 @@ Thứ tự thực hiện hiện hành:
 
 > **Phase 1.2 → Phase 3 → Phase 1.3 → Phase 2 → Phase 4 → Phase 4.1 → Phase 5 → Phase 6 → Final**
 
-Lý do: Owner Console và Location & Map Enhancement đã hoàn tất; Match Operations
-(Step 2.3) cũng đã accepted. Phase 2 tiếp tục với implementation
-Settlement/simulated payout (Step 2.6), sau đó là review consistency/regression
-cuối. Step 2.4 và 2.5 được giữ số lịch sử nhưng không có dedicated Admin UI.
+Lý do: Owner Console, Location & Map Enhancement và Match Operations (Step 2.3)
+đã được accepted. ADR-038 đưa Step 2.6 ra khỏi MVP; sau Phase 2, công việc tiếp
+theo là audit Phase 4 rồi Phase 4.1. Step 2.4 và 2.5 được giữ số lịch sử nhưng
+không có dedicated Admin UI.
 
 ### Phase 1B
 
@@ -652,14 +645,13 @@ DONE:
 
 ### TASK TIẾP THEO
 
-**PHASE 2 – ADMIN OPERATIONS — IN PROGRESS**
+**PHASE 2 – ADMIN OPERATIONS — MVP COMPLETE**
 
 Step 2.1 Booking Operations, Step 2.2 Booking Detail và Step 2.3 Match Operations
 đã DONE / ACCEPTED. Payment/Refund tiếp tục được bảo toàn là engine và immutable
 history, được Admin giám sát trong Booking Detail thay vì dedicated screen.
-ADR-037 đã chốt policy; task implementation còn lại là Step 2.6
-Settlement/simulated payout và review consistency/regression cuối; không có
-Step 2.7.
+ADR-038 defer Step 2.6 Settlement/simulated payout ra khỏi MVP; không có Step
+2.7. Task tiếp theo là Phase 4 audit, sau đó là Phase 4.1.
 
 ---
 

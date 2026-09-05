@@ -92,19 +92,7 @@
 
 - Quản lý tài khoản, owner application và venue.
 - Xem booking, contribution, payment, refund và match.
-- Theo dõi Settlement và thực hiện simulated payout cho Owner trong Phase 2.6.
 - Không xóa lịch sử giao dịch và không nhìn thấy secret key.
-
-### Settlement và chi trả mô phỏng
-
-- Settlement chỉ đối soát tiền online hệ thống đã thu và phải trả cho Owner;
-  không bao gồm phần tiền dự kiến thanh toán tại sân.
-- Owner cấu hình một đích nhận mô phỏng, xem Settlement của mình nhưng không
-  được tự kích hoạt payout.
-- Admin thực hiện payout mô phỏng từ Settlement Detail; mọi lần thử được lưu
-  để audit và không chuyển tiền thật.
-- Đồng bộ/backfill Settlement dùng Flask CLI idempotent, không dùng background
-  worker và không thay đổi lifecycle Booking/Payment/Refund/Match.
 
 ## 2.2. Should Have
 
@@ -126,9 +114,11 @@
 
 - MoMo Production và giao dịch tiền thật.
 - QR ngân hàng thật của owner.
-- Ví/số dư do admin giữ, payout tiền thật hoặc yêu cầu rút tiền thật.
-- Credential ngân hàng/MoMo thật, sandbox disbursement hoặc clawback/adjustment
-  sau chi trả.
+- Ví/số dư do admin giữ, Settlement, Owner payout/disbursement, simulated
+  payout hoặc bất kỳ hình thức chuyển tiền từ nền tảng cho Owner.
+- Owner payout destination, `PayoutAttempt`, Admin/Owner Settlement module,
+  `flask settlements sync`, credential ngân hàng/MoMo thật, sandbox
+  disbursement hoặc clawback/adjustment sau chi trả.
 - Chuyển tiền trực tiếp giữa tài khoản người dùng.
 - Google Routes/traffic, theo dõi vị trí thời gian thực hoặc dữ liệu venue ngoài hệ thống.
 - Phân loại mặt sân tennis, thuê dụng cụ, huấn luyện viên và giải đấu.
@@ -138,4 +128,4 @@
 
 ## 2.5. Ranh giới triển khai hiện tại
 
-Danh mục đa môn, địa chỉ hành chính, bản đồ/vị trí theo ADR-036, cọc 30%, người ghép trả tại sân, nền tảng MoMo Sandbox và khu quản trị Admin đã có code/test. Admin có dashboard, khóa/mở tài khoản và các module canonical read-only cho Booking/Match; Payment/Refund được điều tra trong Booking Detail và lịch sử giao dịch không có thao tác xóa. Leaflet/Nominatim thay thế phần no-map của ADR-032 nhưng không đưa Google Maps/Places API trở lại; nearby chỉ sắp xếp Venue trong database có tọa độ hợp lệ và chưa có radius filter. ADR-027 và ADR-028 đã được triển khai ở service/UI/test; deadline, top-up, refund 80/20 và bước duyệt đối thủ chỉ còn phục vụ dữ liệu legacy có deadline. Việc gọi Sandbox thật chỉ được xem là đã xác nhận sau khi cấu hình credential M4B, URL HTTPS công khai và chạy một giao dịch thanh toán/hoàn tiền đầu-cuối; trước đó provider `MOCK` vẫn là mặc định. ADR-037 đã chốt chính sách Settlement và simulated payout cho Phase 2.6 nhưng model, migration, service, CLI, route và UI vẫn chưa được triển khai.
+Danh mục đa môn, địa chỉ hành chính, bản đồ/vị trí theo ADR-036, cọc 30%, người ghép trả tại sân, nền tảng MoMo Sandbox và khu quản trị Admin đã có code/test. Admin có dashboard, khóa/mở tài khoản và các module canonical read-only cho Booking/Match; Payment/Refund được điều tra trong Booking Detail và lịch sử giao dịch không có thao tác xóa. Leaflet/Nominatim thay thế phần no-map của ADR-032 nhưng không đưa Google Maps/Places API trở lại; nearby chỉ sắp xếp Venue trong database có tọa độ hợp lệ và chưa có radius filter. ADR-027 và ADR-028 đã được triển khai ở service/UI/test; deadline, top-up, refund 80/20 và bước duyệt đối thủ chỉ còn phục vụ dữ liệu legacy có deadline. Việc gọi Sandbox thật chỉ được xem là đã xác nhận sau khi cấu hình credential M4B, URL HTTPS công khai và chạy một giao dịch thanh toán/hoàn tiền đầu-cuối; trước đó provider `MOCK` vẫn là mặc định. ADR-038 đưa Settlement và Owner payout ra khỏi capstone MVP; ADR-037 được giữ như thiết kế lịch sử/future scope, không có model, migration, service, CLI, route hoặc UI tương ứng trong hệ thống hiện tại.

@@ -79,7 +79,7 @@ Ba hình thức booking:
 
 Số còn lại tại sân được tính từ tiền cọc thực thu: 85% với FIND_OPPONENT chỉ có cọc creator và 70% khi cả creator lẫn đối thủ đã cọc. Người chủ động hủy/rút hoặc no-show mất phần cọc của mình; chủ sân hủy hoặc lỗi hệ thống phải hoàn 100% cho bên không có lỗi.
 
-MoMo Sandbox chỉ mô phỏng tích hợp, không giao dịch tiền thật. Provider MOCK tiếp tục dùng cho phát triển và kiểm thử tự động. MoMo Production, QR ngân hàng thật, ví admin và chức năng owner rút tiền nằm ngoài phạm vi.
+MoMo Sandbox chỉ mô phỏng tích hợp, không giao dịch tiền thật. Provider MOCK tiếp tục dùng cho phát triển và kiểm thử tự động. MoMo Production, QR ngân hàng thật, ví admin, Settlement và mọi hình thức chi trả từ nền tảng cho Owner nằm ngoài phạm vi MVP.
 
 ## 1.8. Trạng thái triển khai
 
