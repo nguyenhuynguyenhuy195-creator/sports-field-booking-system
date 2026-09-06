@@ -2905,12 +2905,19 @@ a:hover {
 }
 
 .booking-code {
+    align-items: baseline;
     color: #65778c;
-    display: inline-block;
+    display: inline-flex;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 0.7rem;
+    font-size: 0.76rem;
     font-weight: 500;
-    margin-top: 0.65rem;
+    gap: 0.3rem;
+    overflow-wrap: anywhere;
+}
+
+.booking-code b {
+    color: #40546b;
+    font-weight: 650;
 }
 
 .booking-list-time,
@@ -2941,6 +2948,44 @@ a:hover {
     text-align: right;
 }
 
+.booking-detail-header > .booking-total-panel > span,
+.booking-detail-header > .booking-total-panel > strong {
+    text-align: center;
+}
+
+.booking-total-rows {
+    border-top: 1px solid #e6ecef;
+    display: grid;
+    gap: 0;
+    margin-top: 0.8rem !important;
+    padding-top: 0.55rem;
+}
+
+.booking-total-rows > div,
+.booking-action-financial-summary > div {
+    align-items: baseline;
+    display: flex;
+    gap: 0.75rem;
+    justify-content: space-between;
+    padding: 0.28rem 0;
+}
+
+.booking-total-rows dt,
+.booking-action-financial-summary dt {
+    color: #66788e;
+    font-size: 0.78rem;
+    font-weight: 500;
+}
+
+.booking-total-rows dd,
+.booking-action-financial-summary dd {
+    color: #22394f;
+    font-size: 0.86rem;
+    font-weight: 700;
+    margin: 0;
+    text-align: right;
+}
+
 .booking-total-panel span,
 .booking-total-panel small {
     color: #66788e;
@@ -2956,15 +3001,15 @@ a:hover {
 }
 
 .booking-detail-grid {
+    column-gap: 1.5rem;
     display: grid;
-    gap: 1rem;
+    row-gap: 0;
     grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .booking-detail-grid > div {
-    background: #f7f9fb;
-    border-radius: 10px;
-    padding: 0.9rem 1rem;
+    border-bottom: 1px solid #e7edf1;
+    padding: 0.7rem 0.15rem;
 }
 
 .booking-detail-grid dt {
@@ -2977,6 +3022,14 @@ a:hover {
 .booking-detail-grid dd {
     font-weight: 600;
     margin-bottom: 0;
+}
+
+.booking-action-financial-summary {
+    background: #f7faf8;
+    border: 1px solid #dcebe3;
+    border-radius: 12px;
+    margin: 0 0 0.9rem;
+    padding: 0.6rem 0.8rem;
 }
 
 .booking-detail-grid .booking-detail-full {
@@ -3644,6 +3697,26 @@ a:hover {
     display: flex;
     flex-direction: column;
     padding: 1rem;
+}
+
+@media (max-width: 575.98px) {
+    .booking-detail-header {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .booking-total-panel {
+        min-width: 0;
+        text-align: left;
+    }
+
+    .booking-detail-card {
+        padding: 1.15rem;
+    }
+
+    .booking-detail-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media (max-width: 991.98px) {

@@ -222,9 +222,27 @@ def test_current_opponent_copy_and_refund_net_amount(app, client, journey):
     login(client, email=journey["creator"].email)
     path = f"/bookings/{journey['booking_code']}"
     body = client.get(path).get_data(as_text=True)
-    assert "phần cọc 15% của bạn" in body
-    assert "còn 70% trả tại sân" in body and "(85%) trả tại sân" in body
-    assert "Còn thiếu" not in body
+    assert "Bạn đã cọc" in body
+    assert "Đối thủ có thể cọc" in body
+    assert "Còn lại tại sân" in body
+    assert "Khoản thanh toán đầu tiên đã thành công" not in body
+    assert "còn 70% trả tại sân" not in body and "(85%) trả tại sân" not in body
+    with app.app_context():
+        booking = db.session.get(Booking, journey["booking_id"])
+        opponent_contribution = next(
+            contribution for contribution in booking.contributions
+            if contribution.contribution_type == "OPPONENT"
+        )
+        opponent_contribution.amount_paid = opponent_contribution.amount_due
+        opponent_contribution.status = "PAID"
+        booking.paid_amount = booking.deposit_amount
+        booking.status = "PAID"
+        db.session.commit()
+    db.session.expire_all()
+    body = client.get(path).get_data(as_text=True)
+    assert "Đối thủ đã cọc" in body
+    assert "Tổng online" in body
+    assert "Đối thủ có thể cọc" not in body
     with app.app_context():
         booking = db.session.get(Booking, journey["booking_id"])
         booking.status = "REFUND_PENDING"
