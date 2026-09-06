@@ -3267,6 +3267,9 @@ a:hover {
     color: #80600b;
 }
 
+.match-status-past,
+.match-status-closed-listing,
+.match-status-inactive,
 .participant-status-rejected,
 .participant-status-expired,
 .participant-status-withdrawn,
@@ -7519,8 +7522,14 @@ body {
     display: inline-flex;
     font-size: 0.72rem;
     font-weight: 800;
-    margin-top: 0.75rem;
     padding: 0.3rem 0.6rem;
+}
+
+.match-market-statuses {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin-top: 0.75rem;
 }
 
 .match-market-copy {

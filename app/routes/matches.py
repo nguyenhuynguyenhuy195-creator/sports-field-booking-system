@@ -1,4 +1,5 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 
 from flask import (
     Blueprint,
@@ -24,6 +25,8 @@ from app.forms import (
 from app.models import (
     BookingMode,
     BookingStatus,
+    ContributionStatus,
+    ContributionType,
     MatchParticipantStatus,
     MatchParticipantType,
     MatchStatus,
@@ -79,6 +82,15 @@ MATCH_STATUS_LABELS = {
     MatchStatus.CANCELLED.value: "Đã hủy",
     MatchStatus.COMPLETED.value: "Đã hoàn thành",
 }
+MATCH_VIEW_PAST = "PAST"
+MATCH_VIEW_CLOSED_LISTING = "CLOSED_LISTING"
+MATCH_VIEW_INACTIVE = "INACTIVE"
+MATCH_VIEW_STATUS_LABELS = {
+    **MATCH_STATUS_LABELS,
+    MATCH_VIEW_PAST: "Đã diễn ra",
+    MATCH_VIEW_CLOSED_LISTING: "Đã đóng bài tìm đối thủ",
+    MATCH_VIEW_INACTIVE: "Không còn hiệu lực",
+}
 PARTICIPANT_STATUS_LABELS = {
     MatchParticipantStatus.PENDING.value: "Chờ người tạo xác nhận",
     MatchParticipantStatus.ACCEPTED_AWAITING_PAYMENT.value: "Đang giữ suất, chờ thanh toán",
@@ -98,6 +110,7 @@ SKILL_LEVEL_LABELS = {
 
 @matches_bp.get("/matches")
 def index():
+    view_now = datetime.now(timezone.utc)
     form = MatchSearchForm(request.args)
     sports = list_active_sports()
     provinces = list_provinces()
@@ -165,6 +178,11 @@ def index():
             )
         ),
         match_type_labels=MATCH_TYPE_LABELS,
+        match_view_status=lambda match: _match_view_status(match, now=view_now),
+        match_view_label=lambda match: _match_view_label(match, now=view_now),
+        match_actions_available=lambda match: match_accepts_actions(
+            match, now=view_now
+        ),
         skill_level_labels=SKILL_LEVEL_LABELS,
         match_has_joined_opponent=_match_has_joined_opponent,
     )
@@ -179,12 +197,17 @@ def mine():
         created_matches=list_created_matches(current_user.id),
         requests=list_user_match_requests(current_user.id),
         match_type_labels=MATCH_TYPE_LABELS,
-        match_status_labels=MATCH_STATUS_LABELS,
+        match_status_labels=MATCH_VIEW_STATUS_LABELS,
         participant_status_labels=PARTICIPANT_STATUS_LABELS,
         skill_level_labels=SKILL_LEVEL_LABELS,
         match_has_joined_opponent=_match_has_joined_opponent,
         participant_view_status=lambda participant: effective_participant_status(
             participant, now=view_now
+        ),
+        match_view_status=lambda match: _match_view_status(match, now=view_now),
+        match_view_label=lambda match: _match_view_label(match, now=view_now),
+        match_actions_available=lambda match: match_accepts_actions(
+            match, now=view_now
         ),
     )
 
@@ -290,8 +313,13 @@ def detail(match_id: int):
         for participant in match.participants
     )
     opponent_auto_join = opponent_join_is_automatic(match)
+    actions_available = match_accepts_actions(match, now=view_now)
+    match_view_status = _match_view_status(match, now=view_now)
+    opponent_obligation_covered = (
+        opponent_auto_join and _opponent_obligation_is_covered(match)
+    )
     expected_deposit_amount = None
-    if opponent_auto_join:
+    if opponent_auto_join and not opponent_obligation_covered:
         try:
             expected_deposit_amount = build_contribution_plan(
                 booking_mode=match.booking.booking_mode,
@@ -317,10 +345,12 @@ def detail(match_id: int):
         participant_view_status=lambda participant: effective_participant_status(
             participant, now=view_now
         ),
-        actions_available=match_accepts_actions(match, now=view_now),
+        actions_available=actions_available,
+        match_view_status=match_view_status,
+        match_view_label=MATCH_VIEW_STATUS_LABELS[match_view_status],
         joined_count=joined_count,
         match_type_labels=MATCH_TYPE_LABELS,
-        match_status_labels=MATCH_STATUS_LABELS,
+        match_status_labels=MATCH_VIEW_STATUS_LABELS,
         participant_status_labels=PARTICIPANT_STATUS_LABELS,
         skill_level_labels=SKILL_LEVEL_LABELS,
         has_joined_opponent=_match_has_joined_opponent(match),
@@ -340,10 +370,12 @@ def detail(match_id: int):
             else False
         ),
         contact_visible=(
-            _contact_visible(match.booking)
+            actions_available
+            and _contact_visible(match.booking)
             and match.status not in {MatchStatus.CANCELLED.value, MatchStatus.COMPLETED.value}
         ),
         opponent_auto_join=opponent_auto_join,
+        opponent_obligation_covered=opponent_obligation_covered,
         momo_enabled=current_app.config.get("MOMO_ENABLED", False),
     )
 
@@ -510,6 +542,66 @@ def _contact_visible(booking) -> bool:
         return False
     end_at = datetime.combine(booking.booking_date, booking.end_time)
     return end_at > current_vietnam_datetime()
+
+
+def _match_view_status(match, *, now: datetime | None = None) -> str:
+    """Return a read-only status for the current user-facing Match journey."""
+    if match.status == MatchStatus.COMPLETED.value:
+        return MatchStatus.COMPLETED.value
+    if match.booking.status == BookingStatus.CANCELLED.value:
+        return MatchStatus.CANCELLED.value
+    if match.status == MatchStatus.CANCELLED.value:
+        if (
+            match.match_type == MatchType.FIND_OPPONENT.value
+            and match.booking.status
+            in {
+                BookingStatus.PARTIALLY_PAID.value,
+                BookingStatus.PAID.value,
+            }
+        ):
+            return MATCH_VIEW_CLOSED_LISTING
+        return MatchStatus.CANCELLED.value
+
+    current_utc = now or datetime.now(timezone.utc)
+    if current_utc.tzinfo is None:
+        current_utc = current_utc.replace(tzinfo=timezone.utc)
+    local_now = current_utc.astimezone(timezone(timedelta(hours=7))).replace(
+        tzinfo=None
+    )
+    start_at = datetime.combine(match.booking.booking_date, match.booking.start_time)
+    if (
+        match.status
+        in {
+            MatchStatus.OPEN.value,
+            MatchStatus.FULL.value,
+            MatchStatus.CONFIRMED.value,
+        }
+        and start_at <= local_now
+    ):
+        return MATCH_VIEW_PAST
+    if match.booking.status not in {
+        BookingStatus.PARTIALLY_PAID.value,
+        BookingStatus.PAID.value,
+    }:
+        return MATCH_VIEW_INACTIVE
+    return match.status
+
+
+def _match_view_label(match, *, now: datetime | None = None) -> str:
+    return MATCH_VIEW_STATUS_LABELS[_match_view_status(match, now=now)]
+
+
+def _opponent_obligation_is_covered(match) -> bool:
+    """Recognize a paid, forfeited opponent share without creating a new charge."""
+    if match.match_type != MatchType.FIND_OPPONENT.value:
+        return False
+    return any(
+        contribution.contribution_type == ContributionType.OPPONENT.value
+        and contribution.status == ContributionStatus.FORFEITED.value
+        and Decimal(contribution.amount_due) > 0
+        and Decimal(contribution.amount_paid) >= Decimal(contribution.amount_due)
+        for contribution in match.booking.contributions
+    )
 
 
 def _match_has_joined_opponent(match) -> bool:

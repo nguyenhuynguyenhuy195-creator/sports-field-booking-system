@@ -92,7 +92,7 @@
         {% if matches %}
             <div class="match-list-grid marketplace-match-list">
                 {% for match in matches %}
-                    {{ match_marketplace_card(match, 'Xem chi tiết', url_for('matches.detail', match_id=match.id)) }}
+                    {{ match_marketplace_card(match, 'Xem chi tiết', url_for('matches.detail', match_id=match.id), match_view_label(match), 'match-status match-status-' ~ match_view_status(match)|lower|replace('_', '-'), actionable=match_actions_available(match)) }}
                 {% endfor %}
             </div>
             {% if search_page.pages > 1 %}

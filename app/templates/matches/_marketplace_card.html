@@ -1,4 +1,4 @@
-{% macro match_marketplace_card(match, action_label, action_url, status_label=None, status_class=None, show_description=False) %}
+{% macro match_marketplace_card(match, action_label, action_url, status_label=None, status_class=None, show_description=False, secondary_status_label=None, secondary_status_class=None, actionable=True) %}
     {% set joined_count = match.participants|selectattr('status', 'equalto', 'JOINED')|list|length %}
     {% set venue = match.booking.field.venue %}
     {% set compact_ward = venue.ward_name or venue.district %}
@@ -14,8 +14,11 @@
             </time>
         </div>
 
-        {% if status_label %}
-            <span class="match-market-status {{ status_class or '' }}">{{ status_label }}</span>
+        {% if status_label or secondary_status_label %}
+            <div class="match-market-statuses">
+                {% if status_label %}<span class="match-market-status {{ status_class or '' }}">{{ status_label }}</span>{% endif %}
+                {% if secondary_status_label %}<span class="match-market-status {{ secondary_status_class or '' }}">{{ secondary_status_label }}</span>{% endif %}
+            </div>
         {% endif %}
 
         <div class="match-market-copy">
@@ -50,10 +53,12 @@
                     <div class="match-market-progress-label">
                         <span><i class="bi bi-people" aria-hidden="true"></i> {{ joined_count }}/{{ match.required_players }} suất đã có</span>
                         <strong>
-                            {% if match.required_players - joined_count > 0 %}
+                            {% if actionable and match.required_players - joined_count > 0 %}
                                 Còn thiếu {{ match.required_players - joined_count }} người
-                            {% else %}
+                            {% elif joined_count >= match.required_players %}
                                 Đã đủ người
+                            {% else %}
+                                Kèo đã khép lại
                             {% endif %}
                         </strong>
                     </div>
@@ -63,7 +68,7 @@
                 {% else %}
                     <div class="match-market-progress-label match-market-opponent-state">
                         <span><i class="bi bi-shield-check" aria-hidden="true"></i> Đối thủ</span>
-                        <strong>{% if match_has_joined_opponent(match) %}Đã có đối thủ{% else %}Chưa có đối thủ{% endif %}</strong>
+                        <strong>{% if match_has_joined_opponent(match) %}Đã có đối thủ{% elif actionable %}Chưa có đối thủ{% else %}Không có đối thủ{% endif %}</strong>
                     </div>
                 {% endif %}
             </div>
