@@ -377,6 +377,7 @@ a.owner-sidebar-link:hover {
 }
 
 .owner-page-container {
+    min-width: 0;
     max-width: var(--owner-page-width) !important;
 }
 
@@ -783,6 +784,13 @@ a.owner-sidebar-link:hover {
     background: #dff3e8;
     border-color: #b8dfca;
     box-shadow: 0 3px 8px rgba(37, 135, 95, 0.08);
+}
+
+.owner-dashboard-card .table-responsive,
+.owner-finance-table-wrap {
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
 }
 
 .owner-bookings-page .booking-tab.active .booking-tab-count {
@@ -2455,7 +2463,7 @@ a.owner-sidebar-link:hover {
     }
 
     .owner-finance-table-wrap {
-        overflow: visible;
+        overflow-x: auto;
     }
 
     .owner-finance-table {

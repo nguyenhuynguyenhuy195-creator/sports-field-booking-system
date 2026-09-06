@@ -59,7 +59,7 @@
                     latestQuote = await requestQuote();
                     renderReview(latestQuote);
                 }
-                setStep(nextStep);
+                setStep(nextStep, { focus: true });
             } catch (error) {
                 showError(error.message || "Không thể kiểm tra lịch sân lúc này.");
             } finally {
@@ -75,7 +75,7 @@
     form.querySelectorAll("[data-previous-step]").forEach((button) => {
         button.addEventListener("click", () => {
             clearErrors();
-            setStep(Number(button.dataset.previousStep));
+            setStep(Number(button.dataset.previousStep), { focus: true });
         });
     });
 
@@ -197,12 +197,14 @@
             button.dataset.slotIndex = String(index);
             button.dataset.slotLabel = markerLabel;
             button.dataset.slotStatus = marker.status;
+            button.dataset.slotTime = marker.time;
             button.setAttribute(
                 "aria-disabled",
                 marker.status === "AVAILABLE" ? "false" : "true",
             );
-            button.setAttribute("role", "gridcell");
+            button.disabled = marker.status !== "AVAILABLE";
             button.setAttribute("aria-pressed", "false");
+            button.setAttribute("aria-label", `${marker.time} — ${markerLabel}`);
             button.title = `${marker.time}: ${markerLabel}`;
             timeLabel.textContent = marker.time;
             statusLabel.textContent = markerLabel;
@@ -270,6 +272,7 @@
                     .every((slot) => slot.status === "AVAILABLE");
             }
             button.setAttribute("aria-disabled", actionable ? "false" : "true");
+            button.disabled = !actionable;
             const selected = selectionStart !== null
                 && index >= selectionStart
                 && (selectionEnd === null ? index === selectionStart : index <= selectionEnd);
@@ -281,6 +284,10 @@
                 else if (index === selectionStart) statusLabel.textContent = "Bắt đầu";
                 else if (index === selectionEnd) statusLabel.textContent = "Kết thúc";
                 else statusLabel.textContent = "Đã chọn";
+                button.setAttribute(
+                    "aria-label",
+                    `${button.dataset.slotTime} — ${statusLabel.textContent}`,
+                );
             }
         });
 
@@ -441,7 +448,7 @@
         if (availabilityGrid) availabilityGrid.setAttribute("aria-busy", String(isLoading));
     }
 
-    function setStep(step) {
+    function setStep(step, { focus = false } = {}) {
         currentStep = step;
         panels.forEach((panel) => {
             const isActive = Number(panel.dataset.bookingStep) === step;
@@ -459,6 +466,12 @@
             behavior: "smooth",
             block: "start",
         });
+        if (focus) {
+            const focusTarget = panels
+                .find((panel) => Number(panel.dataset.bookingStep) === step)
+                ?.querySelector("[data-step-focus]");
+            focusTarget?.focus({ preventScroll: true });
+        }
     }
 
     async function requestTimeQuote() {
@@ -619,6 +632,7 @@
         box.textContent = message;
         box.classList.remove("d-none");
         box.scrollIntoView({ behavior: "smooth", block: "center" });
+        box.focus({ preventScroll: true });
     }
 
     function clearErrors() {

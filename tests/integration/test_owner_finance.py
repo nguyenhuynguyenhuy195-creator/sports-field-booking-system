@@ -230,9 +230,12 @@ def test_owner_finance_permissions_empty_state_and_active_navigation(app, client
     assert 'href="/owner/finance" aria-current="page"' in html
     assert "Chưa có hoạt động phù hợp" in html
     assert "0 đ" in html
-    assert "Đối soát &amp; chi trả" in html
-    assert "Chưa có dữ liệu đối soát" in html
-    assert "Đối soát và chi trả chưa được triển khai" in html
+    assert "Đã thu online" in html
+    assert "Đã hoàn" in html
+    assert "Dự kiến thanh toán tại sân" in html
+    assert "Đối soát &amp; chi trả" not in html
+    assert "Chưa có dữ liệu đối soát" not in html
+    assert "Đối soát và chi trả chưa được triển khai" not in html
     assert "Tài khoản nhận tiền" not in html
     assert client.post("/owner/finance").status_code == 405
     assert "Đã đối soát" not in html

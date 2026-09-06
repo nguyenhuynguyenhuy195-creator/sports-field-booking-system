@@ -55,7 +55,7 @@
 
                 <section class="booking-step-panel" data-booking-step="2">
                     <span class="eyebrow">BƯỚC 2</span>
-                    <h1 class="h3 fw-bold mt-2 mb-1">Chọn ngày và khoảng giờ</h1>
+                    <h1 class="h3 fw-bold mt-2 mb-1" data-step-focus tabindex="-1">Chọn ngày và khoảng giờ</h1>
                     <p class="text-secondary mb-4">Hệ thống sẽ kiểm tra lịch trống, bảo trì và giá trước khi bạn tiếp tục.</p>
 
                     <div class="booking-date-field">
@@ -82,7 +82,7 @@
                             <button class="availability-nav-button" type="button" data-date-next aria-label="Ngày sau">›</button>
                         </div>
 
-                        <div class="availability-grid mt-4" data-availability-grid role="grid" aria-label="Các khung giờ của sân"></div>
+                        <div class="availability-grid mt-4" data-availability-grid role="group" aria-label="Các khung giờ của sân"></div>
                         <p class="availability-empty mt-4 mb-0" data-availability-empty hidden></p>
 
                         <div class="availability-legend mt-4" aria-label="Chú thích trạng thái khung giờ">
@@ -119,7 +119,7 @@
                         <strong>Điều kiện:</strong> chọn liên tục, tối thiểu 60 phút và trong giờ mở cửa
                         {{ field.venue.opening_time.strftime('%H:%M') }}–{{ field.venue.closing_time.strftime('%H:%M') }}.
                     </div>
-                    <div class="alert alert-danger d-none" role="alert" data-flow-error></div>
+                    <div class="alert alert-danger d-none" role="alert" tabindex="-1" data-flow-error></div>
                     <div class="booking-flow-actions justify-content-end">
                         <button class="btn btn-primary booking-flow-control" type="button" data-next-step="3">
                             Kiểm tra giờ và tiếp tục →
@@ -129,7 +129,7 @@
 
                 <section class="booking-step-panel" data-booking-step="3">
                     <span class="eyebrow">BƯỚC 3</span>
-                    <h2 class="h3 fw-bold mt-2 mb-1">Bạn muốn đặt sân theo cách nào?</h2>
+                    <h2 class="h3 fw-bold mt-2 mb-1" data-step-focus tabindex="-1">Bạn muốn đặt sân theo cách nào?</h2>
                     <p class="text-secondary mb-4">Thông tin người đặt được lấy từ tài khoản đang đăng nhập.</p>
 
                     <div class="booking-contact-card mb-4">
@@ -200,7 +200,7 @@
                     </div>
 
                     {{ render_field(form.note, rows="3", placeholder="Ví dụ: Cần bóng thi đấu hoặc áo bib") }}
-                    <div class="alert alert-danger d-none" role="alert" data-flow-error></div>
+                    <div class="alert alert-danger d-none" role="alert" tabindex="-1" data-flow-error></div>
                     <div class="booking-flow-actions">
                         <button class="btn btn-outline-secondary booking-flow-control" type="button" data-previous-step="2">← Quay lại</button>
                         <button class="btn btn-primary booking-flow-control" type="button" data-next-step="4">Xem lại thông tin →</button>
@@ -209,7 +209,7 @@
 
                 <section class="booking-step-panel" data-booking-step="4">
                     <span class="eyebrow">BƯỚC 4</span>
-                    <h2 class="h3 fw-bold mt-2 mb-1">Xác nhận giữ chỗ</h2>
+                    <h2 class="h3 fw-bold mt-2 mb-1" data-step-focus tabindex="-1">Xác nhận giữ chỗ</h2>
                     <p class="text-secondary mb-4">Kiểm tra kỹ trước khi hệ thống khóa khung giờ trong 15 phút.</p>
 
                     <dl class="booking-review-grid">
@@ -252,7 +252,7 @@
                         <strong>Xác nhận tức thì:</strong> không cần chờ chủ sân duyệt. Sau khi tạo lịch đặt sân,
                         bạn có 15 phút để hoàn tất khoản thanh toán đầu tiên. Nếu tự hủy, khoản cọc của bạn không được hoàn.
                     </div>
-                    <div class="alert alert-danger d-none" role="alert" data-flow-error></div>
+                    <div class="alert alert-danger d-none" role="alert" tabindex="-1" data-flow-error></div>
                     <div class="booking-flow-actions">
                         <button class="btn btn-outline-secondary booking-flow-control" type="button" data-previous-step="3">← Quay lại</button>
                         {{ form.submit(class="btn btn-primary", data_booking_submit="") }}

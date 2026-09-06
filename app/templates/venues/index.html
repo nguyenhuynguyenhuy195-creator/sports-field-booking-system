@@ -127,14 +127,16 @@
                 </div>
                 <fieldset class="venue-price-filter">
                     <legend class="form-label fw-semibold">Khoảng giá mỗi giờ</legend>
-                    <div class="venue-price-controls">
-                        <div class="input-group">
-                            {{ form.min_price(class_="form-control" + (" is-invalid" if form.min_price.errors else ""), min="0", max="10000000", step="1000", inputmode="numeric", placeholder="Từ") }}
+                        <div class="venue-price-controls">
+                            <div class="input-group">
+                                <label class="visually-hidden" for="{{ form.min_price.id }}">Giá từ</label>
+                                {{ form.min_price(class_="form-control" + (" is-invalid" if form.min_price.errors else ""), min="0", max="10000000", step="1000", inputmode="numeric", placeholder="Từ") }}
                             <span class="input-group-text">đ</span>
                         </div>
                         <span class="venue-price-separator" aria-hidden="true">–</span>
-                        <div class="input-group">
-                            {{ form.max_price(class_="form-control" + (" is-invalid" if form.max_price.errors else ""), min="0", max="10000000", step="1000", inputmode="numeric", placeholder="Đến") }}
+                            <div class="input-group">
+                                <label class="visually-hidden" for="{{ form.max_price.id }}">Giá đến</label>
+                                {{ form.max_price(class_="form-control" + (" is-invalid" if form.max_price.errors else ""), min="0", max="10000000", step="1000", inputmode="numeric", placeholder="Đến") }}
                             <span class="input-group-text">đ</span>
                         </div>
                     </div>
