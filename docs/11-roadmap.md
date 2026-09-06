@@ -43,7 +43,7 @@ Các nhóm nghiệp vụ chính:
 
 ### 4. PAYMENT
 
-- Thanh toán tiền cọc bằng MoMo/ZaloPay sandbox.
+- Thanh toán tiền cọc bằng MoMo sandbox.
 - Booking tự xác nhận khi payment SUCCESS.
 - Refund.
 - Settlement hoặc chi trả cho Owner không thuộc MVP.
