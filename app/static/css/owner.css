@@ -23,9 +23,9 @@
     --owner-shadow-card-hover: 0 12px 28px rgba(16, 63, 53, 0.07);
     --owner-control-height: 40px;
     --owner-focus-ring: rgba(22, 118, 77, 0.24);
-    --owner-sidebar-width: 238px;
-    --owner-sidebar-collapsed-width: 68px;
-    --owner-sidebar-expanded-width: 238px;
+    --owner-sidebar-width: 250px;
+    --owner-sidebar-collapsed-width: 72px;
+    --owner-sidebar-expanded-width: 250px;
     --owner-sidebar-transition: 210ms;
     --owner-content-width: 1280px;
     --owner-page-width: 1220px;
@@ -60,14 +60,14 @@ html,
 }
 
 .owner-sidebar-header {
-    min-height: 70px;
-    padding: 0.9rem 1rem;
+    min-height: 78px;
+    padding: 1.15rem 1.25rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .owner-brand {
     display: inline-flex;
-    gap: 0.62rem;
+    gap: 0.75rem;
     align-items: center;
     min-width: 0;
     color: #fff;
@@ -81,13 +81,13 @@ html,
 .owner-brand-mark {
     display: inline-grid;
     flex: 0 0 auto;
-    width: 34px;
-    height: 34px;
+    width: 40px;
+    height: 40px;
     place-items: center;
     color: var(--owner-sidebar);
-    font-size: 0.9rem;
+    font-size: 1.05rem;
     background: #eef8f3;
-    border-radius: 9px;
+    border-radius: 11px;
 }
 
 .owner-brand-copy {
@@ -96,59 +96,61 @@ html,
 }
 
 .owner-brand-copy strong {
-    font-size: 0.82rem;
+    font-size: 0.95rem;
+    letter-spacing: -0.01em;
 }
 
 .owner-brand-copy small {
-    margin-top: 0.14rem;
+    margin-top: 0.12rem;
     color: rgba(255, 255, 255, 0.62);
-    font-size: 0.62rem;
+    font-size: 0.7rem;
 }
 
 .owner-sidebar-body {
     display: flex;
     flex-direction: column;
-    padding: 0.9rem 0.65rem 0.75rem;
+    min-width: 0;
+    padding: 0.9rem 1rem 1rem;
+    overflow-y: auto;
 }
 
 .owner-sidebar-nav {
     display: grid;
     min-width: 0;
-    gap: 0.16rem;
+    gap: 0.25rem;
 }
 
 .owner-sidebar-label {
-    padding: 0.48rem 0.62rem 0.35rem;
-    color: rgba(255, 255, 255, 0.48);
-    font-size: 0.61rem;
+    padding: 1.1rem 0.8rem 0.35rem;
+    color: rgba(255, 255, 255, 0.42);
+    font-size: 0.65rem;
     font-weight: 700;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.12em;
 }
 
 .owner-sidebar-link {
     position: relative;
     display: flex;
-    gap: 0.55rem;
+    gap: 0.8rem;
     align-items: center;
     min-width: 0;
-    min-height: 40px;
-    padding: 0.56rem 0.62rem;
-    color: rgba(255, 255, 255, 0.77);
-    font-size: 0.76rem;
-    font-weight: 600;
-    line-height: 1.2;
+    min-height: 42px;
+    padding: 0.6rem 0.8rem;
+    color: rgba(255, 255, 255, 0.74);
+    font-size: 0.84rem;
+    font-weight: 500;
     text-decoration: none;
-    border: 1px solid transparent;
-    border-radius: 8px;
-    transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease;
+    border: 0;
+    border-radius: 10px;
+    transition: color 160ms ease, background-color 160ms ease;
 }
 
 .owner-sidebar-link::before {
     position: absolute;
-    top: 0.5rem;
-    bottom: 0.5rem;
+    top: 8px;
+    bottom: 8px;
     left: 0;
-    width: 2px;
+    width: 3px;
     content: "";
     background: transparent;
     border-radius: 999px;
@@ -160,12 +162,13 @@ html,
     width: 22px;
     height: 22px;
     place-items: center;
-    font-size: 0.86rem;
+    font-size: 0.96rem;
     line-height: 1;
 }
 
 .owner-sidebar-link > span,
-.owner-sidebar-secondary > span {
+.owner-sidebar-secondary > span,
+.owner-sidebar-logout > span {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -193,7 +196,6 @@ a.owner-sidebar-link:hover {
 .owner-sidebar-link.active {
     color: #fff;
     background: rgba(218, 244, 230, 0.14);
-    border-color: rgba(218, 244, 230, 0.13);
 }
 
 .owner-sidebar-link.active::before {
@@ -214,36 +216,47 @@ a.owner-sidebar-link:hover {
 }
 
 .owner-sidebar-actions {
-    padding: 0.82rem 0.1rem 0;
+    display: grid;
+    gap: 0.35rem;
+    padding-top: 1rem;
     margin-top: auto;
-    border-top: 1px solid rgba(255, 255, 255, 0.11);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.owner-sidebar-secondary {
+.owner-sidebar-secondary,
+.owner-sidebar-logout {
     display: flex;
-    gap: 0.55rem;
+    gap: 0.6rem;
     align-items: center;
-    min-height: 36px;
-    padding: 0.48rem 0.58rem;
-    color: rgba(255, 255, 255, 0.72);
-    font-size: 0.72rem;
-    font-weight: 600;
+    width: 100%;
+    min-width: 0;
+    min-height: 40px;
+    padding: 0.55rem 0.75rem;
+    color: rgba(255, 255, 255, 0.68);
+    font-size: 0.76rem;
+    font-weight: 500;
+    text-align: left;
     text-decoration: none;
-    border-radius: 8px;
-    transition: color 150ms ease, background-color 150ms ease;
+    background: transparent;
+    border: 0;
+    border-radius: 9px;
+    transition: color 160ms ease, background-color 160ms ease;
 }
 
-.owner-sidebar-secondary > i {
+.owner-sidebar-secondary > i,
+.owner-sidebar-logout > i {
     display: inline-grid;
     flex: 0 0 auto;
     width: 22px;
     height: 22px;
     place-items: center;
-    font-size: 0.86rem;
+    color: rgba(255, 255, 255, 0.58);
+    font-size: 0.96rem;
     line-height: 1;
 }
 
-.owner-sidebar-secondary:hover {
+.owner-sidebar-secondary:hover,
+.owner-sidebar-logout:hover {
     color: #fff;
     background: rgba(255, 255, 255, 0.07);
 }
@@ -3017,13 +3030,13 @@ a.owner-sidebar-link:hover {
 
     .owner-sidebar:hover .owner-brand,
     .owner-sidebar:focus-within .owner-brand {
-        gap: 0.62rem;
+        gap: 0.75rem;
         justify-content: flex-start;
     }
 
     .owner-sidebar:hover .owner-brand-copy,
     .owner-sidebar:focus-within .owner-brand-copy {
-        max-width: 158px;
+        max-width: 166px;
         opacity: 1;
         visibility: visible;
         transform: translateX(0);
@@ -3043,8 +3056,8 @@ a.owner-sidebar-link:hover {
 
     .owner-sidebar:hover .owner-sidebar-body,
     .owner-sidebar:focus-within .owner-sidebar-body {
-        padding-right: 0.65rem;
-        padding-left: 0.65rem;
+        padding-right: 0.875rem;
+        padding-left: 0.875rem;
     }
 
     .owner-sidebar-label {
@@ -3060,8 +3073,8 @@ a.owner-sidebar-link:hover {
 
     .owner-sidebar:hover .owner-sidebar-label,
     .owner-sidebar:focus-within .owner-sidebar-label {
-        max-height: 32px;
-        padding-top: 0.48rem;
+        max-height: 44px;
+        padding-top: 1.1rem;
         padding-bottom: 0.35rem;
         opacity: 1;
         visibility: visible;
@@ -3069,7 +3082,8 @@ a.owner-sidebar-link:hover {
     }
 
     .owner-sidebar-link,
-    .owner-sidebar-secondary {
+    .owner-sidebar-secondary,
+    .owner-sidebar-logout {
         gap: 0;
         justify-content: center;
         padding-right: 0;
@@ -3079,6 +3093,7 @@ a.owner-sidebar-link:hover {
 
     .owner-sidebar-link > span,
     .owner-sidebar-secondary > span,
+    .owner-sidebar-logout > span,
     .owner-sidebar-link > small {
         flex: 0 1 auto;
         max-width: 0;
@@ -3098,19 +3113,23 @@ a.owner-sidebar-link:hover {
 
     .owner-sidebar:hover .owner-sidebar-link,
     .owner-sidebar:hover .owner-sidebar-secondary,
+    .owner-sidebar:hover .owner-sidebar-logout,
     .owner-sidebar:focus-within .owner-sidebar-link,
-    .owner-sidebar:focus-within .owner-sidebar-secondary {
-        gap: 0.55rem;
+    .owner-sidebar:focus-within .owner-sidebar-secondary,
+    .owner-sidebar:focus-within .owner-sidebar-logout {
+        gap: 0.8rem;
         justify-content: flex-start;
-        padding-right: 0.62rem;
-        padding-left: 0.62rem;
+        padding-right: 0.6875rem;
+        padding-left: 0.6875rem;
     }
 
     .owner-sidebar:hover .owner-sidebar-link > span,
     .owner-sidebar:hover .owner-sidebar-secondary > span,
+    .owner-sidebar:hover .owner-sidebar-logout > span,
     .owner-sidebar:focus-within .owner-sidebar-link > span,
-    .owner-sidebar:focus-within .owner-sidebar-secondary > span {
-        max-width: 148px;
+    .owner-sidebar:focus-within .owner-sidebar-secondary > span,
+    .owner-sidebar:focus-within .owner-sidebar-logout > span {
+        max-width: 172px;
         opacity: 1;
         visibility: visible;
         transform: translateX(0);
@@ -3132,7 +3151,8 @@ a.owner-sidebar-link:hover {
 
     .owner-sidebar-link:focus-visible,
     .owner-brand:focus-visible,
-    .owner-sidebar-secondary:focus-visible {
+    .owner-sidebar-secondary:focus-visible,
+    .owner-sidebar-logout:focus-visible {
         outline: 2px solid rgba(183, 228, 93, 0.9);
         outline-offset: -2px;
     }
@@ -3916,6 +3936,8 @@ a.owner-sidebar-link:hover {
     .owner-sidebar-link > small,
     .owner-sidebar-secondary,
     .owner-sidebar-secondary > span,
+    .owner-sidebar-logout,
+    .owner-sidebar-logout > span,
     .owner-kpi-card {
         transition: none;
     }

@@ -8,7 +8,7 @@
     --admin-text: #172033;
     --admin-muted: #687386;
     --admin-card-radius: 14px;
-    --admin-sidebar-width: 276px;
+    --admin-sidebar-width: 250px;
     --admin-sidebar-collapsed-width: 72px;
     --admin-sidebar-expanded-width: 250px;
 }
@@ -3087,12 +3087,6 @@
     flex-wrap: wrap;
 }
 
-.admin-account-summary-grid article {
-    background: #fff;
-    border-color: var(--admin-border);
-    border-radius: var(--admin-card-radius);
-}
-
 .admin-account-browser,
 .admin-location-browser {
     padding: 1rem;
@@ -3523,14 +3517,6 @@
 
     .admin-topbar-account {
         max-width: 96px;
-    }
-
-    .admin-account-summary-grid {
-        gap: 0.65rem;
-    }
-
-    .admin-account-summary-grid article {
-        padding: 0.9rem 1rem;
     }
 
     .admin-owner-filters,
@@ -4048,20 +4034,14 @@
 
 .admin-booking-detail-page .admin-detail-layout {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+    grid-template-columns: minmax(0, 1fr);
     gap: 1rem;
     align-items: start;
 }
 
-.admin-booking-detail-page .admin-detail-main,
-.admin-booking-detail-page .admin-detail-sidebar {
+.admin-booking-detail-page .admin-detail-main {
     display: grid;
     gap: 1rem;
-}
-
-.admin-booking-detail-page .admin-detail-sidebar {
-    position: sticky;
-    top: calc(var(--admin-topbar-height) + 1rem);
 }
 
 .admin-booking-detail-page .admin-detail-card {
@@ -4079,8 +4059,7 @@
     margin-bottom: 1rem;
 }
 
-.admin-booking-detail-page .admin-detail-card-heading h2,
-.admin-booking-detail-page .admin-detail-sidebar h2 {
+.admin-booking-detail-page .admin-detail-card-heading h2 {
     margin: 0.25rem 0 0;
     color: var(--admin-sidebar);
     font-size: 1rem;
@@ -4303,6 +4282,47 @@
     word-break: break-word;
 }
 
+.admin-transaction-time {
+    display: grid;
+    gap: 0.12rem;
+    color: var(--admin-muted);
+    font-size: 0.72rem;
+}
+
+.admin-transaction-time strong {
+    color: var(--admin-sidebar);
+    font-size: 0.76rem;
+}
+
+.admin-transaction-technical {
+    min-width: 0;
+    border-top: 1px solid var(--admin-border);
+}
+
+.admin-transaction-technical summary,
+.admin-history-disclosure summary {
+    display: flex;
+    align-items: center;
+    min-height: 38px;
+    color: var(--admin-primary);
+    font-size: 0.72rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.admin-transaction-technical .admin-transaction-metadata {
+    padding-top: 0.65rem;
+}
+
+.admin-compact-empty-state {
+    padding: 0.7rem 0.8rem;
+    color: var(--admin-muted);
+    font-size: 0.74rem;
+    background: #f7faf9;
+    border: 1px solid var(--admin-border);
+    border-radius: 8px;
+}
+
 .admin-transaction-reason {
     margin: 0;
     color: var(--admin-muted);
@@ -4377,6 +4397,18 @@
     list-style: none;
 }
 
+.admin-history-disclosure summary {
+    justify-content: space-between;
+    padding-bottom: 0.55rem;
+    color: var(--admin-sidebar);
+    font-size: 0.84rem;
+    border-bottom: 1px solid var(--admin-border);
+}
+
+.admin-history-disclosure[open] summary {
+    margin-bottom: 0.25rem;
+}
+
 .admin-recorded-events li {
     position: relative;
     display: grid;
@@ -4442,11 +4474,15 @@
 .admin-investigation-summary ul {
     display: grid;
     gap: 0.55rem;
-    padding-left: 1.1rem;
+    padding: 0;
     margin: 0.9rem 0;
     color: var(--admin-muted);
     font-size: 0.74rem;
     line-height: 1.5;
+}
+
+.admin-investigation-summary li {
+    list-style: none;
 }
 
 .admin-investigation-summary > p {
@@ -4462,10 +4498,6 @@
         grid-template-columns: minmax(0, 1fr);
     }
 
-    .admin-booking-detail-page .admin-detail-sidebar {
-        position: static;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
 }
 
 @media (max-width: 767.98px) {
@@ -4482,8 +4514,7 @@
 
     .admin-booking-detail-page .admin-detail-info-grid,
     .admin-booking-detail-page .admin-money-grid,
-    .admin-booking-detail-page .admin-transaction-metadata,
-    .admin-booking-detail-page .admin-detail-sidebar {
+    .admin-booking-detail-page .admin-transaction-metadata {
         grid-template-columns: minmax(0, 1fr);
     }
 

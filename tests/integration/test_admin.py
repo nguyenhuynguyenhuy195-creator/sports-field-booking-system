@@ -2223,7 +2223,7 @@ def test_admin_match_legacy_mapping_sidebar_and_booking_cross_link(app, client):
         f'/admin/bookings/{data["players_booking_code"]}'
     ).get_data(as_text=True)
     assert f'/admin/matches/{data["players_match_id"]}' in booking_page
-    assert "Mở Match Detail" in booking_page
+    assert "Xem chi tiết kèo" in booking_page
 
     missing = client.get("/admin/matches/999999", follow_redirects=True)
     assert missing.status_code == 200
@@ -2286,8 +2286,8 @@ def test_admin_monitoring_explains_data_and_opens_booking_detail(app, client):
     assert "Đối chiếu nghĩa vụ và số tiền hiện tại" in detail_page
     assert "Lịch sử thanh toán" in detail_page
     assert "Lịch sử hoàn tiền" in detail_page
-    assert "Sự kiện đã ghi nhận" in detail_page
-    assert "Trạng thái hiện tại" in detail_page
+    assert "Lịch sử sự kiện" in detail_page
+    assert "TÓM TẮT KIỂM TRA" not in detail_page
     assert "PAY-ADMIN-MONITOR" in detail_page
     assert "REFUND-ADMIN-MONITOR" in detail_page
     assert "Kèo Admin Test" in detail_page
@@ -2449,7 +2449,7 @@ def test_admin_booking_detail_reconciles_successful_payments_and_refunds(app, cl
     )[1].split("</table>", 1)[0]
     assert attention_table.count("54.000 đ") >= 2
     assert "0 đ" in attention_table
-    assert "3 Refund cần theo dõi" in attention_page
+    assert "3 hoàn tiền cần theo dõi" not in attention_page
     assert "Chờ xử lý" in attention_page
     assert "Đang xử lý" in attention_page
     assert "Hoàn tiền thất bại" in attention_page
@@ -2467,9 +2467,9 @@ def test_admin_booking_detail_separates_recorded_events_from_current_state(app, 
     completed_page = client.get(
         f"/admin/bookings/{data['completed_match']}"
     ).get_data(as_text=True)
-    assert 'data-current-booking-status="COMPLETED"' in completed_page
+    assert 'data-admin-booking-status="COMPLETED"' in completed_page
     assert "Kèo liên quan Booking Detail" in completed_page
-    assert "Mở Match Detail" in completed_page
+    assert "Xem chi tiết kèo" in completed_page
     assert "/admin/matches/" in completed_page
     assert 'data-event-type="booking_created"' in completed_page
     assert 'data-event-type="match_created"' in completed_page
@@ -2488,7 +2488,7 @@ def test_admin_booking_detail_separates_recorded_events_from_current_state(app, 
     cancelled_page = client.get(
         f"/admin/bookings/{data['full_refund']}"
     ).get_data(as_text=True)
-    assert 'data-current-booking-status="CANCELLED"' in cancelled_page
+    assert 'data-admin-booking-status="CANCELLED"' in cancelled_page
     assert "Lý do hủy" in cancelled_page
     assert 'data-event-type="booking_cancelled"' not in cancelled_page
     assert "cancelled_at" not in cancelled_page

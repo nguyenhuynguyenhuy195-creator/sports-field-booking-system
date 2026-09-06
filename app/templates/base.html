@@ -59,21 +59,21 @@
                                 <span class="app-account-name">{{ current_user.full_name }}</span>
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end app-account-menu">
-                                <li><h2 class="dropdown-header">Tài khoản</h2></li>
+                                {% if current_user.role == 'USER' %}<li><h2 class="dropdown-header">Tài khoản</h2></li>{% endif %}
                                 {% if current_user.role == 'USER' %}
                                     <li><a class="dropdown-item" href="{{ url_for('owner_applications.mine') }}">Yêu cầu trở thành chủ sân</a></li>
                                 {% endif %}
                                 {% if current_user.is_owner %}
-                                    <li><h2 class="dropdown-header">Quản lý chủ sân</h2></li>
+                                    <li><h2 class="dropdown-header">Chủ sân</h2></li>
                                     <li><a class="dropdown-item" href="{{ url_for('owner.dashboard') }}">Quản lý sân</a></li>
                                 {% endif %}
                                 {% if current_user.is_admin %}
-                                    <li><h2 class="dropdown-header">Quản trị hệ thống</h2></li>
-                                    <li><a class="dropdown-item" href="{{ url_for('admin.dashboard') }}">Tổng quan quản trị</a></li>
-                                    <li><a class="dropdown-item" href="{{ url_for('admin.accounts') }}">Quản lý tài khoản</a></li>
-                                    <li><a class="dropdown-item" href="{{ url_for('admin.owner_applications') }}">Duyệt yêu cầu chủ sân</a></li>
+                                    <li><h2 class="dropdown-header">Quản trị</h2></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('admin.dashboard') }}" title="Tổng quan quản trị">Tổng quan</a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('admin.accounts') }}" title="Quản lý tài khoản">Tài khoản</a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('admin.owner_applications') }}" title="Duyệt yêu cầu chủ sân">Duyệt chủ sân</a></li>
                                     <li><a class="dropdown-item" href="{{ url_for('venues.admin_index') }}">Duyệt cơ sở</a></li>
-                                    <li><a class="dropdown-item" href="{{ url_for('admin.monitoring') }}">Giám sát hệ thống</a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('admin.monitoring') }}" title="Giám sát hệ thống">Giám sát</a></li>
                                 {% endif %}
                                 <li><hr class="dropdown-divider"></li>
                                 <li>

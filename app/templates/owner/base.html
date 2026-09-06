@@ -53,9 +53,13 @@
                 </nav>
 
                 <div class="owner-sidebar-actions">
-                    <a class="owner-sidebar-secondary" href="{{ url_for('main.home') }}" aria-label="Trang người chơi" title="Trang người chơi">
-                        <i class="bi bi-arrow-left" aria-hidden="true"></i><span>Trang người chơi</span>
+                    <a class="owner-sidebar-secondary" href="{{ url_for('main.home') }}" aria-label="Về trang chính" title="Về trang chính">
+                        <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i><span>Về trang chính</span>
                     </a>
+                    <form method="post" action="{{ url_for('auth.logout') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button class="owner-sidebar-logout" type="submit" title="Đăng xuất"><i class="bi bi-box-arrow-right" aria-hidden="true"></i><span>Đăng xuất</span></button>
+                    </form>
                 </div>
             </div>
         </aside>
