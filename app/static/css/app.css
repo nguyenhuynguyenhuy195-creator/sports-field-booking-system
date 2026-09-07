@@ -17,6 +17,11 @@
     --app-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
+/* Keep the Player experience compact without changing the separate Owner/Admin consoles. */
+html.user-root {
+    font-size: 93.75%;
+}
+
 /* Booking-centric admin monitoring */
 .admin-monitoring-sidebar .admin-scope-panel {
     max-height: calc(100vh - 2rem);
@@ -7320,6 +7325,7 @@ body {
 
 .venue-public-media-layout.is-single {
     grid-template-columns: minmax(0, 760px);
+    justify-content: center;
 }
 
 .venue-public-media-cover {
