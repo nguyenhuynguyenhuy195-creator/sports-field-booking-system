@@ -488,6 +488,24 @@ a:hover {
     color: var(--app-primary-dark);
 }
 
+.auth-register-link {
+    color: #0f5736;
+    font-weight: 700;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.14em;
+}
+
+.auth-register-link:hover {
+    color: #093b25;
+}
+
+.auth-register-link:focus-visible {
+    outline: 3px solid rgba(20, 108, 67, 0.32);
+    outline-offset: 3px;
+    border-radius: 2px;
+}
+
 .app-navbar {
     background: var(--app-secondary);
     min-height: 72px;
@@ -2953,9 +2971,13 @@ a:hover {
     text-align: right;
 }
 
-.booking-detail-header > .booking-total-panel > span,
-.booking-detail-header > .booking-total-panel > strong {
+.booking-total-heading {
     text-align: center;
+}
+
+.booking-total-heading span,
+.booking-total-heading strong {
+    display: block;
 }
 
 .booking-total-rows {
@@ -2991,6 +3013,10 @@ a:hover {
     text-align: right;
 }
 
+.booking-total-rows > div:last-child dd {
+    font-weight: 700;
+}
+
 .booking-total-panel span,
 .booking-total-panel small {
     color: #66788e;
@@ -3003,6 +3029,10 @@ a:hover {
 
 .booking-detail-card {
     padding: 1.5rem;
+}
+
+.booking-information-card {
+    padding: 1.3rem 1.4rem;
 }
 
 .booking-detail-grid {
@@ -3027,6 +3057,14 @@ a:hover {
 .booking-detail-grid dd {
     font-weight: 600;
     margin-bottom: 0;
+}
+
+.booking-information-card .booking-detail-grid > div {
+    padding: 0.62rem 0.15rem;
+}
+
+.booking-information-card .booking-detail-grid dt {
+    font-weight: 600;
 }
 
 .booking-action-financial-summary {
@@ -3085,20 +3123,26 @@ a:hover {
 
 .booking-disclosure-icon {
     align-items: center;
-    background: #eef7f2;
-    border-radius: 999px;
+    background: transparent;
     color: var(--app-primary-dark);
     display: inline-flex;
-    flex: 0 0 2rem;
-    font-size: 1.15rem;
-    height: 2rem;
+    flex: 0 0 1.5rem;
+    font-size: 1rem;
+    height: 1.5rem;
     justify-content: center;
-    transition: transform 0.2s ease;
-    width: 2rem;
+    width: 1.5rem;
 }
 
-.booking-disclosure[open] .booking-disclosure-icon {
-    transform: rotate(45deg);
+.booking-disclosure-icon i {
+    transition: transform 0.18s ease;
+}
+
+.booking-disclosure summary:hover .booking-disclosure-icon {
+    color: var(--app-primary);
+}
+
+.booking-disclosure[open] .booking-disclosure-icon i {
+    transform: rotate(180deg);
 }
 
 .booking-disclosure-body {
@@ -3130,6 +3174,29 @@ a:hover {
 .booking-final-status-completed {
     background: #eef7f2;
     border-color: #cfe4d8;
+}
+
+.booking-final-status-row {
+    background: transparent;
+    border: 0;
+    border-left: 3px solid #79ad8c;
+    border-radius: 0;
+    gap: 0.2rem;
+    margin: 0.25rem 0 0;
+    padding: 0.2rem 0 0.2rem 0.75rem;
+}
+
+.booking-final-status-row strong {
+    color: #244638;
+    font-size: 0.92rem;
+}
+
+.booking-final-status-row span {
+    font-size: 0.82rem;
+}
+
+.booking-user-action-card {
+    padding: 1.3rem;
 }
 
 .booking-cancellation-note {
@@ -3717,6 +3784,11 @@ a:hover {
 
     .booking-detail-card {
         padding: 1.15rem;
+    }
+
+    .booking-information-card,
+    .booking-user-action-card {
+        padding: 1.1rem;
     }
 
     .booking-detail-grid {

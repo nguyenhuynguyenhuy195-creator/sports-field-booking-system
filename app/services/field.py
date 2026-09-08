@@ -18,6 +18,8 @@ from app.models import (
 from app.services.auth import normalize_full_name
 from app.services.sport_catalog import SportCatalogError, get_active_field_type
 
+from .locking import with_update_lock
+
 
 class FieldError(ValueError):
     """Base error for field business rules."""
@@ -154,13 +156,15 @@ def update_field(
         raise FieldError(str(exc)) from exc
 
     field = db.session.scalar(
-        db.select(Field)
-        .options(
-            joinedload(Field.venue),
-            joinedload(Field.field_type).joinedload(FieldType.sport),
+        with_update_lock(
+            db.select(Field)
+            .options(
+                joinedload(Field.venue),
+                joinedload(Field.field_type).joinedload(FieldType.sport),
+            )
+            .where(Field.id == field_id),
+            Field,
         )
-        .where(Field.id == field_id)
-        .with_for_update()
     )
     if field is None:
         raise FieldNotFoundError("Không tìm thấy sân.")
@@ -201,7 +205,7 @@ def _get_owned_venue(
 ) -> Venue:
     statement = db.select(Venue).where(Venue.id == venue_id)
     if lock:
-        statement = statement.with_for_update()
+        statement = with_update_lock(statement, Venue)
     venue = db.session.scalar(statement)
     if venue is None:
         raise FieldNotFoundError("Không tìm thấy cơ sở.")

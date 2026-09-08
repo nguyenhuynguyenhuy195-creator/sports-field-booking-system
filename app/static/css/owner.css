@@ -9,10 +9,10 @@
     --owner-border: #dfe8e3;
     --owner-border-strong: #cedcd5;
     --owner-text: #17261f;
-    --owner-muted: #64756c;
-    --owner-muted-soft: #788981;
-    --owner-font-xs: 0.68rem;
-    --owner-font-sm: 0.75rem;
+    --owner-muted: #53665d;
+    --owner-muted-soft: #53665d;
+    --owner-font-xs: 0.8125rem;
+    --owner-font-sm: 0.8125rem;
     --owner-font-md: 0.85rem;
     --owner-space-3: 1rem;
     --owner-space-4: 1.5rem;
@@ -2754,7 +2754,7 @@ a.owner-sidebar-link:hover {
 .owner-booking-financial-details .booking-disclosure[open] .booking-disclosure-icon {
     color: var(--owner-primary);
     background: #eef6f2;
-    transform: rotate(90deg);
+    transform: none;
 }
 
 .owner-booking-financial-details .booking-disclosure-body {
@@ -5522,4 +5522,57 @@ a.owner-sidebar-link:hover {
         min-height: 220px;
         padding: var(--owner-space-4) var(--owner-space-3);
     }
+}
+
+/* Accessibility floor: secondary information and controls remain legible at every viewport. */
+.owner-body .owner-main :is(
+    small,
+    .btn,
+    .form-label,
+    .form-text,
+    .invalid-feedback,
+    .form-control,
+    .form-select,
+    .status-badge,
+    th,
+    td,
+    dt,
+    dd,
+    [class*="-meta"],
+    [class*="-label"],
+    [class*="-note"],
+    [class*="-count"],
+    [class*="-code"],
+    [class*="-state"],
+    [class*="-kicker"],
+    [class*="-eyebrow"],
+    [class*="-coordinates"],
+    [class*="-reference"]
+) {
+    font-size: 0.8125rem !important;
+}
+
+.owner-sidebar :is(
+    .owner-brand-copy small,
+    .owner-sidebar-label,
+    .owner-sidebar-link > small
+) {
+    font-size: 0.8125rem !important;
+}
+
+.owner-topbar :is(.owner-topbar-title small, .owner-account-copy small) {
+    color: var(--owner-muted);
+    font-size: 0.8125rem !important;
+}
+
+.owner-body .owner-main :is(
+    [class*="-meta"],
+    [class*="-label"],
+    [class*="-note"],
+    [class*="-count"],
+    [class*="-code"],
+    [class*="-coordinates"],
+    [class*="-reference"]
+) {
+    color: var(--owner-muted);
 }

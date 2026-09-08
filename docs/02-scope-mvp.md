@@ -1,5 +1,7 @@
 # 2. Phạm vi MVP
 
+> Scope nghiệm thu từ 08/09/2026 (GVHD xác nhận, ADR-039): **Hệ thống sử dụng thanh toán mô phỏng trong môi trường thử nghiệm.** MVP chỉ dùng MOCK/SIMULATED PAYMENT; MoMo Sandbox không phải runtime provider. Nội dung MoMo/HMAC/IPN/query còn được giữ dưới đây là thiết kế hoặc kiểm thử legacy, không phải tính năng đang hoạt động hay điều kiện nghiệm thu.
+
 ## 2.1. Must Have
 
 ### Tài khoản
@@ -47,17 +49,16 @@
 - Backend tính giá và lưu snapshot; không nhận giá từ frontend.
 - Booking hợp lệ được giữ chỗ 15 phút để thanh toán khoản cọc đầu tiên.
 
-### Thanh toán cọc MoMo Sandbox
+### Thanh toán cọc mô phỏng
 
 - Khoản cọc bằng 30% tổng tiền sân, làm tròn đến đồng và lưu snapshot.
 - Số còn lại tại sân bằng tổng tiền trừ cọc online thực thu; hệ thống không thu hoặc xác nhận phần này trong MVP.
 - DIRECT_BOOKING: creator thanh toán toàn bộ khoản cọc.
 - FIND_PLAYERS: creator thanh toán toàn bộ khoản cọc; người ghép không có payment/contribution online.
 - FIND_OPPONENT: creator thanh toán 50% khoản cọc dự kiến, tương đương 15% tổng tiền sân, và khoản này đã đủ giữ booking; phía đối thủ bấm nhận kèo và thanh toán 15% còn lại để tự động tham gia.
-- Backend tạo chữ ký, chuyển user đến MoMo Sandbox và nhận IPN.
-- Chỉ IPN hợp lệ mới cập nhật payment thành công; redirect không phải bằng chứng.
-- Hỗ trợ refund qua MoMo Sandbox cho trường hợp chủ sân hủy, lỗi/thu trùng phía hệ thống hoặc hoàn lại cho bên không chủ động gây hủy.
-- Provider MOCK dùng cho phát triển/test và phải ghi rõ không trừ tiền thật.
+- Backend ghi Payment MOCK trong transaction, chống thu lặp và kiểm tra quyền/hạn giữ suất; không có redirect/IPN provider ngoài.
+- Hoàn tiền MOCK theo rule owner/hệ thống hiện có, cập nhật số tiền ròng trong cùng transaction.
+- Provider MOCK dùng cho toàn bộ MVP, ghi rõ không trừ tiền thật.
 
 ### Tìm đối thủ
 
@@ -128,4 +129,4 @@
 
 ## 2.5. Ranh giới triển khai hiện tại
 
-Danh mục đa môn, địa chỉ hành chính, bản đồ/vị trí theo ADR-036, cọc 30%, người ghép trả tại sân, nền tảng MoMo Sandbox và khu quản trị Admin đã có code/test. Admin có dashboard, khóa/mở tài khoản và các module canonical read-only cho Booking/Match; Payment/Refund được điều tra trong Booking Detail và lịch sử giao dịch không có thao tác xóa. Leaflet/Nominatim thay thế phần no-map của ADR-032 nhưng không đưa Google Maps/Places API trở lại; nearby chỉ sắp xếp Venue trong database có tọa độ hợp lệ và chưa có radius filter. ADR-027 và ADR-028 đã được triển khai ở service/UI/test; deadline, top-up, refund 80/20 và bước duyệt đối thủ chỉ còn phục vụ dữ liệu legacy có deadline. Việc gọi Sandbox thật chỉ được xem là đã xác nhận sau khi cấu hình credential M4B, URL HTTPS công khai và chạy một giao dịch thanh toán/hoàn tiền đầu-cuối; trước đó provider `MOCK` vẫn là mặc định. ADR-038 đưa Settlement và Owner payout ra khỏi capstone MVP; ADR-037 được giữ như thiết kế lịch sử/future scope, không có model, migration, service, CLI, route hoặc UI tương ứng trong hệ thống hiện tại.
+Danh mục đa môn, địa chỉ hành chính, bản đồ/vị trí theo ADR-036, cọc 30%, người ghép trả tại sân, thanh toán mô phỏng và khu quản trị Admin đã có code/test. Admin có dashboard, khóa/mở tài khoản và các module canonical read-only cho Booking/Match; Payment/Refund được điều tra trong Booking Detail và lịch sử giao dịch không có thao tác xóa. Leaflet/Nominatim thay thế phần no-map của ADR-032 nhưng không đưa Google Maps/Places API trở lại; nearby chỉ sắp xếp Venue trong database có tọa độ hợp lệ và chưa có radius filter. ADR-027 và ADR-028 đã được triển khai ở service/UI/test; deadline, top-up, refund 80/20 và bước duyệt đối thủ chỉ còn phục vụ dữ liệu legacy có deadline. Theo ADR-039, MoMo Sandbox không còn thuộc scope và bị disable; không yêu cầu credential hay giao dịch Sandbox để nghiệm thu. ADR-038 đưa Settlement và Owner payout ra khỏi capstone MVP; ADR-037 được giữ như thiết kế lịch sử/future scope, không có model, migration, service, CLI, route hoặc UI tương ứng trong hệ thống hiện tại.

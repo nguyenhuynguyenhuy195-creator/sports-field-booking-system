@@ -1187,7 +1187,12 @@ def test_admin_dashboard_uses_database_counts_for_phase_one_kpis(app, client):
     assert "Yêu cầu chủ sân đang chờ" in page
     assert "Cơ sở đang chờ duyệt" in page
     assert "Lịch đặt sân hôm nay" in page
-    assert "Các vấn đề cần xử lý" in page
+    assert "Các vấn đề cần xử lý" not in page
+    assert (
+        f'<a class="admin-dashboard-kpi admin-dashboard-kpi--today" '
+        f'href="/admin/bookings?date={date.today().isoformat()}">'
+    ) in page
+    assert "admin-dashboard-kpi--attention" not in page
     assert "Thanh toán cần kiểm tra" in page
     assert "Hoàn tiền chưa hoàn tất" in page
     assert "PENDING" not in page

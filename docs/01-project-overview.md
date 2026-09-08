@@ -1,5 +1,7 @@
 # 1. Tổng quan dự án
 
+> Scope nghiệm thu từ 08/09/2026 (GVHD xác nhận, ADR-039): **Hệ thống sử dụng thanh toán mô phỏng trong môi trường thử nghiệm.** MVP chỉ dùng MOCK/SIMULATED PAYMENT; MoMo Sandbox không phải runtime provider. Nội dung MoMo/HMAC/IPN/query còn được giữ dưới đây là thiết kế hoặc kiểm thử legacy, không phải tính năng đang hoạt động hay điều kiện nghiệm thu.
+
 ## 1.1. Tên đề tài
 
 Xây dựng hệ thống quản lý đặt sân thể thao đa môn tích hợp tìm kèo trực tuyến.
@@ -26,7 +28,7 @@ Hệ thống trực tuyến cho phép:
 - Owner chọn tỉnh/thành phố, phường/xã, nhập địa chỉ chi tiết và xác nhận ghim trên Leaflet; user có thể xem bản đồ hoặc mở Google Maps để chỉ đường.
 - User xem lịch trống, đặt sân và chọn hình thức thi đấu phù hợp.
 - Hệ thống tự kiểm tra trùng lịch, bảo trì, độ phủ giá và giữ chỗ 15 phút.
-- User thanh toán khoản cọc đầu tiên qua MoMo Sandbox; số còn lại thanh toán tại sân.
+- User thanh toán khoản cọc đầu tiên bằng thanh toán mô phỏng; số còn lại thanh toán tại sân.
 - User mở kèo tìm đối thủ hoặc tìm thêm người cho booking.
 - Với FIND_OPPONENT, cọc 15% của creator đã đủ giữ sân; đối thủ bấm nhận kèo, giữ suất 15 phút và trả thêm 15% để tự động tham gia, không cần creator duyệt. Bài tìm đối thủ tồn tại đến giờ bắt đầu.
 - Không tìm được đối thủ không làm hủy booking; creator vẫn sử dụng sân và trả 85% còn lại tại sân.
@@ -69,7 +71,7 @@ MVP hiện tại không yêu cầu người dùng khai báo đánh đơn/đôi. 
 
 ## 1.7. Luồng nghiệp vụ chính
 
-> Đăng nhập → tìm cơ sở → chọn sân con → chọn thời gian → chọn đặt cho nhóm, tìm đối thủ hoặc tìm thêm người → hệ thống giữ chỗ 15 phút → thanh toán cọc qua MoMo Sandbox → diễn ra hoạt động → thanh toán phần còn lại tại sân.
+> Đăng nhập → tìm cơ sở → chọn sân con → chọn thời gian → chọn đặt cho nhóm, tìm đối thủ hoặc tìm thêm người → hệ thống giữ chỗ 15 phút → thanh toán cọc bằng thanh toán mô phỏng → diễn ra hoạt động → thanh toán phần còn lại tại sân.
 
 Ba hình thức booking:
 
@@ -79,8 +81,8 @@ Ba hình thức booking:
 
 Số còn lại tại sân được tính từ tiền cọc thực thu: 85% với FIND_OPPONENT chỉ có cọc creator và 70% khi cả creator lẫn đối thủ đã cọc. Người chủ động hủy/rút hoặc no-show mất phần cọc của mình; chủ sân hủy hoặc lỗi hệ thống phải hoàn 100% cho bên không có lỗi.
 
-MoMo Sandbox chỉ mô phỏng tích hợp, không giao dịch tiền thật. Provider MOCK tiếp tục dùng cho phát triển và kiểm thử tự động. MoMo Production, QR ngân hàng thật, ví admin, Settlement và mọi hình thức chi trả từ nền tảng cho Owner nằm ngoài phạm vi MVP.
+MOCK là provider duy nhất trong MVP; MoMo Sandbox bị disable và chỉ giữ code lịch sử. MoMo Production, QR ngân hàng thật, ví admin, Settlement và mọi hình thức chi trả từ nền tảng cho Owner nằm ngoài phạm vi MVP.
 
 ## 1.8. Trạng thái triển khai
 
-Thiết kế ngày 12/08/2026 đã được triển khai tuần tự bằng bốn migration: danh mục đa môn và dữ liệu vị trí legacy; chính sách cọc 30%; URL checkout MoMo; snapshot liên hệ riêng của người đăng kèo. ADR-036 và Phase 1.3 đã thay thế ranh giới no-map của ADR-032: Leaflet hiển thị bản đồ, Nominatim gợi ý vị trí cho Owner xác nhận, còn `Sân gần tôi` dùng browser geolocation và Haversine mà không lưu vị trí người dùng. Hệ thống vẫn không tải Google Maps/Places API; liên kết Google Maps chỉ dùng để mở chỉ đường ngoài hệ thống. ADR-027 và ADR-028 được triển khai ở service/UI/test: booking mới bỏ deadline cũ và đối thủ tự giữ suất thanh toán, còn booking legacy có deadline vẫn giữ luồng duyệt cũ. ADR-029 bổ sung số Zalo có sự đồng ý, chỉ hiển thị sau khi tham gia chính thức và đưa kèo đã tham gia vào lịch cá nhân ở chế độ chỉ xem. Provider `MOCK` là mặc định an toàn; giao dịch MoMo Sandbox đầu-cuối cần credential M4B và URL HTTPS công khai của môi trường chạy.
+Thiết kế ngày 12/08/2026 đã được triển khai tuần tự bằng bốn migration: danh mục đa môn và dữ liệu vị trí legacy; chính sách cọc 30%; URL checkout MoMo; snapshot liên hệ riêng của người đăng kèo. ADR-036 và Phase 1.3 đã thay thế ranh giới no-map của ADR-032: Leaflet hiển thị bản đồ, Nominatim gợi ý vị trí cho Owner xác nhận, còn `Sân gần tôi` dùng browser geolocation và Haversine mà không lưu vị trí người dùng. Hệ thống vẫn không tải Google Maps/Places API; liên kết Google Maps chỉ dùng để mở chỉ đường ngoài hệ thống. ADR-027 và ADR-028 được triển khai ở service/UI/test: booking mới bỏ deadline cũ và đối thủ tự giữ suất thanh toán, còn booking legacy có deadline vẫn giữ luồng duyệt cũ. ADR-029 bổ sung số Zalo có sự đồng ý, chỉ hiển thị sau khi tham gia chính thức và đưa kèo đã tham gia vào lịch cá nhân ở chế độ chỉ xem. Provider `MOCK` là scope nghiệm thu duy nhất; không yêu cầu credential hay giao dịch MoMo Sandbox.

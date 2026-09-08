@@ -694,3 +694,12 @@ route, UI hay sidebar trong MVP hiện tại. Không cần rollback schema hoặ
 vì Phase 2.6 chưa từng được triển khai. Payment và Refund vẫn là chức năng MVP
 hiện hành, là lịch sử bất biến và được Admin điều tra qua Booking Detail; không
 có module Payment, Refund hoặc Settlement độc lập.
+
+
+## ADR-039 — Scope nghiệm thu chỉ thanh toán mô phỏng (08/09/2026)
+
+GVHD xác nhận không yêu cầu MoMo Sandbox. **Hệ thống sử dụng thanh toán mô phỏng trong môi trường thử nghiệm.** MOCK/SIMULATED PAYMENT là provider duy nhất thuộc runtime và nghiệm thu MVP. Quyết định này thay thế phần provider MoMo trong các ADR/tài liệu trước, giữ nguyên quy tắc cọc, phân quyền, hoàn tiền và dữ liệu lịch sử.
+
+`MOMO_ENABLED=false` cố định ở cấu hình MVP; endpoint bị chặn, service từ chối trước DB/network, refund job MoMo không xử lý. Test app cô lập được bật cờ rõ ràng để giữ regression legacy bằng transport giả; không chứng minh Sandbox thật hoạt động. Không xóa model field, enum provider, migration, lịch sử Payment/Refund hay client legacy. Không hoàn thiện checkout/IPN/query/refund MoMo chỉ để đóng issue đã ngoài scope.
+
+Audit ưu tiên khóa SQL Server, số nguyên VND, timezone Việt Nam, giải mã ảnh hợp lệ, FK/migration tests và đồng bộ tài liệu. Xem `AUDIT_REPORT_FINAL.md` để biết kết quả hiện tại và giới hạn kiểm chứng.

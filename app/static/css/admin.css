@@ -6,7 +6,7 @@
     --admin-bg: #f5f7fa;
     --admin-border: #e3e9f0;
     --admin-text: #172033;
-    --admin-muted: #687386;
+    --admin-muted: #526174;
     --admin-card-radius: 14px;
     --admin-sidebar-width: 250px;
     --admin-sidebar-collapsed-width: 72px;
@@ -863,7 +863,7 @@
 
 .admin-dashboard-kpi-grid {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0.9rem;
 }
 
@@ -4857,4 +4857,51 @@
         grid-column: auto;
         border-bottom: 0;
     }
+}
+
+/* Accessibility floor: secondary information and controls remain legible at every viewport. */
+.admin-body .admin-main :is(
+    small,
+    .btn,
+    .form-label,
+    .form-text,
+    .invalid-feedback,
+    .form-control,
+    .form-select,
+    .status-badge,
+    th,
+    td,
+    dt,
+    dd,
+    [class*="-meta"],
+    [class*="-label"],
+    [class*="-note"],
+    [class*="-count"],
+    [class*="-code"],
+    [class*="-state"],
+    [class*="-kicker"],
+    [class*="-eyebrow"],
+    [class*="-reference"]
+) {
+    font-size: 0.8125rem !important;
+}
+
+.admin-sidebar :is(
+    .admin-brand-copy small,
+    .admin-sidebar-label,
+    .admin-sidebar-link > small
+) {
+    font-size: 0.8125rem !important;
+}
+
+.admin-body .admin-main :is(
+    [class*="-meta"],
+    [class*="-label"],
+    [class*="-note"],
+    [class*="-count"],
+    [class*="-code"],
+    [class*="-state"],
+    [class*="-reference"]
+) {
+    color: var(--admin-muted);
 }

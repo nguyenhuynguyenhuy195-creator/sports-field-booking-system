@@ -615,3 +615,8 @@ def test_momo_checkout_retries_same_request_after_network_error(app):
         assert calls[0]["requestId"] == calls[1]["requestId"]
         assert checkout.pay_url.endswith("/retry")
         assert db.session.scalar(db.select(db.func.count(Payment.id))) == 1
+
+
+@pytest.fixture(autouse=True)
+def enable_legacy_momo_in_isolated_tests(app):
+    app.config["MOMO_ENABLED"] = True

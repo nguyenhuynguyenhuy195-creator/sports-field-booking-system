@@ -20,6 +20,7 @@
     <form class="owner-media-upload" method="post" action="{{ upload_url }}" enctype="multipart/form-data" novalidate>
         {{ media_upload_form.hidden_tag() }}
         <div class="owner-media-upload-control">
+            <label class="visually-hidden" for="{{ media_upload_form.image.id }}">Chọn ảnh tải lên</label>
             {{ media_upload_form.image(
                 class="form-control",
                 accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp",

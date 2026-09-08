@@ -1,5 +1,7 @@
 # 8. Tiêu chí nghiệm thu
 
+> Scope nghiệm thu từ 08/09/2026 (GVHD xác nhận, ADR-039): **Hệ thống sử dụng thanh toán mô phỏng trong môi trường thử nghiệm.** MVP chỉ dùng MOCK/SIMULATED PAYMENT; MoMo Sandbox không phải runtime provider. Nội dung MoMo/HMAC/IPN/query còn được giữ dưới đây là thiết kế hoặc kiểm thử legacy, không phải tính năng đang hoạt động hay điều kiện nghiệm thu.
+
 ## AC-001: Tài khoản và phân quyền
 
 - Email không trùng, mật khẩu được hash, tài khoản mới là USER/ACTIVE.
@@ -84,13 +86,13 @@
 - FIND_OPPONENT tạo CREATOR/OPPONENT; tổng hai phần đúng deposit_amount.
 - Tiền lẻ do làm tròn được điều chỉnh ở phần cuối, không thu dư.
 
-## AC-011: MoMo Sandbox và MOCK
+## AC-011: MOCK-only MVP
 
 - MOCK lấy amount từ contribution, không nhận amount từ form và ghi rõ không trừ tiền thật.
-- MoMo tạo order/request duy nhất và HMAC đúng.
-- Redirect không tự đánh dấu thành công.
-- IPN hợp lệ đúng chữ ký/order/amount/partner mới cập nhật SUCCESS.
-- IPN lặp xử lý idempotent; payment thất bại có thể thử lại trong hạn.
+- MOCK ghi nhận payment thành công tối đa một lần cho contribution; gọi lại không thu trùng.
+- URL/service MoMo disabled không làm thay đổi DB và không gọi mạng.
+- Chỉ transaction MOCK đã commit mới ghi nhận thành công; query string không là bằng chứng.
+- Kiểm thử chữ ký/IPN được giữ trong suite legacy cô lập, không là điều kiện nghiệm thu runtime.
 - Không thu cọc vượt deposit_amount.
 
 ## AC-012: DIRECT_BOOKING

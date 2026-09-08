@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import uuid4
 
+from flask import current_app
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.extensions import db
@@ -174,6 +175,7 @@ def start_momo_payment(
     now: datetime | None = None,
 ) -> MomoCheckout:
     """Create or resume one MoMo Sandbox checkout for a contribution."""
+    _require_momo_enabled()
     _validate_payer(payer)
     current_utc = _normalize_utc(now)
     booking = _lock_booking(booking_code)
@@ -207,6 +209,7 @@ def start_momo_top_up(
     now: datetime | None = None,
 ) -> MomoCheckout:
     """Create the creator's 30-minute opponent-deposit top-up checkout."""
+    _require_momo_enabled()
     _validate_payer(payer)
     current_utc = _normalize_utc(now)
     booking = _lock_booking(booking_code)
@@ -269,6 +272,7 @@ def process_momo_payment_notification(
     now: datetime | None = None,
 ) -> Payment:
     """Verify and apply a server-to-server IPN idempotently."""
+    _require_momo_enabled()
     momo = client or MomoClient.from_app_config()
     current_utc = _normalize_utc(now)
     payment = _verified_momo_payment(
@@ -341,6 +345,7 @@ def inspect_momo_return(
     client: MomoClient | None = None,
 ) -> Payment:
     """Verify a browser return and read its payment without changing state."""
+    _require_momo_enabled()
     momo = client or MomoClient.from_app_config()
     return _verified_momo_payment(
         payload=payload,
@@ -741,3 +746,8 @@ def _commit_payment() -> None:
     except SQLAlchemyError as exc:
         db.session.rollback()
         raise PaymentError("Không thể cập nhật thanh toán lúc này.") from exc
+
+
+def _require_momo_enabled() -> None:
+    if not current_app.config.get("MOMO_ENABLED"):
+        raise PaymentError("Hệ thống chỉ sử dụng thanh toán mô phỏng.")

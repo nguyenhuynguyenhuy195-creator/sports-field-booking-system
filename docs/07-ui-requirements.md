@@ -1,5 +1,7 @@
 # 7. Yêu cầu giao diện
 
+> Scope nghiệm thu từ 08/09/2026 (GVHD xác nhận, ADR-039): **Hệ thống sử dụng thanh toán mô phỏng trong môi trường thử nghiệm.** MVP chỉ dùng MOCK/SIMULATED PAYMENT; MoMo Sandbox không phải runtime provider. Nội dung MoMo/HMAC/IPN/query còn được giữ dưới đây là thiết kế hoặc kiểm thử legacy, không phải tính năng đang hoạt động hay điều kiện nghiệm thu.
+
 ## 7.1. Phong cách và khả dụng
 
 - Hiện đại, thể thao, chuyên nghiệp và dễ dùng.
@@ -8,7 +10,7 @@
 - Font Be Vietnam Pro hoặc Inter.
 - Card bo góc 12–16px; button cao 42–48px.
 - Button thanh toán/hủy có disabled/loading để tránh gửi lặp.
-- Lỗi nghiệp vụ, deadline, vị trí và trạng thái MoMo được diễn đạt rõ bằng tiếng Việt.
+- Lỗi nghiệp vụ, deadline, vị trí và trạng thái thanh toán mô phỏng được diễn đạt rõ bằng tiếng Việt.
 - Giao diện phân biệt rõ “Tổng tiền sân”, “Mức cọc online dự kiến”, “Đã cọc” và “Còn lại trả tại sân”. FIND_OPPONENT phải giải thích rõ creator cọc 15% là đủ giữ sân.
 
 ## 7.2. Trang chủ và danh sách venue
@@ -83,13 +85,13 @@ Hiển thị:
 - Owner không có nút duyệt booking thông thường.
 - Provider MOCK phải ghi “Thanh toán mô phỏng, không trừ tiền thật”.
 
-## 7.7. Trang thanh toán MoMo
+## 7.7. Thanh toán mô phỏng
 
 - Hiển thị đúng booking, người trả, contribution và số tiền cọc.
-- Nút “Thanh toán qua MoMo Sandbox”.
-- Sau redirect hiển thị “Đang xác minh” cho đến khi IPN hợp lệ.
+- Nút thanh toán thử nghiệm/mô phỏng; không hiện nút MoMo trong runtime MVP.
+- Sau thanh toán MOCK, hiển thị kết quả từ transaction đã commit; không có bước chờ IPN.
 - Không hiển thị thành công chỉ dựa trên query string.
-- Cho thử lại khi payment thất bại và nghĩa vụ còn hạn.
+- Lỗi xử lý MOCK không ghi nhận thành công; có thể thử lại nếu nghĩa vụ còn hạn.
 - Không hiển thị QR ngân hàng owner, ví admin hoặc chức năng rút tiền.
 
 ## 7.8. Trang tìm kèo

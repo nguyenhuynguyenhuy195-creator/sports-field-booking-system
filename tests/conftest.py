@@ -1,4 +1,5 @@
 import pytest
+from sqlalchemy import event
 
 from app import create_app
 from app.extensions import db
@@ -12,6 +13,12 @@ def app(tmp_path):
     application.config["MEDIA_ROOT"] = str(tmp_path / "media")
 
     with application.app_context():
+        @event.listens_for(db.engine, "connect")
+        def enable_foreign_keys(connection, record):
+            cursor = connection.cursor()
+            cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.close()
+
         db.create_all()
         seed_administrative_catalog()
         seed_default_sport_catalog()

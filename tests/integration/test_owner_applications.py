@@ -206,6 +206,19 @@ def test_admin_filters_owner_applications_by_status(app, client):
                 assert other_name not in page
 
 
+def test_admin_rejection_reason_has_an_associated_visible_label(app, client):
+    admin, applications = seed_owner_application_statuses(app)
+    login(client, email=admin.email)
+
+    page = client.get("/admin/owner-applications").get_data(as_text=True)
+    field_id = f"application-{applications['pending']}-rejection_reason"
+
+    assert f'<label class="form-label" for="{field_id}">Lý do từ chối</label>' in page
+    assert f'id="{field_id}"' in page
+    assert 'placeholder="Nêu lý do từ chối hồ sơ"' in page
+    assert "Bắt buộc khi từ chối, tối đa 500 ký tự." in page
+
+
 def test_admin_owner_application_filter_rejects_invalid_status(app, client):
     admin = create_user(
         app,

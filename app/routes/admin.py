@@ -248,6 +248,7 @@ def dashboard():
     return render_template(
         "admin/dashboard.html",
         summary=get_admin_dashboard_summary(),
+        today_date=date.today().isoformat(),
     )
 
 

@@ -1,5 +1,7 @@
 # ROADMAP – SPORTS FIELD BOOKING SYSTEM
 
+> Scope nghiệm thu từ 08/09/2026 (GVHD xác nhận, ADR-039): **Hệ thống sử dụng thanh toán mô phỏng trong môi trường thử nghiệm.** MVP chỉ dùng MOCK/SIMULATED PAYMENT; MoMo Sandbox không phải runtime provider. Nội dung MoMo/HMAC/IPN/query còn được giữ dưới đây là thiết kế hoặc kiểm thử legacy, không phải tính năng đang hoạt động hay điều kiện nghiệm thu.
+
 ## Mục tiêu sản phẩm
 
 Hệ thống đặt sân thể thao sử dụng Python Flask.
@@ -43,7 +45,7 @@ Các nhóm nghiệp vụ chính:
 
 ### 4. PAYMENT
 
-- Thanh toán tiền cọc bằng MoMo sandbox.
+- Thanh toán tiền cọc mô phỏng (MOCK-only, ADR-039).
 - Booking tự xác nhận khi payment SUCCESS.
 - Refund.
 - Settlement hoặc chi trả cho Owner không thuộc MVP.
@@ -479,7 +481,7 @@ Theo quyết định ngày 31/08/2026 và bổ sung Phase 1.3 ngày 02/09/2026:
 ### Step 3.5 – Owner Finance Foundation — DONE / ACCEPTED (02/09/2026)
 
 - Owner Finance là read-model theo phạm vi Owner → Venue → Field, dùng Booking, Payment và Refund làm source of truth.
-- Khách thanh toán online tiền cọc booking bắt buộc 30% qua MoMo/MOCK; phần còn lại thanh toán trực tiếp tại sân.
+- Khách thanh toán online tiền cọc booking bắt buộc 30% qua MOCK; phần còn lại thanh toán trực tiếp tại sân.
 - Dashboard có KPI, lọc theo cơ sở/sân, lịch sử thanh toán/hoàn tiền và wording tiếng Việt nghiệp vụ.
 - KPI “Giá trị booking đã giữ sân” là tổng giá trị booking đã giữ sân/hoàn thành, không phải tiền cọc hoặc doanh thu thực nhận.
 - KPI “Dự kiến thanh toán tại sân” chỉ phản ánh phần thanh toán trực tiếp dự kiến của booking còn hiệu lực; không suy diễn khoản đã thu sau khi booking hoàn thành.

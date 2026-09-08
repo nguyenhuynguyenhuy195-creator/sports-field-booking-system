@@ -54,7 +54,7 @@ def build_field_availability(
 ) -> FieldAvailability:
     """Return selectable 30-minute intervals for one field and local date."""
     current_local = _normalize_local_datetime(now)
-    current_utc = current_local.astimezone(timezone.utc).replace(tzinfo=None)
+    current_utc = current_local.replace(tzinfo=VIETNAM_TIMEZONE).astimezone(timezone.utc).replace(tzinfo=None)
     opening_minutes = _time_to_minutes(field.venue.opening_time)
     if field.venue.opening_time.second or field.venue.opening_time.microsecond:
         opening_minutes += 1

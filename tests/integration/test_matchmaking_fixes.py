@@ -281,6 +281,7 @@ def test_user_gets_render_stale_state_without_commit_or_orm_mutation(app, monkey
 def test_late_momo_success_after_listing_close_queues_refund_without_joining(app):
     from app.services import process_momo_payment_notification, start_momo_payment
     from tests.integration.test_momo_payments import build_client, payment_notification
+    app.config["MOMO_ENABLED"] = True
     creator, player, match_id, participant_id = prepare(app)
     with app.app_context():
         participant = db.session.get(MatchParticipant, participant_id)

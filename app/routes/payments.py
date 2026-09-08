@@ -30,6 +30,17 @@ from app.services import (
 payments_bp = Blueprint("payments", __name__)
 
 
+@payments_bp.before_request
+def reject_disabled_momo():
+    # Keep legacy URLs, but reject them before route code can touch DB/network.
+    if request.endpoint in {
+        "payments.pay_momo", "payments.top_up_momo",
+        "payments.momo_return", "payments.momo_ipn",
+    } and not current_app.config.get("MOMO_ENABLED"):
+        abort(404)
+
+
+
 @payments_bp.post(
     "/bookings/<string:booking_code>/contributions/"
     "<int:contribution_id>/payments/mock"

@@ -37,6 +37,8 @@ from app.services.administrative_unit import (
     resolve_province,
 )
 
+from .locking import with_update_lock
+
 
 class VenueError(ValueError):
     """Base error for venue business rules."""
@@ -596,7 +598,7 @@ def update_venue(
     except AdministrativeUnitError as exc:
         raise VenueError(str(exc)) from exc
     venue = db.session.scalar(
-        db.select(Venue).where(Venue.id == venue_id).with_for_update()
+        with_update_lock(db.select(Venue).where(Venue.id == venue_id), Venue)
     )
     if venue is None:
         raise VenueNotFoundError("Không tìm thấy cơ sở.")
@@ -710,7 +712,7 @@ def moderate_venue(
         raise VenueError("Trạng thái kiểm duyệt không hợp lệ.")
 
     venue = db.session.scalar(
-        db.select(Venue).where(Venue.id == venue_id).with_for_update()
+        with_update_lock(db.select(Venue).where(Venue.id == venue_id), Venue)
     )
     if venue is None:
         raise VenueNotFoundError("Không tìm thấy cơ sở.")

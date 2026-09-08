@@ -13,6 +13,8 @@ from app.models import (
 from app.models.user import utc_now
 from app.services.auth import normalize_full_name, normalize_phone
 
+from .locking import with_update_lock
+
 
 class OwnerApplicationError(ValueError):
     """Base error for owner-application business rules."""
@@ -139,9 +141,11 @@ def review_owner_application(
         raise OwnerApplicationError("Phải nhập lý do khi từ chối yêu cầu.")
 
     application = db.session.scalar(
-        db.select(OwnerApplication)
-        .where(OwnerApplication.id == application_id)
-        .with_for_update()
+        with_update_lock(
+            db.select(OwnerApplication)
+            .where(OwnerApplication.id == application_id),
+            OwnerApplication,
+        )
     )
     if application is None:
         raise OwnerApplicationNotFoundError("Không tìm thấy yêu cầu.")
@@ -151,9 +155,11 @@ def review_owner_application(
         )
 
     applicant = db.session.scalar(
-        db.select(User)
-        .where(User.id == application.user_id)
-        .with_for_update()
+        with_update_lock(
+            db.select(User)
+            .where(User.id == application.user_id),
+            User,
+        )
     )
     if applicant is None:
         raise OwnerApplicationNotFoundError(

@@ -17,6 +17,8 @@ from app.models import (
     UserRole,
 )
 
+from .locking import with_update_lock
+
 
 class PricingError(ValueError):
     """Base error for price-slot business rules."""
@@ -182,9 +184,11 @@ def update_price_slot(
         end_time=end_time,
     )
     slot = db.session.scalar(
-        db.select(FieldPriceSlot)
-        .where(FieldPriceSlot.id == slot_id)
-        .with_for_update()
+        with_update_lock(
+            db.select(FieldPriceSlot)
+            .where(FieldPriceSlot.id == slot_id),
+            FieldPriceSlot,
+        )
     )
     if slot is None:
         raise PricingNotFoundError("Không tìm thấy khung giá.")
@@ -229,9 +233,11 @@ def set_price_slot_status(
         lock=True,
     )
     slot = db.session.scalar(
-        db.select(FieldPriceSlot)
-        .where(FieldPriceSlot.id == slot_id)
-        .with_for_update()
+        with_update_lock(
+            db.select(FieldPriceSlot)
+            .where(FieldPriceSlot.id == slot_id),
+            FieldPriceSlot,
+        )
     )
     if slot is None:
         raise PricingNotFoundError("Không tìm thấy khung giá.")
@@ -328,7 +334,7 @@ def calculate_price_quote(
         hourly_price = Decimal(slot.hourly_price).quantize(MONEY_QUANTUM)
         subtotal = (
             hourly_price * Decimal(duration_minutes) / Decimal(60)
-        ).quantize(MONEY_QUANTUM, rounding=ROUND_HALF_UP)
+        ).quantize(Decimal("1"), rounding=ROUND_HALF_UP).quantize(MONEY_QUANTUM)
         segments.append(
             PriceSegment(
                 price_slot_id=slot.id,
@@ -362,7 +368,7 @@ def _get_owned_field(
         .where(Field.id == field_id)
     )
     if lock:
-        statement = statement.with_for_update()
+        statement = with_update_lock(statement, Field)
     field = db.session.scalar(statement)
     if field is None:
         raise PricingNotFoundError("Không tìm thấy sân.")
@@ -391,12 +397,11 @@ def _validate_price_slot_data(
         end_time=end_time,
     )
     try:
-        price = Decimal(str(hourly_price)).quantize(
-            MONEY_QUANTUM,
-            rounding=ROUND_HALF_UP,
-        )
+        price = Decimal(str(hourly_price))
     except (InvalidOperation, TypeError, ValueError) as exc:
         raise PricingError("Giá theo giờ không hợp lệ.") from exc
+    if not price.is_finite() or price != price.to_integral_value():
+        raise PricingError("Giá theo giờ phải là số nguyên VND.")
     if price <= 0:
         raise PricingError("Giá theo giờ phải lớn hơn 0.")
     if price > Decimal("9999999999.99"):

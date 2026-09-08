@@ -54,6 +54,11 @@ class PriceSlotForm(FlaskForm):
     )
     submit = SubmitField("Lưu khung giá")
 
+    def validate_hourly_price(self, field) -> None:
+        value = field.data
+        if value is not None and (not value.is_finite() or value != value.to_integral_value()):
+            raise ValidationError("Giá theo giờ phải là số nguyên VND.")
+
     @property
     def start_time_value(self) -> time:
         return self._combine_time(self.start_hour.data, self.start_minute.data)

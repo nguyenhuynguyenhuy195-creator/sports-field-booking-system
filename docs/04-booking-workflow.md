@@ -1,5 +1,7 @@
 # 4. Quy trình booking, tìm kèo và thanh toán
 
+> Scope nghiệm thu từ 08/09/2026 (GVHD xác nhận, ADR-039): **Hệ thống sử dụng thanh toán mô phỏng trong môi trường thử nghiệm.** MVP chỉ dùng MOCK/SIMULATED PAYMENT; MoMo Sandbox không phải runtime provider. Nội dung MoMo/HMAC/IPN/query còn được giữ dưới đây là thiết kế hoặc kiểm thử legacy, không phải tính năng đang hoạt động hay điều kiện nghiệm thu.
+
 ## 4.1. Luồng tạo booking chung
 
 1. User đăng nhập và chọn field ACTIVE thuộc venue ACTIVE.
@@ -162,7 +164,7 @@ Availability và quote không khóa chỗ. Transaction tạo booking phải ki�
 
 Venue Detail và Find Venue dùng Leaflet với tile tương thích OpenStreetMap cho Venue có tọa độ hợp lệ. Find Venue chỉ xin browser geolocation sau khi user bấm `Sân gần tôi`; backend tính khoảng cách Haversine và không lưu vị trí user. Ứng dụng không gọi Google Maps/Places API.
 
-## 4.12. Xử lý MoMo Sandbox
+## 4.12. Thanh toán MOCK và lịch sử thiết kế MoMo
 
 Provider MOCK hiện tại:
 
@@ -170,7 +172,7 @@ Provider MOCK hiện tại:
 - Ghi nhận payment giả lập để test.
 - Không redirect, không gọi MoMo và không trừ tiền thật.
 
-Luồng MoMo Sandbox mục tiêu:
+Luồng MoMo Sandbox legacy (disabled, không thuộc nghiệm thu):
 
 1. Tạo payment PENDING với orderId/requestId duy nhất.
 2. Ký HMAC bằng secret từ biến môi trường.

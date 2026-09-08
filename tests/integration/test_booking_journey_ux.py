@@ -194,7 +194,7 @@ def test_existing_cancelled_match_is_linked_and_never_recreated(app, client, jou
     login(client, email=journey["creator"].email)
     body = client.get(f"/bookings/{journey['booking_code']}").get_data(as_text=True)
     assert f'href="/matches/{journey["match_id"]}"' in body
-    assert "Đăng kèo tìm người phù hợp" not in body
+    assert "Đăng kèo tìm đối thủ" not in body
 
 
 def test_started_booking_hides_cancel_and_create_match(app, client, journey, monkeypatch):
@@ -210,18 +210,55 @@ def test_started_booking_hides_cancel_and_create_match(app, client, journey, mon
     login(client, email=journey["creator"].email)
     path = f"/bookings/{journey['booking_code']}"
     before = client.get(path).get_data(as_text=True)
-    assert "Đăng kèo tìm người phù hợp" in before
+    assert "Đăng kèo tìm đối thủ" in before
     assert f'action="{path}/cancel"' in before
     monkeypatch.setattr("app.routes.bookings.current_vietnam_datetime", lambda: target)
     body = client.get(path).get_data(as_text=True)
-    assert "Đăng kèo tìm người phù hợp" not in body
+    assert "Đăng kèo tìm đối thủ" not in body
     assert f'action="{path}/cancel"' not in body
+
+
+def test_find_players_booking_uses_saved_match_type_and_title(app, client, journey):
+    with app.app_context():
+        booking = create_booking(
+            user=db.session.get(User, journey["creator"].id),
+            field_id=journey["field_id"],
+            booking_date=booking_day(),
+            start_time=time(6),
+            end_time=time(7),
+            booking_mode="FIND_PLAYERS",
+            requested_players=2,
+        )
+        booking.status = "PAID"
+        booking.paid_amount = booking.deposit_amount
+        db.session.commit()
+        match = create_match(
+            booking_code=booking.booking_code,
+            creator=db.session.get(User, journey["creator"].id),
+            title="Tìm thêm người chơi cuối tuần",
+            contact_phone="0901000001",
+            share_contact=True,
+        )
+        booking_code = booking.booking_code
+        match_id = match.id
+
+    login(client, email=journey["creator"].email)
+    body = client.get(f"/bookings/{booking_code}").get_data(as_text=True)
+
+    assert f'href="/matches/{match_id}"' in body
+    assert "Kèo tìm thêm người tại" in body
+    assert "Tìm thêm người chơi cuối tuần" in body
+    assert "Kèo tìm đối thủ tại" not in body
+    assert body.count("bi-chevron-down") == 2
 
 
 def test_current_opponent_copy_and_refund_net_amount(app, client, journey):
     login(client, email=journey["creator"].email)
     path = f"/bookings/{journey['booking_code']}"
     body = client.get(path).get_data(as_text=True)
+    assert "Kèo tìm đối thủ tại" in body
+    assert "Giao hữu cuối tuần" in body
+    assert body.count("bi-chevron-down") == 3
     assert "Bạn đã cọc" in body
     assert "Đối thủ có thể cọc" in body
     assert "Còn lại tại sân" in body
@@ -296,3 +333,8 @@ def test_venue_context_card_map_back_and_direct_access(app, client, journey):
     assert 'class="venue-back-link" href="/venues"' in direct
     with client.session_transaction() as session:
         assert "latitude" not in session and "longitude" not in session
+
+
+@pytest.fixture(autouse=True)
+def enable_legacy_momo_in_isolated_tests(app):
+    app.config["MOMO_ENABLED"] = True

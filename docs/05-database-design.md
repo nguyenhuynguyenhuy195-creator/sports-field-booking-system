@@ -1,5 +1,7 @@
 # 5. Thiết kế cơ sở dữ liệu
 
+> Scope nghiệm thu từ 08/09/2026 (GVHD xác nhận, ADR-039): **Hệ thống sử dụng thanh toán mô phỏng trong môi trường thử nghiệm.** MVP chỉ dùng MOCK/SIMULATED PAYMENT; MoMo Sandbox không phải runtime provider. Nội dung MoMo/HMAC/IPN/query còn được giữ dưới đây là thiết kế hoặc kiểm thử legacy, không phải tính năng đang hoạt động hay điều kiện nghiệm thu.
+
 ## 5.1. Nguyên tắc chung
 
 - SQL Server là database chính; truy cập qua Flask-SQLAlchemy và pyodbc.

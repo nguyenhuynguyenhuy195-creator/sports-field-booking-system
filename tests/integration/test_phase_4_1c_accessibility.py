@@ -57,3 +57,32 @@ def test_owner_table_scrolling_stays_in_the_table_wrapper():
     assert ".owner-dashboard-card .table-responsive," in stylesheet
     assert "max-width: 100%;" in stylesheet
     assert "overflow-x: auto;" in stylesheet
+
+
+def test_owner_and_admin_consoles_keep_secondary_text_at_accessible_size():
+    owner_stylesheet = (REPOSITORY_ROOT / "app/static/css/owner.css").read_text(
+        encoding="utf-8"
+    )
+    admin_stylesheet = (REPOSITORY_ROOT / "app/static/css/admin.css").read_text(
+        encoding="utf-8"
+    )
+
+    assert "--owner-font-xs: 0.8125rem;" in owner_stylesheet
+    assert "--owner-font-sm: 0.8125rem;" in owner_stylesheet
+    assert "Accessibility floor: secondary information and controls" in owner_stylesheet
+    assert "font-size: 0.8125rem !important;" in owner_stylesheet
+    assert "--admin-muted: #526174;" in admin_stylesheet
+    assert "Accessibility floor: secondary information and controls" in admin_stylesheet
+    assert "font-size: 0.8125rem !important;" in admin_stylesheet
+
+
+def test_login_register_link_has_explicit_high_contrast_and_focus_style(client):
+    html = client.get("/auth/login").get_data(as_text=True)
+    stylesheet = (REPOSITORY_ROOT / "app/static/css/app.css").read_text(
+        encoding="utf-8"
+    )
+
+    assert 'class="auth-register-link"' in html
+    assert ".auth-register-link {" in stylesheet
+    assert "color: #0f5736;" in stylesheet
+    assert ".auth-register-link:focus-visible" in stylesheet

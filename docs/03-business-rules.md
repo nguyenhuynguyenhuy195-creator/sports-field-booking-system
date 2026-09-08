@@ -1,5 +1,7 @@
 # 3. Quy tắc nghiệp vụ
 
+> Scope nghiệm thu từ 08/09/2026 (GVHD xác nhận, ADR-039): **Hệ thống sử dụng thanh toán mô phỏng trong môi trường thử nghiệm.** MVP chỉ dùng MOCK/SIMULATED PAYMENT; MoMo Sandbox không phải runtime provider. Nội dung MoMo/HMAC/IPN/query còn được giữ dưới đây là thiết kế hoặc kiểm thử legacy, không phải tính năng đang hoạt động hay điều kiện nghiệm thu.
+
 ## 3.1. Tài khoản, phân quyền và liên hệ
 
 ### BR-001: Đăng nhập trước khi thao tác
@@ -62,7 +64,7 @@ User phải đăng nhập trước khi tạo booking, tạo kèo, gửi yêu c�
 - Chỉ venue ACTIVE mới hiển thị công khai.
 - Admin có thể chuyển venue thành ACTIVE hoặc HIDDEN.
 - Venue mới phải có tỉnh/thành phố, phường/xã và địa chỉ chi tiết hợp lệ trước khi được duyệt ACTIVE.
-- Place ID và tọa độ cũ không còn là điều kiện duyệt; dữ liệu legacy vẫn được giữ nguyên.
+- Google Place ID không là điều kiện duyệt. Owner mới xác nhận tọa độ theo ADR-036; dữ liệu legacy vẫn được giữ nguyên.
 
 ### BR-010: Tìm kiếm và lọc venue
 
@@ -199,12 +201,12 @@ Kiểm tra và tạo booking phải nằm trong cùng transaction.
 
 Booking PAID hoặc FIND_OPPONENT PARTIALLY_PAID hợp lệ được chuyển COMPLETED sau khi thời gian sử dụng kết thúc. MVP không yêu cầu owner xác nhận số còn lại thanh toán tại sân.
 
-## 3.5. MoMo Sandbox, contribution và refund
+## 3.5. Thanh toán mô phỏng, contribution và refund
 
 ### BR-027: Ranh giới provider
 
-- MoMo Sandbox dùng trong bản trình diễn, không có tiền thật.
-- MOCK dùng cho phát triển/test và áp dụng cùng quy tắc số tiền nhưng không gọi MoMo.
+- MOCK là provider duy nhất trong MVP, dùng trong môi trường thử nghiệm và không trừ tiền thật.
+- MoMo Sandbox disabled và không là điều kiện nghiệm thu; field và lịch sử provider được giữ nguyên.
 - MoMo Production, QR ngân hàng thật, ví admin, Settlement và mọi hình thức
   payout/disbursement cho Owner không thuộc MVP.
 
@@ -216,7 +218,7 @@ Booking PAID hoặc FIND_OPPONENT PARTIALLY_PAID hợp lệ được chuyển CO
 - FIND_PLAYERS không tạo contribution PLAYER cho người ghép.
 - Contribution PLAYER cũ chỉ được giữ để bảo toàn lịch sử migration, service mới không tạo thêm.
 
-### BR-029: Xác nhận kết quả MoMo
+### BR-029: Xác nhận kết quả MoMo — LEGACY, ngoài scope ADR-039
 
 - Amount lấy từ contribution trong database.
 - Redirect chỉ dùng hiển thị; chỉ IPN hợp lệ mới cập nhật SUCCESS.
@@ -289,7 +291,7 @@ Booking PAID hoặc FIND_OPPONENT PARTIALLY_PAID hợp lệ được chuyển CO
 
 - Owner chọn tỉnh/thành phố và phường/xã từ catalog rồi nhập địa chỉ chi tiết.
 - Backend tự tra tên đơn vị hành chính từ mã và không nhận tên snapshot do frontend tự gửi.
-- `google_place_id`, `latitude` và `longitude` chỉ là dữ liệu legacy; luồng mới không tạo hoặc yêu cầu các giá trị này.
+- `google_place_id` chỉ giữ cho dữ liệu legacy. Luồng Owner mới xác nhận tọa độ `latitude`/`longitude` qua ghim Leaflet/Nominatim theo ADR-036; không dùng Google Maps/Places API.
 
 ### BR-037: Liên kết Google Maps
 
@@ -316,3 +318,7 @@ migration, service, CLI, route hoặc UI hiện tại.
 Trong MVP hiện tại, Payment và Refund vẫn là lịch sử tài chính online độc lập;
 `paid_amount` là số tiền online ròng và phần còn lại chỉ được trả trực tiếp tại
 sân. Admin chỉ điều tra chứng cứ Payment/Refund trong Booking Detail.
+
+### Quy tắc VND sau audit MOCK-only
+
+Đơn giá mới phải là số nguyên VND dương. Mỗi đoạn thuê nhân đơn giá với số phút/60 rồi làm tròn HALF_UP đến một đồng; tổng booking là tổng các subtotal đã làm tròn. API và Numeric(12,2) vẫn biểu diễn hai chữ số thập phân `.00`. Cọc tiếp tục 30%, chia contribution theo rule hiện có; không đổi snapshot booking cũ. Đơn giá lẻ legacy không bị sửa hàng loạt, báo giá mới vẫn làm tròn subtotal đến đồng.

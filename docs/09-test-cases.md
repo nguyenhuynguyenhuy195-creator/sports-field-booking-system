@@ -1,5 +1,7 @@
 # 9. Test cases
 
+> Scope nghiệm thu từ 08/09/2026 (GVHD xác nhận, ADR-039): **Hệ thống sử dụng thanh toán mô phỏng trong môi trường thử nghiệm.** MVP chỉ dùng MOCK/SIMULATED PAYMENT; MoMo Sandbox không phải runtime provider. Nội dung MoMo/HMAC/IPN/query còn được giữ dưới đây là thiết kế hoặc kiểm thử legacy, không phải tính năng đang hoạt động hay điều kiện nghiệm thu.
+
 ## 9.1. Authentication và authorization
 
 ### TC-AUTH-001: Đăng ký thành công
@@ -170,7 +172,7 @@ Một CREATOR contribution bằng toàn bộ cọc; không tạo PLAYER contribu
 
 Creator/opponent mỗi bên một nửa cọc; tổng đúng deposit_amount.
 
-## 9.7. Payment MoMo
+## 9.7. Payment MoMo — kiểm thử legacy cô lập, không phải runtime MVP
 
 ### TC-PAYMENT-000: MOCK
 

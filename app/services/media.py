@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import warnings
+from io import BytesIO
 from pathlib import Path, PurePosixPath
 from uuid import uuid4
+
+from PIL import Image, UnidentifiedImageError
 
 from flask import current_app
 from sqlalchemy.exc import SQLAlchemyError
@@ -21,6 +25,8 @@ from app.services.venue import (
     VenuePermissionError,
     get_owner_venue,
 )
+
+from .locking import with_update_lock
 
 
 class MediaError(ValueError):
@@ -262,6 +268,21 @@ def _validate_image(file: FileStorage) -> tuple[str, str, bytes]:
     declared_type = (file.mimetype or "").lower()
     if declared_type not in {detected_type, "image/jpg"}:
         raise MediaValidationError("Loại nội dung của tệp ảnh không hợp lệ.")
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", Image.DecompressionBombWarning)
+            with Image.open(BytesIO(content)) as decoded:
+                if decoded.width * decoded.height > current_app.config["MEDIA_MAX_PIXELS"]:
+                    raise MediaValidationError("Ảnh có kích thước điểm ảnh quá lớn.")
+                if Image.MIME.get(decoded.format) != detected_type:
+                    raise MediaValidationError("Định dạng ảnh không hợp lệ.")
+                decoded.verify()
+            # verify checks structure; load also rejects truncated pixel data.
+            with Image.open(BytesIO(content)) as decoded:
+                decoded.load()
+    except (UnidentifiedImageError, OSError, ValueError, SyntaxError,
+            Image.DecompressionBombError, Image.DecompressionBombWarning) as exc:
+        raise MediaValidationError("Tệp ảnh bị hỏng hoặc không đọc được.") from exc
     return safe_filename, detected_type, content
 
 
@@ -285,7 +306,11 @@ def _detect_content_type(content: bytes) -> str | None:
 
 def _get_owned_venue(*, venue_id: int, owner_id: int) -> Venue:
     try:
-        return get_owner_venue(venue_id=venue_id, owner_id=owner_id)
+        venue = get_owner_venue(venue_id=venue_id, owner_id=owner_id)
+        return db.session.scalar(with_update_lock(
+                                     db.select(Venue).where(Venue.id == venue.id),
+                                     Venue,
+                                 ))
     except VenueNotFoundError as exc:
         raise MediaNotFoundError(str(exc)) from exc
     except VenuePermissionError as exc:
@@ -303,7 +328,10 @@ def _get_owned_field(
         raise MediaPermissionError(str(exc)) from exc
     if field.venue_id != venue_id:
         raise MediaNotFoundError("Không tìm thấy sân trong cơ sở này.")
-    return field
+    return db.session.scalar(with_update_lock(
+                                 db.select(Field).where(Field.id == field.id),
+                                 Field,
+                             ))
 
 
 def _get_scoped_image(
@@ -322,7 +350,7 @@ def _get_scoped_image(
             [MediaImage.field_id == field_id, MediaImage.venue_id.is_(None)]
         )
     image = db.session.scalar(
-        db.select(MediaImage).where(*conditions).with_for_update()
+        with_update_lock(db.select(MediaImage).where(*conditions), MediaImage)
     )
     if image is None:
         raise MediaNotFoundError("Không tìm thấy ảnh trong mục này.")
@@ -339,9 +367,11 @@ def _set_cover(image: MediaImage) -> MediaImage:
     )
     current_covers = list(
         db.session.scalars(
-            db.select(MediaImage)
-            .where(parent_filter, MediaImage.is_cover.is_(True))
-            .with_for_update()
+            with_update_lock(
+                db.select(MediaImage)
+                .where(parent_filter, MediaImage.is_cover.is_(True)),
+                MediaImage,
+            )
         )
     )
     for current_cover in current_covers:
@@ -368,11 +398,13 @@ def _delete_image(image: MediaImage) -> None:
             image.is_cover = False
             db.session.flush()
             fallback = db.session.scalar(
-                db.select(MediaImage)
-                .where(parent_filter, MediaImage.id != image.id)
-                .order_by(MediaImage.created_at.asc(), MediaImage.id.asc())
-                .limit(1)
-                .with_for_update()
+                with_update_lock(
+                    db.select(MediaImage)
+                    .where(parent_filter, MediaImage.id != image.id)
+                    .order_by(MediaImage.created_at.asc(), MediaImage.id.asc())
+                    .limit(1),
+                    MediaImage,
+                )
             )
             if fallback is not None:
                 fallback.is_cover = True

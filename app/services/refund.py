@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
 from uuid import uuid4
 
+from flask import current_app
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.extensions import db
@@ -263,6 +264,8 @@ def process_pending_momo_refunds(
     now: datetime | None = None,
 ) -> int:
     """Submit/query pending MoMo refunds and finalize successful records."""
+    if not current_app.config.get("MOMO_ENABLED"):
+        return 0
     statement = (
         db.select(Refund)
         .join(Refund.payment)

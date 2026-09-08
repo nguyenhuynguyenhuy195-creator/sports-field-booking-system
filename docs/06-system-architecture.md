@@ -1,17 +1,19 @@
 # 6. Kiến trúc hệ thống
 
+> Scope nghiệm thu từ 08/09/2026 (GVHD xác nhận, ADR-039): **Hệ thống sử dụng thanh toán mô phỏng trong môi trường thử nghiệm.** MVP chỉ dùng MOCK/SIMULATED PAYMENT; MoMo Sandbox không phải runtime provider. Nội dung MoMo/HMAC/IPN/query còn được giữ dưới đây là thiết kế hoặc kiểm thử legacy, không phải tính năng đang hoạt động hay điều kiện nghiệm thu.
+
 ## 6.1. Kiến trúc tổng quát
 
 ```text
 Browser
-→ Flask Route / MoMo IPN Endpoint / CLI Job
+→ Flask Route / CLI Job
 → Service Layer
 → Repository query qua SQLAlchemy
 → SQL Server
 
 Payment Service
 → Provider MOCK (phát triển và test)
-→ MoMo Client → MoMo Sandbox API (bật bằng cấu hình môi trường)
+→ Payment MOCK / Refund MOCK (transaction nội bộ, không gọi provider ngoài)
 
 Browser
 → Flask nhận bộ lọc văn bản/khu vực
@@ -37,7 +39,7 @@ Frontend không quyết định quyền, trạng thái availability cuối cùng
 
 ## 6.3. Route Layer
 
-Các blueprint hiện có gồm `auth`, `owner_applications`, `venues`, `fields`, `pricing`, `maintenance`, `bookings`, `payments`, `matches` và health checks. Code hiện hỗ trợ danh mục đa môn, địa chỉ hành chính và liên kết chỉ đường Google Maps, ba booking mode, cọc 30%, `MOCK` và MoMo Sandbox; booking lịch sử được giữ riêng bằng `LEGACY_FULL_ONLINE`.
+Các blueprint hiện có gồm `auth`, `owner_applications`, `venues`, `fields`, `pricing`, `maintenance`, `bookings`, `payments`, `matches` và health checks. Code hiện hỗ trợ danh mục đa môn, địa chỉ hành chính và liên kết chỉ đường Google Maps, ba booking mode, cọc 30%, `MOCK` (MoMo chỉ giữ legacy disabled); booking lịch sử được giữ riêng bằng `LEGACY_FULL_ONLINE`.
 
 Thiết kế đích của các blueprint thanh toán:
 - `auth`: đăng ký, đăng nhập, đăng xuất.
@@ -45,7 +47,7 @@ Thiết kế đích của các blueprint thanh toán:
 - `venues`: tìm/lọc theo sport, field type, giá, địa chỉ hành chính và hiển thị venue.
 - `fields`: quản lý field theo danh mục sport/field type.
 - `bookings`: trả lịch trống theo ngày, báo giá, tạo giữ chỗ tự động, xem và hủy booking.
-- `payments`: bắt đầu thanh toán, redirect và IPN MoMo.
+- `payments`: thanh toán mô phỏng; URL MoMo legacy bị chặn khi disabled.
 - `refunds`: yêu cầu/query refund theo quyền.
 - `matches`: tạo kèo, tự giữ suất đối thủ, gửi/duyệt yêu cầu ghép người và xử lý rút.
 - `admin`: tài khoản, venue, booking, payment, refund và match.
@@ -67,14 +69,14 @@ Các service chính:
 - `booking_service`: validate play format, tính mức cọc mục tiêu 30%, tạo booking, xử lý hủy/mất cọc và chuyển trạng thái.
 - `contribution_service`: phân bổ tiền cọc creator/opponent; không tạo nghĩa vụ online cho người ghép.
 - `payment_service`: tạo payment attempt, xử lý IPN và tổng tiền đã thu.
-- `refund_service`: chỉ hoàn các khoản bắt buộc do owner/hệ thống hoặc trả lại cho bên không chủ động gây hủy; gọi/query MoMo và hoàn tất hủy.
+- `refund_service`: chỉ hoàn các khoản bắt buộc do owner/hệ thống hoặc trả lại cho bên không chủ động gây hủy; hoàn tiền MOCK và hoàn tất hủy; nhánh MoMo chỉ giữ legacy disabled.
 - `match_service`: tạo kèo, khóa match/contribution để tự giữ duy nhất một suất đối thủ trong 15 phút, duyệt yêu cầu FIND_PLAYERS, bảo vệ số Zalo, đóng bài theo giờ bắt đầu và mở lại vị trí khi hết hạn/rút.
 - `owner_application_service`: xử lý yêu cầu chuyển role.
 - `expiration_service`: hết hạn giữ chỗ đầu tiên, yêu cầu thanh toán đối thủ, bài tìm kèo và booking hoàn thành; funding deadline chỉ còn cho dữ liệu legacy.
 
 Service chịu trách nhiệm kiểm tra quyền sở hữu, khóa dữ liệu cần thiết, quản lý transaction và rollback khi lỗi.
 
-## 6.5. MoMo Client
+## 6.5. MoMo Client — LEGACY, không thuộc runtime MVP
 
 MoMo Client là lớp hạ tầng riêng, không đặt trực tiếp trong route.
 
@@ -102,7 +104,7 @@ Credential và endpoint phải đọc từ biến môi trường. Sandbox và pr
 ## 6.7. Model Layer
 
 Trách nhiệm:
-- Định nghĩa 15 bảng mục tiêu và quan hệ trong `docs/05-database-design.md`.
+- Định nghĩa 18 bảng nghiệp vụ hiện tại và quan hệ trong `docs/05-database-design.md`.
 - Khai báo primary key, foreign key, unique/check constraint và index.
 - Dùng `DECIMAL` cho tiền và `DATETIME2` cho timestamp UTC.
 - Không chứa orchestration nghiệp vụ dài trong model.
@@ -164,7 +166,7 @@ Mục tiêu là tránh hai request đồng thời cùng vượt qua bước ki�
 7. Cập nhật match participant nếu đây là payment của đại diện đối thủ; người ghép không đi qua IPN.
 8. Commit một lần; lỗi thì rollback.
 
-Không giữ transaction database mở trong lúc chờ HTTP call ra MoMo. Tạo bản ghi `PENDING`, commit, gọi MoMo, rồi xử lý kết quả trong transaction riêng.
+Thiết kế legacy mong muốn (chưa là bảo đảm implementation, xem H04–H07/M01 audit cũ): không giữ transaction database mở trong lúc chờ HTTP call ra MoMo. Tạo bản ghi `PENDING`, commit, gọi MoMo, rồi xử lý kết quả trong transaction riêng.
 
 ## 6.12. Transaction refund
 

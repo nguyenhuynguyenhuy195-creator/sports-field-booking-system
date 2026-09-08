@@ -8,3 +8,4 @@ pyodbc
 email-validator
 pytest
 pytest-flask
+Pillow==12.3.0

@@ -35,7 +35,7 @@
                 <small class="admin-dashboard-kpi-note{% if not summary.pending_venues %} is-clear{% endif %}">{% if summary.pending_venues %}Cần kiểm tra thông tin{% else %}Không có cơ sở chờ{% endif %}</small>
             </a>
 
-            <a class="admin-dashboard-kpi admin-dashboard-kpi--today" href="{{ url_for('admin.monitoring', section='bookings') }}">
+            <a class="admin-dashboard-kpi admin-dashboard-kpi--today" href="{{ url_for('admin.booking_operations', date=today_date) }}">
                 <span class="admin-dashboard-kpi-top">
                     <span class="admin-dashboard-kpi-icon" aria-hidden="true"><i class="bi bi-calendar2-check"></i></span>
                 </span>
@@ -44,17 +44,6 @@
                 <small class="admin-dashboard-kpi-note{% if not summary.today_bookings %} is-clear{% endif %}">{% if summary.today_bookings %}Theo ngày sử dụng sân{% else %}Chưa có lịch hôm nay{% endif %}</small>
             </a>
 
-            <a class="admin-dashboard-kpi admin-dashboard-kpi--attention{% if not summary.issues_requiring_attention %} is-clear{% endif %}" href="#admin-attention-list">
-                <span class="admin-dashboard-kpi-top">
-                    <span class="admin-dashboard-kpi-icon" aria-hidden="true"><i class="bi bi-exclamation-triangle"></i></span>
-                    {% if summary.issues_requiring_attention %}
-                        <span class="admin-dashboard-kpi-state">Cần ưu tiên</span>
-                    {% endif %}
-                </span>
-                <strong class="admin-dashboard-kpi-value">{{ summary.issues_requiring_attention }}</strong>
-                <span class="admin-dashboard-kpi-label">Các vấn đề cần xử lý</span>
-                <small class="admin-dashboard-kpi-note{% if not summary.issues_requiring_attention %} is-clear{% endif %}">{% if summary.issues_requiring_attention %}Nhóm dữ liệu cần kiểm tra{% else %}Không có việc tồn đọng{% endif %}</small>
-            </a>
         </div>
 
         <div class="admin-dashboard-layout">

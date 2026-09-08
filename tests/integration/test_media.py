@@ -4,6 +4,7 @@ from io import BytesIO
 from pathlib import Path
 
 import pytest
+from PIL import Image
 from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.datastructures import FileStorage
 
@@ -23,7 +24,9 @@ from app.services import MediaError, create_field, create_venue, register_user
 
 
 PASSWORD = "MatKhauAnToan123"
-PNG_BYTES = b"\x89PNG\r\n\x1a\nowner-media-test"
+_png_buffer = BytesIO()
+Image.new("RGB", (2, 2), "green").save(_png_buffer, format="PNG")
+PNG_BYTES = _png_buffer.getvalue()
 
 
 @dataclass(frozen=True)
@@ -226,6 +229,25 @@ def test_venue_media_lifecycle_cover_fallback_and_placeholder(app, client):
                 MediaImage.venue_id == venue_id
             )
         ) == 0
+
+
+def test_owner_media_upload_input_has_an_associated_accessible_label(app, client):
+    owner = create_user(
+        app,
+        email="media-label-owner@example.com",
+        role=UserRole.OWNER,
+    )
+    venue_id = create_venue_for_owner(
+        app,
+        owner_id=owner.id,
+        name="Cơ sở nhãn ảnh",
+    )
+    login(client, email=owner.email)
+
+    page = client.get(f"/owner/venues/{venue_id}/edit").get_data(as_text=True)
+
+    assert '<label class="visually-hidden" for="image">Chọn ảnh tải lên</label>' in page
+    assert 'id="image"' in page
 
 
 def test_upload_rejects_invalid_extension_content_and_oversized_image(

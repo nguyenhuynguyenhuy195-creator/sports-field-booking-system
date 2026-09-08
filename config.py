@@ -48,7 +48,8 @@ class BaseConfig:
     SECRET_KEY = os.getenv("SECRET_KEY")
     SQLALCHEMY_DATABASE_URI = build_database_uri()
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    MOMO_ENABLED = env_flag("MOMO_ENABLED")
+    # MVP acceptance uses simulated payments only; environment cannot enable legacy MoMo.
+    MOMO_ENABLED = False
     MOMO_PARTNER_CODE = os.getenv("MOMO_PARTNER_CODE", "")
     MOMO_ACCESS_KEY = os.getenv("MOMO_ACCESS_KEY", "")
     MOMO_SECRET_KEY = os.getenv("MOMO_SECRET_KEY", "")
@@ -59,8 +60,10 @@ class BaseConfig:
     MOMO_REDIRECT_URL = os.getenv("MOMO_REDIRECT_URL", "")
     MOMO_IPN_URL = os.getenv("MOMO_IPN_URL", "")
     MOMO_TIMEOUT_SECONDS = int(os.getenv("MOMO_TIMEOUT_SECONDS", "30"))
+    MEDIA_MAX_PIXELS = 20_000_000
     MEDIA_ROOT = os.getenv("MEDIA_ROOT")
     MEDIA_MAX_BYTES = int(os.getenv("MEDIA_MAX_BYTES", str(5 * 1024 * 1024)))
+    MAX_CONTENT_LENGTH = MEDIA_MAX_BYTES + 1024 * 1024
     GEOCODING_PROVIDER = os.getenv("GEOCODING_PROVIDER", "nominatim")
     NOMINATIM_BASE_URL = os.getenv(
         "NOMINATIM_BASE_URL",
