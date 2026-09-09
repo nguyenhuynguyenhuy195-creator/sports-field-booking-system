@@ -101,7 +101,13 @@
             <div class="container flash-container" aria-live="polite">
                 {% for category, message in messages %}
                     <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                        {{ message }}
+                        {% if message.startswith('Thanh toán thử nghiệm ') %}
+                            {{ message.replace('Thanh toán thử nghiệm ', 'Đã thanh toán cọc ').replace(' thành công.', '.') }}
+                        {% elif message.startswith('Đã thanh toán thử nghiệm phần còn thiếu ') %}
+                            {{ message.replace('Đã thanh toán thử nghiệm phần còn thiếu ', 'Đã thanh toán phần cọc còn thiếu ') }}
+                        {% else %}
+                            {{ message }}
+                        {% endif %}
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Đóng"></button>
                     </div>
                 {% endfor %}

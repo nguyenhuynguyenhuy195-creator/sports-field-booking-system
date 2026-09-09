@@ -257,7 +257,7 @@
                                             {% for payment in booking.payments %}
                                                 <tr>
                                                     <td>{{ payment.created_at|local_datetime }}</td>
-                                                    <td>{{ payment_provider_labels[payment.provider] }}</td>
+                                                    <td>{{ 'Thanh toán' if payment.provider == 'MOCK' else payment_provider_labels[payment.provider] }}</td>
                                                     <td>{{ payment_status_labels[payment.status] }}</td>
                                                     <td class="text-end fw-semibold">{{ payment.amount|vnd_currency }}</td>
                                                 </tr>
@@ -271,7 +271,6 @@
                                 <div class="d-flex flex-wrap justify-content-between gap-2 mb-3">
                                     <div>
                                         <h3 class="h6 fw-bold mb-1">Lịch sử hoàn tiền</h3>
-                                        <p class="small text-secondary mb-0">Đây là giao dịch thử nghiệm, không chuyển tiền thật.</p>
                                     </div>
                                     <span class="payment-progress-badge">{{ booking.refunds|length }} giao dịch</span>
                                 </div>

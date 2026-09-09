@@ -167,7 +167,7 @@
                             {% endfor %}
                         </div>
                         {% for error in form.booking_mode.errors %}
-                            <div class="invalid-feedback d-block">{{ error }}</div>
+                            <div class="invalid-feedback d-block">{{ 'Vui lòng chọn mục đích đặt sân hợp lệ.' if error == 'Not a valid choice.' else error }}</div>
                         {% endfor %}
                     </fieldset>
 

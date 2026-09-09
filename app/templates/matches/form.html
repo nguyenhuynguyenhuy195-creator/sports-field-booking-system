@@ -49,7 +49,11 @@
                             {{ form.required_players.label(class="form-label") }}
                             {{ form.required_players(class="form-control", min="1", max=booking.field.capacity - 1, placeholder="Chỉ nhập khi chọn tìm thêm người") }}
                             <div class="form-text">Sân này có sức chứa chuẩn {{ booking.field.capacity }} người.</div>
-                            {% for error in form.required_players.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                            {% if 'Not a valid integer value.' in form.required_players.errors %}
+                                <div class="invalid-feedback d-block">Vui lòng nhập số người cần tìm bằng số.</div>
+                            {% else %}
+                                {% for error in form.required_players.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                            {% endif %}
                         </div>
                     {% endif %}
 

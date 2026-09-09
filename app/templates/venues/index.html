@@ -140,8 +140,16 @@
                             <span class="input-group-text">đ</span>
                         </div>
                     </div>
-                    {% for error in form.min_price.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
-                    {% for error in form.max_price.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                    {% if 'Not a valid decimal value.' in form.min_price.errors %}
+                        <div class="invalid-feedback d-block">Giá từ phải là số tiền hợp lệ.</div>
+                    {% else %}
+                        {% for error in form.min_price.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                    {% endif %}
+                    {% if 'Not a valid decimal value.' in form.max_price.errors %}
+                        <div class="invalid-feedback d-block">Giá đến phải là số tiền hợp lệ.</div>
+                    {% else %}
+                        {% for error in form.max_price.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                    {% endif %}
                 </fieldset>
             </div>
         </div>
