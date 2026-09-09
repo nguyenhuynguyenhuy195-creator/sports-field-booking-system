@@ -43,7 +43,12 @@ from app.routes.admin import (
     PAYMENT_STATUS_LABELS,
     REFUND_STATUS_LABELS,
 )
-from app.services import register_user
+from app.services import (
+    get_admin_dashboard_summary,
+    get_admin_monitoring_location,
+    get_admin_monitoring_summary,
+    register_user,
+)
 
 
 PASSWORD = "MatKhauAnToan123"
@@ -1214,7 +1219,7 @@ def test_admin_dashboard_uses_database_counts_for_phase_one_kpis(app, client):
 def test_admin_status_labels_use_vietnamese_business_language():
     assert BOOKING_STATUS_LABELS == {
         BookingStatus.PENDING.value: "Chờ xác nhận",
-        BookingStatus.CONFIRMED.value: "Đang giữ chỗ",
+        BookingStatus.CONFIRMED.value: "Đang giữ chỗ · Chờ thanh toán cọc",
         BookingStatus.PARTIALLY_PAID.value: "Đã cọc một phần",
         BookingStatus.PAID.value: "Đã thanh toán cọc",
         BookingStatus.REFUND_PENDING.value: "Đang hoàn tiền",
@@ -2287,11 +2292,12 @@ def test_admin_monitoring_explains_data_and_opens_booking_detail(app, client):
 
     assert detail.status_code == 200
     assert booking_code in detail_page
-    assert "Số tiền hiện được ghi nhận" in detail_page
-    assert "Đối chiếu nghĩa vụ và số tiền hiện tại" in detail_page
+    assert "Thông tin booking" in detail_page
+    assert "Tài chính" in detail_page
+    assert "Diễn biến booking" in detail_page
+    assert "Thông tin liên quan" in detail_page
     assert "Lịch sử thanh toán" in detail_page
     assert "Lịch sử hoàn tiền" in detail_page
-    assert "Lịch sử sự kiện" in detail_page
     assert "TÓM TẮT KIỂM TRA" not in detail_page
     assert "PAY-ADMIN-MONITOR" in detail_page
     assert "REFUND-ADMIN-MONITOR" in detail_page
@@ -2347,9 +2353,8 @@ def test_admin_booking_detail_shows_canonical_read_only_deposit_record(app, clie
     assert "Mã yêu cầu" in page
     assert "Mã giao dịch nhà cung cấp" in page
     assert "Thời điểm thanh toán" in page
-    assert "Online ròng đang ghi nhận" in page
-    assert "Đã thanh toán thành công" in page
-    assert "Đã hoàn tiền thành công" in page
+    assert "Đã thu online" in page
+    assert "Đã hoàn" in page
     assert "Ví MoMo" in page
     assert "03/09/2026 09:00" in page
     assert 'title="Lịch đặt sân" aria-current="page"' in page
@@ -2404,7 +2409,8 @@ def test_admin_booking_detail_preserves_financial_policy_edge_cases(app, client)
     assert "Cọc online theo chính sách" in inconsistent_page
     assert 'data-missing-payment-history="investigate"' in inconsistent_page
     assert "không có Payment tương ứng" in inconsistent_page
-    assert "Cần đối chiếu:</strong>" in inconsistent_page
+    assert 'data-operational-state="reconciliation"' in inconsistent_page
+    assert "Số liệu tài chính cần được đối chiếu" in inconsistent_page
 
 
 def test_admin_booking_detail_reconciles_successful_payments_and_refunds(app, client):
@@ -2429,7 +2435,7 @@ def test_admin_booking_detail_reconciles_successful_payments_and_refunds(app, cl
     assert "REFUND-DETAIL-PARTIAL" in partial_page
     assert "REFUND-REQUEST-DETAIL-PARTIAL" in partial_page
     assert "REFUND-TRANS-DETAIL-PARTIAL" in partial_page
-    assert "Payment gốc: ORDER-DETAIL-PARTIAL" in partial_page
+    assert "Thanh toán gốc: ORDER-DETAIL-PARTIAL" in partial_page
     assert "Mã giao dịch hoàn tiền" in partial_page
     assert "Thời điểm hoàn tiền" in partial_page
     assert "Cần đối chiếu:</strong>" not in partial_page
@@ -2483,11 +2489,11 @@ def test_admin_booking_detail_separates_recorded_events_from_current_state(app, 
     assert 'data-event-type="booking_completed"' not in completed_page
     assert "completed_at" not in completed_page
     assert "updated_at" not in completed_page
-    assert completed_page.index('data-event-type="booking_created"') < completed_page.index(
+    assert completed_page.index('data-event-type="payment_success"') < completed_page.index(
         'data-event-type="match_created"'
     )
     assert completed_page.index('data-event-type="match_created"') < completed_page.index(
-        'data-event-type="payment_success"'
+        'data-event-type="booking_created"'
     )
 
     cancelled_page = client.get(
@@ -2785,3 +2791,106 @@ def test_admin_match_detail_shows_participant_states_without_private_contacts(
     assert "0901111222" not in page
     assert "0903333444" not in page
     assert f"/admin/bookings/{booking_code}" in page
+
+
+def test_admin_uses_effective_expired_status_without_mutating_booking(app, client):
+    admin = create_user(app, email="effective-admin@example.com", role=UserRole.ADMIN)
+    owner = create_user(app, email="effective-owner@example.com", role=UserRole.OWNER)
+    player = create_user(app, email="effective-player@example.com")
+    booking_code = seed_monitoring_data(app, user_id=player.id, owner_id=owner.id)
+
+    with app.app_context():
+        booking = db.session.scalar(
+            db.select(Booking).where(Booking.booking_code == booking_code)
+        )
+        booking.status = BookingStatus.CONFIRMED.value
+        booking.paid_amount = Decimal("0.00")
+        booking.initial_payment_due_at = utc_now() - timedelta(minutes=1)
+        venue_id = booking.field.venue_id
+        field_id = booking.field_id
+        db.session.execute(
+            db.delete(Refund).where(Refund.booking_id == booking.id)
+        )
+        db.session.execute(
+            db.delete(Payment).where(Payment.booking_id == booking.id)
+        )
+        db.session.execute(
+            db.delete(BookingContribution).where(
+                BookingContribution.booking_id == booking.id
+            )
+        )
+        db.session.commit()
+
+        assert get_admin_dashboard_summary().active_bookings == 0
+        assert get_admin_monitoring_summary().incomplete_deposit_bookings == 0
+        location = get_admin_monitoring_location(venue_id)
+        field_summary = next(
+            item for item in location.fields if item.field.id == field_id
+        )
+        assert field_summary.incomplete_deposit_bookings == 0
+
+    login(client, email=admin.email)
+
+    detail_page = client.get(f"/admin/bookings/{booking_code}").get_data(
+        as_text=True
+    )
+    assert 'data-admin-booking-status="EXPIRED"' in detail_page
+    assert "Đã hết hạn" in detail_page
+    assert 'data-operational-state="expired"' in detail_page
+    assert "Booking đã hết hạn do chưa thanh toán cọc đúng thời hạn." in detail_page
+    assert "Không có vấn đề cần xử lý." not in detail_page
+
+    booking_list = client.get(
+        "/admin/bookings", query_string={"q": booking_code}
+    ).get_data(as_text=True)
+    assert booking_code in booking_list
+    assert 'class="status-badge status-expired">Đã hết hạn</span>' in booking_list
+
+    expired_filter = client.get(
+        "/admin/bookings",
+        query_string={"q": booking_code, "status": BookingStatus.EXPIRED.value},
+    ).get_data(as_text=True)
+    confirmed_filter = client.get(
+        "/admin/bookings",
+        query_string={"q": booking_code, "status": BookingStatus.CONFIRMED.value},
+    ).get_data(as_text=True)
+    assert f'<strong class="admin-booking-code">{booking_code}</strong>' in expired_filter
+    assert f'<strong class="admin-booking-code">{booking_code}</strong>' not in confirmed_filter
+
+    monitoring_page = client.get(
+        "/admin/monitoring",
+        query_string={"section": "bookings", "q": booking_code},
+    ).get_data(as_text=True)
+    assert booking_code in monitoring_page
+    assert "Đã hết hạn" in monitoring_page
+
+    with app.app_context():
+        booking = db.session.scalar(
+            db.select(Booking).where(Booking.booking_code == booking_code)
+        )
+        assert booking.status == BookingStatus.CONFIRMED.value
+
+
+def test_admin_active_confirmed_status_explains_deposit_wait(app, client):
+    admin = create_user(
+        app, email="active-confirmed-admin@example.com", role=UserRole.ADMIN
+    )
+    owner = create_user(
+        app, email="active-confirmed-owner@example.com", role=UserRole.OWNER
+    )
+    player = create_user(app, email="active-confirmed-player@example.com")
+    booking_code = seed_monitoring_data(app, user_id=player.id, owner_id=owner.id)
+    with app.app_context():
+        booking = db.session.scalar(
+            db.select(Booking).where(Booking.booking_code == booking_code)
+        )
+        booking.status = BookingStatus.CONFIRMED.value
+        booking.paid_amount = Decimal("0.00")
+        booking.initial_payment_due_at = utc_now() + timedelta(minutes=15)
+        db.session.commit()
+
+    login(client, email=admin.email)
+    page = client.get(f"/admin/bookings/{booking_code}").get_data(as_text=True)
+
+    assert 'data-admin-booking-status="CONFIRMED"' in page
+    assert "Đang giữ chỗ · Chờ thanh toán cọc" in page

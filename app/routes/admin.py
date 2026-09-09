@@ -68,7 +68,7 @@ ACCOUNT_STATUS_LABELS = {
 
 BOOKING_STATUS_LABELS = {
     BookingStatus.PENDING.value: "Chờ xác nhận",
-    BookingStatus.CONFIRMED.value: "Đang giữ chỗ",
+    BookingStatus.CONFIRMED.value: "Đang giữ chỗ · Chờ thanh toán cọc",
     BookingStatus.PARTIALLY_PAID.value: "Đã cọc một phần",
     BookingStatus.PAID.value: "Đã thanh toán cọc",
     BookingStatus.REFUND_PENDING.value: "Đang hoàn tiền",
@@ -928,7 +928,7 @@ def _group_monitoring_items(section: str, items):
     grouped = {}
     for item in items:
         if section == "bookings":
-            field = item.field
+            field = item.booking.field
         elif section == "matches":
             field = item.booking.field
         else:

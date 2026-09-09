@@ -6,7 +6,7 @@ from decimal import Decimal
 from math import ceil
 from typing import Any
 
-from sqlalchemy import and_, case, func, or_
+from sqlalchemy import and_, func, or_
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload, selectinload
 
@@ -47,6 +47,7 @@ from .administrative_unit import (
     resolve_province,
 )
 from app.models.user import utc_now
+from .booking import get_effective_booking_status
 
 
 ADMIN_PAGE_SIZE = 20
@@ -162,6 +163,7 @@ class AdminPage:
 @dataclass(frozen=True)
 class AdminBookingListItem:
     booking: Booking
+    effective_status: str
     attention_label: str | None
     attention_kind: str | None
 
@@ -189,6 +191,7 @@ class AdminMatchListItem:
 class AdminMatchDetail:
     match: Match
     effective_status: str
+    booking_effective_status: str
     total_participants: int
     joined_participants: int
     pending_participants: int
@@ -232,6 +235,7 @@ class AdminMatchContext:
 @dataclass(frozen=True)
 class AdminBookingDetail:
     booking: Booking
+    effective_status: str
     contributions: tuple[AdminContributionBreakdown, ...]
     payments: tuple[AdminPaymentHistoryItem, ...]
     refunds: tuple[Refund, ...]
@@ -275,16 +279,13 @@ def get_admin_dashboard_summary() -> AdminDashboardSummary:
         pending_venues=pending_venues,
         total_bookings=_count(Booking),
         today_bookings=_count(Booking, Booking.booking_date == date.today()),
-        active_bookings=_count(
-            Booking,
-            Booking.status.in_(
-                {
-                    BookingStatus.CONFIRMED.value,
-                    BookingStatus.PARTIALLY_PAID.value,
-                    BookingStatus.PAID.value,
-                    BookingStatus.REFUND_PENDING.value,
-                }
-            ),
+        active_bookings=_count_bookings_with_effective_statuses(
+            {
+                BookingStatus.CONFIRMED.value,
+                BookingStatus.PARTIALLY_PAID.value,
+                BookingStatus.PAID.value,
+                BookingStatus.REFUND_PENDING.value,
+            },
         ),
         pending_payments=pending_payments,
         failed_payments=failed_payments,
@@ -310,14 +311,11 @@ def get_admin_dashboard_summary() -> AdminDashboardSummary:
 
 def get_admin_monitoring_summary() -> AdminMonitoringSummary:
     return AdminMonitoringSummary(
-        incomplete_deposit_bookings=_count(
-            Booking,
-            Booking.status.in_(
-                {
-                    BookingStatus.CONFIRMED.value,
-                    BookingStatus.PARTIALLY_PAID.value,
-                }
-            ),
+        incomplete_deposit_bookings=_count_bookings_with_effective_statuses(
+            {
+                BookingStatus.CONFIRMED.value,
+                BookingStatus.PARTIALLY_PAID.value,
+            },
             Booking.paid_amount < Booking.deposit_amount,
         ),
         payment_issues=_count(
@@ -451,26 +449,30 @@ def _build_admin_venue_summaries(
             .order_by(Field.venue_id.asc(), Field.name.asc(), Field.id.asc())
         )
     )
-    incomplete_condition = (
-        Booking.status.in_(
-            {BookingStatus.CONFIRMED.value, BookingStatus.PARTIALLY_PAID.value}
-        )
-        & (Booking.paid_amount < Booking.deposit_amount)
-    )
     field_ids = tuple(field.id for field in fields)
     booking_stats = {}
     if field_ids:
+        bookings_by_field: dict[int, list[Booking]] = {}
+        for booking in db.session.scalars(
+            db.select(Booking).where(Booking.field_id.in_(field_ids))
+        ):
+            bookings_by_field.setdefault(booking.field_id, []).append(booking)
+        active_deposit_statuses = {
+            BookingStatus.CONFIRMED.value,
+            BookingStatus.PARTIALLY_PAID.value,
+        }
         booking_stats = {
-            int(field_id): (int(total or 0), int(incomplete or 0))
-            for field_id, total, incomplete in db.session.execute(
-                db.select(
-                    Booking.field_id,
-                    func.count(Booking.id),
-                    func.sum(case((incomplete_condition, 1), else_=0)),
-                )
-                .where(Booking.field_id.in_(field_ids))
-                .group_by(Booking.field_id)
+            field_id: (
+                len(field_bookings),
+                sum(
+                    1
+                    for booking in field_bookings
+                    if get_effective_booking_status(booking)
+                    in active_deposit_statuses
+                    and booking.paid_amount < booking.deposit_amount
+                ),
             )
+            for field_id, field_bookings in bookings_by_field.items()
         }
 
     fields_by_venue: dict[int, list[AdminFieldLocationSummary]] = {
@@ -660,6 +662,7 @@ def get_admin_booking_detail(booking_code: str) -> AdminBookingDetail:
 
     return AdminBookingDetail(
         booking=booking,
+        effective_status=get_effective_booking_status(booking),
         contributions=tuple(contribution_rows),
         payments=payment_items,
         refunds=refunds,
@@ -707,6 +710,7 @@ def get_admin_match_detail(match_id: int) -> AdminMatchDetail:
             match,
             current_utc=current_utc,
         ),
+        booking_effective_status=get_effective_booking_status(match.booking),
         total_participants=counts["total"],
         joined_participants=counts["joined"],
         pending_participants=counts["pending"],
@@ -968,7 +972,6 @@ def list_admin_booking_operations(
         )
     if status:
         _require_choice(status, BookingStatus, "Trạng thái lịch đặt sân")
-        statement = statement.where(Booking.status == status)
     if sport_code:
         if db.session.scalar(
             db.select(Sport.id).where(Sport.code == sport_code)
@@ -988,10 +991,11 @@ def list_admin_booking_operations(
     if field_id is not None:
         statement = statement.where(Field.id == field_id)
 
-    booking_page = _paginate(
+    booking_page = _paginate_bookings_by_effective_status(
         statement.order_by(Booking.created_at.desc(), Booking.id.desc()),
         page,
         per_page=ADMIN_BOOKING_PAGE_SIZE,
+        status=status,
     )
     payment_states: dict[int, set[str]] = {}
     refund_states: dict[int, set[str]] = {}
@@ -1205,7 +1209,6 @@ def list_admin_bookings(
         ).join(User, User.id == Booking.user_id)
     if status:
         _require_choice(status, BookingStatus, "Trạng thái lịch đặt sân")
-        statement = statement.where(Booking.status == status)
     if sport_code:
         statement = statement.where(Sport.code == sport_code)
     if booking_date:
@@ -1214,8 +1217,13 @@ def list_admin_bookings(
         statement = statement.where(Field.venue_id == venue_id)
     if field_id:
         statement = statement.where(Field.id == field_id)
+    effective_statuses = None
     if focus == "incomplete_deposit":
         statement = statement.where(Booking.paid_amount < Booking.deposit_amount)
+        effective_statuses = {
+            BookingStatus.CONFIRMED.value,
+            BookingStatus.PARTIALLY_PAID.value,
+        }
     elif focus == "payment_issue":
         statement = statement.where(
             Booking.payments.any(
@@ -1243,11 +1251,22 @@ def list_admin_bookings(
             )
         )
     elif focus == "completed":
-        statement = statement.where(Booking.status == BookingStatus.COMPLETED.value)
-    return _paginate(
+        effective_statuses = {BookingStatus.COMPLETED.value}
+    booking_page = _paginate_bookings_by_effective_status(
         statement.order_by(Booking.created_at.desc(), Booking.id.desc()),
         page,
         per_page=ADMIN_MONITORING_PAGE_SIZE,
+        status=status,
+        allowed_statuses=effective_statuses,
+    )
+    return AdminPage(
+        items=tuple(
+            _admin_booking_list_item(booking, set(), set())
+            for booking in booking_page.items
+        ),
+        page=booking_page.page,
+        per_page=booking_page.per_page,
+        total=booking_page.total,
     )
 
 
@@ -1463,6 +1482,20 @@ def _count(model: Any, *conditions: Any) -> int:
     return int(db.session.scalar(statement) or 0)
 
 
+def _count_bookings_with_effective_statuses(
+    statuses: set[str],
+    *conditions: Any,
+) -> int:
+    statement = db.select(Booking)
+    if conditions:
+        statement = statement.where(*conditions)
+    return sum(
+        1
+        for booking in db.session.scalars(statement)
+        if get_effective_booking_status(booking) in statuses
+    )
+
+
 def _sum_amount(column: Any, *conditions: Any) -> Decimal:
     statement = db.select(func.coalesce(func.sum(column), 0))
     if conditions:
@@ -1518,6 +1551,34 @@ def _admin_province_condition(province: Any) -> Any:
             Venue.province_code.is_(None),
             func.coalesce(Venue.province_name, Venue.city) == province.name,
         ),
+    )
+
+
+def _paginate_bookings_by_effective_status(
+    statement: Any,
+    page: int,
+    *,
+    per_page: int,
+    status: str | None = None,
+    allowed_statuses: set[str] | None = None,
+) -> AdminPage:
+    """Paginate Booking read models using the shared effective-status rule."""
+    if not status and allowed_statuses is None:
+        return _paginate(statement, page, per_page=per_page)
+
+    accepted_statuses = {status} if status else allowed_statuses
+    bookings = tuple(
+        booking
+        for booking in db.session.scalars(statement)
+        if get_effective_booking_status(booking) in accepted_statuses
+    )
+    normalized_page = max(page, 1)
+    start = (normalized_page - 1) * per_page
+    return AdminPage(
+        items=bookings[start : start + per_page],
+        page=normalized_page,
+        per_page=per_page,
+        total=len(bookings),
     )
 
 
@@ -1784,29 +1845,34 @@ def _admin_booking_list_item(
     if (has_payment_problem or has_pending_payment) and has_refund_attention:
         return AdminBookingListItem(
             booking=booking,
+            effective_status=get_effective_booking_status(booking),
             attention_label="Thanh toán và hoàn tiền cần theo dõi",
             attention_kind="combined",
         )
     if has_payment_problem:
         return AdminBookingListItem(
             booking=booking,
+            effective_status=get_effective_booking_status(booking),
             attention_label="Thanh toán cần kiểm tra",
             attention_kind="payment",
         )
     if has_pending_payment:
         return AdminBookingListItem(
             booking=booking,
+            effective_status=get_effective_booking_status(booking),
             attention_label="Thanh toán chờ xác nhận",
             attention_kind="pending",
         )
     if has_refund_attention:
         return AdminBookingListItem(
             booking=booking,
+            effective_status=get_effective_booking_status(booking),
             attention_label="Hoàn tiền cần theo dõi",
             attention_kind="refund",
         )
     return AdminBookingListItem(
         booking=booking,
+        effective_status=get_effective_booking_status(booking),
         attention_label=None,
         attention_kind=None,
     )

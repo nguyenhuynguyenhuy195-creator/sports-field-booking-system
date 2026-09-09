@@ -31,7 +31,7 @@
                     </div>
                     <dl class="admin-detail-info-grid">
                         <div><dt>Mã lịch đặt</dt><dd><a class="admin-match-booking-link" href="{{ url_for('admin.booking_detail', booking_code=booking.booking_code) }}">{{ booking.booking_code }}</a></dd></div>
-                        <div><dt>Trạng thái Booking</dt><dd><span class="status-badge status-{{ booking.status|lower }}">{{ booking_status_labels[booking.status] }}</span></dd></div>
+                        <div><dt>Trạng thái Booking</dt><dd><span class="status-badge status-{{ detail.booking_effective_status|lower }}">{{ booking_status_labels[detail.booking_effective_status] }}</span></dd></div>
                         <div><dt>Ngày và giờ chơi</dt><dd>{{ booking.booking_date.strftime('%d/%m/%Y') }} · {{ booking.start_time.strftime('%H:%M') }}–{{ booking.end_time.strftime('%H:%M') }}</dd></div>
                         <div><dt>Khách đặt sân</dt><dd>{{ booking.user.full_name }}<small>{{ booking.user.email }}</small></dd></div>
                         <div><dt>Cơ sở</dt><dd>{{ booking.field.venue.name }}</dd></div>
@@ -122,7 +122,7 @@
                     <span class="admin-section-kicker">TRẠNG THÁI HIỆN TẠI</span>
                     <h2 id="match-current-state-title">Match và Booking</h2>
                     <div class="admin-current-state-row" data-current-match-status="{{ match.status }}" data-current-match-effective-status="{{ detail.effective_status }}"><span>Kèo #{{ match.id }}</span><span class="status-badge status-{{ detail.effective_status|lower }}">{{ match_status_label(match, detail.effective_status) }}</span></div>
-                    <div class="admin-current-state-row" data-current-booking-status="{{ booking.status }}"><span>Booking</span><span class="status-badge status-{{ booking.status|lower }}">{{ booking_status_labels[booking.status] }}</span></div>
+                    <div class="admin-current-state-row" data-current-booking-status="{{ detail.booking_effective_status }}"><span>Booking</span><span class="status-badge status-{{ detail.booking_effective_status|lower }}">{{ booking_status_labels[detail.booking_effective_status] }}</span></div>
                     <p class="admin-detail-definition mb-0">Các trạng thái hiện tại không xác định thời điểm chuyển trạng thái nếu hệ thống không lưu mốc riêng.</p>
                 </section>
 
@@ -143,7 +143,7 @@
                     <h2 id="match-investigation-title">Tóm tắt cần kiểm tra</h2>
                     <ul>
                         <li>Kèo hiện ở trạng thái <strong>{{ match_status_label(match, detail.effective_status) }}</strong>.</li>
-                        <li>Booking liên quan ở trạng thái <strong>{{ booking_status_labels[booking.status] }}</strong>.</li>
+                        <li>Booking liên quan ở trạng thái <strong>{{ booking_status_labels[detail.booking_effective_status] }}</strong>.</li>
                         {% if detail.pending_participants %}<li class="tone-warning" data-match-attention="pending"><strong>{{ detail.pending_participants }} yêu cầu tham gia đang chờ xử lý.</strong> Đây là trạng thái theo dõi, không tự động là lỗi.</li>{% endif %}
                         {% if detail.awaiting_payment_participants %}<li class="tone-warning" data-match-attention="awaiting-payment"><strong>{{ detail.awaiting_payment_participants }} người đang chờ thanh toán cọc.</strong> Đây là trạng thái theo dõi, không tự động là lỗi.</li>{% endif %}
                         {% if not detail.pending_participants and not detail.awaiting_payment_participants %}<li>Không có yêu cầu tham gia hoặc khoản cọc đối thủ đang chờ xử lý.</li>{% endif %}

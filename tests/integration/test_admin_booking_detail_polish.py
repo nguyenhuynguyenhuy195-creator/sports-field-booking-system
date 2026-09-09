@@ -28,6 +28,24 @@ def test_normal_booking_keeps_hero_status_without_investigation_sidebar(app, cli
     assert "ĐIỀU TRA READ-ONLY" not in page
     assert "Trạng thái hiện tại không được dùng" not in page
     assert "Online ròng đang ghi nhận: <strong>" not in page
+    assert 'data-operational-state="clear"' in page
+    assert "Không có vấn đề cần xử lý." in page
+    assert "admin-contribution-table" not in page
+    assert 'id="booking-cancellation-title"' not in page
+
+
+def test_empty_related_data_uses_one_compact_line_instead_of_empty_cards(app, client):
+    data = _detail_fixture(app, client)
+    page = client.get(f"/admin/bookings/{data['legacy_location']}").get_data(
+        as_text=True
+    )
+
+    assert "data-related-empty" in page
+    assert "Không có giao dịch hoặc kèo liên quan để hiển thị." in page
+    assert "admin-related-disclosure" not in page
+    assert "Lịch sử thanh toán" not in page
+    assert "Lịch sử hoàn tiền" not in page
+    assert "Kèo liên quan" not in page
 
 
 def test_payment_ids_are_preserved_inside_native_technical_disclosure(app, client):
@@ -83,7 +101,10 @@ def test_attention_and_reconciliation_warnings_remain_visible(app, client):
     assert "Lý do hủy" in cancellation
 
 
-def test_match_link_and_event_history_use_progressive_disclosure(app, client):
+def test_timeline_is_prominent_and_related_records_use_progressive_disclosure(
+    app,
+    client,
+):
     data = _detail_fixture(app, client)
     page = client.get(f"/admin/bookings/{data['completed_match']}").get_data(
         as_text=True
@@ -93,5 +114,8 @@ def test_match_link_and_event_history_use_progressive_disclosure(app, client):
     assert 'data-event-type="booking_created"' in page
     assert 'data-event-type="payment_success"' in page
     assert 'data-event-type="match_created"' in page
-    assert '<details class="admin-history-disclosure">' in page
-    assert "Lịch sử sự kiện (4)" in page
+    assert "Diễn biến booking" in page
+    assert "admin-booking-timeline-card" in page
+    assert '<details class="admin-related-disclosure">' in page
+    assert '<details class="admin-history-disclosure">' not in page
+    assert page.index("Diễn biến booking") < page.index("Thông tin liên quan")

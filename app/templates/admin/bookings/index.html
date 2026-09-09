@@ -132,7 +132,7 @@
                                     </dl>
                                 </td>
                                 <td data-label="Trạng thái / Theo dõi">
-                                    <span class="status-badge status-{{ booking.status|lower }}">{{ booking_status_labels[booking.status] }}</span>
+                                    <span class="status-badge status-{{ item.effective_status|lower }}">{{ booking_status_labels[item.effective_status] }}</span>
                                     {% if item.attention_label %}<span class="admin-booking-attention attention-{{ item.attention_kind }}"><i class="bi bi-exclamation-circle" aria-hidden="true"></i>{{ item.attention_label }}</span>{% endif %}
                                     <a class="admin-booking-detail-link" href="{{ url_for('admin.booking_detail', booking_code=booking.booking_code, page=booking_page.page, **pagination_params) }}">Xem chi tiết <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
                                 </td>
