@@ -629,7 +629,10 @@
         const activePanel = panels.find((panel) => Number(panel.dataset.bookingStep) === currentStep);
         const box = activePanel?.querySelector("[data-flow-error]") || errorBoxes[0];
         if (!box) return;
-        box.textContent = message;
+        const isPlayerSplit = form.querySelector("input[name='booking_mode']:checked")?.value === "FIND_PLAYERS";
+        box.textContent = message === "Not a valid integer value." && isPlayerSplit
+            ? "Vui lòng nhập số người bạn muốn tìm thêm."
+            : message;
         box.classList.remove("d-none");
         box.scrollIntoView({ behavior: "smooth", block: "center" });
         box.focus({ preventScroll: true });

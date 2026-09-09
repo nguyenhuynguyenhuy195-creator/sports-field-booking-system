@@ -36,7 +36,7 @@
             Kèo đã tham gia <span class="marketplace-tab-count">{{ joined_requests|length }}</span>
         </button>
         <button class="marketplace-tab" id="match-requests-tab" data-bs-toggle="pill" data-bs-target="#match-requests-panel" type="button" role="tab" aria-controls="match-requests-panel" aria-selected="false">
-            Yêu cầu tham gia <span class="marketplace-tab-count">{{ other_requests|length }}</span>
+            Yêu cầu tôi đã gửi <span class="marketplace-tab-count">{{ other_requests|length }}</span>
         </button>
     </div>
 
@@ -84,7 +84,7 @@
             {% else %}
                 <div class="marketplace-empty-state marketplace-card">
                     <i class="bi bi-send" aria-hidden="true"></i>
-                    <div><h2>Không có yêu cầu tham gia</h2><p>Các yêu cầu gửi tới kèo khác sẽ xuất hiện tại đây.</p></div>
+                    <div><h2>Chưa gửi yêu cầu tham gia</h2><p>Các kèo bạn đã gửi yêu cầu sẽ xuất hiện tại đây.</p></div>
                     <a class="btn btn-outline-primary" href="{{ url_for('matches.index') }}">Tìm kèo</a>
                 </div>
             {% endif %}

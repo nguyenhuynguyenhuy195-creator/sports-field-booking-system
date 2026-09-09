@@ -2928,13 +2928,14 @@ a:hover {
 }
 
 .booking-code {
-    align-items: baseline;
+    align-items: flex-start;
     color: #65778c;
     display: inline-flex;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 0.76rem;
+    font-size: 0.82rem;
     font-weight: 500;
-    gap: 0.3rem;
+    flex-direction: column;
+    gap: 0.08rem;
     overflow-wrap: anywhere;
 }
 
@@ -2967,11 +2968,15 @@ a:hover {
     display: flex;
     flex-direction: column;
     min-width: 260px;
-    padding: 1.25rem 1.5rem;
+    padding: 1.15rem 1.3rem;
     text-align: right;
 }
 
 .booking-total-heading {
+    text-align: center;
+}
+
+.booking-refund-summary {
     text-align: center;
 }
 
@@ -3032,7 +3037,7 @@ a:hover {
 }
 
 .booking-information-card {
-    padding: 1.3rem 1.4rem;
+    padding: 1.05rem 1.25rem;
 }
 
 .booking-detail-grid {
@@ -3060,11 +3065,12 @@ a:hover {
 }
 
 .booking-information-card .booking-detail-grid > div {
-    padding: 0.62rem 0.15rem;
+    padding: 0.52rem 0.15rem;
 }
 
 .booking-information-card .booking-detail-grid dt {
     font-weight: 600;
+    font-size: 0.8rem;
 }
 
 .booking-action-financial-summary {
@@ -3081,14 +3087,14 @@ a:hover {
 
 .booking-disclosure-stack {
     display: grid;
-    gap: 0.85rem;
+    gap: 0.55rem;
 }
 
 .booking-disclosure {
     background: #ffffff;
     border: 1px solid var(--app-border);
     border-radius: 14px;
-    box-shadow: 0 8px 24px rgba(15, 39, 71, 0.04);
+    box-shadow: none;
     overflow: hidden;
 }
 
@@ -3099,7 +3105,7 @@ a:hover {
     gap: 1rem;
     justify-content: space-between;
     list-style: none;
-    padding: 1rem 1.2rem;
+    padding: 0.78rem 1rem;
     transition: background-color 0.2s ease;
 }
 
@@ -3147,7 +3153,7 @@ a:hover {
 
 .booking-disclosure-body {
     border-top: 1px solid var(--app-border);
-    padding: 1rem 1.2rem 1.2rem;
+    padding: 0.8rem 1rem 0.95rem;
 }
 
 .booking-final-status {
@@ -3196,7 +3202,62 @@ a:hover {
 }
 
 .booking-user-action-card {
-    padding: 1.3rem;
+    padding: 1.2rem;
+}
+
+.booking-user-action-card > h2 {
+    text-align: center;
+}
+
+.booking-user-action-card .booking-total-panel {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    margin: 0.85rem 0;
+    min-width: 0;
+    padding: 0.85rem 0;
+    text-align: left;
+}
+
+.booking-user-action-card .booking-total-heading {
+    text-align: center;
+}
+
+.booking-user-action-card .booking-total-heading strong {
+    font-size: 1.35rem;
+}
+
+.booking-user-action-card .booking-refund-summary,
+.booking-user-action-card .booking-refund-summary .booking-total-heading {
+    text-align: center;
+}
+
+.booking-hold-until {
+    color: #5d7083;
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+.booking-payment-action {
+    margin-top: 0.35rem;
+}
+
+.booking-payment-simulation-note {
+    color: #66788e;
+    font-size: 0.78rem;
+    margin: 0.6rem 0 0;
+    text-align: center;
+}
+
+.booking-cancel-action {
+    margin-top: 1rem;
+    text-align: center;
+}
+
+.booking-cancel-action .btn {
+    font-size: 0.84rem;
+    padding: 0.42rem 0.7rem;
 }
 
 .booking-cancellation-note {
@@ -3215,8 +3276,7 @@ a:hover {
 }
 
 .booking-action-card {
-    position: sticky;
-    top: 1.5rem;
+    position: static;
 }
 
 .payment-progress-badge,
@@ -3245,12 +3305,14 @@ a:hover {
 }
 
 .payment-due-box {
+    align-items: center;
     background: #f4faf7;
     border: 1px solid #cfe4d8;
     border-radius: 12px;
     display: flex;
     flex-direction: column;
     padding: 1rem;
+    text-align: center;
 }
 
 .payment-due-box span {
@@ -3264,13 +3326,17 @@ a:hover {
 }
 
 .booking-countdown {
-    background: #eef7f2;
-    border: 1px solid #cfe4d8;
-    border-radius: 10px;
+    align-items: center;
+    background: #f5f8f6;
+    border: 1px solid #dbe8df;
+    border-radius: 999px;
     color: var(--app-primary-dark);
+    display: flex;
     font-weight: 700;
-    padding: 0.8rem 1rem;
+    margin-inline: auto;
+    padding: 0.38rem 0.75rem;
     text-align: center;
+    width: fit-content;
 }
 
 .booking-countdown.is-expired {

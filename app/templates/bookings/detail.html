@@ -59,7 +59,7 @@
             {% endif %}
         </div>
     {% else %}
-        <div class="booking-total-panel">
+        <div class="booking-total-panel{% if effective_status == 'CANCELLED' %} booking-refund-summary{% endif %}">
             {% if effective_status == 'CANCELLED' %}
                 <div class="booking-total-heading">
                     <span>Đã hoàn cho người thanh toán</span>
@@ -96,7 +96,7 @@
                     </dl>
                 {% elif booking.payment_policy == 'DEPOSIT_30' %}
                     <dl class="booking-total-rows mb-0">
-                        <div><dt>{{ 'Mức cọc khi cả hai đội thanh toán (30%)' if booking.booking_mode == 'FIND_OPPONENT' and booking.matchmaking_deadline is none and booking.funding_deadline is none else 'Cọc 30%' }}</dt><dd>{{ booking.deposit_amount|vnd_currency }}</dd></div>
+                        <div><dt>{{ 'Mức cọc khi cả hai đội thanh toán (30%)' if booking.booking_mode == 'FIND_OPPONENT' and booking.matchmaking_deadline is none and booking.funding_deadline is none else 'Cọc cần thanh toán' }}</dt><dd>{{ booking.deposit_amount|vnd_currency }}</dd></div>
                         <div><dt>Đã thanh toán</dt><dd>{{ booking.paid_amount|vnd_currency }}</dd></div>
                         <div><dt>Còn lại trả tại sân</dt><dd>{{ booking.balance_due_at_venue|vnd_currency }}</dd></div>
                     </dl>
@@ -124,7 +124,7 @@
         <div>
             <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
                 <span class="status-badge status-{{ effective_status|lower|replace('_', '-') }}">{{ status_labels[effective_status] }}</span>
-                <span class="booking-code"><span>Mã đặt sân:</span> <b>{{ booking.booking_code }}</b></span>
+                <span class="booking-code"><span>Mã đặt sân</span><b>{{ booking.booking_code }}</b></span>
             </div>
             <h1 class="h2 fw-bold mb-1">{{ display_field_name }}</h1>
             <p class="text-secondary{% if owner_view %} mb-2{% else %} mb-0{% endif %}">{{ booking.field.venue.name }}</p>
@@ -146,7 +146,7 @@
                 <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
                     <div>
                         <h2 class="h5 fw-bold mb-1">{{ 'Thông tin booking' if owner_view else 'Chi tiết đặt sân' }}</h2>
-                        {% if not owner_view %}<p class="small text-secondary mb-0">Thông tin quan trọng của lịch đã xác nhận.</p>{% endif %}
+                        {% if not owner_view %}<p class="small text-secondary mb-0">Thông tin lịch đặt sân của bạn.</p>{% endif %}
                     </div>
                 </div>
                 <dl class="booking-detail-grid mb-0">
@@ -304,7 +304,7 @@
             <div class="{% if owner_view %}owner-booking-side-column{% endif %}">
             {% if owner_view %}{{ render_payment_summary(true) }}{% endif %}
             <aside class="booking-detail-card booking-action-card{% if owner_view %} owner-booking-status-card{% else %} booking-user-action-card{% endif %}">
-                <h2 class="h5 fw-bold mb-3">{{ 'Trạng thái' if owner_view else 'Trạng thái và thao tác' }}</h2>
+                <h2 class="h5 fw-bold mb-3">{{ 'Trạng thái' if owner_view else 'Thanh toán & trạng thái' }}</h2>
                 {% if not owner_view and current_user.id == booking.user_id %}
                     {% if booking.match %}
                         <div class="match-booking-cta mb-3">
@@ -326,7 +326,7 @@
                     {% if owner_view %}
                         <p class="text-secondary">Hệ thống đã tự động giữ chỗ. Bạn không cần xác nhận thủ công.</p>
                     {% else %}
-                        <p class="text-secondary mb-2">Sân đang được giữ cho bạn đến {{ booking.initial_payment_due_at|local_datetime }}.</p>
+                        <p class="booking-hold-until mb-2">Giữ chỗ đến {{ booking.initial_payment_due_at|local_datetime }}</p>
                         <div
                             class="booking-countdown mb-3"
                             data-booking-countdown
@@ -335,35 +335,23 @@
                             data-deadline="{{ booking.initial_payment_due_at.isoformat() }}Z"
                         >Đang tính thời gian còn lại…</div>
                         <button class="btn btn-outline-primary w-100 mb-3" type="button" data-booking-payment-refresh aria-describedby="initial-payment-countdown" hidden>Tải lại trạng thái</button>
+                        {{ render_payment_summary() }}
                         {% for contribution in booking.contributions %}
                             {% if contribution.user_id == current_user.id and contribution.status == 'PENDING' %}
-                                <div class="payment-due-box mb-3">
-                                    <span>Khoản bạn cần trả trước</span>
-                                    <strong>{{ contribution.remaining_amount|vnd_currency }}</strong>
-                                </div>
-                                <form method="post" action="{{ url_for('payments.pay_momo' if momo_enabled else 'payments.pay_mock', booking_code=booking.booking_code, contribution_id=contribution.id) }}">
+                                <form class="booking-payment-action" method="post" action="{{ url_for('payments.pay_momo' if momo_enabled else 'payments.pay_mock', booking_code=booking.booking_code, contribution_id=contribution.id) }}">
                                     {{ payment_form.hidden_tag() }}
                                     <button class="btn btn-primary w-100" type="submit" data-payment-submit>
-                                        {{ 'Thanh toán cọc qua MoMo thử nghiệm' if momo_enabled else 'Thử thanh toán cọc' }}
+                                        Thanh toán cọc {{ contribution.remaining_amount|vnd_currency }}
                                     </button>
                                 </form>
                             {% endif %}
                         {% endfor %}
-                        {% if momo_enabled %}
-                            <p class="small text-secondary mt-2">Bạn sẽ được chuyển sang trang thanh toán thử nghiệm của MoMo.</p>
-                        {% else %}
-                            <p class="small text-secondary mt-2">MoMo thử nghiệm chưa được kết nối; nút hiện tại chỉ dùng để kiểm tra quy trình và không trừ tiền thật.</p>
-                        {% endif %}
                     {% endif %}
                 {% elif effective_status == 'PARTIALLY_PAID' %}
                     {% if owner_view %}
                         <p class="text-secondary mb-0">Người đặt đã trả phần cọc giữ sân. Lịch đặt vẫn có hiệu lực trong khi chờ đối thủ.</p>
                     {% else %}
                         {% if booking.payment_policy == 'DEPOSIT_30' and booking.booking_mode == 'FIND_OPPONENT' and booking.matchmaking_deadline is none and booking.funding_deadline is none %}
-                            <dl class="booking-action-financial-summary">
-                                <div><dt>Đã thanh toán online</dt><dd>{{ booking.paid_amount|vnd_currency }}</dd></div>
-                                <div><dt>Còn thanh toán tại sân</dt><dd>{{ booking.balance_due_at_venue|vnd_currency }}</dd></div>
-                            </dl>
                             {% if opponent_summary.can_pay %}
                                 <p class="small text-secondary mb-0">Bạn đã cọc để giữ sân. Nếu có đối thủ thanh toán thêm, số tiền còn lại tại sân sẽ giảm tương ứng.</p>
                             {% else %}
@@ -387,10 +375,6 @@
                     {% endif %}
                 {% elif effective_status == 'PAID' %}
                     {% if find_opponent_deposit_summary %}
-                        <dl class="booking-action-financial-summary">
-                            <div><dt>Đã thanh toán online</dt><dd>{{ booking.paid_amount|vnd_currency }}</dd></div>
-                            <div><dt>Còn thanh toán tại sân</dt><dd>{{ booking.balance_due_at_venue|vnd_currency }}</dd></div>
-                        </dl>
                         {% if opponent_summary.has_paid %}
                             <p class="small text-secondary mb-0">Phần cọc của hai bên đã được ghi nhận. Phần còn lại được thanh toán tại sân.</p>
                         {% else %}
@@ -434,6 +418,10 @@
                     </div>
                 {% endif %}
 
+                {% if not owner_view and effective_status != 'CONFIRMED' %}
+                    {{ render_payment_summary() }}
+                {% endif %}
+
                 {% if booking.cancellation_reason %}
                     <div class="booking-cancellation-note">
                         <span>Lý do hủy</span>
@@ -450,7 +438,7 @@
                         data-bs-target="#ownerBookingCancelModal"
                     >Hủy booking</button>
                 {% elif not owner_view and booking.payment_policy == 'DEPOSIT_30' and effective_status in ['PENDING', 'CONFIRMED', 'PARTIALLY_PAID', 'PAID'] and (booking.booking_mode != 'FIND_OPPONENT' or (booking.matchmaking_deadline is none and booking.funding_deadline is none)) %}
-                    <form method="post"
+                    <form class="booking-cancel-action" method="post"
                           action="{{ url_for('bookings.cancel', booking_code=booking.booking_code) }}"
                           {% if booking.paid_amount > 0 %}
                           data-confirm-title="Xác nhận hủy và mất cọc?"
@@ -458,33 +446,28 @@
                           data-confirm-button="Hủy và chấp nhận mất cọc"
                           {% endif %}>
                         {{ cancel_form.hidden_tag() }}
-                        <button class="btn btn-outline-danger w-100" type="submit">Hủy lịch đặt sân</button>
+                        <button class="btn btn-outline-danger" type="submit">Hủy lịch đặt sân</button>
                     </form>
                     <p class="small text-secondary mt-2 mb-0">Nếu hủy trước giờ bắt đầu, phần cọc của bạn không được hoàn; phần cọc đối thủ (nếu có) được hoàn theo chính sách hiện hành.</p>
                 {% elif not owner_view and effective_status in ['PENDING', 'CONFIRMED'] %}
-                    <form method="post" action="{{ url_for('bookings.cancel', booking_code=booking.booking_code) }}">
+                    <form class="booking-cancel-action" method="post" action="{{ url_for('bookings.cancel', booking_code=booking.booking_code) }}">
                         {{ cancel_form.hidden_tag() }}
-                        <button class="btn btn-outline-danger w-100" type="submit">Hủy lịch đặt sân</button>
+                        <button class="btn btn-outline-danger" type="submit">Hủy lịch đặt sân</button>
                     </form>
                     <p class="small text-secondary mt-2 mb-0">Lịch đặt này chỉ có thể hủy trước giờ bắt đầu ít nhất 2 giờ.</p>
                 {% elif not owner_view and effective_status == 'PARTIALLY_PAID' %}
-                    <form method="post"
+                    <form class="booking-cancel-action" method="post"
                           action="{{ url_for('bookings.cancel', booking_code=booking.booking_code) }}"
                           data-confirm-title="Xác nhận hủy lịch đặt sân?"
                           data-confirm-message="Bạn chỉ được hoàn 80% phần đã đóng; 20% được giữ làm phí giữ sân. Bạn vẫn muốn hủy lịch đặt sân?"
                           data-confirm-button="Hủy và chấp nhận phí giữ sân">
                         {{ cancel_form.hidden_tag() }}
-                        <button class="btn btn-outline-danger w-100" type="submit">Hủy và yêu cầu hoàn tiền</button>
+                        <button class="btn btn-outline-danger" type="submit">Hủy và yêu cầu hoàn tiền</button>
                     </form>
                     <p class="small text-secondary mt-2 mb-0">Bạn được hoàn 80% phần đã đóng; 20% được giữ làm phí giữ sân. Người tham gia khác được hoàn 100%.</p>
                 {% endif %}
                 {% endif %}
             </aside>
-            {% if not owner_view %}
-                <div class="booking-side-payment-summary mt-3">
-                    {{ render_payment_summary() }}
-                </div>
-            {% endif %}
             </div>
         </div>
     </div>

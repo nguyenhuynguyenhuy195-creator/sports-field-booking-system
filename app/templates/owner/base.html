@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="Khu vực quản lý cơ sở, sân và lịch đặt dành cho chủ sân.">
     <meta name="theme-color" content="#103f35">
-    <title>{% block title %}Owner Console · Sân Thể Thao{% endblock %}</title>
+    <title>{% block title %}Sân Thể Thao{% endblock %}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -25,9 +25,9 @@
     <div class="owner-shell">
         <aside class="offcanvas-lg offcanvas-start owner-sidebar" tabindex="-1" id="ownerSidebar" aria-labelledby="ownerSidebarLabel" data-owner-sidebar>
             <div class="offcanvas-header owner-sidebar-header">
-                <a class="owner-brand" id="ownerSidebarLabel" href="{{ url_for('owner.dashboard') }}" aria-label="Sân Thể Thao — Owner Console" title="Sân Thể Thao — Owner Console">
+                <a class="owner-brand" id="ownerSidebarLabel" href="{{ url_for('owner.dashboard') }}" aria-label="Sân Thể Thao" title="Sân Thể Thao">
                     <span class="owner-brand-mark" aria-hidden="true"><i class="bi bi-buildings-fill"></i></span>
-                    <span class="owner-brand-copy"><strong>Sân Thể Thao</strong><small>Owner Console</small></span>
+                    <span class="owner-brand-copy"><strong>Sân Thể Thao</strong></span>
                 </a>
                 <button class="btn-close btn-close-white d-lg-none" type="button" data-bs-dismiss="offcanvas" data-bs-target="#ownerSidebar" aria-label="Đóng menu"></button>
             </div>
@@ -71,7 +71,6 @@
                         <i class="bi bi-list" aria-hidden="true"></i>
                     </button>
                     <div class="owner-topbar-title">
-                        <small>Owner Console</small>
                         <strong>{% block owner_page_label %}Quản lý sân{% endblock %}</strong>
                     </div>
                     <div class="dropdown ms-auto">

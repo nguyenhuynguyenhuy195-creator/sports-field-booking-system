@@ -194,7 +194,7 @@
                             ) }}
                             <small>người còn thiếu</small>
                             {% for error in form.requested_players.errors %}
-                                <div class="invalid-feedback d-block">{{ error }}</div>
+                                <div class="invalid-feedback d-block">{{ 'Vui lòng nhập số người bạn muốn tìm thêm.' if error == 'Not a valid integer value.' else error }}</div>
                             {% endfor %}
                         </div>
                     </div>

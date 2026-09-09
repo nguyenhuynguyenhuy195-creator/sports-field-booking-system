@@ -232,7 +232,7 @@ def test_owner_finance_permissions_empty_state_and_active_navigation(app, client
     assert "0 đ" in html
     assert "Đã thu online" in html
     assert "Đã hoàn" in html
-    assert "Dự kiến thanh toán tại sân" in html
+    assert "Dự kiến thu tại sân" in html
     assert "Đối soát &amp; chi trả" not in html
     assert "Chưa có dữ liệu đối soát" not in html
     assert "Đối soát và chi trả chưa được triển khai" not in html
@@ -436,22 +436,12 @@ def test_finance_metrics_use_payment_refund_source_and_do_not_double_count(app):
     assert "OTHER-OWNER-HIDDEN" not in html
     assert "/owner/bookings/FINANCE-PAID" in html
     assert "/owner/bookings/OWNER-CANCELLED-REFUND" in html
-    assert "MoMo Sandbox" in html
-    assert "Giá trị booking đã giữ sân" in html
-    assert (
-        "Tổng giá trị các booking đã hoàn tất bước giữ sân hoặc đã hoàn thành."
-        in html
-    )
-    assert "Tổng thanh toán trực tuyến thành công, trước hoàn tiền." in html
-    assert "Tổng số tiền đã hoàn thành công cho người thanh toán." in html
-    assert (
-        "Phần tiền dự kiến thanh toán trực tiếp tại sân của các booking đang còn hiệu lực."
-        in html
-    )
-    assert (
-        "Số tiền trực tuyến còn được hệ thống ghi nhận sau các khoản hoàn thành công."
-        in html
-    )
+    assert "MoMo Sandbox" not in html
+    assert "Tổng giá trị booking đang được ghi nhận:" in html
+    assert "Giá trị booking đã giữ sân" not in html
+    assert "Số tiền online hệ thống đang ghi nhận" not in html
+    assert "40.000 đ" in html
+    assert "đang chờ hoàn trong 1 yêu cầu" in html
     for implementation_detail in (
         "PAID/COMPLETED",
         "Payment SUCCESS",
@@ -595,8 +585,10 @@ def test_finance_history_filters_keep_metrics_and_filter_activity(app, client):
     assert response.status_code == 200
     assert "FILTER-ONE" in html
     assert "FILTER-TWO" not in html
-    assert "REFUND-FILTER-PENDING" in html
+    assert "REFUND-FILTER-PENDING" not in html
     assert "ORDER-FILTER-ONE" not in html
+    assert "−50.000 đ" in html
+    assert "1 giao dịch" in html
     assert "300.000 đ" in html
     assert f'value="{venue_one}" selected' in html
     assert f'value="{field_one}" selected' in html

@@ -1194,7 +1194,7 @@ def test_owner_venue_workspace_handles_empty_state(app, client):
     page = response.get_data(as_text=True)
 
     assert response.status_code == 200
-    assert "Owner Console" in page
+    assert "Owner Console" not in page
     assert "Bạn chưa có cơ sở nào" in page
     assert "Tạo cơ sở đầu tiên" in page
     assert "Chưa có ảnh cơ sở" not in page
