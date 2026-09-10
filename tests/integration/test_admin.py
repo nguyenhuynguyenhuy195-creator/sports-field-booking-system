@@ -1994,32 +1994,41 @@ def test_admin_match_operations_attention_and_detail_context(app, client):
     assert detail_response.status_code == 200
     assert data["awaiting_booking_code"] in detail_page
     assert f'/admin/bookings/{data["awaiting_booking_code"]}' in detail_page
-    assert "Đại diện đội đối thủ" in detail_page
+    assert "Chi tiết kèo chơi" in detail_page
+    assert "Tình trạng kèo" in detail_page
+    assert "Diễn biến kèo" in detail_page
+    assert "Người tham gia" in detail_page
     assert "Chờ đặt cọc" in detail_page
-    assert "Hạn thanh toán cọc" in detail_page
-    assert "Đội đối thủ" in detail_page
-    assert "45.000 đ" in detail_page
-    assert "255.000 đ" in detail_page
-    assert "Đây là trạng thái theo dõi, không tự động là lỗi" in detail_page
+    assert 'data-waiting-participants="1"' in detail_page
+    assert "Không có vấn đề cần xử lý." in detail_page
+    assert "Đại diện đội đối thủ" not in detail_page
+    assert "Hạn thanh toán cọc" not in detail_page
+    assert "45.000 đ" not in detail_page
+    assert "255.000 đ" not in detail_page
     assert "Lịch sử thanh toán" not in detail_page
     assert "Lịch sử hoàn tiền" not in detail_page
     assert "Mã giao dịch nhà cung cấp" not in detail_page
+    assert "Bối cảnh Booking" not in detail_page
+    assert "Tóm tắt cần kiểm tra" not in detail_page
+    assert detail_page.index("Tình trạng kèo") < detail_page.index("Diễn biến kèo")
+    assert detail_page.index("Diễn biến kèo") < detail_page.index("Người tham gia")
 
     players_page = client.get(
         f'/admin/matches/{data["players_match_id"]}'
     ).get_data(as_text=True)
     for label in ("Đang chờ", "Đã tham gia", "Đã từ chối", "Đã rút"):
         assert label in players_page
-    assert "Không có nghĩa vụ online được liên kết" in players_page
-    assert "1 yêu cầu tham gia đang chờ xử lý" in players_page
-    assert 'data-closed-participants="2"' in players_page
-    assert "yêu cầu đã từ chối, hết hạn hoặc rút khỏi kèo" in players_page
+    assert 'data-joined-participants="1"' in players_page
+    assert 'data-waiting-participants="1"' in players_page
+    assert "Không có nghĩa vụ online được liên kết" not in players_page
+    assert "Khoản đóng góp tham chiếu" not in players_page
 
     joined_page = client.get(
         f'/admin/matches/{data["joined_match_id"]}'
     ).get_data(as_text=True)
     assert "Đã có đối thủ" in joined_page
-    assert "Hiện ghi nhận: 45.000 đ" in joined_page
+    assert 'data-joined-participants="1"' in joined_page
+    assert "45.000 đ" not in joined_page
 
 
 def test_admin_match_effective_status_is_read_only_and_filterable(app, client):
@@ -2099,7 +2108,7 @@ def test_admin_match_detail_uses_only_recorded_historical_timestamps(app, client
     assert 'data-event-type="match_created"' in players_page
     assert players_page.count('data-event-type="participant_created"') == 4
     assert players_page.count('data-event-type="participant_decided"') == 3
-    assert "Sự kiện đã ghi nhận" in players_page
+    assert "Diễn biến kèo" in players_page
 
     completed_page = client.get(
         f'/admin/matches/{data["completed_match_id"]}'
@@ -2108,6 +2117,7 @@ def test_admin_match_detail_uses_only_recorded_historical_timestamps(app, client
     assert completed_page.count("data-event-type=") == 1
     assert "04/09/2026 13:00" not in completed_page
     assert "Hoàn tất kèo" not in completed_page
+    assert "Không có người tham gia." in completed_page
 
     cancelled_page = client.get(
         f'/admin/matches/{data["cancelled_match_id"]}'
