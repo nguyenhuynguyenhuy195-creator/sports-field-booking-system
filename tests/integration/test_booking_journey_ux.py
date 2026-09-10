@@ -246,22 +246,24 @@ def test_find_players_booking_uses_saved_match_type_and_title(app, client, journ
     body = client.get(f"/bookings/{booking_code}").get_data(as_text=True)
 
     assert f'href="/matches/{match_id}"' in body
-    assert "Kèo tìm thêm người tại" in body
+    assert "Kèo liên quan" in body
     assert "Tìm thêm người chơi cuối tuần" in body
-    assert "Kèo tìm đối thủ tại" not in body
-    assert body.count("bi-chevron-down") == 2
+    assert "Hiện đang cần thêm 2 người" in body
+    assert "Xem và quản lý kèo" in body
+    assert body.count("bi-chevron-down") == 3
 
 
 def test_current_opponent_copy_and_refund_net_amount(app, client, journey):
     login(client, email=journey["creator"].email)
     path = f"/bookings/{journey['booking_code']}"
     body = client.get(path).get_data(as_text=True)
-    assert "Kèo tìm đối thủ tại" in body
+    assert "Kèo liên quan" in body
     assert "Giao hữu cuối tuần" in body
     assert body.count("bi-chevron-down") == 3
-    assert "Bạn đã cọc" in body
-    assert "Đối thủ có thể cọc" in body
-    assert "Còn lại tại sân" in body
+    assert "Trạng thái &amp; thanh toán" in body
+    assert "Đã thanh toán" in body
+    assert "Còn lại trả tại sân" in body
+    assert "Bạn sẽ thanh toán phần còn lại trực tiếp tại sân khi đến chơi." in body
     assert "Khoản thanh toán đầu tiên đã thành công" not in body
     assert "còn 70% trả tại sân" not in body and "(85%) trả tại sân" not in body
     with app.app_context():
@@ -277,9 +279,9 @@ def test_current_opponent_copy_and_refund_net_amount(app, client, journey):
         db.session.commit()
     db.session.expire_all()
     body = client.get(path).get_data(as_text=True)
-    assert "Đối thủ đã cọc" in body
-    assert "Tổng online" in body
-    assert "Đối thủ có thể cọc" not in body
+    assert "Trạng thái &amp; thanh toán" in body
+    assert "Còn lại trả tại sân" in body
+    assert "Tổng online" not in body
     with app.app_context():
         booking = db.session.get(Booking, journey["booking_id"])
         booking.status = "REFUND_PENDING"
@@ -292,8 +294,8 @@ def test_current_opponent_copy_and_refund_net_amount(app, client, journey):
         db.session.commit()
     db.session.expire_all()
     body = client.get(path).get_data(as_text=True)
-    assert "Tiền online đang ghi nhận" in body
-    assert "không phải số tiền sẽ hoàn" in body
+    assert "Khoản hoàn đang được xử lý" in body
+    assert "Tiền online đang ghi nhận" not in body
     assert "60.000" in body and "48.000" in body
     assert '<details class="booking-disclosure" open>' in body
     assert "Đang xử lý" in body
