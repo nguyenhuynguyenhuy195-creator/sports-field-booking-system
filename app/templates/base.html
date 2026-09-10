@@ -68,12 +68,7 @@
                                     <li><a class="dropdown-item" href="{{ url_for('owner.dashboard') }}">Quản lý sân</a></li>
                                 {% endif %}
                                 {% if current_user.is_admin %}
-                                    <li><h2 class="dropdown-header">Quản trị</h2></li>
-                                    <li><a class="dropdown-item" href="{{ url_for('admin.dashboard') }}" title="Tổng quan quản trị">Tổng quan</a></li>
-                                    <li><a class="dropdown-item" href="{{ url_for('admin.accounts') }}" title="Quản lý tài khoản">Tài khoản</a></li>
-                                    <li><a class="dropdown-item" href="{{ url_for('admin.owner_applications') }}" title="Duyệt yêu cầu chủ sân">Duyệt chủ sân</a></li>
-                                    <li><a class="dropdown-item" href="{{ url_for('venues.admin_index') }}">Duyệt cơ sở</a></li>
-                                    <li><a class="dropdown-item" href="{{ url_for('admin.monitoring') }}" title="Giám sát hệ thống">Giám sát</a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('admin.dashboard') }}" title="Quản lý hệ thống">Quản lý hệ thống</a></li>
                                 {% endif %}
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
