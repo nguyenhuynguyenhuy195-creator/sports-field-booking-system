@@ -23,6 +23,8 @@ from app.services import (
     process_momo_payment_notification,
     start_momo_payment,
     start_momo_top_up,
+    start_vnpay_payment,
+    start_vnpay_top_up,
     top_up_booking_with_mock,
 )
 
@@ -37,6 +39,17 @@ def reject_disabled_momo():
         "payments.pay_momo", "payments.top_up_momo",
         "payments.momo_return", "payments.momo_ipn",
     } and not current_app.config.get("MOMO_ENABLED"):
+        abort(404)
+
+
+@payments_bp.before_request
+def reject_disabled_vnpay():
+    # Step 2 only exposes checkout-initiation routes; /vnpay/return and
+    # /vnpay/ipn do not exist yet (Step 3). Fail closed when disabled so no
+    # Payment row or VnpayClient call can happen.
+    if request.endpoint in {
+        "payments.pay_vnpay", "payments.top_up_vnpay",
+    } and not current_app.config.get("VNPAY_ENABLED"):
         abort(404)
 
 
@@ -140,6 +153,60 @@ def top_up_momo(booking_code: str):
             payer=current_user,
             redirect_url=current_app.config["MOMO_REDIRECT_URL"],
             ipn_url=current_app.config["MOMO_IPN_URL"],
+        )
+    except PaymentNotFoundError:
+        abort(404)
+    except PaymentPermissionError:
+        abort(403)
+    except PaymentError as exc:
+        flash(str(exc), "warning")
+        return _booking_redirect(booking_code)
+    return redirect(checkout.pay_url)
+
+
+@payments_bp.post(
+    "/bookings/<string:booking_code>/contributions/"
+    "<int:contribution_id>/payments/vnpay"
+)
+@roles_required(UserRole.USER, UserRole.OWNER)
+def pay_vnpay(booking_code: str, contribution_id: int):
+    form = BookingActionForm(prefix="payment")
+    if not form.validate_on_submit():
+        flash("Yêu cầu thanh toán VNPAY không hợp lệ. Vui lòng thử lại.", "danger")
+        return _payment_redirect(booking_code)
+    try:
+        checkout = start_vnpay_payment(
+            booking_code=booking_code,
+            contribution_id=contribution_id,
+            payer=current_user,
+            return_url=current_app.config["VNPAY_RETURN_URL"],
+            ip_addr=request.remote_addr or "127.0.0.1",
+            bank_code=request.form.get("bank_code") or None,
+        )
+    except PaymentNotFoundError:
+        abort(404)
+    except PaymentPermissionError:
+        abort(403)
+    except PaymentError as exc:
+        flash(str(exc), "warning")
+        return _payment_redirect(booking_code)
+    return redirect(checkout.pay_url)
+
+
+@payments_bp.post("/bookings/<string:booking_code>/payments/vnpay/top-up")
+@roles_required(UserRole.USER, UserRole.OWNER)
+def top_up_vnpay(booking_code: str):
+    form = BookingActionForm(prefix="top-up")
+    if not form.validate_on_submit():
+        flash("Yêu cầu trả phần cọc còn thiếu qua VNPAY không hợp lệ.", "danger")
+        return _booking_redirect(booking_code)
+    try:
+        checkout = start_vnpay_top_up(
+            booking_code=booking_code,
+            payer=current_user,
+            return_url=current_app.config["VNPAY_RETURN_URL"],
+            ip_addr=request.remote_addr or "127.0.0.1",
+            bank_code=request.form.get("bank_code") or None,
         )
     except PaymentNotFoundError:
         abort(404)

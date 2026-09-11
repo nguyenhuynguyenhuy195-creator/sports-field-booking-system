@@ -224,11 +224,14 @@ from .payment import (
     PaymentExpiredError,
     PaymentNotFoundError,
     PaymentPermissionError,
+    VnpayCheckout,
     inspect_momo_return,
     process_momo_payment_notification,
     pay_contribution_with_mock,
     start_momo_payment,
     start_momo_top_up,
+    start_vnpay_payment,
+    start_vnpay_top_up,
     top_up_booking_with_mock,
 )
 from .refund import (
@@ -334,6 +337,7 @@ __all__ = [
     "InvalidBookingStateError",
     "InvalidPaymentStateError",
     "MomoCheckout",
+    "VnpayCheckout",
     "InvalidRefundStateError",
     "InvalidMaintenanceStateError",
     "InvalidMatchStateError",
@@ -504,5 +508,7 @@ __all__ = [
     "top_up_booking_with_mock",
     "start_momo_payment",
     "start_momo_top_up",
+    "start_vnpay_payment",
+    "start_vnpay_top_up",
     "withdraw_match_request",
 ]

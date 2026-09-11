@@ -9,7 +9,7 @@ from flask import current_app
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.extensions import db
-from app.integrations import MomoAPIError, MomoClient
+from app.integrations import MomoAPIError, MomoClient, VnpayClient, VnpayError
 from app.models import (
     Booking,
     BookingContribution,
@@ -27,6 +27,7 @@ from app.models import (
 )
 
 from .locking import with_update_lock
+from .maintenance import VIETNAM_TIMEZONE
 
 
 class PaymentError(ValueError):
@@ -51,6 +52,12 @@ class PaymentExpiredError(PaymentError):
 
 @dataclass(frozen=True)
 class MomoCheckout:
+    payment: Payment
+    pay_url: str
+
+
+@dataclass(frozen=True)
+class VnpayCheckout:
     payment: Payment
     pay_url: str
 
@@ -265,6 +272,77 @@ def start_momo_top_up(
     )
 
 
+def start_vnpay_payment(
+    *,
+    booking_code: str,
+    contribution_id: int,
+    payer: User,
+    return_url: str,
+    ip_addr: str,
+    bank_code: str | None = None,
+    client: VnpayClient | None = None,
+    now: datetime | None = None,
+) -> VnpayCheckout:
+    """Create or resume one VNPAY Sandbox checkout for a contribution.
+
+    Step 2 scope only: builds a PENDING Payment + signed checkout URL. No
+    Return/IPN verification, no SUCCESS transition, happens here.
+    """
+    _require_vnpay_enabled()
+    _validate_payer(payer)
+    current_utc = _normalize_utc(now)
+    booking = _lock_booking(booking_code)
+    contribution = _lock_contribution(
+        booking_id=booking.id,
+        contribution_id=contribution_id,
+    )
+    _validate_payable_contribution(
+        booking=booking,
+        contribution=contribution,
+        payer=payer,
+        current_utc=current_utc,
+    )
+    return _start_vnpay_checkout(
+        booking=booking,
+        contribution=contribution,
+        payer=payer,
+        return_url=return_url,
+        ip_addr=ip_addr,
+        bank_code=bank_code,
+        client=client,
+        current_utc=current_utc,
+    )
+
+
+def start_vnpay_top_up(
+    *,
+    booking_code: str,
+    payer: User,
+    return_url: str,
+    ip_addr: str,
+    bank_code: str | None = None,
+    client: VnpayClient | None = None,
+    now: datetime | None = None,
+) -> VnpayCheckout:
+    """Create the creator's 30-minute opponent-deposit top-up VNPAY checkout."""
+    _require_vnpay_enabled()
+    _validate_payer(payer)
+    current_utc = _normalize_utc(now)
+    booking = _lock_booking(booking_code)
+    _validate_top_up(booking=booking, payer=payer, current_utc=current_utc)
+    top_up = _get_or_create_top_up_contribution(booking=booking, payer=payer)
+    return _start_vnpay_checkout(
+        booking=booking,
+        contribution=top_up,
+        payer=payer,
+        return_url=return_url,
+        ip_addr=ip_addr,
+        bank_code=bank_code,
+        client=client,
+        current_utc=current_utc,
+    )
+
+
 def process_momo_payment_notification(
     payload: dict,
     *,
@@ -452,6 +530,132 @@ def _start_momo_checkout(
     payment.checkout_url = str(response["payUrl"])
     _commit_payment()
     return MomoCheckout(payment=payment, pay_url=payment.checkout_url)
+
+
+def _get_or_create_top_up_contribution(
+    *,
+    booking: Booking,
+    payer: User,
+) -> BookingContribution:
+    """Reuse the creator's pending TOP_UP contribution, or open one.
+
+    Shared, provider-agnostic bootstrap so a new provider (VNPAY) does not
+    need its own copy of the waive-other-pending-slots logic.
+    """
+    top_up = db.session.scalar(
+        with_update_lock(
+            db.select(BookingContribution).where(
+                BookingContribution.booking_id == booking.id,
+                BookingContribution.user_id == payer.id,
+                BookingContribution.contribution_type == ContributionType.TOP_UP.value,
+                BookingContribution.status == ContributionStatus.PENDING.value,
+            ),
+            BookingContribution,
+        )
+    )
+    if top_up is not None:
+        return top_up
+
+    remaining = Decimal(booking.deposit_amount) - Decimal(booking.paid_amount)
+    pending_records = list(
+        db.session.scalars(
+            with_update_lock(
+                db.select(BookingContribution).where(
+                    BookingContribution.booking_id == booking.id,
+                    BookingContribution.status == ContributionStatus.PENDING.value,
+                ),
+                BookingContribution,
+            )
+        )
+    )
+    for record in pending_records:
+        if record.contribution_type != ContributionType.CREATOR.value:
+            record.status = ContributionStatus.WAIVED.value
+    top_up = BookingContribution(
+        booking_id=booking.id,
+        user_id=payer.id,
+        contribution_type=ContributionType.TOP_UP.value,
+        slot_number=None,
+        amount_due=remaining,
+        amount_paid=Decimal("0.00"),
+        status=ContributionStatus.PENDING.value,
+        expires_at=booking.funding_deadline,
+    )
+    db.session.add(top_up)
+    db.session.flush()
+    return top_up
+
+
+def _start_vnpay_checkout(
+    *,
+    booking: Booking,
+    contribution: BookingContribution,
+    payer: User,
+    return_url: str,
+    ip_addr: str,
+    bank_code: str | None,
+    client: VnpayClient | None,
+    current_utc: datetime,
+) -> VnpayCheckout:
+    existing = db.session.scalar(
+        db.select(Payment)
+        .where(
+            Payment.contribution_id == contribution.id,
+            Payment.provider == PaymentProvider.VNPAY.value,
+            Payment.status == PaymentStatus.PENDING.value,
+        )
+        .order_by(Payment.id.desc())
+    )
+    if existing is not None and existing.checkout_url:
+        # Double-click / retry: reuse the same PENDING row and URL instead
+        # of creating another Payment or re-signing a new one. No config
+        # needed on this path, so it works even if VNPAY_* config is broken.
+        return VnpayCheckout(payment=existing, pay_url=existing.checkout_url)
+
+    # Validate the gateway client and return_url BEFORE any Payment row is
+    # created/committed, so a missing/invalid VNPAY_TMN_CODE, VNPAY_HASH_SECRET
+    # or return_url (VNPAY_RETURN_URL) never leaves an orphan PENDING row.
+    try:
+        vnpay = client or VnpayClient.from_app_config()
+    except VnpayError as exc:
+        raise PaymentError(str(exc)) from exc
+    if not return_url:
+        raise PaymentError("Thiếu Return URL để tạo giao dịch VNPAY.")
+
+    if existing is not None:
+        payment = existing
+    else:
+        payment = Payment(
+            booking_id=booking.id,
+            contribution_id=contribution.id,
+            payer_id=payer.id,
+            provider=PaymentProvider.VNPAY.value,
+            payment_method=PaymentMethod.VNPAY_GATEWAY.value,
+            amount=contribution.remaining_amount,
+            order_id=f"VNPAY-PAY-{booking.id}-{uuid4().hex[:16].upper()}",
+            request_id=uuid4().hex,
+            provider_trans_id=None,
+            status=PaymentStatus.PENDING.value,
+            result_code=None,
+        )
+        db.session.add(payment)
+        _commit_payment()
+
+    try:
+        checkout_url = vnpay.build_payment_url(
+            order_id=payment.order_id,
+            amount=Decimal(payment.amount),
+            order_info=f"Thanh toan coc booking {booking.booking_code}",
+            return_url=return_url,
+            ip_addr=ip_addr,
+            create_date=_vnpay_create_date(current_utc),
+            bank_code=bank_code,
+        )
+    except VnpayError as exc:
+        raise PaymentError(str(exc)) from exc
+    payment.checkout_url = checkout_url
+    _commit_payment()
+    return VnpayCheckout(payment=payment, pay_url=payment.checkout_url)
 
 
 def _record_mock_success(
@@ -751,3 +955,14 @@ def _commit_payment() -> None:
 def _require_momo_enabled() -> None:
     if not current_app.config.get("MOMO_ENABLED"):
         raise PaymentError("Hệ thống chỉ sử dụng thanh toán mô phỏng.")
+
+
+def _require_vnpay_enabled() -> None:
+    if not current_app.config.get("VNPAY_ENABLED"):
+        raise PaymentError("Thanh toán VNPAY thử nghiệm chưa được bật.")
+
+
+def _vnpay_create_date(current_utc: datetime) -> str:
+    """Format vnp_CreateDate as yyyyMMddHHmmss in Vietnam local time (GMT+7)."""
+    vn_time = current_utc.replace(tzinfo=timezone.utc).astimezone(VIETNAM_TIMEZONE)
+    return vn_time.strftime("%Y%m%d%H%M%S")
