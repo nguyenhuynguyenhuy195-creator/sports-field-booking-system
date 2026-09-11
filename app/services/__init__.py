@@ -219,14 +219,19 @@ from .pricing import (
 )
 from .payment import (
     InvalidPaymentStateError,
+    InvalidVnpaySignatureError,
     MomoCheckout,
     PaymentError,
     PaymentExpiredError,
     PaymentNotFoundError,
     PaymentPermissionError,
+    VnpayAmountMismatchError,
     VnpayCheckout,
+    VnpayIpnResult,
     inspect_momo_return,
+    inspect_vnpay_return,
     process_momo_payment_notification,
+    process_vnpay_ipn,
     pay_contribution_with_mock,
     start_momo_payment,
     start_momo_top_up,
@@ -244,6 +249,7 @@ from .refund import (
     apply_owner_cancellation_refunds,
     process_overdue_funding_refunds,
     process_pending_momo_refunds,
+    queue_late_vnpay_payment_refund,
     refund_joined_participant,
 )
 from .sport_catalog import (
@@ -336,8 +342,11 @@ __all__ = [
     "InvalidAdminAccountActionError",
     "InvalidBookingStateError",
     "InvalidPaymentStateError",
+    "InvalidVnpaySignatureError",
     "MomoCheckout",
+    "VnpayAmountMismatchError",
     "VnpayCheckout",
+    "VnpayIpnResult",
     "InvalidRefundStateError",
     "InvalidMaintenanceStateError",
     "InvalidMatchStateError",
@@ -510,5 +519,8 @@ __all__ = [
     "start_momo_top_up",
     "start_vnpay_payment",
     "start_vnpay_top_up",
+    "inspect_vnpay_return",
+    "process_vnpay_ipn",
+    "queue_late_vnpay_payment_refund",
     "withdraw_match_request",
 ]

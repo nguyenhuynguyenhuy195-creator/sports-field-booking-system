@@ -383,6 +383,43 @@ def queue_late_momo_payment_refund(
     return refund
 
 
+def queue_late_vnpay_payment_refund(
+    *,
+    booking: Booking,
+    contribution: BookingContribution,
+    payment: Payment,
+    now: datetime | None = None,
+) -> Refund:
+    """Queue a verified VNPAY success that arrived after the obligation closed.
+
+    Step 3 only queues the Refund as PENDING; submitting it to VNPAY's
+    refund API is Step 6 (process_pending_vnpay_refunds).
+    """
+    if (
+        payment.provider != PaymentProvider.VNPAY.value
+        or payment.status != PaymentStatus.EXPIRED.value
+        or payment.result_code != "00"
+        or not payment.provider_trans_id
+    ):
+        raise InvalidRefundStateError(
+            "Giao dịch VNPAY đến muộn chưa có đủ dữ liệu để hoàn tiền."
+        )
+    refund, _ = _record_refund(
+        booking=booking,
+        contribution=contribution,
+        payment=payment,
+        amount=Decimal(payment.amount),
+        reason=(
+            "VNPAY xác nhận thanh toán sau khi khoản cọc đã hết hiệu lực; "
+            "hoàn lại toàn bộ cho người trả."
+        ),
+        operation_key=f"LATE-PAYMENT-{payment.id}",
+        current_utc=normalize_utc(now),
+        require_recorded_balance=False,
+    )
+    return refund
+
+
 def _parse_refund_query(order_id: str, response: dict) -> tuple[str, str | None]:
     if str(response.get("resultCode", "")) != "0":
         return str(response.get("resultCode", "")), None

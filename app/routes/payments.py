@@ -19,8 +19,10 @@ from app.services import (
     PaymentNotFoundError,
     PaymentPermissionError,
     inspect_momo_return,
+    inspect_vnpay_return,
     pay_contribution_with_mock,
     process_momo_payment_notification,
+    process_vnpay_ipn,
     start_momo_payment,
     start_momo_top_up,
     start_vnpay_payment,
@@ -44,11 +46,11 @@ def reject_disabled_momo():
 
 @payments_bp.before_request
 def reject_disabled_vnpay():
-    # Step 2 only exposes checkout-initiation routes; /vnpay/return and
-    # /vnpay/ipn do not exist yet (Step 3). Fail closed when disabled so no
-    # Payment row or VnpayClient call can happen.
+    # Fail closed when disabled so no Payment row or VnpayClient call can
+    # happen, on either the checkout-initiation or the return/IPN routes.
     if request.endpoint in {
         "payments.pay_vnpay", "payments.top_up_vnpay",
+        "payments.vnpay_return", "payments.vnpay_ipn",
     } and not current_app.config.get("VNPAY_ENABLED"):
         abort(404)
 
@@ -234,10 +236,38 @@ def momo_return():
         )
     else:
         flash("Giao dịch MoMo chưa thành công hoặc đã bị hủy.", "warning")
-    return _momo_return_redirect(payment)
+    return _payment_return_redirect(payment)
 
 
-def _momo_return_redirect(payment):
+@payments_bp.get("/payments/vnpay/return")
+def vnpay_return():
+    try:
+        payment = inspect_vnpay_return(request.args.to_dict())
+    except PaymentError as exc:
+        flash(f"VNPAY chưa xác nhận thanh toán: {exc}", "warning")
+        return _safe_booking_return()
+    if payment.status == "SUCCESS":
+        flash("VNPAY đã xác nhận khoản cọc thành công.", "success")
+    elif payment.status == "PENDING":
+        flash(
+            "Đang chờ VNPAY xác nhận. Vui lòng tải lại trang sau ít phút.",
+            "info",
+        )
+    else:
+        flash("Giao dịch VNPAY chưa thành công hoặc đã bị hủy.", "warning")
+    return _payment_return_redirect(payment)
+
+
+@payments_bp.get("/payments/vnpay/ipn")
+def vnpay_ipn():
+    try:
+        result = process_vnpay_ipn(request.args.to_dict())
+    except PaymentError as exc:
+        return jsonify(RspCode="99", Message=str(exc))
+    return jsonify(RspCode=result.rsp_code, Message=result.message)
+
+
+def _payment_return_redirect(payment):
     """Choose a view from verified payment relationships, never callback URLs."""
     contribution = payment.contribution
     if (

@@ -9,7 +9,14 @@ from flask import current_app
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.extensions import db
-from app.integrations import MomoAPIError, MomoClient, VnpayClient, VnpayError
+from app.integrations import (
+    MomoAPIError,
+    MomoClient,
+    VnpayClient,
+    VnpayError,
+    VnpaySignatureError,
+    to_vnpay_amount,
+)
 from app.models import (
     Booking,
     BookingContribution,
@@ -50,6 +57,14 @@ class PaymentExpiredError(PaymentError):
     """Raised when the payment deadline has passed."""
 
 
+class InvalidVnpaySignatureError(PaymentError):
+    """Raised when a VNPAY callback's vnp_SecureHash fails verification."""
+
+
+class VnpayAmountMismatchError(PaymentError):
+    """Raised when a VNPAY callback amount does not match the Payment."""
+
+
 @dataclass(frozen=True)
 class MomoCheckout:
     payment: Payment
@@ -60,6 +75,20 @@ class MomoCheckout:
 class VnpayCheckout:
     payment: Payment
     pay_url: str
+
+
+@dataclass(frozen=True)
+class VnpayIpnResult:
+    """What the VNPAY IPN route should reply with — RspCode/Message only.
+
+    Distinct from vnp_ResponseCode/vnp_TransactionStatus (VNPAY's own
+    transaction outcome, read from the callback payload): this is our
+    website's acknowledgement back to VNPAY's IPN caller.
+    """
+
+    rsp_code: str
+    message: str
+    payment: Payment | None = None
 
 
 def pay_contribution_with_mock(
@@ -432,6 +461,223 @@ def inspect_momo_return(
     )
 
 
+def inspect_vnpay_return(
+    payload: dict,
+    *,
+    client: VnpayClient | None = None,
+) -> Payment:
+    """Verify a browser return and read its payment without changing state.
+
+    Browser Return is never the source of truth: no lock, no mutation. It
+    only tells the user what the DB (already updated by the IPN, if it has
+    arrived) currently says.
+    """
+    _require_vnpay_enabled()
+    try:
+        vnpay = client or VnpayClient.from_app_config()
+    except VnpayError as exc:
+        raise PaymentError(str(exc)) from exc
+    return _verified_vnpay_payment(
+        payload=payload,
+        vnpay=vnpay,
+        lock_for_update=False,
+    )
+
+
+def process_vnpay_ipn(
+    payload: dict,
+    *,
+    client: VnpayClient | None = None,
+    now: datetime | None = None,
+) -> VnpayIpnResult:
+    """Verify and apply a server-to-server VNPAY IPN (GET) idempotently.
+
+    Returns a VnpayIpnResult carrying the RspCode/Message the route must
+    reply with — never raises for the ordinary "can't confirm" cases
+    (unknown order, bad signature, bad amount), so the IPN endpoint always
+    gets a clean, provider-contract response instead of a 500.
+    """
+    _require_vnpay_enabled()
+    try:
+        vnpay = client or VnpayClient.from_app_config()
+    except VnpayError as exc:
+        return VnpayIpnResult(rsp_code="99", message=str(exc))
+    current_utc = _normalize_utc(now)
+
+    try:
+        payment = _verified_vnpay_payment(
+            payload=payload,
+            vnpay=vnpay,
+            lock_for_update=True,
+        )
+    except InvalidVnpaySignatureError:
+        return VnpayIpnResult(rsp_code="97", message="Invalid signature")
+    except PaymentNotFoundError:
+        return VnpayIpnResult(rsp_code="01", message="Order not found")
+    except VnpayAmountMismatchError:
+        return VnpayIpnResult(rsp_code="04", message="Invalid amount")
+
+    if _vnpay_success_was_recorded(payment) or payment.status in {
+        PaymentStatus.FAILED.value,
+        PaymentStatus.CANCELLED.value,
+    }:
+        # Duplicate/late-arriving callback for a Payment that already has a
+        # recorded, final outcome (SUCCESS; EXPIRED with a VNPAY success
+        # already recorded; or a terminal FAILED/CANCELLED) — idempotent
+        # no-op, no second side effect.
+        #
+        # status == PENDING or a not-yet-recorded EXPIRED both fall through
+        # to real processing below: EXPIRED alone (without result_code=="00"
+        # + provider_trans_id already set) does NOT prove VNPAY's success was
+        # ever recorded for this Payment, so short-circuiting here would
+        # silently drop a genuine "VNPAY says paid" notification.
+        return VnpayIpnResult(
+            rsp_code="02",
+            message="Order already confirmed",
+            payment=payment,
+        )
+
+    response_code = str(payload.get("vnp_ResponseCode", ""))
+    transaction_status = str(payload.get("vnp_TransactionStatus", ""))
+    provider_trans_id = str(payload.get("vnp_TransactionNo", "")) or None
+    is_success = response_code == "00" and transaction_status == "00"
+
+    payment.result_code = response_code
+    if not is_success:
+        payment.status = PaymentStatus.FAILED.value
+        _commit_payment()
+        return VnpayIpnResult(rsp_code="00", message="Confirm Success", payment=payment)
+
+    if not provider_trans_id:
+        raise PaymentError("VNPAY báo thành công nhưng không trả mã giao dịch.")
+
+    paid_at = _parse_vnpay_pay_date(payload.get("vnp_PayDate")) or current_utc
+    booking = _lock_booking_by_id(payment.booking_id)
+    contribution = _lock_contribution(
+        booking_id=booking.id,
+        contribution_id=payment.contribution_id,
+    )
+    payable_state_changed = (
+        booking.status
+        not in {
+            BookingStatus.CONFIRMED.value,
+            BookingStatus.PARTIALLY_PAID.value,
+        }
+        or contribution.status != ContributionStatus.PENDING.value
+        or contribution.user_id != payment.payer_id
+    )
+    deadline_expired = False
+    if not payable_state_changed:
+        deadline_expired = _expire_overdue_contribution(
+            booking=booking,
+            contribution=contribution,
+            current_utc=current_utc,
+        )
+    if payable_state_changed or deadline_expired:
+        _record_late_vnpay_success_for_refund(
+            payment=payment,
+            booking=booking,
+            contribution=contribution,
+            provider_trans_id=provider_trans_id,
+            paid_at=paid_at,
+        )
+        _commit_payment()
+        return VnpayIpnResult(rsp_code="00", message="Confirm Success", payment=payment)
+
+    _apply_success_to_payment(
+        payment=payment,
+        booking=booking,
+        contribution=contribution,
+        provider_trans_id=provider_trans_id,
+        paid_at=paid_at,
+    )
+    _commit_payment()
+    return VnpayIpnResult(rsp_code="00", message="Confirm Success", payment=payment)
+
+
+def _verified_vnpay_payment(
+    *,
+    payload: dict,
+    vnpay: VnpayClient,
+    lock_for_update: bool,
+) -> Payment:
+    try:
+        vnpay.verify_callback_params(payload)
+    except VnpaySignatureError as exc:
+        raise InvalidVnpaySignatureError(str(exc)) from exc
+
+    if str(payload.get("vnp_TmnCode", "")) != vnpay.tmn_code:
+        raise InvalidVnpaySignatureError(
+            "Mã terminal VNPAY (vnp_TmnCode) trong callback không khớp."
+        )
+
+    order_id = str(payload.get("vnp_TxnRef", ""))
+    statement = db.select(Payment).where(
+        Payment.order_id == order_id,
+        Payment.provider == PaymentProvider.VNPAY.value,
+    )
+    if lock_for_update:
+        statement = with_update_lock(statement, Payment)
+    payment = db.session.scalar(statement)
+    if payment is None:
+        raise PaymentNotFoundError("Không tìm thấy giao dịch VNPAY.")
+
+    try:
+        callback_amount = Decimal(str(payload.get("vnp_Amount", "")))
+    except Exception as exc:
+        raise VnpayAmountMismatchError(
+            "Số tiền callback VNPAY không hợp lệ."
+        ) from exc
+    expected_amount = Decimal(to_vnpay_amount(payment.amount))
+    if callback_amount != expected_amount:
+        raise VnpayAmountMismatchError(
+            "Số tiền callback VNPAY không khớp giao dịch."
+        )
+    return payment
+
+
+def _record_late_vnpay_success_for_refund(
+    *,
+    payment: Payment,
+    booking: Booking,
+    contribution: BookingContribution,
+    provider_trans_id: str,
+    paid_at: datetime,
+) -> None:
+    """Preserve provider success without applying late money to the booking."""
+    payment.provider_trans_id = provider_trans_id
+    payment.status = PaymentStatus.EXPIRED.value
+    payment.paid_at = paid_at
+
+    from .refund import RefundError, queue_late_vnpay_payment_refund
+
+    try:
+        queue_late_vnpay_payment_refund(
+            booking=booking,
+            contribution=contribution,
+            payment=payment,
+            now=paid_at,
+        )
+    except RefundError as exc:
+        db.session.rollback()
+        raise PaymentError(
+            "Không thể ghi nhận giao dịch VNPAY đến muộn để hoàn tiền."
+        ) from exc
+
+
+def _parse_vnpay_pay_date(value: object) -> datetime | None:
+    """Parse vnp_PayDate (yyyyMMddHHmmss, Vietnam local time) into naive UTC."""
+    if not value:
+        return None
+    try:
+        vn_time = datetime.strptime(str(value), "%Y%m%d%H%M%S")
+    except ValueError:
+        return None
+    return vn_time.replace(tzinfo=VIETNAM_TIMEZONE).astimezone(timezone.utc).replace(
+        tzinfo=None
+    )
+
+
 def _verified_momo_payment(
     *,
     payload: dict,
@@ -775,6 +1021,23 @@ def _record_late_momo_success_for_refund(
         raise PaymentError(
             "Không thể ghi nhận giao dịch đến muộn để hoàn tiền."
         ) from exc
+
+
+def _vnpay_success_was_recorded(payment: Payment) -> bool:
+    """VNPAY-specific counterpart to _provider_success_was_recorded.
+
+    MoMo's helper hardcodes MoMo's own "0" success sentinel, so it cannot be
+    reused here: VNPAY's success sentinel is "00". A separate function keeps
+    MoMo's helper/behavior untouched.
+    """
+    return bool(
+        payment.status == PaymentStatus.SUCCESS.value
+        or (
+            payment.status == PaymentStatus.EXPIRED.value
+            and payment.result_code == "00"
+            and payment.provider_trans_id
+        )
+    )
 
 
 def _provider_success_was_recorded(payment: Payment) -> bool:
