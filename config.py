@@ -60,6 +60,22 @@ class BaseConfig:
     MOMO_REDIRECT_URL = os.getenv("MOMO_REDIRECT_URL", "")
     MOMO_IPN_URL = os.getenv("MOMO_IPN_URL", "")
     MOMO_TIMEOUT_SECONDS = int(os.getenv("MOMO_TIMEOUT_SECONDS", "30"))
+    VNPAY_ENABLED = env_flag("VNPAY_ENABLED", False)
+    VNPAY_TMN_CODE = os.getenv("VNPAY_TMN_CODE", "")
+    VNPAY_HASH_SECRET = os.getenv("VNPAY_HASH_SECRET", "")
+    VNPAY_PAYMENT_URL = os.getenv(
+        "VNPAY_PAYMENT_URL",
+        "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html",
+    )
+    VNPAY_API_URL = os.getenv(
+        "VNPAY_API_URL",
+        "https://sandbox.vnpayment.vn/merchant_webapi/api/transaction",
+    )
+    VNPAY_RETURN_URL = os.getenv("VNPAY_RETURN_URL", "")
+    VNPAY_IPN_URL = os.getenv("VNPAY_IPN_URL", "")
+    VNPAY_TIMEOUT_SECONDS = int(os.getenv("VNPAY_TIMEOUT_SECONDS", "30"))
+    VNPAY_VERSION = os.getenv("VNPAY_VERSION", "2.1.0")
+    VNPAY_LOCALE = os.getenv("VNPAY_LOCALE", "vn")
     MEDIA_MAX_PIXELS = 20_000_000
     MEDIA_ROOT = os.getenv("MEDIA_ROOT")
     MEDIA_MAX_BYTES = int(os.getenv("MEDIA_MAX_BYTES", str(5 * 1024 * 1024)))

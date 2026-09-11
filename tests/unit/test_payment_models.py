@@ -19,10 +19,11 @@ def test_payment_foundation_enums_match_database_contract():
         "TOP_UP",
     }
     assert "WAIVED" in {item.value for item in ContributionStatus}
-    assert {item.value for item in PaymentProvider} == {"MOCK", "MOMO"}
+    assert {item.value for item in PaymentProvider} == {"MOCK", "MOMO", "VNPAY"}
     assert {item.value for item in PaymentMethod} == {
         "SIMULATED",
         "MOMO_WALLET",
+        "VNPAY_GATEWAY",
     }
     assert {item.value for item in PaymentStatus} == {
         "PENDING",

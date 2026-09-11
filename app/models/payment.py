@@ -21,11 +21,13 @@ if TYPE_CHECKING:
 class PaymentProvider(str, Enum):
     MOCK = "MOCK"
     MOMO = "MOMO"
+    VNPAY = "VNPAY"
 
 
 class PaymentMethod(str, Enum):
     SIMULATED = "SIMULATED"
     MOMO_WALLET = "MOMO_WALLET"
+    VNPAY_GATEWAY = "VNPAY_GATEWAY"
 
 
 class PaymentStatus(str, Enum):
@@ -40,11 +42,11 @@ class Payment(db.Model):
     __tablename__ = "payments"
     __table_args__ = (
         db.CheckConstraint(
-            "provider IN ('MOCK', 'MOMO')",
+            "provider IN ('MOCK', 'MOMO', 'VNPAY')",
             name="ck_payments_provider",
         ),
         db.CheckConstraint(
-            "payment_method IN ('SIMULATED', 'MOMO_WALLET')",
+            "payment_method IN ('SIMULATED', 'MOMO_WALLET', 'VNPAY_GATEWAY')",
             name="ck_payments_method",
         ),
         db.CheckConstraint(
