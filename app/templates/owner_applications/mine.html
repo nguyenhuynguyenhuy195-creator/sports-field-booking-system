@@ -8,7 +8,6 @@
         <div>
             <span class="eyebrow">TÀI KHOẢN CỦA TÔI</span>
             <h1 class="h2 fw-bold mt-2 mb-1">Yêu cầu trở thành chủ sân</h1>
-            <p class="text-secondary mb-0">Theo dõi kết quả xét duyệt từ quản trị viên.</p>
         </div>
         {% if current_user.role == 'USER' and not applications|selectattr('status', 'equalto', 'PENDING')|list %}
             <a class="btn btn-primary" href="{{ url_for('owner_applications.create') }}">Gửi yêu cầu mới</a>

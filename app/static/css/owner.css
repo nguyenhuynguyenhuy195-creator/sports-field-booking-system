@@ -2792,7 +2792,8 @@ a.owner-sidebar-link:hover {
 .owner-booking-card-heading {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    position: relative;
+    justify-content: center;
     padding-bottom: 0.68rem;
     margin-bottom: 0.68rem;
     border-bottom: 1px solid #edf2ef;
@@ -4855,6 +4856,16 @@ a.owner-sidebar-link:hover {
 .owner-operation-note > i {
     margin-top: 0.08rem;
     color: var(--owner-primary);
+}
+
+.owner-booking-card-heading span,
+.owner-booking-status-card > h2 {
+    text-align: center;
+}
+
+.owner-booking-card-heading i {
+    position: absolute;
+    right: 0;
 }
 
 .owner-operation-note.is-warning {
