@@ -144,11 +144,18 @@ class VnpayClient:
 
         Pure signature check — no DB lookup, no idempotency, no success
         decision. Callers (Step 3) run this before trusting any other field.
+
+        Canonicalizes with drop_empty=False: a received callback must be
+        hashed over exactly the vnp_* fields VNPAY actually sent (minus
+        vnp_SecureHash/vnp_SecureHashType), including any field VNPAY chose
+        to send with an empty string value — VNPAY signed whatever it sent,
+        so dropping an empty field here would silently recompute a different
+        hash and reject a legitimately-signed callback.
         """
         received_hash = str(params.get("vnp_SecureHash") or "")
         if not received_hash:
             raise VnpaySignatureError("Callback VNPAY thiếu vnp_SecureHash.")
-        expected_hash = self._sign(params)
+        expected_hash = self._sign(params, drop_empty=False)
         if not hmac.compare_digest(expected_hash, received_hash):
             raise VnpaySignatureError("Chữ ký callback VNPAY không hợp lệ.")
 
@@ -186,26 +193,39 @@ class VnpayClient:
             order_info=_str_or_none(params.get("vnp_OrderInfo")),
         )
 
-    def canonical_sign_string(self, fields: dict) -> str:
-        """Expose the exact string that gets HMAC'd, for tests and Step 3 reuse."""
-        return self._canonical_string(fields)
+    def canonical_sign_string(self, fields: dict, *, drop_empty: bool = True) -> str:
+        """Expose the exact string that gets HMAC'd, for tests and Step 3 reuse.
 
-    def _sign(self, fields: dict) -> str:
-        return self._hmac_hex(self._canonical_string(fields))
+        drop_empty=True (default): request/outbound style — a field with an
+        empty value is treated as "not sent" (matches build_payment_url,
+        where optional fields are simply omitted by the caller already; this
+        is a defensive net for the same effect).
+        drop_empty=False: callback/inbound style — canonicalize exactly the
+        fields received, empty-string values included (see
+        verify_callback_params for why this must not drop them).
+        """
+        return self._canonical_string(fields, drop_empty=drop_empty)
 
-    def _canonical_string(self, fields: dict) -> str:
+    def _sign(self, fields: dict, *, drop_empty: bool = True) -> str:
+        return self._hmac_hex(self._canonical_string(fields, drop_empty=drop_empty))
+
+    def _canonical_string(self, fields: dict, *, drop_empty: bool = True) -> str:
         """VNPAY PAY 2.1.0 canonicalization: sort keys, urlencode key AND
         value (PHP urlencode semantics — space becomes '+'), join pairs with
         '&' — NO trailing '&' after the last field. This canonical/hashdata
         string is distinct from the final URL query string, which does add
         '&vnp_SecureHash=...' after it (see build_payment_url).
-        vnp_SecureHash/vnp_SecureHashType and any None/empty value are
-        excluded before sorting.
+
+        vnp_SecureHash/vnp_SecureHashType and any None value are always
+        excluded before sorting. An empty string value is additionally
+        excluded only when drop_empty=True — see canonical_sign_string.
         """
         filtered = {
             key: value
             for key, value in fields.items()
-            if key not in _EXCLUDED_SIGN_FIELDS and value not in (None, "")
+            if key not in _EXCLUDED_SIGN_FIELDS
+            and value is not None
+            and (value != "" or not drop_empty)
         }
         return "&".join(
             f"{quote_plus(str(key))}={quote_plus(str(filtered[key]))}"

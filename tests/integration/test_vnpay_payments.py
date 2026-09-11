@@ -1002,6 +1002,100 @@ def test_vnpay_return_tmn_code_mismatch_is_rejected(app):
         )
 
 
+# --- Harden 4: vnp_ExpireDate is always present, GMT+7, after create_date -----
+
+
+def test_vnp_expire_date_uses_contribution_deadline_in_vietnam_time():
+    from app.services.payment import _vnpay_expire_date
+
+    class FakeContribution:
+        expires_at = datetime(2026, 9, 12, 5, 0, 0)  # naive UTC, after now
+
+    current_utc = datetime(2026, 9, 12, 3, 30, 0)
+    result = _vnpay_expire_date(contribution=FakeContribution(), current_utc=current_utc)
+    assert result == "20260912120000"  # 05:00 UTC + 7h = 12:00 Asia/Ho_Chi_Minh
+
+
+def test_vnp_expire_date_falls_back_to_fifteen_minutes_when_no_deadline():
+    from app.services.payment import _vnpay_expire_date
+
+    class FakeContribution:
+        expires_at = None
+
+    current_utc = datetime(2026, 9, 12, 3, 30, 0)
+    result = _vnpay_expire_date(contribution=FakeContribution(), current_utc=current_utc)
+    assert result == "20260912104500"  # 03:30 UTC + 15m = 03:45 UTC = 10:45 VN
+
+
+def test_vnp_expire_date_falls_back_when_deadline_already_passed():
+    from app.services.payment import _vnpay_expire_date
+
+    class FakeContribution:
+        expires_at = datetime(2026, 9, 12, 3, 0, 0)  # before current_utc
+
+    current_utc = datetime(2026, 9, 12, 3, 30, 0)
+    result = _vnpay_expire_date(contribution=FakeContribution(), current_utc=current_utc)
+    assert result == "20260912104500"  # falls back, not the stale deadline
+
+
+def test_checkout_url_always_includes_vnp_expire_date_after_create_date(app):
+    case = create_direct_booking(app, email_prefix="expiredate")
+    with app.app_context():
+        checkout = start_vnpay_payment(
+            booking_code=case["booking_code"],
+            contribution_id=case["contribution_id"],
+            payer=db.session.get(User, case["player_id"]),
+            return_url="https://example.test/payments/vnpay/return",
+            ip_addr="203.0.113.9",
+        )
+        params = query_dict(checkout.pay_url)
+        assert "vnp_ExpireDate" in params
+        assert len(params["vnp_ExpireDate"]) == 14
+        # Fixed-width yyyyMMddHHmmss -> lexicographic order == chronological.
+        assert params["vnp_ExpireDate"] > params["vnp_CreateDate"]
+
+
+def test_checkout_url_expire_date_matches_contribution_deadline(app):
+    case = create_direct_booking(app, email_prefix="expiredate-real")
+    with app.app_context():
+        contribution = db.session.get(BookingContribution, case["contribution_id"])
+        deadline = contribution.expires_at
+        assert deadline is not None  # CREATOR contribution always has one
+        checkout = start_vnpay_payment(
+            booking_code=case["booking_code"],
+            contribution_id=case["contribution_id"],
+            payer=db.session.get(User, case["player_id"]),
+            return_url="https://example.test/payments/vnpay/return",
+            ip_addr="203.0.113.9",
+        )
+        params = query_dict(checkout.pay_url)
+        expected_vn = deadline + timedelta(hours=7)
+        assert params["vnp_ExpireDate"] == expected_vn.strftime("%Y%m%d%H%M%S")
+
+
+# --- Harden 5: vnp_TxnRef is alphanumeric only (no "-") ------------------------
+
+
+def test_vnp_txn_ref_is_alphanumeric_only_and_within_length_limit(app):
+    import re
+
+    case = create_direct_booking(app, email_prefix="txnref-alnum")
+    with app.app_context():
+        checkout = start_vnpay_payment(
+            booking_code=case["booking_code"],
+            contribution_id=case["contribution_id"],
+            payer=db.session.get(User, case["player_id"]),
+            return_url="https://example.test/payments/vnpay/return",
+            ip_addr="203.0.113.9",
+        )
+        order_id = checkout.payment.order_id
+        params = query_dict(checkout.pay_url)
+        assert params["vnp_TxnRef"] == order_id
+        assert re.fullmatch(r"[A-Za-z0-9]+", order_id)
+        assert "-" not in order_id
+        assert len(order_id) <= 100
+
+
 @pytest.fixture(autouse=True)
 def enable_vnpay_in_isolated_tests(app):
     app.config.update(

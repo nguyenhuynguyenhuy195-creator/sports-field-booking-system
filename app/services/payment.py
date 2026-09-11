@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from uuid import uuid4
 
@@ -878,7 +878,7 @@ def _start_vnpay_checkout(
             provider=PaymentProvider.VNPAY.value,
             payment_method=PaymentMethod.VNPAY_GATEWAY.value,
             amount=contribution.remaining_amount,
-            order_id=f"VNPAY-PAY-{booking.id}-{uuid4().hex[:16].upper()}",
+            order_id=f"VNPAYPAY{booking.id}{uuid4().hex[:16].upper()}",
             request_id=uuid4().hex,
             provider_trans_id=None,
             status=PaymentStatus.PENDING.value,
@@ -895,6 +895,10 @@ def _start_vnpay_checkout(
             return_url=return_url,
             ip_addr=ip_addr,
             create_date=_vnpay_create_date(current_utc),
+            expire_date=_vnpay_expire_date(
+                contribution=contribution,
+                current_utc=current_utc,
+            ),
             bank_code=bank_code,
         )
     except VnpayError as exc:
@@ -1228,4 +1232,26 @@ def _require_vnpay_enabled() -> None:
 def _vnpay_create_date(current_utc: datetime) -> str:
     """Format vnp_CreateDate as yyyyMMddHHmmss in Vietnam local time (GMT+7)."""
     vn_time = current_utc.replace(tzinfo=timezone.utc).astimezone(VIETNAM_TIMEZONE)
+    return vn_time.strftime("%Y%m%d%H%M%S")
+
+
+_VNPAY_DEFAULT_EXPIRE_MINUTES = 15
+
+
+def _vnpay_expire_date(
+    *,
+    contribution: BookingContribution,
+    current_utc: datetime,
+) -> str:
+    """Format vnp_ExpireDate as yyyyMMddHHmmss in Vietnam local time (GMT+7).
+
+    Required by VNPAY PAY 2.1.0. Prefers the contribution's own payment
+    deadline (contribution.expires_at) so the VNPAY session cannot outlive
+    our own hold; falls back to a fixed session window when no deadline is
+    recorded. Always strictly after vnp_CreateDate (current_utc).
+    """
+    deadline = contribution.expires_at
+    if deadline is None or deadline <= current_utc:
+        deadline = current_utc + timedelta(minutes=_VNPAY_DEFAULT_EXPIRE_MINUTES)
+    vn_time = deadline.replace(tzinfo=timezone.utc).astimezone(VIETNAM_TIMEZONE)
     return vn_time.strftime("%Y%m%d%H%M%S")

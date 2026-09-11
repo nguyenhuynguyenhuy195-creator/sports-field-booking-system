@@ -328,6 +328,56 @@ def test_verify_callback_params_ignores_secure_hash_type_in_signature():
     client.verify_callback_params(payload)  # must not raise
 
 
+# Fixed vector for a callback where VNPAY sent vnp_BankCode with an EMPTY
+# value — computed independently offline (standalone hmac.new call over a
+# manually sorted/encoded string), not derived by calling VnpayClient.
+FIXED_EMPTY_FIELD_CALLBACK = {
+    "vnp_TxnRef": "ORDER123",
+    "vnp_Amount": "12000000",
+    "vnp_ResponseCode": "00",
+    "vnp_TransactionStatus": "00",
+    "vnp_TransactionNo": "998877",
+    "vnp_BankCode": "",
+    "vnp_PayDate": "20260912103500",
+}
+FIXED_EMPTY_FIELD_CANONICAL = (
+    "vnp_Amount=12000000&vnp_BankCode=&vnp_PayDate=20260912103500&"
+    "vnp_ResponseCode=00&vnp_TransactionNo=998877&vnp_TransactionStatus=00&"
+    "vnp_TxnRef=ORDER123"
+)
+FIXED_EMPTY_FIELD_DIGEST = (
+    "18b8ac08b8819247884a61d3f228cb2e2ac8e5f35125254866f3003bb0fcfce"
+    "353b279e7396c394567a52c3bc3d3e6e416916d61045e321980af499b92c081ab"
+)
+
+
+def test_callback_canonical_keeps_signed_empty_value_field():
+    client = make_client()
+    canonical = client.canonical_sign_string(
+        FIXED_EMPTY_FIELD_CALLBACK, drop_empty=False
+    )
+    assert canonical == FIXED_EMPTY_FIELD_CANONICAL
+    assert "vnp_BankCode=&" in canonical or canonical.endswith("vnp_BankCode=")
+
+
+def test_verify_callback_params_accepts_signed_empty_value_field():
+    client = make_client()
+    payload = dict(FIXED_EMPTY_FIELD_CALLBACK)
+    payload["vnp_SecureHash"] = FIXED_EMPTY_FIELD_DIGEST
+    client.verify_callback_params(payload)  # must not raise
+
+
+def test_dropping_empty_field_would_have_produced_a_different_hash():
+    """Proves drop_empty actually changes the result — not a no-op flag.
+
+    If verify_callback_params ever regresses to dropping empty values again,
+    this fixed digest would stop matching and the test above would fail.
+    """
+    client = make_client()
+    dropped_hash = client._sign(FIXED_EMPTY_FIELD_CALLBACK, drop_empty=True)
+    assert dropped_hash != FIXED_EMPTY_FIELD_DIGEST
+
+
 # --- 6. Success semantics --------------------------------------------------------
 
 
