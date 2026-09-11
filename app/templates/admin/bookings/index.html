@@ -10,7 +10,6 @@
             <div>
                 <span class="eyebrow">VẬN HÀNH</span>
                 <h1 class="display-6 fw-bold mt-2 mb-2">Lịch đặt sân</h1>
-                <p class="text-secondary mb-0">Tra cứu nhanh lịch đặt và nhận diện bản ghi cần theo dõi.</p>
             </div>
             <span class="admin-readonly-note"><i class="bi bi-eye" aria-hidden="true"></i>Chỉ xem · Không thay đổi dữ liệu</span>
         </div>
@@ -41,8 +40,7 @@
                 </div>
             </div>
 
-            <div class="admin-booking-filter-location" aria-labelledby="admin-booking-location-label">
-                <div class="admin-booking-filter-section-label" id="admin-booking-location-label">Khu vực và sân</div>
+            <div class="admin-booking-filter-location">
                 <div class="admin-filter-control">
                     <label for="province_code">Tỉnh/Thành phố</label>
                     <select class="form-select" id="province_code" name="province_code" data-wards-url="{{ url_for('venues.administrative_wards') }}">

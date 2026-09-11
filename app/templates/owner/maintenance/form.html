@@ -24,7 +24,6 @@
     <header class="owner-operation-form-heading">
         <span class="eyebrow">{{ field.venue.name }} · {{ field.name }}</span>
         <h1>Thêm lịch bảo trì</h1>
-        <p>Chọn khoảng thời gian sân cần ngừng nhận booking để phục vụ vận hành.</p>
     </header>
 
     <div class="owner-operation-form-layout">
@@ -32,15 +31,15 @@
             {{ form.hidden_tag() }}
             <div class="owner-operation-note is-warning"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i><span>Lịch bảo trì đang hoạt động sẽ khóa khoảng giờ này khỏi các booking mới. Booking còn chiếm lịch sẽ khiến yêu cầu bị từ chối.</span></div>
             <section class="owner-operation-form-section" aria-labelledby="maintenance-date-heading">
-                <div class="owner-operation-form-section-heading"><i class="bi bi-calendar3" aria-hidden="true"></i><div><h2 id="maintenance-date-heading">Ngày bảo trì</h2><p>Thời gian bảo trì phải chưa kết thúc.</p></div></div>
+                <div class="owner-operation-form-section-heading"><i class="bi bi-calendar3" aria-hidden="true"></i><div><h2 id="maintenance-date-heading">Ngày bảo trì</h2></div></div>
                 {{ render_field(form.maintenance_date) }}
             </section>
             <section class="owner-operation-form-section" aria-labelledby="maintenance-time-heading">
-                <div class="owner-operation-form-section-heading"><i class="bi bi-clock" aria-hidden="true"></i><div><h2 id="maintenance-time-heading">Khung giờ</h2><p>Phải nằm trong giờ hoạt động và không chồng lịch bảo trì đang hoạt động.</p></div></div>
+                <div class="owner-operation-form-section-heading"><i class="bi bi-clock" aria-hidden="true"></i><div><h2 id="maintenance-time-heading">Khung giờ</h2></div></div>
                 <div class="row g-3"><div class="col-md-6">{{ render_time_picker("Giờ bắt đầu", form.start_hour, form.start_minute) }}</div><div class="col-md-6">{{ render_time_picker("Giờ kết thúc", form.end_hour, form.end_minute) }}</div></div>
             </section>
             <section class="owner-operation-form-section" aria-labelledby="maintenance-reason-heading">
-                <div class="owner-operation-form-section-heading"><i class="bi bi-card-text" aria-hidden="true"></i><div><h2 id="maintenance-reason-heading">Lý do</h2><p>Mô tả ngắn gọn công việc cần thực hiện.</p></div></div>
+                <div class="owner-operation-form-section-heading"><i class="bi bi-card-text" aria-hidden="true"></i><div><h2 id="maintenance-reason-heading">Lý do</h2></div></div>
                 {{ render_field(form.reason, rows="4", placeholder="Ví dụ: Bảo dưỡng mặt cỏ và hệ thống chiếu sáng") }}
             </section>
             <div class="owner-operation-form-actions"><a class="btn btn-outline-secondary" href="{{ url_for('maintenance.owner_index', venue_id=field.venue_id, field_id=field.id) }}">Hủy</a>{{ form.submit(class="btn btn-primary") }}</div>

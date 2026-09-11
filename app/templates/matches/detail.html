@@ -27,9 +27,6 @@
             <h1>{{ match.title }}</h1>
             <p class="match-detail-byline"><i class="bi bi-trophy" aria-hidden="true"></i> {{ match.booking.field.field_type.sport.name }} <span>·</span> Đăng bởi {{ match.creator.full_name }}</p>
         </div>
-        {% if current_user.is_authenticated and current_user.id == match.creator_id %}
-            <a class="btn btn-outline-primary" href="{{ url_for('bookings.detail', booking_code=match.booking.booking_code) }}">Xem lịch đặt và tiền sân</a>
-        {% endif %}
     </header>
     {% if match_view_status == 'CLOSED_LISTING' %}
         <p class="alert alert-info">Bài tìm đối thủ đã đóng. Lịch đặt sân và tiền cọc vẫn được giữ nguyên.</p>
@@ -150,8 +147,9 @@
             <aside class="match-detail-card booking-action-card match-action-panel">
                 {% if current_user.is_authenticated and current_user.id == match.creator_id %}
                     <h2 class="h5 fw-bold">Bạn là người tạo kèo</h2>
-                    <p class="text-secondary">
-                        {% if not actions_available %}
+                    {% if not actions_available or opponent_obligation_covered or opponent_auto_join %}
+                        <p class="text-secondary">
+                            {% if not actions_available %}
                             {% if match_view_status == 'PAST' %}
                                 Kèo đã diễn ra. Các thao tác ghép kèo và chỉnh sửa liên hệ đã khép lại.
                             {% elif match_view_status == 'CLOSED_LISTING' %}
@@ -161,12 +159,11 @@
                             {% endif %}
                         {% elif opponent_obligation_covered %}
                             Khoản cọc đối thủ trước đã được giữ lại. Đối thủ thay thế có thể vào kèo mà không cần thanh toán lại cọc.
-                        {% elif opponent_auto_join %}
-                            Đối thủ tự giữ suất và được xác nhận ngay sau khi thanh toán cọc. Bạn không cần duyệt yêu cầu.
-                        {% else %}
-                            Theo dõi và xác nhận yêu cầu ở danh sách bên trái. Tiền sân còn thiếu được quản lý tại booking.
-                        {% endif %}
-                    </p>
+                            {% elif opponent_auto_join %}
+                                Đối thủ tự giữ suất và được xác nhận ngay sau khi thanh toán cọc. Bạn không cần duyệt yêu cầu.
+                            {% endif %}
+                        </p>
+                    {% endif %}
                     <div class="match-contact-card mb-3">
                         <span class="small text-secondary">Số Zalo bạn chia sẻ</span>
                         {% if match.creator_contact_phone %}
@@ -197,7 +194,6 @@
                         <form class="mt-3" method="post" action="{{ url_for('matches.close', match_id=match.id) }}">
                             {{ action_form.hidden_tag() }}
                             <button class="btn btn-outline-danger w-100" type="submit">Đóng bài tìm đối thủ</button>
-                            <p class="small text-secondary mt-2 mb-0">Dừng tìm đối thủ và hết hiệu lực suất chưa thanh toán. Lịch đặt sân và tiền cọc vẫn được giữ nguyên.</p>
                         </form>
                     {% endif %}
                 {% elif current_request_status == 'EXPIRED' %}

@@ -17,7 +17,7 @@
         <input type="hidden" name="return_status" value="{{ selected_status }}">
         <span class="admin-venue-action-kicker">{% if decision == 'ACTIVE' %}Thao tác công khai{% else %}Thao tác hạn chế{% endif %}</span>
         <strong>{{ title }}</strong>
-        <p>{{ description }}</p>
+        {% if description %}<p>{{ description }}</p>{% endif %}
         <label class="visually-hidden" for="venue-{{ venue.id }}-note-{{ decision|lower }}">Ghi chú kiểm duyệt</label>
         {{ form.moderation_note(class="form-control", id='venue-' ~ venue.id ~ '-note-' ~ decision|lower, rows="3", maxlength="500", placeholder="Ghi chú kiểm duyệt (không bắt buộc)") }}
         <button class="btn {{ button_class }} admin-venue-action-button" type="submit"{% if disabled %} disabled aria-disabled="true"{% endif %}>
@@ -32,7 +32,6 @@
         <div>
             <span class="eyebrow">KIỂM DUYỆT</span>
             <h1 class="h2 fw-bold mt-2 mb-1">Kiểm duyệt cơ sở</h1>
-            <p class="text-secondary mb-0">Đối chiếu chủ sân, địa chỉ và dấu vết kiểm duyệt trước khi công khai.</p>
         </div>
         <span class="admin-readonly-note"><i class="bi bi-buildings" aria-hidden="true"></i>{{ venues|length }} {{ selected_filter.label|lower }}</span>
     </div>
@@ -105,7 +104,7 @@
                         <div class="admin-venue-detail-section">
                             <div class="admin-venue-section-heading">
                                 <i class="bi bi-geo-alt" aria-hidden="true"></i>
-                                <div><h3>Thông tin cơ sở</h3><p>Địa chỉ và thông tin do Chủ sân khai báo.</p></div>
+                                <div><h3>Thông tin cơ sở</h3></div>
                             </div>
                             <dl class="admin-venue-info-grid">
                                 <div class="admin-venue-info-grid-wide"><dt>Địa chỉ đầy đủ</dt><dd>{{ venue.full_address }}</dd></div>
@@ -122,7 +121,7 @@
                         <div class="admin-venue-detail-section">
                             <div class="admin-venue-section-heading">
                                 <i class="bi bi-sign-turn-right" aria-hidden="true"></i>
-                                <div><h3>Kiểm tra đường đi</h3><p>Mở địa chỉ do Chủ sân khai báo trên Google Maps để đối chiếu khi cần.</p></div>
+                                <div><h3>Kiểm tra đường đi</h3></div>
                             </div>
                             <a class="admin-venue-directions-link" href="{{ directions_urls[venue.id] }}" target="_blank" rel="noopener noreferrer"><i class="bi bi-sign-turn-right" aria-hidden="true"></i>Mở chỉ đường trên Google Maps</a>
                         </div>
@@ -130,7 +129,7 @@
                         <div class="admin-venue-detail-section admin-venue-audit-section">
                             <div class="admin-venue-section-heading">
                                 <i class="bi bi-clock-history" aria-hidden="true"></i>
-                                <div><h3>Dấu vết kiểm duyệt</h3><p>Kết quả của lần kiểm duyệt gần nhất.</p></div>
+                                <div><h3>Dấu vết kiểm duyệt</h3></div>
                             </div>
                             <dl class="admin-venue-info-grid">
                                 <div><dt>Người kiểm duyệt</dt><dd>{{ venue.reviewer.full_name if venue.reviewer else 'Chưa kiểm duyệt' }}</dd></div>
@@ -143,16 +142,16 @@
                             <div class="admin-venue-review-section">
                                 <div class="admin-venue-section-heading">
                                     <i class="bi bi-shield-check" aria-hidden="true"></i>
-                                    <div><h3>Thao tác kiểm duyệt</h3><p>Thay đổi sẽ được ghi nhận cùng người kiểm duyệt, thời gian và ghi chú.</p></div>
+                                    <div><h3>Thao tác kiểm duyệt</h3></div>
                                 </div>
                                 <div class="admin-venue-actions{% if venue.status == 'PENDING' %} admin-venue-actions--two{% endif %}">
                                     {% if venue.status == 'PENDING' %}
-                                        {{ moderation_action(venue, form, 'ACTIVE', 'btn-primary', 'check2-circle', 'Duyệt và công khai', 'Cơ sở sẽ xuất hiện trong danh sách công khai.', 'Cơ sở ' ~ venue.name ~ ' sẽ được duyệt và công khai. Bạn muốn tiếp tục?') }}
-                                        {{ moderation_action(venue, form, 'HIDDEN', 'btn-outline-danger', 'eye-slash', 'Ẩn cơ sở', 'Giữ cơ sở ngoài danh sách công khai để tiếp tục xử lý.', 'Cơ sở ' ~ venue.name ~ ' sẽ bị ẩn khỏi danh sách công khai. Bạn muốn tiếp tục?') }}
+                                        {{ moderation_action(venue, form, 'ACTIVE', 'btn-primary', 'check2-circle', 'Duyệt và công khai', '', 'Cơ sở ' ~ venue.name ~ ' sẽ được duyệt và công khai. Bạn muốn tiếp tục?') }}
+                                        {{ moderation_action(venue, form, 'HIDDEN', 'btn-outline-danger', 'eye-slash', 'Ẩn cơ sở', '', 'Cơ sở ' ~ venue.name ~ ' sẽ bị ẩn khỏi danh sách công khai. Bạn muốn tiếp tục?') }}
                                     {% elif venue.status == 'ACTIVE' %}
-                                        {{ moderation_action(venue, form, 'HIDDEN', 'btn-outline-danger', 'eye-slash', 'Ẩn cơ sở', 'Cơ sở sẽ không còn hiển thị với người dùng.', 'Cơ sở ' ~ venue.name ~ ' sẽ bị ẩn khỏi danh sách công khai. Bạn muốn tiếp tục?') }}
+                                        {{ moderation_action(venue, form, 'HIDDEN', 'btn-outline-danger', 'eye-slash', 'Ẩn cơ sở', '', 'Cơ sở ' ~ venue.name ~ ' sẽ bị ẩn khỏi danh sách công khai. Bạn muốn tiếp tục?') }}
                                     {% elif venue.status == 'HIDDEN' %}
-                                        {{ moderation_action(venue, form, 'ACTIVE', 'btn-primary', 'check2-circle', 'Công khai lại', 'Cơ sở sẽ xuất hiện lại trong danh sách công khai.', 'Cơ sở ' ~ venue.name ~ ' sẽ được công khai lại. Bạn muốn tiếp tục?') }}
+                                        {{ moderation_action(venue, form, 'ACTIVE', 'btn-primary', 'check2-circle', 'Công khai lại', '', 'Cơ sở ' ~ venue.name ~ ' sẽ được công khai lại. Bạn muốn tiếp tục?') }}
                                     {% endif %}
                                 </div>
                             </div>
@@ -165,7 +164,7 @@
         <div class="admin-empty-card admin-venue-empty-state">
             <div class="admin-venue-empty-icon" aria-hidden="true"><i class="bi bi-{{ 'clipboard-check' if selected_status == 'PENDING' else 'buildings' }}"></i></div>
             <h2 class="h5 fw-bold mt-3">{{ selected_filter.empty_title }}</h2>
-            <p class="text-secondary mb-0">{{ selected_filter.empty_message }}</p>
+            {% if selected_filter.empty_message %}<p class="text-secondary mb-0">{{ selected_filter.empty_message }}</p>{% endif %}
         </div>
     {% endif %}
 </section>

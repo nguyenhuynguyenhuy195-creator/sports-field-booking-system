@@ -9,7 +9,6 @@
             <div>
                 <span class="marketplace-eyebrow"><i class="bi bi-calendar2-week" aria-hidden="true"></i> LỊCH CỦA TÔI</span>
                 <h1 class="marketplace-page-title mt-2 mb-1">Lịch đặt sân</h1>
-                <p class="marketplace-page-subtitle mb-0">Theo dõi các sân sắp chơi, trạng thái đặt sân và khoản cọc.</p>
             </div>
             <a class="btn btn-primary marketplace-primary-action" href="{{ url_for('venues.index') }}"><i class="bi bi-search" aria-hidden="true"></i> Tìm sân mới</a>
         </div>
@@ -49,7 +48,6 @@
                     aria-labelledby="booking-tab-{{ group.key }}"
                     tabindex="0"
                 >
-                    <p class="booking-group-description">{{ group.description }}</p>
                     {% if group.entries %}
                         <div class="booking-list marketplace-list-stack">
                             {% for entry in group.entries %}

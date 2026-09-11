@@ -1148,9 +1148,9 @@ a.owner-sidebar-link:hover {
 }
 
 .owner-venue-form-section-heading {
+    align-items: center;
     display: flex;
     gap: 0.62rem;
-    align-items: flex-start;
     margin-bottom: 0.9rem;
 }
 
@@ -1699,9 +1699,9 @@ a.owner-sidebar-link:hover {
 }
 
 .owner-field-form-section-heading {
+    align-items: center;
     display: flex;
     gap: 0.62rem;
-    align-items: flex-start;
     margin-bottom: 0.9rem;
 }
 
@@ -2580,9 +2580,20 @@ a.owner-sidebar-link:hover {
 }
 
 .owner-booking-detail-header .booking-code {
+    align-items: center;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 0.35rem;
     margin-top: 0;
     color: #74847c;
     font-size: 0.62rem;
+    overflow-wrap: normal;
+    white-space: nowrap;
+}
+
+.owner-booking-detail-header .booking-code b {
+    overflow-wrap: normal;
+    white-space: nowrap;
 }
 
 .owner-booking-detail-header h1 {
@@ -5099,9 +5110,9 @@ a.owner-sidebar-link:hover {
 }
 
 .owner-operation-form-section-heading {
+    align-items: center;
     display: flex;
     gap: 0.58rem;
-    align-items: flex-start;
     margin-bottom: 0.75rem;
 }
 

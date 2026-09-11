@@ -34,7 +34,6 @@
         <div>
             <span class="eyebrow">{{ field.venue.name }} · {{ field.name }}</span>
             <h1>Lịch bảo trì sân</h1>
-            <p>Khóa các khoảng thời gian cần bảo trì để ngăn phát sinh booking mới.</p>
         </div>
         <a class="btn btn-primary" href="{{ url_for('maintenance.owner_create', venue_id=field.venue_id, field_id=field.id) }}"><i class="bi bi-plus-lg" aria-hidden="true"></i>Thêm lịch bảo trì</a>
     </header>
@@ -47,17 +46,17 @@
 
     {% if maintenances %}
         <section class="owner-maintenance-section" aria-labelledby="maintenance-upcoming-heading">
-            <div class="owner-operation-list-heading"><div><h2 id="maintenance-upcoming-heading">Hiện tại &amp; sắp tới</h2><p>Các khoảng thời gian đang khóa hoặc sẽ khóa booking.</p></div><span>{{ current_or_upcoming|length }}</span></div>
+            <div class="owner-operation-list-heading"><div><h2 id="maintenance-upcoming-heading">Hiện tại &amp; sắp tới</h2></div><span>{{ current_or_upcoming|length }}</span></div>
             {% if current_or_upcoming %}
                 <div class="owner-maintenance-list">{% for maintenance in current_or_upcoming %}{{ maintenance_row(maintenance) }}{% endfor %}</div>
             {% else %}
-                <div class="owner-operation-inline-empty owner-empty-state owner-empty-state--compact"><i class="bi bi-calendar2-check" aria-hidden="true"></i><div><strong>Không có lịch bảo trì đang hoạt động</strong><p>Sân hiện không có khoảng bảo trì nào đang diễn ra hoặc sắp tới.</p></div></div>
+                <div class="owner-operation-inline-empty owner-empty-state owner-empty-state--compact"><i class="bi bi-calendar2-check" aria-hidden="true"></i><div><strong>Không có lịch bảo trì đang hoạt động</strong></div></div>
             {% endif %}
         </section>
 
         {% if history %}
             <section class="owner-maintenance-section" aria-labelledby="maintenance-history-heading">
-                <div class="owner-operation-list-heading"><div><h2 id="maintenance-history-heading">Lịch sử bảo trì</h2><p>Các lịch đã hoàn thành hoặc đã hủy, mới nhất hiển thị trước.</p></div><span>{{ history|length }}</span></div>
+                <div class="owner-operation-list-heading"><div><h2 id="maintenance-history-heading">Lịch sử bảo trì</h2></div><span>{{ history|length }}</span></div>
                 <div class="owner-maintenance-list">{% for maintenance in history %}{{ maintenance_row(maintenance, true) }}{% endfor %}</div>
             </section>
         {% endif %}

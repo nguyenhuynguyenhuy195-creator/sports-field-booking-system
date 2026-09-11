@@ -56,10 +56,19 @@
                 <section class="booking-step-panel" data-booking-step="2">
                     <span class="eyebrow">BƯỚC 2</span>
                     <h1 class="h3 fw-bold mt-2 mb-1" data-step-focus tabindex="-1">Chọn ngày và khoảng giờ</h1>
-                    <p class="text-secondary mb-4">Hệ thống sẽ kiểm tra lịch trống, bảo trì và giá trước khi bạn tiếp tục.</p>
 
                     <div class="booking-date-field">
-                        {{ render_field(form.booking_date, min=today.isoformat(), max=maximum_booking_date.isoformat()) }}
+                        <div class="mb-3">
+                            {{ form.booking_date(
+                                class="form-control" + (" is-invalid" if form.booking_date.errors else ""),
+                                min=today.isoformat(),
+                                max=maximum_booking_date.isoformat(),
+                                aria_label="Ngày đặt sân"
+                            ) }}
+                            {% for error in form.booking_date.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
                     </div>
 
                     <section class="booking-availability-picker mb-4" data-availability-picker aria-labelledby="availability-title">
@@ -70,7 +79,6 @@
                                     Chọn ngày để xem lịch
                                 </h2>
                                 <p class="small text-secondary mb-0">
-                                    Chọn mốc bắt đầu rồi chọn mốc kết thúc cách ít nhất 60 phút.
                                 </p>
                             </div>
                             <span class="availability-loading" data-availability-loading aria-live="polite"></span>
@@ -130,7 +138,6 @@
                 <section class="booking-step-panel" data-booking-step="3">
                     <span class="eyebrow">BƯỚC 3</span>
                     <h2 class="h3 fw-bold mt-2 mb-1" data-step-focus tabindex="-1">Bạn muốn đặt sân theo cách nào?</h2>
-                    <p class="text-secondary mb-4">Thông tin người đặt được lấy từ tài khoản đang đăng nhập.</p>
 
                     <div class="booking-contact-card mb-4">
                         <div>
@@ -210,7 +217,6 @@
                 <section class="booking-step-panel" data-booking-step="4">
                     <span class="eyebrow">BƯỚC 4</span>
                     <h2 class="h3 fw-bold mt-2 mb-1" data-step-focus tabindex="-1">Xác nhận giữ chỗ</h2>
-                    <p class="text-secondary mb-4">Kiểm tra kỹ trước khi hệ thống khóa khung giờ trong 15 phút.</p>
 
                     <dl class="booking-review-grid">
                         <div><dt>Cơ sở</dt><dd>{{ field.venue.name }}</dd></div>
@@ -274,7 +280,6 @@
                     <span>Tạm tính</span>
                     <strong data-summary-total>Chọn giờ để xem giá</strong>
                 </div>
-                <p class="small text-secondary mb-0">Giá cuối cùng luôn được hệ thống kiểm tra lại khi bạn xác nhận.</p>
             </aside>
         </div>
     </div>

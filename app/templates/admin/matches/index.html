@@ -10,7 +10,6 @@
             <div>
                 <span class="eyebrow">VẬN HÀNH</span>
                 <h1 class="display-6 fw-bold mt-2 mb-2">Kèo chơi</h1>
-                <p class="text-secondary mb-0">Theo dõi kèo, người tham gia và các trạng thái đang cần kiểm tra.</p>
             </div>
             <span class="admin-readonly-note"><i class="bi bi-eye" aria-hidden="true"></i>Chỉ xem · Không thay đổi dữ liệu</span>
         </div>
@@ -48,8 +47,7 @@
                 </div>
             </div>
 
-            <div class="admin-booking-filter-location" aria-labelledby="admin-match-location-label">
-                <div class="admin-booking-filter-section-label" id="admin-match-location-label">Khu vực và sân</div>
+            <div class="admin-booking-filter-location">
                 <div class="admin-filter-control">
                     <label for="province_code">Tỉnh/Thành phố</label>
                     <select class="form-select" id="province_code" name="province_code" data-wards-url="{{ url_for('venues.administrative_wards') }}">

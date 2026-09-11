@@ -9,7 +9,6 @@
         <div>
             <span class="owner-welcome-eyebrow">TRUNG TÂM VẬN HÀNH</span>
             <h1>Chào {{ current_user.full_name }}</h1>
-            <p>Theo dõi booking, cơ sở, sân và các mục vận hành cần chú ý trong một nơi.</p>
         </div>
         <div class="owner-welcome-actions">
             <a class="btn btn-light owner-welcome-primary" href="{{ url_for('bookings.owner_index') }}">Xem booking</a>
@@ -22,25 +21,21 @@
             <span class="owner-kpi-icon"><i class="bi bi-calendar2-check" aria-hidden="true"></i></span>
             <p>Booking hôm nay</p>
             <strong>{{ summary.today_booking_count }}</strong>
-            <small>Theo ngày sử dụng {{ summary.generated_at.strftime('%d/%m/%Y') }}</small>
         </article>
         <article class="owner-kpi-card">
             <span class="owner-kpi-icon"><i class="bi bi-clock-history" aria-hidden="true"></i></span>
             <p>Booking sắp tới</p>
             <strong>{{ summary.upcoming_booking_count }}</strong>
-            <small>Còn hiệu lực và chưa đến giờ bắt đầu</small>
         </article>
         <article class="owner-kpi-card">
             <span class="owner-kpi-icon"><i class="bi bi-buildings" aria-hidden="true"></i></span>
             <p>Cơ sở của tôi</p>
             <strong>{{ summary.venue_count }}</strong>
-            <small>Tất cả trạng thái kiểm duyệt</small>
         </article>
         <article class="owner-kpi-card">
             <span class="owner-kpi-icon"><i class="bi bi-check2-circle" aria-hidden="true"></i></span>
             <p>Sân đang bật</p>
             <strong>{{ summary.active_field_count }}</strong>
-            <small>Sân đang ở trạng thái hoạt động</small>
         </article>
     </div>
 
@@ -49,7 +44,6 @@
             <div class="owner-section-heading">
                 <div>
                     <h2 id="upcomingBookingsTitle">Booking sắp tới</h2>
-                    <p>Các lịch gần nhất trên toàn bộ sân của bạn.</p>
                 </div>
                 <a href="{{ url_for('bookings.owner_index') }}">Xem tất cả</a>
             </div>
@@ -97,27 +91,26 @@
             <div class="owner-section-heading">
                 <div>
                     <h2 id="operationStatusTitle">Tình trạng vận hành</h2>
-                    <p>Những mục cần theo dõi.</p>
                 </div>
             </div>
             <div class="owner-operation-list">
                 <a href="{{ url_for('venues.owner_index') }}">
                     <span class="owner-operation-dot owner-dot-warning" aria-hidden="true"></span>
-                    <span><strong>{{ summary.pending_venue_count }} cơ sở chờ duyệt</strong><small>Kiểm tra trạng thái cơ sở</small></span>
+                    <span><strong>{{ summary.pending_venue_count }} cơ sở chờ duyệt</strong></span>
                     <i class="bi bi-chevron-right" aria-hidden="true"></i>
                 </a>
                 <a href="{{ url_for('venues.owner_index') }}">
                     <span class="owner-operation-dot owner-dot-muted" aria-hidden="true"></span>
-                    <span><strong>{{ summary.inactive_field_count }} sân chưa bật</strong><small>Vào từng cơ sở để quản lý sân</small></span>
+                    <span><strong>{{ summary.inactive_field_count }} sân chưa bật</strong></span>
                     <i class="bi bi-chevron-right" aria-hidden="true"></i>
                 </a>
                 <div>
                     <span class="owner-operation-dot owner-dot-danger" aria-hidden="true"></span>
-                    <span><strong>{{ summary.current_maintenance_count }} bảo trì đang diễn ra</strong><small>Theo thời gian Việt Nam hiện tại</small></span>
+                    <span><strong>{{ summary.current_maintenance_count }} bảo trì đang diễn ra</strong></span>
                 </div>
                 <div>
                     <span class="owner-operation-dot owner-dot-success" aria-hidden="true"></span>
-                    <span><strong>{{ summary.upcoming_maintenance_count }} bảo trì sắp tới</strong><small>Lịch ACTIVE chưa đến giờ bắt đầu</small></span>
+                    <span><strong>{{ summary.upcoming_maintenance_count }} bảo trì sắp tới</strong></span>
                 </div>
             </div>
         </section>

@@ -37,7 +37,6 @@
         <header class="owner-venue-form-heading">
             <span class="eyebrow">KHU VỰC CHỦ SÂN</span>
             <h1 class="h2 fw-bold mt-2 mb-2">{{ page_title }}</h1>
-            <p class="text-secondary mb-0">Xác nhận địa chỉ, thông tin liên hệ và giờ hoạt động của cơ sở.</p>
         </header>
         <div class="owner-venue-form-card venue-form-card">
 
@@ -50,7 +49,7 @@
                 <section class="owner-venue-form-section" aria-labelledby="venue-basic-heading">
                     <div class="owner-venue-form-section-heading">
                         <i class="bi bi-buildings" aria-hidden="true"></i>
-                        <div><h2 id="venue-basic-heading">Thông tin cơ sở</h2><p>Tên và địa chỉ được dùng trong danh sách công khai sau khi duyệt.</p></div>
+                        <div><h2 id="venue-basic-heading">Thông tin cơ sở</h2></div>
                     </div>
                     {{ render_field(form.name, placeholder="Ví dụ: Sân bóng Minh Anh") }}
                 {% if venue and not (venue.province_code and venue.ward_code) %}
@@ -75,17 +74,12 @@
                         </div>
                     </div>
                 </div>
-                <p id="administrative-unit-status" class="form-text mt-0 mb-3" role="status">
-                    Phường/xã được lọc theo tỉnh/thành phố đã chọn.
-                </p>
+                <p id="administrative-unit-status" class="form-text mt-0 mb-3" role="status"></p>
                 <noscript>
                     <div class="alert alert-warning">Cần bật JavaScript để tải danh sách phường/xã theo tỉnh/thành phố.</div>
                 </noscript>
                 {{ render_field(form.address, placeholder="Ví dụ: 123 Nguyễn Hữu Thọ") }}
 
-                <p class="form-text mt-0 mb-3">
-                    Địa chỉ này được dùng để tìm vị trí trên bản đồ và mở chỉ đường.
-                </p>
                 </section>
 
                 <section class="owner-venue-form-section" aria-labelledby="venue-location-heading">
@@ -141,7 +135,7 @@
                 <section class="owner-venue-form-section" aria-labelledby="venue-contact-heading">
                     <div class="owner-venue-form-section-heading">
                         <i class="bi bi-telephone" aria-hidden="true"></i>
-                        <div><h2 id="venue-contact-heading">Liên hệ &amp; mô tả</h2><p>Thông tin giúp khách nhận biết và liên hệ với cơ sở.</p></div>
+                        <div><h2 id="venue-contact-heading">Liên hệ &amp; mô tả</h2></div>
                     </div>
                     {{ render_field(form.phone, placeholder="Ví dụ: 0901234567") }}
                     {{ render_field(form.description, rows="4", placeholder="Mô tả vị trí, tiện ích và thông tin liên hệ") }}
@@ -150,7 +144,7 @@
                 <section class="owner-venue-form-section" aria-labelledby="venue-hours-heading">
                     <div class="owner-venue-form-section-heading">
                         <i class="bi bi-clock" aria-hidden="true"></i>
-                        <div><h2 id="venue-hours-heading">Giờ hoạt động</h2><p>Giờ đóng cửa phải sau giờ mở cửa trong cùng ngày.</p></div>
+                        <div><h2 id="venue-hours-heading">Giờ hoạt động</h2></div>
                     </div>
                     <div class="row g-3">
                         <div class="col-md-6">{{ render_time_picker("Giờ mở cửa", form.opening_hour, form.opening_minute) }}</div>

@@ -24,7 +24,6 @@
     <header class="owner-operation-form-heading">
         <span class="eyebrow">{{ field.venue.name }} · {{ field.name }}</span>
         <h1>{{ page_title }}</h1>
-        <p>Cấu hình ngày, thời gian và mức giá áp dụng cho sân.</p>
     </header>
 
     <div class="owner-operation-form-layout">
@@ -32,15 +31,15 @@
             {{ form.hidden_tag() }}
             {% if slot and slot.status == 'INACTIVE' %}<div class="owner-operation-note"><i class="bi bi-info-circle" aria-hidden="true"></i><span>Khung giá đang tạm ngưng. Lưu thay đổi sẽ không tự động bật lại.</span></div>{% endif %}
             <section class="owner-operation-form-section" aria-labelledby="pricing-day-heading">
-                <div class="owner-operation-form-section-heading"><i class="bi bi-calendar3" aria-hidden="true"></i><div><h2 id="pricing-day-heading">Ngày áp dụng</h2><p>Chọn một ngày trong tuần cho khung giá.</p></div></div>
+                <div class="owner-operation-form-section-heading"><i class="bi bi-calendar3" aria-hidden="true"></i><div><h2 id="pricing-day-heading">Ngày áp dụng</h2></div></div>
                 {{ render_field(form.day_of_week) }}
             </section>
             <section class="owner-operation-form-section" aria-labelledby="pricing-time-heading">
-                <div class="owner-operation-form-section-heading"><i class="bi bi-clock" aria-hidden="true"></i><div><h2 id="pricing-time-heading">Khung giờ</h2><p>Phải nằm trong giờ hoạt động và không chồng khung đang áp dụng cùng ngày.</p></div></div>
+                <div class="owner-operation-form-section-heading"><i class="bi bi-clock" aria-hidden="true"></i><div><h2 id="pricing-time-heading">Khung giờ</h2></div></div>
                 <div class="row g-3"><div class="col-md-6">{{ render_time_picker("Giờ bắt đầu", form.start_hour, form.start_minute) }}</div><div class="col-md-6">{{ render_time_picker("Giờ kết thúc", form.end_hour, form.end_minute) }}</div></div>
             </section>
             <section class="owner-operation-form-section" aria-labelledby="pricing-price-heading">
-                <div class="owner-operation-form-section-heading"><i class="bi bi-cash-coin" aria-hidden="true"></i><div><h2 id="pricing-price-heading">Mức giá</h2><p>Giá tính cho một giờ sử dụng sân.</p></div></div>
+                <div class="owner-operation-form-section-heading"><i class="bi bi-cash-coin" aria-hidden="true"></i><div><h2 id="pricing-price-heading">Mức giá</h2></div></div>
                 {{ render_field(form.hourly_price, min="1", step="1000", inputmode="decimal", placeholder="Ví dụ: 250000") }}
             </section>
             <div class="owner-operation-form-actions"><a class="btn btn-outline-secondary" href="{{ url_for('pricing.owner_index', venue_id=field.venue_id, field_id=field.id) }}">Hủy</a>{{ form.submit(class="btn btn-primary", value=submit_label) }}</div>

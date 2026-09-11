@@ -6,19 +6,14 @@
 {% block content %}
 {% if selected_focus == 'payment_issue' %}
     {% set workspace_title = 'Giám sát thanh toán' %}
-    {% set workspace_description = 'Theo dõi giao dịch đang chờ xác nhận hoặc thất bại mà không thay đổi lịch sử.' %}
 {% elif selected_focus == 'refund_pending' %}
     {% set workspace_title = 'Giám sát hoàn tiền' %}
-    {% set workspace_description = 'Theo dõi các khoản hoàn tiền đang chờ hoặc đang được xử lý.' %}
 {% elif section == 'matches' %}
     {% set workspace_title = 'Kèo chơi' %}
-    {% set workspace_description = 'Theo dõi kèo tìm đối thủ, tìm thêm người và hồ sơ lịch đặt sân liên quan.' %}
 {% elif section == 'catalog' %}
     {% set workspace_title = 'Danh mục thể thao' %}
-    {% set workspace_description = 'Theo dõi các bộ môn và loại sân đang được hệ thống sử dụng.' %}
 {% else %}
     {% set workspace_title = 'Lịch đặt sân' %}
-    {% set workspace_description = 'Theo dõi lịch đặt sân, tiến độ tiền cọc và dòng tiền liên quan.' %}
 {% endif %}
 <section class="admin-page admin-monitoring-page" data-admin-monitoring-root>
     <p class="visually-hidden" role="status" aria-live="polite" data-admin-monitoring-status></p>
@@ -27,7 +22,6 @@
             <div>
                 <span class="eyebrow">QUẢN TRỊ HỆ THỐNG</span>
                 <h1 class="display-6 fw-bold mt-2 mb-2">{{ workspace_title }}</h1>
-                <p class="text-secondary mb-0">{{ workspace_description }}</p>
             </div>
             <span class="admin-readonly-note"><i class="bi bi-eye" aria-hidden="true"></i>Chỉ xem · Không thay đổi lịch sử</span>
         </div>

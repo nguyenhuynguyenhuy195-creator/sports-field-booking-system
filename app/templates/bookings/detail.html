@@ -136,15 +136,6 @@
                     <div><strong>{{ booking.field.venue.name }}</strong><span>{{ booking.field.venue.full_address }}</span></div>
                 </div>
             {% endif %}
-            {% if owner_view %}
-                <div class="owner-booking-header-meta" aria-label="Tóm tắt lịch đặt">
-                    <span>{{ booking.booking_date.strftime('%d/%m/%Y') }}</span>
-                    <span>{{ booking.start_time.strftime('%H:%M') }}–{{ booking.end_time.strftime('%H:%M') }}</span>
-                    <span>{{ booking.field.field_type.sport.name }}</span>
-                    <span>{{ booking_mode_labels[booking.booking_mode] }}</span>
-                </div>
-                <p class="owner-booking-customer mb-0"><span>Người đặt</span><strong>{{ booking.user.full_name }}</strong></p>
-            {% endif %}
         </div>
     </div>
 

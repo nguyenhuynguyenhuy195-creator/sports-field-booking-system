@@ -7,7 +7,6 @@
     <header class="owner-finance-header">
         <div>
             <h1>Tài chính</h1>
-            <p>Theo dõi các khoản cọc, hoàn tiền và số tiền dự kiến thanh toán tại sân.</p>
         </div>
     </header>
 
@@ -132,7 +131,7 @@
                         {% for activity in summary.activities %}
                             <tr>
                                 <td data-label="Thời gian"><strong>{{ activity.occurred_at.strftime('%H:%M') }}</strong><small>{{ activity.occurred_at.strftime('%d/%m/%Y') }}</small></td>
-                                <td data-label="Booking / Sân"><strong class="owner-finance-booking-code" title="{{ activity.booking.booking_code }}">{{ activity.booking.booking_code[:2] }}...{{ activity.booking.booking_code[-5:] }}</strong><small>{{ activity.booking.field.name }}</small></td>
+                                <td data-label="Booking / Sân"><strong class="owner-finance-booking-code">{{ activity.booking.booking_code }}</strong><small>{{ activity.booking.field.name }}</small></td>
                                 <td data-label="Khách">{{ activity.payer_name }}</td>
                                 <td data-label="Giao dịch"><span class="owner-finance-transaction-label">{{ activity_type_labels[activity.activity_type] }}</span><span class="status-badge status-{{ activity.status|lower|replace('_', '-') }}">{{ finance_status_labels[activity.status] }}</span></td>
                                 <td data-label="Số tiền" class="owner-finance-amount{% if activity.activity_type == 'REFUND' %} is-refund{% endif %}">{% if activity.activity_type == 'REFUND' %}−{% else %}+{% endif %}{{ activity.amount|vnd_currency }}</td>

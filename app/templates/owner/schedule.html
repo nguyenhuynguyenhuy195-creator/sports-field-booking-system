@@ -33,11 +33,7 @@
         <div>
             <span class="eyebrow">VẬN HÀNH THEO NGÀY</span>
             <h1 class="h2 fw-bold mt-2 mb-1">Lịch sân</h1>
-            <p class="text-secondary mb-0">Theo dõi booking và bảo trì trên từng sân trong cùng một ngày.</p>
         </div>
-        <a class="btn btn-outline-primary" href="{{ url_for('bookings.owner_index') }}">
-            <i class="bi bi-journal-text" aria-hidden="true"></i> Xem Booking
-        </a>
     </div>
 
     {% if summary.venues %}
@@ -187,7 +183,7 @@
         {% else %}
             <div class="owner-schedule-empty owner-empty-state owner-empty-state--compact">
                 <i class="bi bi-grid-3x3" aria-hidden="true"></i>
-                <div><strong>Cơ sở chưa có sân</strong><p>Thêm sân trong khu vực Cơ sở &amp; Sân để bắt đầu theo dõi lịch.</p></div>
+                <div><strong>Cơ sở chưa có sân</strong></div>
                 <a class="btn btn-outline-primary" href="{{ url_for('fields.owner_index', venue_id=summary.selected_venue.id) }}">Cơ sở &amp; Sân</a>
             </div>
         {% endif %}

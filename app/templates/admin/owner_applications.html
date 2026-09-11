@@ -25,7 +25,6 @@
         <div>
             <span class="eyebrow">KIỂM DUYỆT</span>
             <h1 class="h2 fw-bold mt-2 mb-1">Yêu cầu trở thành chủ sân</h1>
-            <p class="text-secondary mb-0">Xác minh người đăng ký và thông tin kinh doanh trước khi xét duyệt. Khi yêu cầu được chấp thuận, hệ thống sẽ tự động cấp quyền chủ sân cho tài khoản.</p>
         </div>
         <span class="admin-readonly-note"><i class="bi bi-{{ selected_filter.icon }}" aria-hidden="true"></i>{{ applications|length }} {{ selected_filter.result_label }}</span>
     </div>
@@ -48,7 +47,6 @@
                 <div class="admin-owner-list-heading">
                     <div>
                         <strong>{{ selected_filter.list_heading }}</strong>
-                        <small>{{ selected_filter.sort_note }}</small>
                     </div>
                     <span aria-label="{{ applications|length }} hồ sơ">{{ applications|length }}</span>
                 </div>
@@ -102,7 +100,6 @@
                                 <i class="bi bi-person" aria-hidden="true"></i>
                                 <div>
                                     <h3>Thông tin tài khoản</h3>
-                                    <p>Thông tin hiện có của người đăng ký trên hệ thống.</p>
                                 </div>
                             </div>
                             <dl class="admin-owner-info-grid">
@@ -120,7 +117,6 @@
                                 <i class="bi bi-briefcase" aria-hidden="true"></i>
                                 <div>
                                     <h3>Thông tin đăng ký</h3>
-                                    <p>Nội dung người dùng cung cấp khi gửi yêu cầu.</p>
                                 </div>
                             </div>
                             <dl class="admin-owner-info-grid">
@@ -142,14 +138,12 @@
                                     <i class="bi bi-shield-check" aria-hidden="true"></i>
                                     <div>
                                         <h3>Kết quả xét duyệt</h3>
-                                        <p>Kiểm tra kỹ thông tin trước khi hoàn tất. Thao tác sẽ được xác nhận lại.</p>
                                     </div>
                                 </div>
                                 <div class="admin-owner-decision-grid">
                                     <div class="admin-owner-approve-action">
                                         <span class="admin-owner-action-kicker">Thao tác chính</span>
                                         <strong>Chấp thuận hồ sơ</strong>
-                                        <p>Chấp thuận sẽ chuyển tài khoản này sang vai trò Chủ sân.</p>
                                         <form
                                             method="post"
                                             action="{{ url_for('admin.review_owner_application_route', application_id=application.id) }}"
@@ -159,7 +153,7 @@
                                         >
                                             {{ form.hidden_tag() }}
                                             <input type="hidden" name="{{ form.decision.name }}" value="APPROVED">
-                                            <input type="hidden" name="{{ form.rejection_reason.name }}" value="">
+                                            {{ form.rejection_reason(class="form-control", id="approval-note-" ~ application.id, rows="3", maxlength="500", placeholder="Ghi chú chấp thuận (không bắt buộc)") }}
                                             <button class="btn btn-primary admin-owner-action-button" type="submit"><i class="bi bi-check2-circle" aria-hidden="true"></i>Chấp thuận</button>
                                         </form>
                                     </div>
@@ -177,9 +171,7 @@
                                         </div>
                                         {{ form.hidden_tag() }}
                                         <input type="hidden" name="{{ form.decision.name }}" value="REJECTED">
-                                        <label class="form-label" for="{{ form.rejection_reason.id }}">Lý do từ chối</label>
-                                        {{ form.rejection_reason(class="form-control", rows="3", required=true, maxlength="500", placeholder="Nêu lý do từ chối hồ sơ", aria_describedby='rejection-help-' ~ application.id) }}
-                                        <div class="form-text" id="rejection-help-{{ application.id }}">Bắt buộc khi từ chối, tối đa 500 ký tự.</div>
+                                        {{ form.rejection_reason(class="form-control", rows="3", required=true, maxlength="500", placeholder="Nêu lý do từ chối hồ sơ") }}
                                         <button class="btn btn-outline-danger admin-owner-action-button" type="submit"><i class="bi bi-x-circle" aria-hidden="true"></i>Từ chối</button>
                                     </form>
                                 </div>
@@ -190,7 +182,9 @@
                                     <i class="bi bi-clock-history" aria-hidden="true"></i>
                                     <div>
                                         <h3>Lịch sử xét duyệt</h3>
-                                        <p>{% if application.status == 'CANCELLED' %}Hồ sơ đã được hủy và không có thao tác xét duyệt.{% else %}Thông tin đã được ghi nhận khi hồ sơ được xử lý.{% endif %}</p>
+                                        {% if application.status == 'CANCELLED' %}
+                                            <p>Hồ sơ đã được hủy và không có thao tác xét duyệt.</p>
+                                        {% endif %}
                                     </div>
                                 </div>
                                 {% if application.status == 'CANCELLED' %}

@@ -11,14 +11,12 @@
         <header class="owner-field-form-heading">
             <span class="eyebrow">{{ venue.name }}</span>
             <h1 class="h2 fw-bold mt-2 mb-2">{{ page_title }}</h1>
-            <p class="text-secondary mb-0">Quản lý thông tin nhận diện và thông số vận hành của sân.</p>
         </header>
 
         <div class="owner-field-form-card">
             {% if field %}
                 <div class="owner-field-form-status">
                     <span class="status-badge status-{{ field.status|lower }}">{{ field_status_labels[field.status] }}</span>
-                    <p>Chỉnh sửa thông tin không thay đổi trạng thái sân. Bật hoặc tạm ngưng sân tại trang Bảng giá.</p>
                 </div>
             {% else %}
                 <div class="alert alert-info owner-field-form-note"><i class="bi bi-info-circle" aria-hidden="true"></i><span>Sân mới được tạo ở trạng thái <strong>Chưa hoạt động</strong>. Hãy tạo khung giá đang áp dụng trước khi bật sân tại trang Bảng giá.</span></div>
@@ -31,7 +29,6 @@
                         <i class="bi bi-bounding-box-circles" aria-hidden="true"></i>
                         <div>
                             <h2 id="field-identity-heading">Thông tin sân</h2>
-                            <p>Tên và loại sân giúp Owner phân biệt sân trong cùng cơ sở.</p>
                         </div>
                     </div>
                     {{ render_field(form.name, placeholder="Ví dụ: Sân số 1") }}
@@ -46,7 +43,6 @@
                         <i class="bi bi-sliders" aria-hidden="true"></i>
                         <div>
                             <h2 id="field-operation-heading">Thông số vận hành</h2>
-                            <p>Mặt sân là thông tin bổ sung; sức chứa phải lớn hơn 0.</p>
                         </div>
                     </div>
                     <div class="row g-3">

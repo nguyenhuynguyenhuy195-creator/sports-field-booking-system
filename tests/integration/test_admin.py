@@ -1207,7 +1207,7 @@ def test_admin_dashboard_uses_database_counts_for_phase_one_kpis(app, client):
     owner_applications_page = client.get(
         "/admin/owner-applications"
     ).get_data(as_text=True)
-    assert "tự động cấp quyền chủ sân" in owner_applications_page
+    assert "tự động cấp quyền chủ sân" not in owner_applications_page
     assert "Role chỉ được đổi qua workflow này" not in owner_applications_page
     assert "Chờ duyệt" in owner_applications_page
 

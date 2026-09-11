@@ -2705,10 +2705,12 @@ a:hover {
 }
 
 .booking-summary-total {
+    align-items: center;
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
     padding: 1rem 0;
+    text-align: center;
 }
 
 .booking-summary-total span {
@@ -5222,17 +5224,21 @@ body {
 
 .user-booking-header .booking-code {
     display: inline-flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
     gap: 0.35rem;
     min-width: 0;
     align-items: center;
     color: #53657a;
     font-size: 0.8rem;
+    white-space: nowrap;
 }
 
 .user-booking-header .booking-code b {
     color: #34495f;
     font-weight: 600;
-    overflow-wrap: anywhere;
+    overflow-wrap: normal;
+    white-space: nowrap;
 }
 
 .user-booking-header h1 {

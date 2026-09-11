@@ -10,7 +10,6 @@
             <div>
                 <span class="marketplace-eyebrow"><i class="bi bi-people" aria-hidden="true"></i> KHÁM PHÁ KÈO</span>
                 <h1 class="marketplace-page-title mt-2 mb-2">Tìm đối thủ hoặc ghép vào đội</h1>
-                <p class="marketplace-page-subtitle mb-0">Lọc theo môn, khu vực và lịch rảnh để chọn kèo phù hợp nhanh hơn.</p>
             </div>
             {% if current_user.is_authenticated and current_user.role in ['USER', 'OWNER'] %}
                 <a class="btn btn-outline-primary marketplace-secondary-action" href="{{ url_for('matches.mine') }}"><i class="bi bi-person-workspace" aria-hidden="true"></i> Kèo của tôi</a>

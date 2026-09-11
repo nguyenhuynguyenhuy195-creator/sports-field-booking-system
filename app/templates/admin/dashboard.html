@@ -11,7 +11,6 @@
             <div class="admin-dashboard-heading-copy">
                 <span class="eyebrow">TỔNG QUAN HỆ THỐNG</span>
                 <h1 class="display-6 fw-bold mt-2 mb-2">Tổng quan vận hành</h1>
-                <p class="admin-dashboard-subtitle">Theo dõi việc cần xử lý, lịch đặt sân và dòng tiền quan trọng trong ngày.</p>
             </div>
             <span class="admin-dashboard-data-note"><i class="bi bi-arrow-repeat" aria-hidden="true"></i>Dữ liệu cập nhật từ hệ thống</span>
         </header>
@@ -23,7 +22,6 @@
                 </span>
                 <strong class="admin-dashboard-kpi-value">{{ summary.pending_owner_applications }}</strong>
                 <span class="admin-dashboard-kpi-label">Yêu cầu chủ sân đang chờ</span>
-                <small class="admin-dashboard-kpi-note{% if not summary.pending_owner_applications %} is-clear{% endif %}">{% if summary.pending_owner_applications %}Hồ sơ cần xét duyệt{% else %}Không có hồ sơ chờ{% endif %}</small>
             </a>
 
             <a class="admin-dashboard-kpi admin-dashboard-kpi--venue" href="{{ url_for('venues.admin_index') }}">
@@ -32,7 +30,6 @@
                 </span>
                 <strong class="admin-dashboard-kpi-value">{{ summary.pending_venues }}</strong>
                 <span class="admin-dashboard-kpi-label">Cơ sở đang chờ duyệt</span>
-                <small class="admin-dashboard-kpi-note{% if not summary.pending_venues %} is-clear{% endif %}">{% if summary.pending_venues %}Cần kiểm tra thông tin{% else %}Không có cơ sở chờ{% endif %}</small>
             </a>
 
             <a class="admin-dashboard-kpi admin-dashboard-kpi--today" href="{{ url_for('admin.booking_operations', date=today_date) }}">
@@ -41,7 +38,6 @@
                 </span>
                 <strong class="admin-dashboard-kpi-value">{{ summary.today_bookings }}</strong>
                 <span class="admin-dashboard-kpi-label">Lịch đặt sân hôm nay</span>
-                <small class="admin-dashboard-kpi-note{% if not summary.today_bookings %} is-clear{% endif %}">{% if summary.today_bookings %}Theo ngày sử dụng sân{% else %}Chưa có lịch hôm nay{% endif %}</small>
             </a>
 
         </div>
@@ -52,7 +48,6 @@
                     <div>
                         <span class="admin-dashboard-section-label">CẦN ƯU TIÊN</span>
                         <h2 id="attention-title">Việc cần xử lý</h2>
-                        <p>Ưu tiên theo mức độ ảnh hưởng và đi thẳng tới màn hình xử lý.</p>
                     </div>
                     {% if summary.issues_requiring_attention %}
                         <span class="admin-priority-total"><i class="bi bi-list-check" aria-hidden="true"></i>{{ summary.issues_requiring_attention }} mục</span>
@@ -99,7 +94,6 @@
                                 </div>
                                 <div class="admin-priority-content">
                                     <h3>Yêu cầu chủ sân đang chờ duyệt</h3>
-                                    <p>Xác minh hồ sơ trước khi cấp quyền Chủ sân cho tài khoản.</p>
                                 </div>
                                 <a class="admin-priority-action" href="{{ url_for('admin.owner_applications') }}">Duyệt hồ sơ<i class="bi bi-arrow-right-short" aria-hidden="true"></i></a>
                             </article>
@@ -113,7 +107,6 @@
                                 </div>
                                 <div class="admin-priority-content">
                                     <h3>Cơ sở đang chờ duyệt</h3>
-                                    <p>Kiểm tra thông tin chủ sân, địa chỉ và vị trí trước khi công khai.</p>
                                 </div>
                                 <a class="admin-priority-action" href="{{ url_for('venues.admin_index') }}">Kiểm duyệt cơ sở<i class="bi bi-arrow-right-short" aria-hidden="true"></i></a>
                             </article>
@@ -147,7 +140,6 @@
                     <div>
                         <span class="admin-dashboard-section-label">DÒNG TIỀN</span>
                         <h2 id="finance-title">Tổng quan tài chính</h2>
-                        <p>Các giao dịch thành công đã được hệ thống ghi nhận.</p>
                     </div>
                     <span class="admin-finance-heading-icon" aria-hidden="true"><i class="bi bi-wallet2"></i></span>
                 </div>
@@ -158,7 +150,6 @@
                         <div>
                             <span>Tiền cọc đã ghi nhận</span>
                             <strong>{{ summary.successful_deposit_amount|vnd_currency }}</strong>
-                            <small>Không gồm phần khách trả tại sân</small>
                         </div>
                     </div>
                     <div class="admin-finance-metric">
@@ -166,7 +157,6 @@
                         <div>
                             <span>Tiền đã hoàn</span>
                             <strong>{{ summary.successful_refund_amount|vnd_currency }}</strong>
-                            <small>Các yêu cầu hoàn tiền thành công</small>
                         </div>
                     </div>
                 </div>

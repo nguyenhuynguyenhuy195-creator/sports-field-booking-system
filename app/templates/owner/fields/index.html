@@ -14,7 +14,6 @@
                 {% if fields %}
                     {{ fields|length }} sân · {{ fields|selectattr('status', 'equalto', 'ACTIVE')|list|length }} đang hoạt động
                 {% else %}
-                    Quản lý các sân con thuộc cơ sở này.
                 {% endif %}
             </p>
         </div>
@@ -67,7 +66,6 @@
         <div class="empty-state text-center owner-fields-empty owner-empty-state owner-empty-state--full">
             <div class="empty-state-icon owner-empty-state-icon" aria-hidden="true"><i class="bi bi-bounding-box-circles"></i></div>
             <h2 class="h5 fw-bold">Cơ sở chưa có sân nào</h2>
-            <p class="text-secondary">Thêm sân đầu tiên để tiếp tục cấu hình khung giá.</p>
             <a class="btn btn-primary" href="{{ url_for('fields.owner_create', venue_id=venue.id) }}">Thêm sân đầu tiên</a>
         </div>
     {% endif %}

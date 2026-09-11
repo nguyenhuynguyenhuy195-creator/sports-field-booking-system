@@ -12,7 +12,6 @@
         <div>
             <span class="eyebrow">{{ field.venue.name }} · {{ field.name }}</span>
             <h1>Bảng giá theo khung giờ</h1>
-            <p>Thiết lập giá theo từng ngày. Các khung đang áp dụng trong cùng ngày không được chồng nhau.</p>
         </div>
         <a class="btn btn-primary" href="{{ url_for('pricing.owner_create', venue_id=field.venue_id, field_id=field.id) }}"><i class="bi bi-plus-lg" aria-hidden="true"></i>Thêm khung giá</a>
     </header>
@@ -43,7 +42,7 @@
     {% endif %}
 
     {% if slots %}
-        <div class="owner-operation-list-heading"><div><h2>Các khung giá</h2><p>{{ slots|length }} khung · {{ active_slots|length }} đang áp dụng</p></div></div>
+        <div class="owner-operation-list-heading"><div><h2>Các khung giá</h2></div></div>
         <div class="owner-price-list">
             {% for slot in slots %}
                 <article class="owner-price-row">

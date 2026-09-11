@@ -120,22 +120,18 @@ BOOKING_LIST_GROUPS = (
     {
         "key": "upcoming",
         "title": "Sắp diễn ra",
-        "description": "Các lịch đã hoàn tất bước xác nhận và chưa diễn ra.",
     },
     {
         "key": "processing",
         "title": "Đang xử lý",
-        "description": "Các lịch vẫn còn bước cần xử lý trước khi diễn ra.",
     },
     {
         "key": "completed",
         "title": "Đã hoàn thành",
-        "description": "Các lịch đã kết thúc để bạn tiện xem lại.",
     },
     {
         "key": "closed",
         "title": "Đã hủy hoặc hết hạn",
-        "description": "Các lịch không còn hiệu lực và không chiếm chỗ.",
     },
 )
 
