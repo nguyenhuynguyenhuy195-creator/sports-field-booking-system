@@ -17,3 +17,4 @@ _local_ai_notes/
 *.bak
 .DS_Store
 Thumbs.db
+.claude/settings.local.json
