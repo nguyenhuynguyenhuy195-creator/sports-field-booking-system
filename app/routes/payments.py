@@ -358,15 +358,20 @@ def _payment_return_redirect(payment, *, watch: bool = False):
             ContributionType.PLAYER.value,
         }
     ):
+        # Resolve from the booking the verified Payment already belongs to.
+        # matches.booking_id is UNIQUE, so this can only ever name the one
+        # match that owns this payment — it cannot reach another user's match,
+        # and it never consults the callback query string.
+        #
+        # It deliberately does NOT additionally require a MatchParticipant row
+        # keyed by (contribution_id, payer_id). A participant contribution only
+        # exists because of matchmaking on this booking, so that extra join
+        # added no authorization, but it did make the destination depend on a
+        # row that can drift away from the payment (an expired or replaced
+        # hold, a re-join, a late gateway success applied after the slot moved
+        # on). When it drifted, the payer silently fell through to /bookings.
         match_id = db.session.scalar(
-            db.select(Match.id)
-            .join(MatchParticipant, MatchParticipant.match_id == Match.id)
-            .where(
-                Match.booking_id == payment.booking_id,
-                MatchParticipant.contribution_id == payment.contribution_id,
-                MatchParticipant.user_id == payment.payer_id,
-            )
-            .order_by(Match.id)
+            db.select(Match.id).where(Match.booking_id == payment.booking_id)
         )
         if match_id is not None:
             return redirect(
