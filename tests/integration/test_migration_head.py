@@ -12,7 +12,7 @@ def test_empty_database_upgrades_to_head_and_matches_models():
     with application.app_context():
         upgrade(directory="migrations")
         with db.engine.connect() as connection:
-            assert connection.execute(text("SELECT version_num FROM alembic_version")).scalar() == "c7e2f9a4d815"
+            assert connection.execute(text("SELECT version_num FROM alembic_version")).scalar() == "d4b7e1c9a802"
             assert set(inspect(connection).get_table_names()) == set(db.metadata.tables) | {"alembic_version"}
             assert compare_metadata(MigrationContext.configure(connection), db.metadata) == []
             assert connection.exec_driver_sql("PRAGMA foreign_key_check").fetchall() == []

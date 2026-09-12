@@ -19,6 +19,11 @@ from .field import Field, FieldStatus
 from .field_type import FieldType, FieldTypeCode
 from .field_maintenance import FieldMaintenance, FieldMaintenanceStatus
 from .match import Match, MatchStatus, MatchType
+from .match_message import (
+    MatchMessage,
+    MatchMessageType,
+    MatchSystemEventType,
+)
 from .match_participant import (
     ACTIVE_PARTICIPANT_STATUSES,
     MatchParticipant,
@@ -52,6 +57,9 @@ __all__ = [
     "FieldMaintenance",
     "FieldMaintenanceStatus",
     "Match",
+    "MatchMessage",
+    "MatchMessageType",
+    "MatchSystemEventType",
     "MatchParticipant",
     "MatchParticipantStatus",
     "MatchParticipantType",
