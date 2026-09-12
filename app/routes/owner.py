@@ -53,6 +53,7 @@ FINANCE_STATUS_LABELS = {
 FINANCE_PROVIDER_LABELS = {
     "MOCK": "Mô phỏng",
     "MOMO": "MoMo Sandbox",
+    "VNPAY": "VNPAY Sandbox",
 }
 
 

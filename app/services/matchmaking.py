@@ -675,12 +675,9 @@ def withdraw_match_request(
     if match.status in {MatchStatus.FULL.value, MatchStatus.CONFIRMED.value}:
         match.status = MatchStatus.OPEN.value
     _commit_matchmaking("Không thể rút yêu cầu lúc này.")
-    from .refund import RefundError, process_pending_momo_refunds
+    from .refund import process_pending_provider_refunds
 
-    try:
-        process_pending_momo_refunds(booking_id=match.booking_id)
-    except RefundError:
-        db.session.rollback()
+    process_pending_provider_refunds(booking_id=match.booking_id)
     return participant
 
 

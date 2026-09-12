@@ -249,6 +249,8 @@ from .refund import (
     apply_owner_cancellation_refunds,
     process_overdue_funding_refunds,
     process_pending_momo_refunds,
+    process_pending_provider_refunds,
+    process_pending_vnpay_refunds,
     queue_late_vnpay_payment_refund,
     refund_joined_participant,
 )
@@ -492,6 +494,8 @@ __all__ = [
     "process_momo_payment_notification",
     "process_overdue_funding_refunds",
     "process_pending_momo_refunds",
+    "process_pending_provider_refunds",
+    "process_pending_vnpay_refunds",
     "refund_joined_participant",
     "review_owner_application",
     "submit_owner_application",

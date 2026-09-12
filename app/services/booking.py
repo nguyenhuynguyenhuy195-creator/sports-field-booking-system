@@ -443,7 +443,7 @@ def cancel_user_booking(
             "Lịch đặt sân này không còn ở trạng thái có thể tự hủy."
         )
     _commit_booking("Không thể hủy lịch đặt sân lúc này.")
-    _attempt_momo_refunds(booking.id)
+    _attempt_provider_refunds(booking.id)
     return booking
 
 
@@ -483,7 +483,7 @@ def cancel_owner_booking(
             status=ContributionStatus.WAIVED.value,
         )
     _commit_booking("Không thể hủy lịch đặt sân lúc này.")
-    _attempt_momo_refunds(booking.id)
+    _attempt_provider_refunds(booking.id)
     return booking
 
 
@@ -973,11 +973,12 @@ def _commit_booking(message: str) -> None:
         raise BookingError(message) from exc
 
 
-def _attempt_momo_refunds(booking_id: int) -> None:
-    from .refund import RefundError, process_pending_momo_refunds
+def _attempt_provider_refunds(booking_id: int) -> None:
+    """Best-effort submit any durable Refund(PENDING) to its own provider
+    (VNPAY and MoMo, independently) right after cancellation commits. A
+    failure reaching either gateway never erases the durable record — it is
+    retried later by the refunds CLI command or the next cancellation call.
+    """
+    from .refund import process_pending_provider_refunds
 
-    try:
-        process_pending_momo_refunds(booking_id=booking_id)
-    except RefundError:
-        # The durable PENDING record is retried by the refunds CLI command.
-        db.session.rollback()
+    process_pending_provider_refunds(booking_id=booking_id)

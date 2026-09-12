@@ -3,13 +3,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
+from urllib.parse import parse_qs, urlsplit
 from uuid import uuid4
 
 from flask import current_app
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.extensions import db
-from app.integrations import MomoAPIError, MomoClient
+from app.integrations import MomoAPIError, MomoClient, VnpayClient, VnpayError
 from app.models import (
     Booking,
     BookingContribution,
@@ -28,6 +29,7 @@ from app.models import (
 )
 
 from .locking import with_update_lock
+from .maintenance import VIETNAM_TIMEZONE
 
 
 MONEY_QUANTUM = Decimal("0.01")
@@ -250,10 +252,7 @@ def process_overdue_funding_refunds(*, now: datetime | None = None) -> int:
         )
     if bookings:
         commit_refunds("Không thể xử lý các lịch đặt thiếu tiền đúng hạn.")
-        try:
-            process_pending_momo_refunds(now=current_utc)
-        except RefundError:
-            db.session.rollback()
+        process_pending_provider_refunds(now=current_utc)
     return len(bookings)
 
 
@@ -348,6 +347,210 @@ def process_pending_momo_refunds(
             _finish_cancelled_booking(booking, current_utc=current_utc)
     commit_refunds("Không thể cập nhật kết quả hoàn tiền MoMo.")
     return succeeded
+
+
+def process_pending_vnpay_refunds(
+    *,
+    booking_id: int | None = None,
+    client: VnpayClient | None = None,
+    now: datetime | None = None,
+) -> int:
+    """Submit durable VNPAY Sandbox refund records to the real VNPAY refund
+    API. Mirrors process_pending_momo_refunds's shape and idempotency, but
+    VNPAY's refund protocol differs from MoMo's (see VnpayClient.refund):
+    fixed pipe-delimited checksum, no equivalent "query a specific refund"
+    endpoint — see the PROCESSING branch below.
+    """
+    if not current_app.config.get("VNPAY_ENABLED"):
+        return 0
+    statement = (
+        db.select(Refund)
+        .join(Refund.payment)
+        .where(
+            Payment.provider == PaymentProvider.VNPAY.value,
+            Refund.status.in_(
+                (RefundStatus.PENDING.value, RefundStatus.PROCESSING.value)
+            ),
+        )
+        .order_by(Refund.id)
+    )
+    if booking_id is not None:
+        statement = statement.where(Refund.booking_id == booking_id)
+    refunds = list(db.session.scalars(with_update_lock(statement, Refund)))
+    if not refunds:
+        return 0
+
+    try:
+        vnpay = client or VnpayClient.from_app_config()
+    except VnpayError as exc:
+        raise RefundError(str(exc)) from exc
+
+    current_utc = normalize_utc(now)
+    succeeded = 0
+    touched_booking_ids: set[int] = set()
+    for refund in refunds:
+        payment = refund.payment
+        if not payment.provider_trans_id:
+            refund.status = RefundStatus.FAILED.value
+            refund.result_code = "MISSING_TRANS_ID"
+            continue
+        if refund.status == RefundStatus.PROCESSING.value:
+            # VNPAY has no official "query a specific refund" endpoint —
+            # querydr reports the ORIGINAL PAYMENT transaction, which by
+            # this point already shows success and cannot be used to tell
+            # whether THIS refund specifically completed. Resubmitting
+            # blindly could double-refund. Leave it durable; an operator
+            # can reconcile it manually against the VNPAY merchant portal.
+            continue
+        try:
+            response = vnpay.refund(
+                request_id=_valid_vnpay_refund_request_id(refund.request_id),
+                txn_ref=payment.order_id,
+                amount=Decimal(refund.amount),
+                transaction_no=payment.provider_trans_id,
+                transaction_date=_original_vnpay_transaction_date(payment),
+                create_date=_vnpay_refund_create_date(current_utc),
+                ip_addr=current_app.config.get(
+                    "VNPAY_REFUND_IP_ADDR", "127.0.0.1"
+                ),
+                order_info=f"Hoan tien giao dich {payment.order_id}",
+                full_refund=_refund_is_full_original_amount(refund, payment),
+                create_by=current_app.config.get(
+                    "VNPAY_REFUND_CREATE_BY", "system"
+                ),
+                version=current_app.config.get("VNPAY_VERSION", "2.1.0"),
+            )
+        except VnpayError as exc:
+            raise RefundError(str(exc)) from exc
+
+        response_code = str(response.get("vnp_ResponseCode", ""))
+        transaction_status = str(response.get("vnp_TransactionStatus", ""))
+        provider_trans_id = str(response.get("vnp_TransactionNo", "")) or None
+        refund.result_code = response_code
+
+        if response_code == "00" and transaction_status == "00":
+            contribution = payment.contribution
+            booking = refund.booking
+            _apply_refund_success(
+                refund=refund,
+                payment=payment,
+                booking=booking,
+                contribution=contribution,
+                provider_trans_id=provider_trans_id,
+                current_utc=current_utc,
+            )
+            touched_booking_ids.add(booking.id)
+            succeeded += 1
+        elif response_code == "00" and transaction_status in {"05", "06"}:
+            refund.status = RefundStatus.PROCESSING.value
+        elif response_code == "94":
+            # VNPAY: refund request already received and is being processed
+            # (e.g. a duplicate submission while the earlier one is still in
+            # flight) — not a rejection. Leave it durable for reconciliation,
+            # same as the "05"/"06" transactionStatus case above.
+            refund.status = RefundStatus.PROCESSING.value
+        else:
+            refund.status = RefundStatus.FAILED.value
+
+    for current_booking_id in touched_booking_ids:
+        booking = db.session.get(Booking, current_booking_id)
+        if (
+            booking is not None
+            and booking.status == BookingStatus.REFUND_PENDING.value
+            and _all_booking_refunds_succeeded(booking.id)
+        ):
+            _finish_cancelled_booking(booking, current_utc=current_utc)
+    commit_refunds("Không thể cập nhật kết quả hoàn tiền VNPAY.")
+    return succeeded
+
+
+def process_pending_provider_refunds(
+    *,
+    booking_id: int | None = None,
+    now: datetime | None = None,
+) -> int:
+    """Best-effort attempt at every provider's durable pending refunds.
+
+    Generalizes the old MoMo-only "attempt after cancellation commit" step
+    so VNPAY refunds get the same treatment. Each provider is tried
+    independently: a failure reaching one gateway (network error, bad
+    config) never blocks the attempt at the other, and never erases the
+    durable Refund(PENDING) row either way — it can always be retried
+    later (by this same function or the refunds CLI).
+    """
+    succeeded = 0
+    for attempt in (process_pending_vnpay_refunds, process_pending_momo_refunds):
+        try:
+            succeeded += attempt(booking_id=booking_id, now=now)
+        except RefundError:
+            db.session.rollback()
+    return succeeded
+
+
+def _refund_is_full_original_amount(refund: Refund, payment: Payment) -> bool:
+    """True only when `refund` refunds the FULL original Payment amount and
+    no other accepted/successful refund exists for that Payment — VNPAY's
+    "full" refund (vnp_TransactionType 02). Anything else — a partial amount,
+    or a refund that only completes what an earlier refund left over — is a
+    "partial" refund (03), even if it happens to exhaust what remains.
+
+    A funding-shortfall refund (80% of the payment) never qualifies, since
+    its amount is less than the original payment amount. And a second refund
+    that finishes off a payment already partially refunded never qualifies
+    either, even if its amount equals the remaining balance, because a prior
+    accepted refund already exists for this payment.
+    """
+    if Decimal(refund.amount) != Decimal(payment.amount):
+        return False
+    other_accepted_refund_exists = db.session.scalar(
+        db.select(db.func.count(Refund.id)).where(
+            Refund.payment_id == payment.id,
+            Refund.id != refund.id,
+            Refund.status.in_(
+                (
+                    RefundStatus.PENDING.value,
+                    RefundStatus.PROCESSING.value,
+                    RefundStatus.SUCCESS.value,
+                )
+            ),
+        )
+    )
+    return int(other_accepted_refund_exists or 0) == 0
+
+
+def _valid_vnpay_refund_request_id(request_id: str) -> str:
+    """Refund.request_id is already uuid4().hex (32 alphanumeric chars),
+    which satisfies VNPAY's vnp_RequestId limit (max 32 alphanumeric) as-is.
+    Regenerate defensively only if it somehow isn't valid.
+    """
+    if request_id and len(request_id) <= 32 and request_id.isalnum():
+        return request_id
+    return uuid4().hex
+
+
+def _original_vnpay_transaction_date(payment: Payment) -> str:
+    """The original PAY request's vnp_CreateDate (GMT+7, yyyyMMddHHmmss).
+
+    Prefers parsing it back out of the checkout_url we ourselves signed at
+    PAY time (see payment.py:_vnpay_create_date) so it exactly matches what
+    VNPAY has on file for the original transaction. Falls back to deriving
+    one from paid_at/created_at only if the URL is missing or unparsable.
+    """
+    checkout_url = payment.checkout_url
+    if checkout_url:
+        query = parse_qs(urlsplit(checkout_url).query)
+        values = query.get("vnp_CreateDate")
+        if values and len(values[0]) == 14 and values[0].isdigit():
+            return values[0]
+    reference = payment.paid_at or payment.created_at
+    vn_time = reference.replace(tzinfo=timezone.utc).astimezone(VIETNAM_TIMEZONE)
+    return vn_time.strftime("%Y%m%d%H%M%S")
+
+
+def _vnpay_refund_create_date(current_utc: datetime) -> str:
+    """vnp_CreateDate for the refund REQUEST itself (now, GMT+7)."""
+    vn_time = current_utc.replace(tzinfo=timezone.utc).astimezone(VIETNAM_TIMEZONE)
+    return vn_time.strftime("%Y%m%d%H%M%S")
 
 
 def queue_late_momo_payment_refund(
@@ -560,9 +763,18 @@ def _apply_refund_success(
     current_utc: datetime,
 ) -> None:
     amount = Decimal(refund.amount)
+    # Late-success sentinel is provider-specific: MoMo's is "0", VNPAY's is
+    # "00" (see _record_late_momo_success_for_refund /
+    # _record_late_vnpay_success_for_refund in payment.py). Hardcoding "0"
+    # here would never match a VNPAY late payment, so a VNPAY refund for
+    # money that was NEVER added to booking.paid_amount/contribution
+    # would incorrectly subtract it anyway — a real accounting bug.
+    late_success_code = (
+        "00" if payment.provider == PaymentProvider.VNPAY.value else "0"
+    )
     rejected_late_payment = bool(
         payment.status == PaymentStatus.EXPIRED.value
-        and payment.result_code == "0"
+        and payment.result_code == late_success_code
         and payment.provider_trans_id
     )
     if not rejected_late_payment:
@@ -579,7 +791,9 @@ def _apply_refund_success(
         )
     refund.provider_refund_trans_id = provider_trans_id
     refund.status = RefundStatus.SUCCESS.value
-    refund.result_code = "0"
+    # result_code is provider-specific ("0" for MoMo/MOCK, "00" for VNPAY) and
+    # is always set by the caller before invoking this function — do not
+    # overwrite it here with a MoMo-only sentinel.
     refund.refunded_at = current_utc
 
 

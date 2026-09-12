@@ -108,6 +108,7 @@ PAYMENT_STATUS_LABELS = {
 PAYMENT_PROVIDER_LABELS = {
     PaymentProvider.MOCK.value: "Thanh toán thử nghiệm",
     PaymentProvider.MOMO.value: "MoMo",
+    PaymentProvider.VNPAY.value: "VNPAY",
 }
 
 REFUND_STATUS_LABELS = {
@@ -498,7 +499,7 @@ def owner_cancel(booking_code: str):
             422,
         )
     try:
-        cancel_owner_booking(
+        cancelled_booking = cancel_owner_booking(
             booking_code=booking_code,
             owner=current_user,
             reason=form.reason.data,
@@ -510,11 +511,20 @@ def owner_cancel(booking_code: str):
     except BookingError as exc:
         flash(str(exc), "warning")
     else:
-        flash(
-            "Đã hủy lịch đặt sân; các khoản đã thu (nếu có) đã được hoàn 100%.",
-            "success",
-        )
+        flash(_owner_cancel_refund_message(cancelled_booking), "success")
     return redirect(url_for("bookings.owner_detail", booking_code=booking_code))
+
+
+def _owner_cancel_refund_message(booking: Booking) -> str:
+    refunds = booking.refunds
+    if not refunds:
+        return "Đã hủy lịch đặt sân; lịch chưa phát sinh khoản thu nào cần hoàn."
+    if all(refund.status == RefundStatus.SUCCESS.value for refund in refunds):
+        return "Đã hủy lịch đặt sân; các khoản đã thu (nếu có) đã được hoàn 100%."
+    return (
+        "Đã hủy lịch đặt sân; yêu cầu hoàn 100% các khoản đã thu đang được "
+        "xử lý qua cổng thanh toán."
+    )
 
 
 def _load_owner_booking(booking_code: str):

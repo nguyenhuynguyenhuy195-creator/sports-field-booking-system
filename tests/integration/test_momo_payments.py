@@ -224,6 +224,7 @@ def test_momo_ipn_is_idempotent_and_owner_refund_completes(app):
         db.session.refresh(booking)
         db.session.refresh(refund)
         assert refund.status == RefundStatus.SUCCESS.value
+        assert refund.result_code == "0"  # MoMo's own success sentinel
         assert booking.status == BookingStatus.CANCELLED.value
         assert booking.paid_amount == 0
 

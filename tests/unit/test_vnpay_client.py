@@ -1,3 +1,4 @@
+import json
 from decimal import Decimal
 from urllib.parse import parse_qsl, urlsplit
 
@@ -7,6 +8,7 @@ from app.integrations import (
     VnpayAmountError,
     VnpayClient,
     VnpayConfigurationError,
+    VnpayError,
     VnpaySignatureError,
     to_vnpay_amount,
 )
@@ -411,3 +413,302 @@ def test_parse_callback_fields_normalizes_amount_back_to_vnd():
     assert parsed.is_success is True
     assert parsed.amount_vnd == Decimal("120000")
     assert parsed.txn_ref == "ORDER123"
+
+
+# --- Step 6: Refund (vnp_Command=refund) -----------------------------------------
+#
+# The refund request AND response each use their OWN fixed pipe-delimited
+# checksum order per VNPAY PAY 2.1.0 — NOT the sorted query-string
+# canonicalization build_payment_url/verify_callback_params use. Fixed
+# vectors below are computed independently offline with a standalone
+# hmac.new(...) call over a manually pipe-joined string — not derived by
+# calling VnpayClient — for the same reason as FIXED_DIGEST above.
+
+REFUND_REQUEST_ID = "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6"
+REFUND_TXN_REF = "VNPAYPAY1ABCDEF0123456789"
+REFUND_ORDER_INFO = f"Hoan tien giao dich {REFUND_TXN_REF}"
+
+FIXED_REFUND_REQUEST_DIGEST = (
+    "ccd115aedec73f0251b726341ee92158588bb81c50c2474365c552706a44819"
+    "d2e3b333923dc71a36023775512c1d7c288dc06a09351335b76837ac2a1d85410"
+)
+FIXED_REFUND_RESPONSE_DIGEST = (
+    "a506cacf83bc03e4a538bd4a9b5294b58beaa69ba3b83158858870d4c5a163d1"
+    "308ef5e66dddb52ffd4f162306c09ff7c1c3075f0f4b45e20cc61c6986b15934"
+)
+
+
+def _signed_refund_response(
+    *,
+    response_code: str = "00",
+    transaction_status: str = "00",
+    amount: str = "6000000",
+    txn_ref: str = REFUND_TXN_REF,
+    digest: str | None = None,
+) -> dict:
+    response = {
+        "vnp_ResponseId": "resp-req-001",
+        "vnp_Command": "refund",
+        "vnp_ResponseCode": response_code,
+        "vnp_Message": "Confirm Success",
+        "vnp_TmnCode": TMN_CODE,
+        "vnp_TxnRef": txn_ref,
+        "vnp_Amount": amount,
+        "vnp_BankCode": "NCB",
+        "vnp_PayDate": "20260912103500",
+        "vnp_TransactionNo": "998877",
+        "vnp_TransactionType": "02",
+        "vnp_TransactionStatus": transaction_status,
+        "vnp_OrderInfo": REFUND_ORDER_INFO,
+    }
+    client = make_client()
+    response["vnp_SecureHash"] = digest or client._pipe_hash(
+        response,
+        (
+            "vnp_ResponseId", "vnp_Command", "vnp_ResponseCode", "vnp_Message",
+            "vnp_TmnCode", "vnp_TxnRef", "vnp_Amount", "vnp_BankCode",
+            "vnp_PayDate", "vnp_TransactionNo", "vnp_TransactionType",
+            "vnp_TransactionStatus", "vnp_OrderInfo",
+        ),
+    )
+    return response
+
+
+def test_refund_request_checksum_matches_fixed_vector_field_order():
+    """Proves the request hash is built over EXACTLY the 13 documented
+    fields in EXACTLY the documented order — any reordering or omission
+    would produce a digest that no longer matches this independently
+    computed literal."""
+    captured = {}
+
+    def transport(url, payload, timeout):
+        captured["url"] = url
+        captured["payload"] = payload
+        captured["timeout"] = timeout
+        return _signed_refund_response()
+
+    client = make_client(transport=transport)
+    client.refund(
+        request_id=REFUND_REQUEST_ID,
+        txn_ref=REFUND_TXN_REF,
+        amount=60000,
+        transaction_no="998877",
+        transaction_date="20260912103000",
+        create_date="20260913090000",
+        ip_addr="127.0.0.1",
+        order_info=REFUND_ORDER_INFO,
+        full_refund=True,
+    )
+
+    assert captured["url"] == API_URL
+    assert captured["timeout"] == client.timeout_seconds
+    assert captured["payload"]["vnp_SecureHash"] == FIXED_REFUND_REQUEST_DIGEST
+
+
+def test_refund_amount_is_vnd_times_100():
+    captured = {}
+
+    def transport(url, payload, timeout):
+        captured["payload"] = payload
+        return _signed_refund_response()
+
+    client = make_client(transport=transport)
+    client.refund(
+        request_id=REFUND_REQUEST_ID,
+        txn_ref=REFUND_TXN_REF,
+        amount=60000,
+        transaction_no="998877",
+        transaction_date="20260912103000",
+        create_date="20260913090000",
+        ip_addr="127.0.0.1",
+        order_info=REFUND_ORDER_INFO,
+        full_refund=True,
+    )
+    assert captured["payload"]["vnp_Amount"] == "6000000"
+
+
+def test_refund_full_uses_transaction_type_02():
+    captured = {}
+
+    def transport(url, payload, timeout):
+        captured["payload"] = payload
+        return _signed_refund_response()
+
+    client = make_client(transport=transport)
+    client.refund(
+        request_id=REFUND_REQUEST_ID, txn_ref=REFUND_TXN_REF, amount=60000,
+        transaction_no="998877", transaction_date="20260912103000",
+        create_date="20260913090000", ip_addr="127.0.0.1",
+        order_info=REFUND_ORDER_INFO, full_refund=True,
+    )
+    assert captured["payload"]["vnp_TransactionType"] == "02"
+
+
+def test_refund_partial_uses_transaction_type_03():
+    captured = {}
+
+    def transport(url, payload, timeout):
+        captured["payload"] = payload
+        return _signed_refund_response()
+
+    client = make_client(transport=transport)
+    client.refund(
+        request_id=REFUND_REQUEST_ID, txn_ref=REFUND_TXN_REF, amount=60000,
+        transaction_no="998877", transaction_date="20260912103000",
+        create_date="20260913090000", ip_addr="127.0.0.1",
+        order_info=REFUND_ORDER_INFO, full_refund=False,
+    )
+    assert captured["payload"]["vnp_TransactionType"] == "03"
+
+
+def test_refund_uses_the_original_payment_txn_ref_it_was_given():
+    captured = {}
+
+    def transport(url, payload, timeout):
+        captured["payload"] = payload
+        return _signed_refund_response()
+
+    client = make_client(transport=transport)
+    client.refund(
+        request_id=REFUND_REQUEST_ID, txn_ref=REFUND_TXN_REF, amount=60000,
+        transaction_no="998877", transaction_date="20260912103000",
+        create_date="20260913090000", ip_addr="127.0.0.1",
+        order_info=REFUND_ORDER_INFO, full_refund=True,
+    )
+    # The client never invents its own reference — it is exactly the
+    # caller-supplied original Payment.order_id, not a Refund-generated id.
+    assert captured["payload"]["vnp_TxnRef"] == REFUND_TXN_REF
+
+
+def test_refund_rejects_response_with_invalid_signature():
+    def transport(url, payload, timeout):
+        response = _signed_refund_response()
+        response["vnp_SecureHash"] = "0" * 128  # syntactically valid, wrong
+        return response
+
+    client = make_client(transport=transport)
+    with pytest.raises(VnpaySignatureError):
+        client.refund(
+            request_id=REFUND_REQUEST_ID, txn_ref=REFUND_TXN_REF, amount=60000,
+            transaction_no="998877", transaction_date="20260912103000",
+            create_date="20260913090000", ip_addr="127.0.0.1",
+            order_info=REFUND_ORDER_INFO, full_refund=True,
+        )
+
+
+def test_refund_rejects_response_with_mismatched_amount():
+    def transport(url, payload, timeout):
+        # Validly signed for a DIFFERENT amount than what was requested.
+        return _signed_refund_response(amount="9999900")
+
+    client = make_client(transport=transport)
+    with pytest.raises(VnpayError):
+        client.refund(
+            request_id=REFUND_REQUEST_ID, txn_ref=REFUND_TXN_REF, amount=60000,
+            transaction_no="998877", transaction_date="20260912103000",
+            create_date="20260913090000", ip_addr="127.0.0.1",
+            order_info=REFUND_ORDER_INFO, full_refund=True,
+        )
+
+
+def test_refund_rejects_response_with_mismatched_txn_ref():
+    def transport(url, payload, timeout):
+        # Validly signed for a DIFFERENT vnp_TxnRef than what was requested.
+        return _signed_refund_response(txn_ref="SOME-OTHER-ORDER")
+
+    client = make_client(transport=transport)
+    with pytest.raises(VnpayError):
+        client.refund(
+            request_id=REFUND_REQUEST_ID, txn_ref=REFUND_TXN_REF, amount=60000,
+            transaction_no="998877", transaction_date="20260912103000",
+            create_date="20260913090000", ip_addr="127.0.0.1",
+            order_info=REFUND_ORDER_INFO, full_refund=True,
+        )
+
+
+def test_refund_network_error_raises_clean_vnpay_error(monkeypatch):
+    import app.integrations.vnpay as vnpay_module
+    from urllib.error import URLError
+
+    def broken_urlopen(*args, **kwargs):
+        # Real urlopen wraps a socket failure as URLError, not a bare OSError.
+        raise URLError(OSError("connection refused"))
+
+    monkeypatch.setattr(vnpay_module, "urlopen", broken_urlopen)
+    client = make_client()  # default transport = real _post_json
+    with pytest.raises(VnpayError):
+        client.refund(
+            request_id=REFUND_REQUEST_ID, txn_ref=REFUND_TXN_REF, amount=60000,
+            transaction_no="998877", transaction_date="20260912103000",
+            create_date="20260913090000", ip_addr="127.0.0.1",
+            order_info=REFUND_ORDER_INFO, full_refund=True,
+        )
+
+
+def test_refund_invalid_json_response_raises_clean_vnpay_error(monkeypatch):
+    import app.integrations.vnpay as vnpay_module
+
+    class FakeHttpResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc_info):
+            return False
+
+        def read(self):
+            return b"not json at all"
+
+    def fake_urlopen(*args, **kwargs):
+        return FakeHttpResponse()
+
+    monkeypatch.setattr(vnpay_module, "urlopen", fake_urlopen)
+    client = make_client()  # default transport = real _post_json
+    with pytest.raises(VnpayError):
+        client.refund(
+            request_id=REFUND_REQUEST_ID, txn_ref=REFUND_TXN_REF, amount=60000,
+            transaction_no="998877", transaction_date="20260912103000",
+            create_date="20260913090000", ip_addr="127.0.0.1",
+            order_info=REFUND_ORDER_INFO, full_refund=True,
+        )
+
+
+def test_default_transport_posts_json_with_correct_method_and_headers(monkeypatch):
+    """Regression guard for requirement 'refund request uses POST JSON':
+    the default transport must issue a real HTTP POST with a JSON body."""
+    import app.integrations.vnpay as vnpay_module
+
+    captured_request = {}
+
+    class FakeHttpResponse:
+        def __init__(self, body: bytes):
+            self._body = body
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc_info):
+            return False
+
+        def read(self):
+            return self._body
+
+    def fake_urlopen(request, timeout=None):
+        captured_request["method"] = request.get_method()
+        captured_request["headers"] = dict(request.header_items())
+        captured_request["body"] = json.loads(request.data.decode("utf-8"))
+        response = _signed_refund_response()
+        return FakeHttpResponse(json.dumps(response).encode("utf-8"))
+
+    monkeypatch.setattr(vnpay_module, "urlopen", fake_urlopen)
+    client = make_client()  # default transport = real _post_json
+    client.refund(
+        request_id=REFUND_REQUEST_ID, txn_ref=REFUND_TXN_REF, amount=60000,
+        transaction_no="998877", transaction_date="20260912103000",
+        create_date="20260913090000", ip_addr="127.0.0.1",
+        order_info=REFUND_ORDER_INFO, full_refund=True,
+    )
+
+    assert captured_request["method"] == "POST"
+    assert "application/json" in captured_request["headers"].get("Content-type", "")
+    assert captured_request["body"]["vnp_Command"] == "refund"
+    assert captured_request["body"]["vnp_SecureHash"] == FIXED_REFUND_REQUEST_DIGEST

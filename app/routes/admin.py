@@ -128,6 +128,7 @@ CONTRIBUTION_TYPE_LABELS = {
 PAYMENT_PROVIDER_LABELS = {
     PaymentProvider.MOCK.value: "Thanh toán thử nghiệm",
     PaymentProvider.MOMO.value: "Ví MoMo",
+    PaymentProvider.VNPAY.value: "VNPAY",
 }
 
 PARTICIPANT_TYPE_LABELS = {

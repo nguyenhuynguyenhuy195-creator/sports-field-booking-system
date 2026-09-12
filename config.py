@@ -76,6 +76,8 @@ class BaseConfig:
     VNPAY_TIMEOUT_SECONDS = int(os.getenv("VNPAY_TIMEOUT_SECONDS", "30"))
     VNPAY_VERSION = os.getenv("VNPAY_VERSION", "2.1.0")
     VNPAY_LOCALE = os.getenv("VNPAY_LOCALE", "vn")
+    VNPAY_REFUND_CREATE_BY = os.getenv("VNPAY_REFUND_CREATE_BY", "system")
+    VNPAY_REFUND_IP_ADDR = os.getenv("VNPAY_REFUND_IP_ADDR", "127.0.0.1")
     MEDIA_MAX_PIXELS = 20_000_000
     MEDIA_ROOT = os.getenv("MEDIA_ROOT")
     MEDIA_MAX_BYTES = int(os.getenv("MEDIA_MAX_BYTES", str(5 * 1024 * 1024)))
