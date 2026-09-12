@@ -396,7 +396,9 @@
                     <div><dt>Tổng tiền sân</dt><dd>{{ booking.total_amount|vnd_currency }}</dd></div>
                     <div><dt>Cọc cần thanh toán</dt><dd>{{ booking.deposit_amount|vnd_currency }}</dd></div>
                     <div><dt>Đã thanh toán</dt><dd>{{ booking.paid_amount|vnd_currency }}</dd></div>
-                    <div><dt>Còn lại trả tại sân sau khi cọc đủ</dt><dd>{{ (booking.total_amount - booking.deposit_amount)|vnd_currency }}</dd></div>
+                    {% if effective_status not in ['CANCELLED', 'EXPIRED', 'REFUND_PENDING'] %}
+                        <div><dt>Còn lại trả tại sân sau khi cọc đủ</dt><dd>{{ (booking.total_amount - booking.deposit_amount)|vnd_currency }}</dd></div>
+                    {% endif %}
                 </dl>
                 {% if booking.balance_due_at_venue > 0 and effective_status not in ['CANCELLED', 'EXPIRED', 'REFUND_PENDING'] %}
                     <p class="user-booking-payment-note"><i class="bi bi-info-circle-fill" aria-hidden="true"></i><span>Bạn sẽ thanh toán phần còn lại trực tiếp tại sân khi đến chơi.</span></p>

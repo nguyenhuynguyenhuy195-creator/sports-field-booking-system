@@ -53,7 +53,6 @@ OCCUPYING_BOOKING_STATUSES = frozenset(
         BookingStatus.CONFIRMED.value,
         BookingStatus.PARTIALLY_PAID.value,
         BookingStatus.PAID.value,
-        BookingStatus.REFUND_PENDING.value,
     }
 )
 

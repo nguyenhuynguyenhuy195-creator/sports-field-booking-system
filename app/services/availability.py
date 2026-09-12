@@ -91,7 +91,6 @@ def build_field_availability(
                         (
                             BookingStatus.PARTIALLY_PAID.value,
                             BookingStatus.PAID.value,
-                            BookingStatus.REFUND_PENDING.value,
                         )
                     ),
                     and_(

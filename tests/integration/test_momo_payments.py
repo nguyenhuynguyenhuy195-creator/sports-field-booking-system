@@ -214,8 +214,10 @@ def test_momo_ipn_is_idempotent_and_owner_refund_completes(app):
             reason="Sân ngập nước.",
         )
         refund = db.session.scalar(db.select(Refund))
-        assert booking.status == BookingStatus.REFUND_PENDING.value
+        # Cancellation is immediate; it never waits on the MoMo refund.
+        assert booking.status == BookingStatus.CANCELLED.value
         assert refund.status == RefundStatus.PENDING.value
+        assert booking.paid_amount == booking.deposit_amount  # untouched so far
 
         assert process_pending_momo_refunds(
             booking_id=booking.id,

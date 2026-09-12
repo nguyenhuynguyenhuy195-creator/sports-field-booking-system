@@ -387,7 +387,6 @@ def test_cancelled_maintenance_no_longer_blocks_time(app, client):
         (BookingStatus.CONFIRMED, Decimal("0.00")),
         (BookingStatus.PARTIALLY_PAID, Decimal("45000.00")),
         (BookingStatus.PAID, Decimal("90000.00")),
-        (BookingStatus.REFUND_PENDING, Decimal("90000.00")),
     ],
 )
 def test_occupying_booking_statuses_block_maintenance(
@@ -427,6 +426,13 @@ def test_occupying_booking_statuses_block_maintenance(
         BookingStatus.REJECTED,
         BookingStatus.CANCELLED,
         BookingStatus.EXPIRED,
+        # A cancelled booking is never left in REFUND_PENDING anymore — the
+        # booking becomes CANCELLED immediately and only Refund.status tracks
+        # the still-pending provider refund (see refund.py's
+        # apply_owner_cancellation_refunds and friends). REFUND_PENDING
+        # remains a valid enum value only for legacy/compatibility purposes
+        # and, like any other closed booking, must not block anything.
+        BookingStatus.REFUND_PENDING,
     ],
 )
 def test_non_occupying_booking_statuses_do_not_block_maintenance(app, status):

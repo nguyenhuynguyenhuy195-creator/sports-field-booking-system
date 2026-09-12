@@ -47,7 +47,6 @@ VIETNAM_TIMEZONE = timezone(timedelta(hours=7))
 ALWAYS_OCCUPYING_STATUSES = (
     BookingStatus.PARTIALLY_PAID.value,
     BookingStatus.PAID.value,
-    BookingStatus.REFUND_PENDING.value,
 )
 
 

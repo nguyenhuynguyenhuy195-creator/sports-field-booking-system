@@ -5,7 +5,7 @@ from uuid import uuid4
 import pytest
 
 from app.extensions import db
-from app.integrations import VnpayClient
+from app.integrations import VnpayClient, VnpayError
 from app.models import (
     Booking,
     BookingContribution,
@@ -789,3 +789,497 @@ def test_admin_booking_detail_refund_total_excludes_processing_refund(app, clien
     # The refund is still PROCESSING, not SUCCESS -> "Đã hoàn" must read 0,
     # never the payment's 120,000 VND.
     assert "<dt>Đã hoàn</dt><dd>0 đ</dd>" in page
+
+
+# --- Per-refund durability: one refund's network failure must never --------
+# --- roll back another refund's already-verified SUCCESS. ------------------
+
+
+def _per_txn_ref_outcome_transport(*, outcomes: dict, calls: list | None = None):
+    """A VnpayClient whose refund endpoint's outcome depends on which
+    payment (vnp_TxnRef) is being refunded — `outcomes` maps a txn_ref to
+    either the literal "ERROR" (the transport raises VnpayError, simulating
+    a network/API failure for just that one refund) or a
+    (response_code, transaction_status) tuple. Any txn_ref not listed
+    defaults to a plain "00"/"00" SUCCESS. Every attempted call is appended
+    to `calls` (if given) before the outcome is decided, so a test can
+    assert exactly which payments were actually submitted.
+    """
+    signer = build_vnpay_client()
+
+    def transport(url, payload, timeout):
+        if calls is not None:
+            calls.append(dict(payload))
+        outcome = outcomes.get(payload["vnp_TxnRef"], ("00", "00"))
+        if outcome == "ERROR":
+            raise VnpayError("Mất kết nối tới VNPAY.")
+        response_code, transaction_status = outcome
+        response = {
+            "vnp_ResponseId": payload["vnp_RequestId"],
+            "vnp_Command": "refund",
+            "vnp_ResponseCode": response_code,
+            "vnp_Message": "Confirm Success" if response_code == "00" else "Failed",
+            "vnp_TmnCode": payload["vnp_TmnCode"],
+            "vnp_TxnRef": payload["vnp_TxnRef"],
+            "vnp_Amount": payload["vnp_Amount"],
+            "vnp_BankCode": "NCB",
+            "vnp_PayDate": "20260912103500",
+            "vnp_TransactionNo": f"REFUND-TRANS-{payload['vnp_TxnRef']}",
+            "vnp_TransactionType": payload["vnp_TransactionType"],
+            "vnp_TransactionStatus": transaction_status,
+            "vnp_OrderInfo": payload["vnp_OrderInfo"],
+        }
+        response["vnp_SecureHash"] = signer._pipe_hash(response, _RESPONSE_HASH_FIELDS)
+        return response
+
+    return VnpayClient(
+        tmn_code=VNPAY_TMN_CODE,
+        hash_secret=VNPAY_HASH_SECRET,
+        payment_url=VNPAY_PAYMENT_URL,
+        api_url=VNPAY_API_URL,
+        transport=transport,
+    )
+
+
+def _find_opponent_booking_with_two_vnpay_payments(app, *, email_prefix: str) -> dict:
+    """A FIND_OPPONENT booking where BOTH the creator and the opponent have
+    paid via VNPAY — two independent SUCCESS Payments (and, once cancelled,
+    two independent Refunds) on the same booking, for testing multi-refund
+    batch behavior."""
+    owner = create_user(
+        app, email=f"{email_prefix}-owner@example.com", role=UserRole.OWNER
+    )
+    creator = create_user(app, email=f"{email_prefix}-creator@example.com")
+    opponent = create_user(app, email=f"{email_prefix}-opponent@example.com")
+    _, field_id = create_bookable_field(app, owner_id=owner.id)
+    vnpay = build_vnpay_client()
+
+    with app.app_context():
+        booking = create_booking(
+            user=db.session.get(User, creator.id),
+            field_id=field_id,
+            booking_date=booking_day(),
+            start_time=time(18, 0),
+            end_time=time(20, 0),
+            booking_mode=BookingMode.FIND_OPPONENT.value,
+        )
+        creator_contribution = next(
+            item for item in booking.contributions if item.user_id == creator.id
+        )
+        creator_checkout = start_vnpay_payment(
+            booking_code=booking.booking_code,
+            contribution_id=creator_contribution.id,
+            payer=db.session.get(User, creator.id),
+            return_url="https://example.test/payments/vnpay/return",
+            ip_addr="203.0.113.9",
+            client=vnpay,
+        )
+        process_vnpay_ipn(
+            vnpay_callback_payload(creator_checkout.payment, vnpay), client=vnpay
+        )
+
+        match = create_match(
+            booking_code=booking.booking_code,
+            creator=db.session.get(User, creator.id),
+            title="Kèo kiểm thử multi-refund",
+            description="Kiểm tra xử lý durable từng refund VNPAY độc lập.",
+            skill_level="INTERMEDIATE",
+            contact_phone="0901000001",
+            share_contact=True,
+        )
+        participant = request_to_join_match(
+            match_id=match.id,
+            user=db.session.get(User, opponent.id),
+            contact_phone="0901000002",
+            share_contact=True,
+        )
+        opponent_checkout = start_vnpay_payment(
+            booking_code=booking.booking_code,
+            contribution_id=participant.contribution_id,
+            payer=db.session.get(User, opponent.id),
+            return_url="https://example.test/payments/vnpay/return",
+            ip_addr="203.0.113.9",
+            client=vnpay,
+        )
+        process_vnpay_ipn(
+            vnpay_callback_payload(
+                opponent_checkout.payment, vnpay, transaction_no="998878"
+            ),
+            client=vnpay,
+        )
+
+        return {
+            "booking_id": booking.id,
+            "booking_code": booking.booking_code,
+            "creator_payment_id": creator_checkout.payment.id,
+            "creator_order_id": creator_checkout.payment.order_id,
+            "creator_contribution_id": creator_contribution.id,
+            "creator_paid": Decimal(creator_checkout.payment.amount),
+            "opponent_payment_id": opponent_checkout.payment.id,
+            "opponent_order_id": opponent_checkout.payment.order_id,
+            "opponent_contribution_id": participant.contribution_id,
+            "opponent_paid": Decimal(opponent_checkout.payment.amount),
+        }
+
+
+def test_network_error_on_one_refund_does_not_roll_back_an_already_succeeded_refund(
+    app,
+):
+    case = _find_opponent_booking_with_two_vnpay_payments(
+        app, email_prefix="multi-refund-partial-fail"
+    )
+    with app.app_context():
+        booking = db.session.get(Booking, case["booking_id"])
+        apply_owner_cancellation_refunds(booking=booking, reason="Sân ngập nước.")
+        db.session.commit()
+
+        refund_a = db.session.scalar(
+            db.select(Refund).where(Refund.payment_id == case["creator_payment_id"])
+        )
+        refund_b = db.session.scalar(
+            db.select(Refund).where(Refund.payment_id == case["opponent_payment_id"])
+        )
+        assert refund_a.status == RefundStatus.PENDING.value
+        assert refund_b.status == RefundStatus.PENDING.value
+        # Refund.id ordering follows Payment.id ordering (creator paid,
+        # then the opponent joined later) -> A (creator) is processed
+        # first, B (opponent) second.
+        assert refund_a.id < refund_b.id
+        refund_a_request_id = refund_a.request_id
+        refund_b_request_id = refund_b.request_id
+
+    # First pass: A succeeds, B hits a network error mid-batch.
+    calls: list = []
+    failing_client = _per_txn_ref_outcome_transport(
+        outcomes={case["opponent_order_id"]: "ERROR"}, calls=calls
+    )
+    with app.app_context():
+        succeeded = process_pending_vnpay_refunds(
+            booking_id=case["booking_id"], client=failing_client
+        )
+        assert succeeded == 1
+        assert len(calls) == 2  # both were attempted in this same batch
+
+        refund_a = db.session.scalar(
+            db.select(Refund).where(Refund.payment_id == case["creator_payment_id"])
+        )
+        refund_b = db.session.scalar(
+            db.select(Refund).where(Refund.payment_id == case["opponent_payment_id"])
+        )
+        booking = db.session.get(Booking, case["booking_id"])
+        creator_contribution = db.session.get(
+            BookingContribution, case["creator_contribution_id"]
+        )
+        opponent_contribution = db.session.get(
+            BookingContribution, case["opponent_contribution_id"]
+        )
+
+        # A's SUCCESS and its accounting survive B's failure untouched.
+        assert refund_a.status == RefundStatus.SUCCESS.value
+        assert refund_a.result_code == "00"
+        assert refund_a.request_id == refund_a_request_id
+        assert creator_contribution.amount_paid == Decimal("0")
+        assert creator_contribution.status == ContributionStatus.REFUNDED.value
+
+        # B is untouched and safely retryable with the same request_id.
+        assert refund_b.status == RefundStatus.PENDING.value
+        assert refund_b.request_id == refund_b_request_id
+        assert opponent_contribution.amount_paid == case["opponent_paid"]
+
+        # The booking was already cancelled at cancellation time, regardless
+        # of B still being outstanding — cancellation is never gated on
+        # refund completion.
+        assert booking.status == BookingStatus.CANCELLED.value
+
+    # Retry: must resubmit ONLY B (never A, which is already SUCCESS).
+    calls.clear()
+    retry_client = _build_refund_client(captured=calls)
+    with app.app_context():
+        succeeded = process_pending_vnpay_refunds(
+            booking_id=case["booking_id"], client=retry_client
+        )
+        assert succeeded == 1
+        assert len(calls) == 1
+        assert calls[0]["vnp_TxnRef"] == case["opponent_order_id"]
+
+        refund_a = db.session.scalar(
+            db.select(Refund).where(Refund.payment_id == case["creator_payment_id"])
+        )
+        refund_b = db.session.scalar(
+            db.select(Refund).where(Refund.payment_id == case["opponent_payment_id"])
+        )
+        booking = db.session.get(Booking, case["booking_id"])
+        creator_contribution = db.session.get(
+            BookingContribution, case["creator_contribution_id"]
+        )
+        opponent_contribution = db.session.get(
+            BookingContribution, case["opponent_contribution_id"]
+        )
+
+        assert refund_a.status == RefundStatus.SUCCESS.value  # unchanged, not resent
+        assert refund_b.status == RefundStatus.SUCCESS.value
+        assert booking.status == BookingStatus.CANCELLED.value  # unchanged throughout
+
+        # No double subtraction anywhere.
+        assert creator_contribution.amount_paid == Decimal("0")
+        assert opponent_contribution.amount_paid == Decimal("0")
+        assert booking.paid_amount == Decimal("0")
+
+
+def test_mixed_processing_and_success_outcomes_both_persist_independently(app):
+    case = _find_opponent_booking_with_two_vnpay_payments(
+        app, email_prefix="multi-refund-mixed"
+    )
+    with app.app_context():
+        booking = db.session.get(Booking, case["booking_id"])
+        apply_owner_cancellation_refunds(booking=booking, reason="Sân ngập nước.")
+        db.session.commit()
+
+        mixed_client = _per_txn_ref_outcome_transport(
+            outcomes={case["creator_order_id"]: ("00", "05")}
+        )
+        succeeded = process_pending_vnpay_refunds(
+            booking_id=case["booking_id"], client=mixed_client
+        )
+        assert succeeded == 1
+
+        refund_a = db.session.scalar(
+            db.select(Refund).where(Refund.payment_id == case["creator_payment_id"])
+        )
+        refund_b = db.session.scalar(
+            db.select(Refund).where(Refund.payment_id == case["opponent_payment_id"])
+        )
+        booking = db.session.get(Booking, case["booking_id"])
+        creator_contribution = db.session.get(
+            BookingContribution, case["creator_contribution_id"]
+        )
+        opponent_contribution = db.session.get(
+            BookingContribution, case["opponent_contribution_id"]
+        )
+
+        assert refund_a.status == RefundStatus.PROCESSING.value
+        assert creator_contribution.amount_paid == case["creator_paid"]  # untouched
+
+        assert refund_b.status == RefundStatus.SUCCESS.value
+        assert refund_b.result_code == "00"
+        assert opponent_contribution.amount_paid == Decimal("0")
+
+        # Booking was already CANCELLED immediately at cancellation time,
+        # independent of A still being PROCESSING.
+        assert booking.status == BookingStatus.CANCELLED.value
+
+
+def test_process_pending_provider_refunds_cannot_undo_an_already_committed_vnpay_success(
+    app, monkeypatch
+):
+    """The orchestration wrapper catches RefundError and rolls back — verify
+    that rollback can only discard whatever is uncommitted in ITS OWN
+    attempt, never a VNPAY success that a prior, already-committed refund
+    already persisted inside process_pending_vnpay_refunds."""
+    case = _find_opponent_booking_with_two_vnpay_payments(
+        app, email_prefix="multi-refund-wrapper"
+    )
+    with app.app_context():
+        booking = db.session.get(Booking, case["booking_id"])
+        apply_owner_cancellation_refunds(booking=booking, reason="Sân ngập nước.")
+        db.session.commit()
+
+        failing_client = _per_txn_ref_outcome_transport(
+            outcomes={case["opponent_order_id"]: "ERROR"}
+        )
+        monkeypatch.setattr(
+            VnpayClient, "from_app_config", classmethod(lambda cls: failing_client)
+        )
+
+        from app.services.refund import process_pending_provider_refunds
+
+        process_pending_provider_refunds(booking_id=case["booking_id"])
+
+        refund_a = db.session.scalar(
+            db.select(Refund).where(Refund.payment_id == case["creator_payment_id"])
+        )
+        refund_b = db.session.scalar(
+            db.select(Refund).where(Refund.payment_id == case["opponent_payment_id"])
+        )
+        creator_contribution = db.session.get(
+            BookingContribution, case["creator_contribution_id"]
+        )
+
+        assert refund_a.status == RefundStatus.SUCCESS.value
+        assert creator_contribution.amount_paid == Decimal("0")
+        assert refund_b.status == RefundStatus.PENDING.value
+
+
+# --- Booking cancellation must not be coupled to refund completion -----------
+
+
+def test_owner_cancellation_of_paid_vnpay_booking_is_immediate_while_refund_is_pending(
+    app,
+):
+    case = _pay_direct_booking_via_vnpay(app, email_prefix="lifecycle-immediate")
+    with app.app_context():
+        booking = db.session.get(Booking, case["booking_id"])
+        apply_owner_cancellation_refunds(booking=booking, reason="Sự cố kỹ thuật.")
+        db.session.commit()
+
+        booking = db.session.get(Booking, case["booking_id"])
+        contribution = db.session.get(BookingContribution, case["contribution_id"])
+        refund = db.session.scalar(
+            db.select(Refund).where(Refund.payment_id == case["payment_id"])
+        )
+
+        # 1 & 2: the booking cancels right away; the refund is a separate,
+        # still-pending financial lifecycle.
+        assert booking.status == BookingStatus.CANCELLED.value
+        assert booking.cancellation_reason == "Sự cố kỹ thuật."
+        assert refund.status == RefundStatus.PENDING.value
+
+        # 3 & 4: nothing is subtracted, and the paid contribution is not
+        # marked REFUNDED, until the refund actually reaches SUCCESS.
+        assert booking.paid_amount == Decimal("120000")
+        assert contribution.amount_paid == Decimal("120000")
+        assert contribution.status == ContributionStatus.REFUND_PENDING.value
+
+        # 10: once the refund succeeds later, balances adjust exactly once.
+        process_pending_vnpay_refunds(
+            booking_id=case["booking_id"], client=_build_refund_client()
+        )
+        booking = db.session.get(Booking, case["booking_id"])
+        contribution = db.session.get(BookingContribution, case["contribution_id"])
+        refund = db.session.scalar(
+            db.select(Refund).where(Refund.payment_id == case["payment_id"])
+        )
+        assert refund.status == RefundStatus.SUCCESS.value
+        assert booking.status == BookingStatus.CANCELLED.value  # unchanged
+        assert booking.paid_amount == Decimal("0")
+        assert contribution.amount_paid == Decimal("0")
+        assert contribution.status == ContributionStatus.REFUNDED.value
+
+
+def test_cancelled_booking_with_processing_refund_releases_field_slot(app):
+    case = _pay_direct_booking_via_vnpay(app, email_prefix="lifecycle-slot")
+    with app.app_context():
+        booking = db.session.get(Booking, case["booking_id"])
+        field_id = booking.field_id
+        apply_owner_cancellation_refunds(booking=booking, reason="Sự cố kỹ thuật.")
+        db.session.commit()
+        process_pending_vnpay_refunds(
+            booking_id=case["booking_id"],
+            client=_build_refund_client(
+                response_code="00", transaction_status="05"
+            ),
+        )
+        booking = db.session.get(Booking, case["booking_id"])
+        refund = db.session.scalar(
+            db.select(Refund).where(Refund.payment_id == case["payment_id"])
+        )
+        assert booking.status == BookingStatus.CANCELLED.value
+        assert refund.status == RefundStatus.PROCESSING.value
+
+        # 5: per the normal availability rules, another valid booking must
+        # be able to use the exact same field/date/time slot right away.
+        new_player = create_user(app, email="lifecycle-slot-newplayer@example.com")
+        new_booking = create_booking(
+            user=db.session.get(User, new_player.id),
+            field_id=field_id,
+            booking_date=booking_day(),
+            start_time=time(18, 0),
+            end_time=time(20, 0),
+            booking_mode=BookingMode.DIRECT_BOOKING.value,
+        )
+        assert new_booking.id != booking.id
+        assert new_booking.field_id == field_id
+
+
+def test_user_booking_detail_shows_cancelled_status_with_processing_refund_separately(
+    app, client
+):
+    case = _pay_direct_booking_via_vnpay(app, email_prefix="lifecycle-user-ui")
+    with app.app_context():
+        booking = db.session.get(Booking, case["booking_id"])
+        apply_owner_cancellation_refunds(booking=booking, reason="Sự cố kỹ thuật.")
+        db.session.commit()
+        process_pending_vnpay_refunds(
+            booking_id=case["booking_id"],
+            client=_build_refund_client(
+                response_code="00", transaction_status="05"
+            ),
+        )
+        email = db.session.get(User, case["player_id"]).email
+    login(client, email=email)
+
+    response = client.get(f"/bookings/{case['booking_code']}")
+    page = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    # 6: booking shows "Đã hủy" while its refund shows "Đang xử lý"
+    # separately — not conflated into one combined status.
+    assert "Đã hủy" in page
+    assert "Đang xử lý" in page
+    # 9: the user no longer owes anything at the venue once cancelled.
+    assert "Còn lại trả tại sân" not in page
+
+
+def test_owner_booking_detail_shows_cancelled_status_with_processing_refund_separately(
+    app, client
+):
+    case = _pay_direct_booking_via_vnpay(app, email_prefix="lifecycle-owner-ui")
+    with app.app_context():
+        booking = db.session.get(Booking, case["booking_id"])
+        apply_owner_cancellation_refunds(booking=booking, reason="Sự cố kỹ thuật.")
+        db.session.commit()
+        process_pending_vnpay_refunds(
+            booking_id=case["booking_id"],
+            client=_build_refund_client(
+                response_code="00", transaction_status="05"
+            ),
+        )
+        owner_email = db.session.scalar(
+            db.select(User.email).where(User.role == UserRole.OWNER.value)
+        )
+    login(client, email=owner_email)
+
+    response = client.get(f"/owner/bookings/{case['booking_code']}")
+    page = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    # 7: owner sees the same booking/refund distinction as the user.
+    assert "Đã hủy" in page
+    assert "Đang xử lý" in page
+
+
+def test_admin_booking_detail_shows_cancelled_booking_independent_of_refund_state(
+    app, client
+):
+    case = _pay_direct_booking_via_vnpay(app, email_prefix="lifecycle-admin-ui")
+    with app.app_context():
+        booking = db.session.get(Booking, case["booking_id"])
+        apply_owner_cancellation_refunds(booking=booking, reason="Sự cố kỹ thuật.")
+        db.session.commit()
+        process_pending_vnpay_refunds(
+            booking_id=case["booking_id"],
+            client=_build_refund_client(
+                response_code="00", transaction_status="05"
+            ),
+        )
+    create_user(
+        app, email="lifecycle-admin-ui-admin@example.com", role=UserRole.ADMIN
+    )
+    login(client, email="lifecycle-admin-ui-admin@example.com")
+
+    detail_page = client.get(
+        f"/admin/bookings/{case['booking_code']}"
+    ).get_data(as_text=True)
+    # 8a: the booking detail view shows CANCELLED (read-only) — its "Đã
+    # hoàn" total counts SUCCESS refunds only, so it still reads 0 here.
+    assert "Đã hủy" in detail_page
+    assert "<dt>Đã hoàn</dt><dd>0 đ</dd>" in detail_page
+
+    monitoring_page = client.get(
+        "/admin/monitoring?focus=refund_pending"
+    ).get_data(as_text=True)
+    # 8b: the monitoring workspace independently shows this same refund's
+    # own PROCESSING status, purely for reading — see the admin.py grep
+    # audit confirming no admin route can trigger/submit a refund.
+    assert case["booking_code"] in monitoring_page
+    assert "Đang xử lý" in monitoring_page

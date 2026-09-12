@@ -56,9 +56,17 @@ def apply_owner_cancellation_refunds(
     reason: str,
     now: datetime | None = None,
 ) -> list[Refund]:
-    """Refund 100% of every net collected payment for an owner cancellation."""
+    """Cancel the booking immediately and queue a 100% refund of every net
+    collected payment for an owner cancellation.
+
+    Cancellation (releasing the field slot, closing the match, waiving any
+    still-unpaid contributions) happens right away and is never gated on the
+    refund actually completing — VNPAY/MoMo refunds are asynchronous and can
+    stay PENDING/PROCESSING for a while. See _apply_refund_success for the
+    separate financial step (reducing paid_amount/amount_paid) that only
+    runs once a Refund actually reaches SUCCESS.
+    """
     current_utc = normalize_utc(now)
-    booking.status = BookingStatus.REFUND_PENDING.value
     booking.cancellation_reason = reason
     booking.cancellation_fee_amount = Decimal("0.00")
     refunds = _refund_collected_payments(
@@ -68,8 +76,7 @@ def apply_owner_cancellation_refunds(
         reason=f"Chủ sân hủy do sự cố: {reason}",
         creator_rate=Decimal("1.00"),
     )
-    if all(refund.status == RefundStatus.SUCCESS.value for refund in refunds):
-        _finish_cancelled_booking(booking, current_utc=current_utc)
+    _cancel_booking_now(booking, current_utc=current_utc)
     return refunds
 
 
@@ -79,9 +86,11 @@ def apply_creator_cancellation_policy(
     reason: str,
     now: datetime | None = None,
 ) -> list[Refund]:
-    """Forfeit creator money and refund active opponent money in full."""
+    """Cancel the booking immediately, forfeit creator money, and queue a
+    100% refund of active opponent money. See apply_owner_cancellation_refunds
+    for why cancellation cleanup is never gated on refund completion.
+    """
     current_utc = normalize_utc(now)
-    booking.status = BookingStatus.REFUND_PENDING.value
     booking.cancellation_reason = reason
     payments = list(
         db.session.scalars(
@@ -129,8 +138,7 @@ def apply_creator_cancellation_policy(
         refunds.append(refund)
 
     booking.cancellation_fee_amount = forfeited_total.quantize(MONEY_QUANTUM)
-    if all(refund.status == RefundStatus.SUCCESS.value for refund in refunds):
-        _finish_cancelled_booking(booking, current_utc=current_utc)
+    _cancel_booking_now(booking, current_utc=current_utc)
     return refunds
 
 
@@ -140,14 +148,17 @@ def apply_funding_shortfall_refunds(
     reason: str,
     now: datetime | None = None,
 ) -> list[Refund]:
-    """Refund creator 80%, other payers 100%, and retain the creator's 20%."""
+    """Cancel an underfunded booking immediately; refund creator 80%, other
+    payers 100%, and retain the creator's 20%. See
+    apply_owner_cancellation_refunds for why cancellation cleanup is never
+    gated on refund completion.
+    """
     if booking.booking_mode != BookingMode.FIND_OPPONENT.value:
         raise InvalidRefundStateError(
             "Chính sách thiếu tiền chỉ áp dụng cho lịch đặt có nhiều người đóng."
         )
     current_utc = normalize_utc(now)
     paid_before_refunds = Decimal(booking.paid_amount)
-    booking.status = BookingStatus.REFUND_PENDING.value
     booking.cancellation_reason = reason
     refunds = _refund_collected_payments(
         booking=booking,
@@ -162,8 +173,7 @@ def apply_funding_shortfall_refunds(
             Decimal("0.00"),
         )
     ).quantize(MONEY_QUANTUM)
-    if all(refund.status == RefundStatus.SUCCESS.value for refund in refunds):
-        _finish_cancelled_booking(booking, current_utc=current_utc)
+    _cancel_booking_now(booking, current_utc=current_utc)
     return refunds
 
 
@@ -288,7 +298,6 @@ def process_pending_momo_refunds(
         raise RefundError(str(exc)) from exc
     current_utc = normalize_utc(now)
     succeeded = 0
-    touched_booking_ids: set[int] = set()
     for refund in refunds:
         payment = refund.payment
         if not payment.provider_trans_id:
@@ -330,21 +339,12 @@ def process_pending_momo_refunds(
                 provider_trans_id=provider_trans_id,
                 current_utc=current_utc,
             )
-            touched_booking_ids.add(booking.id)
             succeeded += 1
         elif result_code == "7002":
             refund.status = RefundStatus.PROCESSING.value
         else:
             refund.status = RefundStatus.FAILED.value
 
-    for current_booking_id in touched_booking_ids:
-        booking = db.session.get(Booking, current_booking_id)
-        if (
-            booking is not None
-            and booking.status == BookingStatus.REFUND_PENDING.value
-            and _all_booking_refunds_succeeded(booking.id)
-        ):
-            _finish_cancelled_booking(booking, current_utc=current_utc)
     commit_refunds("Không thể cập nhật kết quả hoàn tiền MoMo.")
     return succeeded
 
@@ -356,15 +356,22 @@ def process_pending_vnpay_refunds(
     now: datetime | None = None,
 ) -> int:
     """Submit durable VNPAY Sandbox refund records to the real VNPAY refund
-    API. Mirrors process_pending_momo_refunds's shape and idempotency, but
-    VNPAY's refund protocol differs from MoMo's (see VnpayClient.refund):
-    fixed pipe-delimited checksum, no equivalent "query a specific refund"
-    endpoint — see the PROCESSING branch below.
+    API, ONE REFUND AT A TIME, each locked, submitted, and persisted (or
+    rolled back) independently in its own commit.
+
+    This matters because VNPAY refunds are external, irreversible actions:
+    if Refund A gets a verified SUCCESS and Refund B then hits a network
+    error, a single shared commit at the end of the batch would roll BOTH
+    back on B's failure — silently erasing our record of money VNPAY has
+    already returned, and risking a duplicate submission for A on retry.
+    Committing per refund makes that impossible: once A's outcome is
+    committed, nothing that happens to B (or C, D, ...) afterward can touch
+    it, and B is left safely retryable with the same request_id.
     """
     if not current_app.config.get("VNPAY_ENABLED"):
         return 0
-    statement = (
-        db.select(Refund)
+    id_statement = (
+        db.select(Refund.id)
         .join(Refund.payment)
         .where(
             Payment.provider == PaymentProvider.VNPAY.value,
@@ -375,9 +382,9 @@ def process_pending_vnpay_refunds(
         .order_by(Refund.id)
     )
     if booking_id is not None:
-        statement = statement.where(Refund.booking_id == booking_id)
-    refunds = list(db.session.scalars(with_update_lock(statement, Refund)))
-    if not refunds:
+        id_statement = id_statement.where(Refund.booking_id == booking_id)
+    refund_ids = list(db.session.scalars(id_statement))
+    if not refund_ids:
         return 0
 
     try:
@@ -385,81 +392,104 @@ def process_pending_vnpay_refunds(
     except VnpayError as exc:
         raise RefundError(str(exc)) from exc
 
-    current_utc = normalize_utc(now)
     succeeded = 0
-    touched_booking_ids: set[int] = set()
-    for refund in refunds:
-        payment = refund.payment
-        if not payment.provider_trans_id:
-            refund.status = RefundStatus.FAILED.value
-            refund.result_code = "MISSING_TRANS_ID"
-            continue
-        if refund.status == RefundStatus.PROCESSING.value:
-            # VNPAY has no official "query a specific refund" endpoint —
-            # querydr reports the ORIGINAL PAYMENT transaction, which by
-            # this point already shows success and cannot be used to tell
-            # whether THIS refund specifically completed. Resubmitting
-            # blindly could double-refund. Leave it durable; an operator
-            # can reconcile it manually against the VNPAY merchant portal.
-            continue
-        try:
-            response = vnpay.refund(
-                request_id=_valid_vnpay_refund_request_id(refund.request_id),
-                txn_ref=payment.order_id,
-                amount=Decimal(refund.amount),
-                transaction_no=payment.provider_trans_id,
-                transaction_date=_original_vnpay_transaction_date(payment),
-                create_date=_vnpay_refund_create_date(current_utc),
-                ip_addr=current_app.config.get(
-                    "VNPAY_REFUND_IP_ADDR", "127.0.0.1"
-                ),
-                order_info=f"Hoan tien giao dich {payment.order_id}",
-                full_refund=_refund_is_full_original_amount(refund, payment),
-                create_by=current_app.config.get(
-                    "VNPAY_REFUND_CREATE_BY", "system"
-                ),
-                version=current_app.config.get("VNPAY_VERSION", "2.1.0"),
-            )
-        except VnpayError as exc:
-            raise RefundError(str(exc)) from exc
-
-        response_code = str(response.get("vnp_ResponseCode", ""))
-        transaction_status = str(response.get("vnp_TransactionStatus", ""))
-        provider_trans_id = str(response.get("vnp_TransactionNo", "")) or None
-        refund.result_code = response_code
-
-        if response_code == "00" and transaction_status == "00":
-            contribution = payment.contribution
-            booking = refund.booking
-            _apply_refund_success(
-                refund=refund,
-                payment=payment,
-                booking=booking,
-                contribution=contribution,
-                provider_trans_id=provider_trans_id,
-                current_utc=current_utc,
-            )
-            touched_booking_ids.add(booking.id)
+    for refund_id in refund_ids:
+        if _process_one_pending_vnpay_refund(refund_id, vnpay=vnpay, now=now):
             succeeded += 1
-        elif response_code == "00" and transaction_status in {"05", "06"}:
-            refund.status = RefundStatus.PROCESSING.value
-        elif response_code == "94":
-            # VNPAY: refund request already received and is being processed
-            # (e.g. a duplicate submission while the earlier one is still in
-            # flight) — not a rejection. Leave it durable for reconciliation,
-            # same as the "05"/"06" transactionStatus case above.
-            refund.status = RefundStatus.PROCESSING.value
-        else:
-            refund.status = RefundStatus.FAILED.value
+    return succeeded
 
-    for current_booking_id in touched_booking_ids:
-        booking = db.session.get(Booking, current_booking_id)
-        if (
-            booking is not None
-            and booking.status == BookingStatus.REFUND_PENDING.value
-            and _all_booking_refunds_succeeded(booking.id)
-        ):
-            _finish_cancelled_booking(booking, current_utc=current_utc)
+
+def _process_one_pending_vnpay_refund(
+    refund_id: int,
+    *,
+    vnpay: VnpayClient,
+    now: datetime | None,
+) -> bool:
+    """Lock, submit, and persist the outcome of exactly one VNPAY Refund,
+    committing (or rolling back) before returning. Returns True only if this
+    refund reached SUCCESS during this call.
+    """
+    refund = db.session.scalar(
+        with_update_lock(db.select(Refund).where(Refund.id == refund_id), Refund)
+    )
+    if refund is None or refund.status not in {
+        RefundStatus.PENDING.value,
+        RefundStatus.PROCESSING.value,
+    }:
+        # Already handled (by this same batch's earlier iteration reusing a
+        # stale id, or a concurrent call) since the id list was read.
+        db.session.rollback()
+        return False
+
+    if refund.status == RefundStatus.PROCESSING.value:
+        # VNPAY has no official "query a specific refund" endpoint —
+        # querydr reports the ORIGINAL PAYMENT transaction, which by
+        # this point already shows success and cannot be used to tell
+        # whether THIS refund specifically completed. Resubmitting
+        # blindly could double-refund. Leave it durable; an operator
+        # can reconcile it manually against the VNPAY merchant portal.
+        db.session.rollback()
+        return False
+
+    payment = refund.payment
+    current_utc = normalize_utc(now)
+    if not payment.provider_trans_id:
+        refund.status = RefundStatus.FAILED.value
+        refund.result_code = "MISSING_TRANS_ID"
+        commit_refunds("Không thể cập nhật kết quả hoàn tiền VNPAY.")
+        return False
+
+    try:
+        response = vnpay.refund(
+            request_id=_valid_vnpay_refund_request_id(refund.request_id),
+            txn_ref=payment.order_id,
+            amount=Decimal(refund.amount),
+            transaction_no=payment.provider_trans_id,
+            transaction_date=_original_vnpay_transaction_date(payment),
+            create_date=_vnpay_refund_create_date(current_utc),
+            ip_addr=current_app.config.get("VNPAY_REFUND_IP_ADDR", "127.0.0.1"),
+            order_info=f"Hoan tien giao dich {payment.order_id}",
+            full_refund=_refund_is_full_original_amount(refund, payment),
+            create_by=current_app.config.get("VNPAY_REFUND_CREATE_BY", "system"),
+            version=current_app.config.get("VNPAY_VERSION", "2.1.0"),
+        )
+    except VnpayError:
+        # Network/API failure for THIS refund only. Nothing has been
+        # persisted for it yet, so a plain rollback leaves it exactly as it
+        # was — still PENDING, same request_id — safely retryable later,
+        # without touching any other refund's already-committed outcome.
+        db.session.rollback()
+        return False
+
+    response_code = str(response.get("vnp_ResponseCode", ""))
+    transaction_status = str(response.get("vnp_TransactionStatus", ""))
+    provider_trans_id = str(response.get("vnp_TransactionNo", "")) or None
+    refund.result_code = response_code
+
+    succeeded = False
+    if response_code == "00" and transaction_status == "00":
+        contribution = payment.contribution
+        booking = refund.booking
+        _apply_refund_success(
+            refund=refund,
+            payment=payment,
+            booking=booking,
+            contribution=contribution,
+            provider_trans_id=provider_trans_id,
+            current_utc=current_utc,
+        )
+        succeeded = True
+    elif response_code == "00" and transaction_status in {"05", "06"}:
+        refund.status = RefundStatus.PROCESSING.value
+    elif response_code == "94":
+        # VNPAY: refund request already received and is being processed
+        # (e.g. a duplicate submission while the earlier one is still in
+        # flight) — not a rejection. Leave it durable for reconciliation,
+        # same as the "05"/"06" transactionStatus case above.
+        refund.status = RefundStatus.PROCESSING.value
+    else:
+        refund.status = RefundStatus.FAILED.value
+
     commit_refunds("Không thể cập nhật kết quả hoàn tiền VNPAY.")
     return succeeded
 
@@ -633,16 +663,6 @@ def _parse_refund_query(order_id: str, response: dict) -> tuple[str, str | None]
                 str(item.get("transId", "")) or None,
             )
     return "7002", None
-
-
-def _all_booking_refunds_succeeded(booking_id: int) -> bool:
-    incomplete = db.session.scalar(
-        db.select(db.func.count(Refund.id)).where(
-            Refund.booking_id == booking_id,
-            Refund.status != RefundStatus.SUCCESS.value,
-        )
-    )
-    return int(incomplete or 0) == 0
 
 
 def _refund_collected_payments(
@@ -825,11 +845,24 @@ def _lock_successful_payment(contribution_id: int) -> Payment | None:
     )
 
 
-def _finish_cancelled_booking(
+def _cancel_booking_now(
     booking: Booking,
     *,
     current_utc: datetime,
 ) -> None:
+    """Immediate cancellation cleanup — always runs the moment a valid
+    cancellation is accepted, independent of whether any queued Refund has
+    actually completed with the provider yet:
+    - booking becomes CANCELLED (releasing its field time slot immediately —
+      CANCELLED is not an occupying status)
+    - any contribution nobody ever paid is waived, not left dangling
+    - an attached match and its unresolved participants are closed
+
+    This is deliberately separate from the FINANCIAL side of a refund
+    (reducing booking.paid_amount / contribution.amount_paid, marking a
+    contribution REFUNDED) — that only ever happens in _apply_refund_success,
+    once a Refund actually reaches SUCCESS.
+    """
     pending_contributions = db.session.scalars(
         db.select(BookingContribution).where(
             BookingContribution.booking_id == booking.id,
