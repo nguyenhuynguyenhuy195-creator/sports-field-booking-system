@@ -5,10 +5,13 @@
     // presses Back from VNPAY. Only a button THIS script disabled for an
     // in-flight submit gets re-enabled — a button disabled for another
     // reason (e.g. the countdown expiring below) must stay disabled.
+    // Restore innerHTML (not textContent) so a button rendered with an icon
+    // (e.g. the VNPAY-QR button's <i class="bi bi-qr-code">) gets its icon
+    // back too, not just its plain text.
     document.querySelectorAll("[data-payment-submit]").forEach((button) => {
-        const originalLabel = button.textContent;
+        const originalContent = button.innerHTML;
         button.closest("form")?.addEventListener("submit", () => {
-            button.dataset.originalLabel = originalLabel;
+            button.dataset.originalContent = originalContent;
             button.dataset.paymentSubmitting = "true";
             button.disabled = true;
             button.textContent = "Đang xử lý...";
@@ -21,10 +24,11 @@
             .querySelectorAll('[data-payment-submit][data-payment-submitting="true"]')
             .forEach((button) => {
                 button.disabled = false;
-                if (button.dataset.originalLabel) {
-                    button.textContent = button.dataset.originalLabel;
+                if (button.dataset.originalContent !== undefined) {
+                    button.innerHTML = button.dataset.originalContent;
                 }
                 delete button.dataset.paymentSubmitting;
+                delete button.dataset.originalContent;
             });
     });
 

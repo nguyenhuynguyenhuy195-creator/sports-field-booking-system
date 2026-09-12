@@ -379,7 +379,15 @@ def detail(match_id: int):
         opponent_obligation_covered=opponent_obligation_covered,
         momo_enabled=current_app.config.get("MOMO_ENABLED", False),
         vnpay_enabled=current_app.config.get("VNPAY_ENABLED", False),
-        vnpay_payment_watch_id=resolve_watchable_vnpay_payment_id(user=current_user),
+        vnpay_payment_watch_id=(
+            resolve_watchable_vnpay_payment_id(
+                user=current_user,
+                booking_id=match.booking_id,
+                match_id=match.id,
+            )
+            if current_user.is_authenticated
+            else None
+        ),
     )
 
 

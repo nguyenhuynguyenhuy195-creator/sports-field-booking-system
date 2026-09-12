@@ -297,12 +297,26 @@ def vnpay_payment_status(payment_id: int):
     return jsonify(status=payment.status)
 
 
-def resolve_watchable_vnpay_payment_id(*, user) -> int | None:
+def resolve_watchable_vnpay_payment_id(
+    *,
+    user,
+    booking_id: int,
+    match_id: int | None = None,
+) -> int | None:
     """Read ?payment_watch=<id> from the current request and return it only
-    if it names a VNPAY Payment the given user actually paid and that is
-    still PENDING. Used by bookings/matches detail routes to decide whether
-    to render the client-side status-watch marker — server-side authorized,
+    if it names a VNPAY Payment the given user actually paid, that is still
+    PENDING, AND that belongs to the exact booking/match currently being
+    viewed. Used by bookings/matches detail routes to decide whether to
+    render the client-side status-watch marker — server-side authorized,
     never trusts the query string on its own.
+
+    booking_id is required: without it, a PENDING VNPAY payment for one
+    booking could activate the watcher on an unrelated booking's page (same
+    payer, same provider, same status — just the wrong resource).
+
+    match_id additionally requires the payment's own contribution to really
+    belong to that match (its creator contribution, or one of its
+    MatchParticipant contributions) rather than merely to the same booking.
     """
     raw_id = request.args.get("payment_watch", "")
     if not raw_id.isdigit():
@@ -313,8 +327,23 @@ def resolve_watchable_vnpay_payment_id(*, user) -> int | None:
         or payment.provider != PaymentProvider.VNPAY.value
         or payment.payer_id != user.id
         or payment.status != PaymentStatus.PENDING.value
+        or payment.booking_id != booking_id
     ):
         return None
+    if match_id is not None:
+        contribution = payment.contribution
+        is_creator_contribution = (
+            contribution.contribution_type == ContributionType.CREATOR.value
+            and contribution.user_id == user.id
+        )
+        if not is_creator_contribution:
+            participant_match_id = db.session.scalar(
+                db.select(MatchParticipant.match_id).where(
+                    MatchParticipant.contribution_id == payment.contribution_id
+                )
+            )
+            if participant_match_id != match_id:
+                return None
     return payment.id
 
 

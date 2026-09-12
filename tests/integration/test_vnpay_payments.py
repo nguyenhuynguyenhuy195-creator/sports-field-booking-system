@@ -1788,11 +1788,14 @@ def test_watch_marker_stops_resolving_once_payment_is_terminal(app):
             client=vnpay,
         )
         payment_id = checkout.payment.id
+        booking_id = case["booking_id"]
         payload = vnpay_callback_payload(checkout.payment, vnpay)
 
         with app.test_request_context(f"/bookings/x?payment_watch={payment_id}"):
             assert (
-                resolve_watchable_vnpay_payment_id(user=SimpleNamespace(id=player_id))
+                resolve_watchable_vnpay_payment_id(
+                    user=SimpleNamespace(id=player_id), booking_id=booking_id
+                )
                 == payment_id
             )
 
@@ -1800,9 +1803,188 @@ def test_watch_marker_stops_resolving_once_payment_is_terminal(app):
 
         with app.test_request_context(f"/bookings/x?payment_watch={payment_id}"):
             assert (
-                resolve_watchable_vnpay_payment_id(user=SimpleNamespace(id=player_id))
+                resolve_watchable_vnpay_payment_id(
+                    user=SimpleNamespace(id=player_id), booking_id=booking_id
+                )
                 is None
             )
+
+
+# --- Step 5 cleanup: payment_watch must be bound to the viewed resource -------
+
+
+def test_payment_watch_cannot_activate_across_different_bookings(app, client):
+    case_a = create_direct_booking(app, email_prefix="watch-cross-booking")
+    with app.app_context():
+        player = db.session.get(User, case_a["player_id"])
+        email = player.email
+        player_id = player.id
+
+    owner_b = create_user(
+        app, email="watch-cross-booking-ownerB@example.com", role=UserRole.OWNER
+    )
+    _, field_id_b = create_bookable_field(app, owner_id=owner_b.id)
+    with app.app_context():
+        booking_b = create_booking(
+            user=db.session.get(User, player_id),
+            field_id=field_id_b,
+            booking_date=booking_day(),
+            start_time=time(18, 0),
+            end_time=time(20, 0),
+            booking_mode=BookingMode.DIRECT_BOOKING.value,
+        )
+        booking_b_code = booking_b.booking_code
+
+    vnpay = build_vnpay_client()
+    with app.app_context():
+        checkout_a = start_vnpay_payment(
+            booking_code=case_a["booking_code"],
+            contribution_id=case_a["contribution_id"],
+            payer=db.session.get(User, player_id),
+            return_url="https://example.test/payments/vnpay/return",
+            ip_addr="203.0.113.9",
+            client=vnpay,
+        )
+        payment_a_id = checkout_a.payment.id
+
+    login(client, email=email)
+
+    # Booking A's payment must NOT activate the watcher on Booking B's page.
+    response = client.get(
+        f"/bookings/{booking_b_code}?payment_watch={payment_a_id}"
+    )
+    page = response.get_data(as_text=True)
+    assert response.status_code == 200
+    assert "data-vnpay-payment-watch" not in page
+
+    # The same payment must still activate on its OWN booking's page.
+    response = client.get(
+        f"/bookings/{case_a['booking_code']}?payment_watch={payment_a_id}"
+    )
+    page = response.get_data(as_text=True)
+    assert "data-vnpay-payment-watch" in page
+
+
+def _setup_opponent_payment_and_two_matches(app, *, email_prefix: str) -> dict:
+    owner = create_user(
+        app, email=f"{email_prefix}-owner@example.com", role=UserRole.OWNER
+    )
+    creator_a = create_user(app, email=f"{email_prefix}-creator-a@example.com")
+    opponent = create_user(app, email=f"{email_prefix}-opponent@example.com")
+    creator_b = create_user(app, email=f"{email_prefix}-creator-b@example.com")
+    _, field_id = create_bookable_field(app, owner_id=owner.id)
+    # Separate field for booking B — same date/time as booking A would
+    # otherwise conflict as a double-booking on the same field.
+    _, field_id_b = create_bookable_field(app, owner_id=owner.id)
+    vnpay = build_vnpay_client()
+
+    with app.app_context():
+        booking_a = create_booking(
+            user=db.session.get(User, creator_a.id),
+            field_id=field_id,
+            booking_date=booking_day(),
+            start_time=time(18, 0),
+            end_time=time(20, 0),
+            booking_mode=BookingMode.FIND_OPPONENT.value,
+        )
+        creator_a_contribution = next(
+            item for item in booking_a.contributions if item.user_id == creator_a.id
+        )
+        pay_contribution_with_mock(
+            booking_code=booking_a.booking_code,
+            contribution_id=creator_a_contribution.id,
+            payer=db.session.get(User, creator_a.id),
+        )
+        match_a = create_match(
+            booking_code=booking_a.booking_code,
+            creator=db.session.get(User, creator_a.id),
+            title="Kèo A",
+            description="Kèo kiểm thử payment_watch A.",
+            skill_level="INTERMEDIATE",
+            contact_phone="0901000001",
+            share_contact=True,
+        )
+        participant = request_to_join_match(
+            match_id=match_a.id,
+            user=db.session.get(User, opponent.id),
+            contact_phone="0901000002",
+            share_contact=True,
+        )
+        opponent_checkout = start_vnpay_payment(
+            booking_code=booking_a.booking_code,
+            contribution_id=participant.contribution_id,
+            payer=db.session.get(User, opponent.id),
+            return_url="https://example.test/payments/vnpay/return",
+            ip_addr="203.0.113.9",
+            client=vnpay,
+        )
+        payment_id = opponent_checkout.payment.id
+        match_a_id = match_a.id
+
+        # A second, unrelated FIND_OPPONENT booking/match (different field,
+        # so it never conflicts with booking A's own slot).
+        booking_b = create_booking(
+            user=db.session.get(User, creator_b.id),
+            field_id=field_id_b,
+            booking_date=booking_day(),
+            start_time=time(18, 0),
+            end_time=time(20, 0),
+            booking_mode=BookingMode.FIND_OPPONENT.value,
+        )
+        creator_b_contribution = next(
+            item for item in booking_b.contributions if item.user_id == creator_b.id
+        )
+        pay_contribution_with_mock(
+            booking_code=booking_b.booking_code,
+            contribution_id=creator_b_contribution.id,
+            payer=db.session.get(User, creator_b.id),
+        )
+        match_b = create_match(
+            booking_code=booking_b.booking_code,
+            creator=db.session.get(User, creator_b.id),
+            title="Kèo B",
+            description="Kèo không liên quan.",
+            skill_level="INTERMEDIATE",
+            contact_phone="0901000003",
+            share_contact=True,
+        )
+        match_b_id = match_b.id
+
+    return {
+        "opponent_email": opponent.email,
+        "payment_id": payment_id,
+        "match_a_id": match_a_id,
+        "match_b_id": match_b_id,
+    }
+
+
+def test_payment_watch_cannot_activate_on_unrelated_match(app, client):
+    scenario = _setup_opponent_payment_and_two_matches(
+        app, email_prefix="watch-match-unrelated"
+    )
+    login(client, email=scenario["opponent_email"])
+
+    response = client.get(
+        f"/matches/{scenario['match_b_id']}?payment_watch={scenario['payment_id']}"
+    )
+    page = response.get_data(as_text=True)
+    assert response.status_code == 200
+    assert "data-vnpay-payment-watch" not in page
+
+
+def test_payment_watch_activates_on_correct_match(app, client):
+    scenario = _setup_opponent_payment_and_two_matches(
+        app, email_prefix="watch-match-correct"
+    )
+    login(client, email=scenario["opponent_email"])
+
+    response = client.get(
+        f"/matches/{scenario['match_a_id']}?payment_watch={scenario['payment_id']}"
+    )
+    page = response.get_data(as_text=True)
+    assert response.status_code == 200
+    assert "data-vnpay-payment-watch" in page
+    assert f"/payments/vnpay/{scenario['payment_id']}/status" in page
 
 
 # --- Step 5 Fix 3: payment buttons must reset after BFCache restore -----------
@@ -1825,12 +2007,21 @@ def _booking_detail_js_source() -> str:
     return js_path.read_text(encoding="utf-8")
 
 
-def test_payment_button_js_listens_for_pageshow_and_restores_original_label():
+def test_payment_button_js_listens_for_pageshow_and_restores_original_content():
     source = _booking_detail_js_source()
     assert "pageshow" in source
     assert "event.persisted" in source
-    assert "originalLabel" in source
+    assert "originalContent" in source
     assert "button.disabled = false" in source
+
+
+def test_payment_button_js_restores_inner_html_to_preserve_icons():
+    """Regression guard: an earlier version restored button.textContent,
+    which silently dropped the VNPAY-QR button's <i class="bi bi-qr-code">
+    icon on BFCache restore. Must capture/restore innerHTML instead."""
+    source = _booking_detail_js_source()
+    assert "const originalContent = button.innerHTML;" in source
+    assert "button.innerHTML = button.dataset.originalContent;" in source
 
 
 def test_payment_button_js_only_resets_buttons_it_disabled_for_submit():
@@ -1838,6 +2029,20 @@ def test_payment_button_js_only_resets_buttons_it_disabled_for_submit():
     # Marker set only inside the submit handler, so the countdown-expiry
     # disable path (a different code path, no marker) is never re-enabled.
     assert "data-payment-submitting" in source
+
+
+def test_payment_button_js_countdown_disable_path_sets_no_submitting_marker():
+    """The countdown-expiry disable path must stay a plain, permanent
+    disable with no data-payment-submitting marker — otherwise a BFCache
+    restore would incorrectly re-enable a button the countdown legitimately
+    disabled."""
+    source = _booking_detail_js_source()
+    countdown_disable_snippet = (
+        'querySelectorAll("[data-payment-submit]").forEach((button) => {\n'
+        "                    button.disabled = true;\n"
+        "                });"
+    )
+    assert countdown_disable_snippet in source
 
 
 def test_payment_button_js_keeps_double_submit_protection():

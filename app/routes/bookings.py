@@ -407,7 +407,9 @@ def detail(booking_code: str):
         owner_view=False,
         momo_enabled=current_app.config.get("MOMO_ENABLED", False),
         vnpay_enabled=current_app.config.get("VNPAY_ENABLED", False),
-        vnpay_payment_watch_id=resolve_watchable_vnpay_payment_id(user=current_user),
+        vnpay_payment_watch_id=resolve_watchable_vnpay_payment_id(
+            user=current_user, booking_id=booking.id
+        ),
     )
 
 
