@@ -1572,3 +1572,110 @@ def test_legacy_refund_pending_wording_no_longer_implies_slot_is_held(app, clien
         in page
     )
     assert "Lịch sân vẫn được giữ" not in page
+
+
+# --- render_payment_summary() heading must reflect refund_state too — it ----
+# --- must never claim "Đã hoàn tiền" unless every Refund is SUCCESS. -------
+
+
+def test_owner_payment_summary_cancelled_with_pending_refund_shows_pending_wording(
+    app, client
+):
+    case = _pay_direct_booking_via_vnpay(app, email_prefix="summary-owner-pending")
+    with app.app_context():
+        booking = db.session.get(Booking, case["booking_id"])
+        apply_owner_cancellation_refunds(booking=booking, reason="Sự cố kỹ thuật.")
+        db.session.commit()
+        owner_email = db.session.scalar(
+            db.select(User.email).where(User.role == UserRole.OWNER.value)
+        )
+    login(client, email=owner_email)
+
+    page = client.get(
+        f"/owner/bookings/{case['booking_code']}"
+    ).get_data(as_text=True)
+    assert "Hoàn tiền đang chờ xử lý" in page
+    assert "Đã hoàn tiền" not in page
+
+
+def test_owner_payment_summary_cancelled_with_processing_refund_does_not_say_completed(
+    app, client
+):
+    case = _pay_direct_booking_via_vnpay(
+        app, email_prefix="summary-owner-processing"
+    )
+    with app.app_context():
+        booking = db.session.get(Booking, case["booking_id"])
+        apply_owner_cancellation_refunds(booking=booking, reason="Sự cố kỹ thuật.")
+        db.session.commit()
+        process_pending_vnpay_refunds(
+            booking_id=case["booking_id"],
+            client=_build_refund_client(
+                response_code="00", transaction_status="05"
+            ),
+        )
+        owner_email = db.session.scalar(
+            db.select(User.email).where(User.role == UserRole.OWNER.value)
+        )
+    login(client, email=owner_email)
+
+    page = client.get(
+        f"/owner/bookings/{case['booking_code']}"
+    ).get_data(as_text=True)
+    # The summary heading must NOT contain "Đã hoàn tiền" as the top state
+    # anywhere on the page — no SUCCESS refund exists yet.
+    assert "Đã hoàn tiền" not in page
+    assert "Hoàn tiền đang xử lý" in page  # summary heading (this fix)
+    # No contradiction: the refund-history badge and the final-status banner
+    # (fixed previously) must agree with the summary heading.
+    assert "Đang xử lý" in page  # REFUND_STATUS_LABELS[PROCESSING] history badge
+    assert "Khoản hoàn tiền đang được xử lý." in page  # final-status banner
+
+
+def test_owner_payment_summary_cancelled_with_success_refund_says_completed(
+    app, client
+):
+    case = _pay_direct_booking_via_vnpay(app, email_prefix="summary-owner-success")
+    with app.app_context():
+        booking = db.session.get(Booking, case["booking_id"])
+        apply_owner_cancellation_refunds(booking=booking, reason="Sự cố kỹ thuật.")
+        db.session.commit()
+        process_pending_vnpay_refunds(
+            booking_id=case["booking_id"], client=_build_refund_client()
+        )
+        owner_email = db.session.scalar(
+            db.select(User.email).where(User.role == UserRole.OWNER.value)
+        )
+    login(client, email=owner_email)
+
+    page = client.get(
+        f"/owner/bookings/{case['booking_code']}"
+    ).get_data(as_text=True)
+    assert "Đã hoàn tiền" in page
+    assert "Khoản tiền đã được hoàn." in page  # final-status banner agrees
+
+
+def test_owner_payment_summary_cancelled_with_failed_refund_shows_failure_wording(
+    app, client
+):
+    case = _pay_direct_booking_via_vnpay(app, email_prefix="summary-owner-failed")
+    with app.app_context():
+        booking = db.session.get(Booking, case["booking_id"])
+        apply_owner_cancellation_refunds(booking=booking, reason="Sự cố kỹ thuật.")
+        db.session.commit()
+        process_pending_vnpay_refunds(
+            booking_id=case["booking_id"],
+            client=_build_refund_client(
+                response_code="91", transaction_status="02"
+            ),
+        )
+        owner_email = db.session.scalar(
+            db.select(User.email).where(User.role == UserRole.OWNER.value)
+        )
+    login(client, email=owner_email)
+
+    page = client.get(
+        f"/owner/bookings/{case['booking_code']}"
+    ).get_data(as_text=True)
+    assert "Hoàn tiền chưa thành công" in page
+    assert "Đã hoàn tiền" not in page

@@ -33,6 +33,21 @@
    a refund is done unless every one of them is RefundStatus.SUCCESS. #}
 
 {% macro render_payment_summary(owner_compact=false) %}
+    {% set cancelled_refund_heading = namespace(text='') %}
+    {% if effective_status == 'CANCELLED' %}
+        {% set already_refunded_text = 'Đã hoàn tiền' if owner_compact else 'Đã hoàn cho người thanh toán' %}
+        {% if not booking.refunds %}
+            {% set cancelled_refund_heading.text = already_refunded_text %}
+        {% elif refund_state.has_pending %}
+            {% set cancelled_refund_heading.text = 'Hoàn tiền đang chờ xử lý' %}
+        {% elif refund_state.has_processing %}
+            {% set cancelled_refund_heading.text = 'Hoàn tiền đang xử lý' %}
+        {% elif refund_state.all_success %}
+            {% set cancelled_refund_heading.text = already_refunded_text %}
+        {% else %}
+            {% set cancelled_refund_heading.text = 'Hoàn tiền chưa thành công' %}
+        {% endif %}
+    {% endif %}
     {% if owner_compact %}
         <div class="booking-total-panel owner-booking-payment-card">
             <div class="owner-booking-card-heading">
@@ -40,7 +55,7 @@
                 <i class="bi bi-wallet2" aria-hidden="true"></i>
             </div>
             {% if effective_status == 'CANCELLED' %}
-                <span>Đã hoàn tiền</span>
+                <span>{{ cancelled_refund_heading.text }}</span>
                 <strong>{{ successful_refund_total|vnd_currency }}</strong>
                 <div class="owner-booking-payment-lines">
                     <small><span>Tiền sân ban đầu</span><b>{{ booking.total_amount|vnd_currency }}</b></small>
@@ -72,7 +87,7 @@
         <div class="booking-total-panel{% if effective_status == 'CANCELLED' %} booking-refund-summary{% endif %}">
             {% if effective_status == 'CANCELLED' %}
                 <div class="booking-total-heading">
-                    <span>Đã hoàn cho người thanh toán</span>
+                    <span>{{ cancelled_refund_heading.text }}</span>
                     <strong>{{ successful_refund_total|vnd_currency }}</strong>
                 </div>
                 <small>Tiền sân ban đầu: {{ booking.total_amount|vnd_currency }}</small>
