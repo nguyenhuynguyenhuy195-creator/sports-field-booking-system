@@ -427,7 +427,8 @@ def _process_one_pending_vnpay_refund(
         # this point already shows success and cannot be used to tell
         # whether THIS refund specifically completed. Resubmitting
         # blindly could double-refund. Leave it durable; an operator
-        # can reconcile it manually against the VNPAY merchant portal.
+        # reconciles it manually via reconcile_vnpay_refund_manually()
+        # (see its docstring) after checking the VNPAY merchant portal.
         db.session.rollback()
         return False
 
@@ -492,6 +493,105 @@ def _process_one_pending_vnpay_refund(
 
     commit_refunds("Không thể cập nhật kết quả hoàn tiền VNPAY.")
     return succeeded
+
+
+def list_processing_vnpay_refunds() -> list[Refund]:
+    """Read-only: durable VNPAY refunds currently stuck at PROCESSING.
+
+    For an operator to inspect (and check against the VNPAY Sandbox
+    merchant portal / SIT data) before calling
+    reconcile_vnpay_refund_manually() on a specific one. Never mutates
+    anything.
+    """
+    return list(
+        db.session.scalars(
+            db.select(Refund)
+            .join(Refund.payment)
+            .where(
+                Payment.provider == PaymentProvider.VNPAY.value,
+                Refund.status == RefundStatus.PROCESSING.value,
+            )
+            .order_by(Refund.id)
+        )
+    )
+
+
+def reconcile_vnpay_refund_manually(
+    refund_id: int,
+    *,
+    outcome: str,
+    provider_trans_id: str | None = None,
+    result_code: str | None = None,
+    now: datetime | None = None,
+) -> Refund:
+    """Apply an operator-CONFIRMED VNPAY refund outcome to a Refund stuck
+    at PROCESSING. CLI-only (see app/cli/refunds.py) — never exposed
+    through any admin UI action.
+
+    Why this exists instead of an automatic query: VNPAY's queryDr API is
+    keyed by the ORIGINAL PAYMENT's own vnp_TxnRef/vnp_TransactionDate —
+    the same identifiers used to check the payment before any refund ever
+    existed — and its response carries no refund-specific transaction
+    reference or request-id echo. A payment that already succeeded reads
+    "00" via that exact same field a resolved refund would use, so there is
+    no way to prove a queryDr "00" describes THIS refund rather than just
+    re-confirming the untouched original payment. Calling queryDr to
+    auto-promote PROCESSING -> SUCCESS would risk exactly the "mistake the
+    original payment's success for refund success" failure this project
+    must avoid, so no code path does that.
+
+    Instead, an operator who has personally verified the true outcome
+    against the VNPAY merchant portal supplies it here as explicit
+    evidence. Only a PROCESSING VNPAY refund is eligible (a PENDING one has
+    never actually been submitted yet — use process_pending_vnpay_refunds
+    for that). Marking SUCCESS requires the real provider refund
+    transaction id from the portal; marking FAILED never touches any
+    balance. Calling this again after the refund has already been resolved
+    raises instead of re-applying anything, so a repeated/retried call is
+    always a safe no-op rather than a double-apply.
+    """
+    if outcome not in {RefundStatus.SUCCESS.value, RefundStatus.FAILED.value}:
+        raise InvalidRefundStateError(
+            "Kết quả đối soát chỉ có thể là SUCCESS hoặc FAILED."
+        )
+    refund = db.session.scalar(
+        with_update_lock(db.select(Refund).where(Refund.id == refund_id), Refund)
+    )
+    if refund is None:
+        raise InvalidRefundStateError("Không tìm thấy yêu cầu hoàn tiền.")
+    payment = refund.payment
+    if payment.provider != PaymentProvider.VNPAY.value:
+        raise InvalidRefundStateError("Yêu cầu hoàn tiền này không thuộc VNPAY.")
+    if refund.status != RefundStatus.PROCESSING.value:
+        raise InvalidRefundStateError(
+            "Chỉ có thể đối soát thủ công yêu cầu đang ở trạng thái PROCESSING "
+            f"(hiện tại: {refund.status})."
+        )
+
+    current_utc = normalize_utc(now)
+    if outcome == RefundStatus.SUCCESS.value:
+        if not provider_trans_id:
+            raise InvalidRefundStateError(
+                "Cần mã giao dịch hoàn tiền thực tế lấy từ cổng merchant VNPAY "
+                "để xác nhận thành công."
+            )
+        contribution = payment.contribution
+        booking = refund.booking
+        refund.result_code = result_code or "00"
+        _apply_refund_success(
+            refund=refund,
+            payment=payment,
+            booking=booking,
+            contribution=contribution,
+            provider_trans_id=provider_trans_id,
+            current_utc=current_utc,
+        )
+    else:
+        refund.status = RefundStatus.FAILED.value
+        refund.result_code = result_code or "MANUAL_REJECTED"
+
+    commit_refunds("Không thể ghi nhận kết quả đối soát hoàn tiền VNPAY.")
+    return refund
 
 
 def process_pending_provider_refunds(

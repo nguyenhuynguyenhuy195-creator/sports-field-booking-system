@@ -23,6 +23,15 @@
     {% endfor %}
 {% endif %}
 
+{% set refund_state = namespace(has_pending=false, has_processing=false, all_success=true) %}
+{% for refund in booking.refunds %}
+    {% if refund.status == 'PENDING' %}{% set refund_state.has_pending = true %}{% endif %}
+    {% if refund.status == 'PROCESSING' %}{% set refund_state.has_processing = true %}{% endif %}
+    {% if refund.status != 'SUCCESS' %}{% set refund_state.all_success = false %}{% endif %}
+{% endfor %}
+{# Cancellation wording must reflect the ACTUAL Refund statuses — never say
+   a refund is done unless every one of them is RefundStatus.SUCCESS. #}
+
 {% macro render_payment_summary(owner_compact=false) %}
     {% if owner_compact %}
         <div class="booking-total-panel owner-booking-payment-card">
@@ -345,13 +354,21 @@
                 {% elif effective_status == 'REFUND_PENDING' %}
                     <div class="alert alert-warning mb-0">
                         <strong>Đang xử lý hoàn tiền.</strong><br>
-                        Lịch sân vẫn được giữ cho đến khi mọi khoản hoàn bắt buộc thành công.
+                        Yêu cầu hoàn tiền đang được xử lý. Xem chi tiết trong lịch sử thanh toán.
                     </div>
                 {% elif effective_status == 'CANCELLED' %}
                     <div class="booking-final-status booking-final-status-cancelled">
                         <strong>Lịch đặt sân đã được hủy.</strong>
                         {% if booking.refunds %}
-                            <span>Hoàn tiền đã được ghi nhận trong lịch sử thanh toán.</span>
+                            {% if refund_state.has_pending %}
+                                <span>Yêu cầu hoàn tiền đang chờ xử lý.</span>
+                            {% elif refund_state.has_processing %}
+                                <span>Khoản hoàn tiền đang được xử lý.</span>
+                            {% elif refund_state.all_success %}
+                                <span>Khoản tiền đã được hoàn.</span>
+                            {% else %}
+                                <span>Có khoản hoàn tiền chưa thành công. Vui lòng kiểm tra lịch sử hoàn tiền.</span>
+                            {% endif %}
                         {% elif booking.cancellation_fee_amount > 0 %}
                             <span>{{ booking.cancellation_fee_amount|vnd_currency }} tiền cọc không được hoàn theo chính sách tự hủy.</span>
                         {% else %}
@@ -460,7 +477,15 @@
                     <div class="user-booking-status-action">
                         {% if effective_status == 'REFUND_PENDING' %}<p class="mb-0">Khoản hoàn đang được xử lý. Xem chi tiết trong lịch sử thanh toán.</p>
                         {% elif effective_status == 'CANCELLED' %}
-                            <p class="mb-0">Lịch đặt sân đã được hủy.{% if booking.refunds %} Hoàn tiền đã được ghi nhận trong lịch sử thanh toán.{% endif %}</p>
+                            <p class="mb-0">Lịch đặt sân đã được hủy.
+                                {%- if booking.refunds %}
+                                    {%- if refund_state.has_pending %} Yêu cầu hoàn tiền đang chờ xử lý.
+                                    {%- elif refund_state.has_processing %} Khoản hoàn tiền đang được xử lý.
+                                    {%- elif refund_state.all_success %} Khoản tiền đã được hoàn.
+                                    {%- else %} Có khoản hoàn tiền chưa thành công. Vui lòng kiểm tra lịch sử hoàn tiền.
+                                    {%- endif %}
+                                {%- endif %}
+                            </p>
                             {% if booking.cancellation_fee_amount > 0 %}<p class="small text-secondary mt-2 mb-0"><strong>Phí giữ sân:</strong> {{ booking.cancellation_fee_amount|vnd_currency }} · Phần tiền cọc không được hoàn.</p>{% endif %}
                         {% elif effective_status == 'EXPIRED' %}<p class="mb-0">Khoảng giờ không còn được giữ cho lịch đặt này.</p>
                         {% else %}<p class="mb-0">Lịch đặt sân đã hoàn thành.</p>{% endif %}

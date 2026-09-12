@@ -22,15 +22,18 @@ from app.models import (
     UserRole,
 )
 from app.services import (
+    RefundError,
     apply_creator_cancellation_policy,
     apply_funding_shortfall_refunds,
     apply_owner_cancellation_refunds,
     cancel_owner_booking,
     create_booking,
     create_match,
+    list_processing_vnpay_refunds,
     pay_contribution_with_mock,
     process_pending_vnpay_refunds,
     process_vnpay_ipn,
+    reconcile_vnpay_refund_manually,
     request_to_join_match,
     start_vnpay_payment,
 )
@@ -1283,3 +1286,289 @@ def test_admin_booking_detail_shows_cancelled_booking_independent_of_refund_stat
     # audit confirming no admin route can trigger/submit a refund.
     assert case["booking_code"] in monitoring_page
     assert "Đang xử lý" in monitoring_page
+
+
+# --- Manual reconciliation for VNPAY refunds stuck at PROCESSING -------------
+# VNPAY's queryDr cannot safely identify a specific refund (see
+# reconcile_vnpay_refund_manually's docstring), so PROCESSING is only ever
+# resolved by an operator-supplied, evidence-backed manual reconciliation —
+# never by resubmitting, never by inferring from the original payment.
+
+
+def _processing_refund_case(app, *, email_prefix: str) -> dict:
+    """A cancelled VNPAY booking whose single refund is stuck PROCESSING."""
+    case = _pay_direct_booking_via_vnpay(app, email_prefix=email_prefix)
+    with app.app_context():
+        booking = db.session.get(Booking, case["booking_id"])
+        apply_owner_cancellation_refunds(booking=booking, reason="Sự cố kỹ thuật.")
+        db.session.commit()
+        process_pending_vnpay_refunds(
+            booking_id=case["booking_id"],
+            client=_build_refund_client(
+                response_code="00", transaction_status="05"
+            ),
+        )
+    return case
+
+
+def test_list_processing_vnpay_refunds_is_read_only_and_finds_the_refund(app):
+    case = _processing_refund_case(app, email_prefix="reconcile-list")
+    with app.app_context():
+        processing = list_processing_vnpay_refunds()
+        assert len(processing) == 1
+        refund = processing[0]
+        assert refund.payment_id == case["payment_id"]
+        assert refund.status == RefundStatus.PROCESSING.value
+        # Purely informational — no mutation.
+        db.session.refresh(refund)
+        assert refund.status == RefundStatus.PROCESSING.value
+
+
+def test_manual_reconciliation_confirmed_success_applies_accounting_exactly_once(
+    app,
+):
+    case = _processing_refund_case(app, email_prefix="reconcile-success")
+    with app.app_context():
+        refund = db.session.scalar(
+            db.select(Refund).where(Refund.payment_id == case["payment_id"])
+        )
+        booking = db.session.get(Booking, case["booking_id"])
+        assert refund.status == RefundStatus.PROCESSING.value
+        # Cancellation already happened before reconciliation even starts.
+        assert booking.status == BookingStatus.CANCELLED.value
+        assert booking.paid_amount == Decimal("120000")  # untouched while PROCESSING
+
+        reconciled = reconcile_vnpay_refund_manually(
+            refund.id,
+            outcome=RefundStatus.SUCCESS.value,
+            provider_trans_id="PORTAL-CONFIRMED-TRANS-1",
+        )
+        assert reconciled.status == RefundStatus.SUCCESS.value
+        assert reconciled.provider_refund_trans_id == "PORTAL-CONFIRMED-TRANS-1"
+        assert reconciled.result_code == "00"
+
+        booking = db.session.get(Booking, case["booking_id"])
+        contribution = db.session.get(BookingContribution, case["contribution_id"])
+        assert booking.status == BookingStatus.CANCELLED.value  # unchanged
+        assert booking.paid_amount == Decimal("0")
+        assert contribution.amount_paid == Decimal("0")
+        assert contribution.status == ContributionStatus.REFUNDED.value
+
+        # Idempotent: reconciling again must not re-apply/double-subtract.
+        with pytest.raises(RefundError):
+            reconcile_vnpay_refund_manually(
+                refund.id,
+                outcome=RefundStatus.SUCCESS.value,
+                provider_trans_id="PORTAL-CONFIRMED-TRANS-1",
+            )
+        booking = db.session.get(Booking, case["booking_id"])
+        assert booking.paid_amount == Decimal("0")  # still exactly 0, not negative
+
+
+def test_manual_reconciliation_confirmed_rejection_marks_failed_without_balance_change(
+    app,
+):
+    case = _processing_refund_case(app, email_prefix="reconcile-failed")
+    with app.app_context():
+        refund = db.session.scalar(
+            db.select(Refund).where(Refund.payment_id == case["payment_id"])
+        )
+        reconciled = reconcile_vnpay_refund_manually(
+            refund.id, outcome=RefundStatus.FAILED.value, result_code="09"
+        )
+        assert reconciled.status == RefundStatus.FAILED.value
+        assert reconciled.result_code == "09"
+
+        booking = db.session.get(Booking, case["booking_id"])
+        contribution = db.session.get(BookingContribution, case["contribution_id"])
+        assert booking.status == BookingStatus.CANCELLED.value
+        assert booking.paid_amount == Decimal("120000")  # untouched
+        assert contribution.amount_paid == Decimal("120000")
+
+
+def test_manual_reconciliation_success_requires_explicit_provider_evidence(app):
+    """The original PAYMENT's own SUCCESS must never be mistaken for refund
+    success: this function never reads payment.status at all, and refuses
+    to mark SUCCESS without an operator-supplied, real provider refund
+    transaction id from the merchant portal."""
+    case = _processing_refund_case(app, email_prefix="reconcile-noevidence")
+    with app.app_context():
+        payment = db.session.get(Payment, case["payment_id"])
+        assert payment.status == PaymentStatus.SUCCESS.value  # already true
+
+        refund = db.session.scalar(
+            db.select(Refund).where(Refund.payment_id == case["payment_id"])
+        )
+        with pytest.raises(RefundError):
+            reconcile_vnpay_refund_manually(
+                refund.id, outcome=RefundStatus.SUCCESS.value
+            )
+        db.session.refresh(refund)
+        assert refund.status == RefundStatus.PROCESSING.value  # unchanged
+
+
+def test_manual_reconciliation_only_applies_to_processing_not_pending(app):
+    case = _pay_direct_booking_via_vnpay(app, email_prefix="reconcile-pending")
+    with app.app_context():
+        booking = db.session.get(Booking, case["booking_id"])
+        apply_owner_cancellation_refunds(booking=booking, reason="Sự cố kỹ thuật.")
+        db.session.commit()
+        refund = db.session.scalar(
+            db.select(Refund).where(Refund.payment_id == case["payment_id"])
+        )
+        assert refund.status == RefundStatus.PENDING.value  # never submitted yet
+
+        with pytest.raises(RefundError):
+            reconcile_vnpay_refund_manually(
+                refund.id,
+                outcome=RefundStatus.SUCCESS.value,
+                provider_trans_id="SHOULD-NOT-APPLY",
+            )
+        db.session.refresh(refund)
+        assert refund.status == RefundStatus.PENDING.value
+
+
+def test_reconciled_refund_is_never_resubmitted_by_the_normal_processing_loop(app):
+    case = _processing_refund_case(app, email_prefix="reconcile-noresubmit")
+    with app.app_context():
+        refund = db.session.scalar(
+            db.select(Refund).where(Refund.payment_id == case["payment_id"])
+        )
+        reconcile_vnpay_refund_manually(
+            refund.id,
+            outcome=RefundStatus.SUCCESS.value,
+            provider_trans_id="PORTAL-CONFIRMED-TRANS-2",
+        )
+
+        captured: list = []
+        succeeded = process_pending_vnpay_refunds(
+            booking_id=case["booking_id"],
+            client=_build_refund_client(captured=captured),
+        )
+        assert succeeded == 0
+        assert captured == []  # a SUCCESS refund is no longer PENDING/PROCESSING
+        db.session.refresh(refund)
+        assert refund.status == RefundStatus.SUCCESS.value
+
+
+# --- Cancellation wording must reflect the ACTUAL Refund statuses, never ----
+# --- a generic "recorded" claim, and never imply the field slot is held ----
+
+
+def test_user_booking_detail_wording_for_cancelled_with_processing_refund(
+    app, client
+):
+    case = _pay_direct_booking_via_vnpay(app, email_prefix="wording-processing")
+    with app.app_context():
+        booking = db.session.get(Booking, case["booking_id"])
+        apply_owner_cancellation_refunds(booking=booking, reason="Sự cố kỹ thuật.")
+        db.session.commit()
+        process_pending_vnpay_refunds(
+            booking_id=case["booking_id"],
+            client=_build_refund_client(
+                response_code="00", transaction_status="05"
+            ),
+        )
+        email = db.session.get(User, case["player_id"]).email
+    login(client, email=email)
+
+    page = client.get(f"/bookings/{case['booking_code']}").get_data(as_text=True)
+    assert "Đã hủy" in page
+    assert "Khoản hoàn tiền đang được xử lý." in page
+    assert "Hoàn tiền đã được ghi nhận trong lịch sử thanh toán." not in page
+    assert "Lịch sân vẫn được giữ" not in page
+
+
+def test_user_booking_detail_wording_for_cancelled_with_success_refund(app, client):
+    case = _pay_direct_booking_via_vnpay(app, email_prefix="wording-success")
+    with app.app_context():
+        booking = db.session.get(Booking, case["booking_id"])
+        apply_owner_cancellation_refunds(booking=booking, reason="Sự cố kỹ thuật.")
+        db.session.commit()
+        process_pending_vnpay_refunds(
+            booking_id=case["booking_id"], client=_build_refund_client()
+        )
+        email = db.session.get(User, case["player_id"]).email
+    login(client, email=email)
+
+    page = client.get(f"/bookings/{case['booking_code']}").get_data(as_text=True)
+    assert "Khoản tiền đã được hoàn." in page
+    # SUCCESS label (Step 6 UI cleanup): rendered as the per-refund status
+    # badge in the transaction history table.
+    assert "Đã hoàn tiền" in page
+
+
+def test_user_booking_detail_wording_for_cancelled_with_failed_refund(app, client):
+    case = _pay_direct_booking_via_vnpay(app, email_prefix="wording-failed")
+    with app.app_context():
+        booking = db.session.get(Booking, case["booking_id"])
+        apply_owner_cancellation_refunds(booking=booking, reason="Sự cố kỹ thuật.")
+        db.session.commit()
+        process_pending_vnpay_refunds(
+            booking_id=case["booking_id"],
+            client=_build_refund_client(
+                response_code="91", transaction_status="02"
+            ),
+        )
+        email = db.session.get(User, case["player_id"]).email
+    login(client, email=email)
+
+    page = client.get(f"/bookings/{case['booking_code']}").get_data(as_text=True)
+    assert (
+        "Có khoản hoàn tiền chưa thành công. Vui lòng kiểm tra lịch sử hoàn tiền."
+        in page
+    )
+    assert "Hoàn tiền thất bại" in page  # updated FAILED label
+
+
+def test_owner_booking_detail_wording_for_cancelled_with_processing_refund(
+    app, client
+):
+    case = _pay_direct_booking_via_vnpay(
+        app, email_prefix="wording-owner-processing"
+    )
+    with app.app_context():
+        booking = db.session.get(Booking, case["booking_id"])
+        apply_owner_cancellation_refunds(booking=booking, reason="Sự cố kỹ thuật.")
+        db.session.commit()
+        process_pending_vnpay_refunds(
+            booking_id=case["booking_id"],
+            client=_build_refund_client(
+                response_code="00", transaction_status="05"
+            ),
+        )
+        owner_email = db.session.scalar(
+            db.select(User.email).where(User.role == UserRole.OWNER.value)
+        )
+    login(client, email=owner_email)
+
+    page = client.get(
+        f"/owner/bookings/{case['booking_code']}"
+    ).get_data(as_text=True)
+    assert "Khoản hoàn tiền đang được xử lý." in page
+    assert "Hoàn tiền đã được ghi nhận trong lịch sử thanh toán." not in page
+    assert "Lịch sân vẫn được giữ" not in page
+
+
+def test_legacy_refund_pending_wording_no_longer_implies_slot_is_held(app, client):
+    """REFUND_PENDING is only reachable via legacy/raw data now (see the
+    booking-cancellation lifecycle fix) — its wording must stay neutral and
+    must never claim the field slot is still held for it."""
+    case = _pay_direct_booking_via_vnpay(app, email_prefix="wording-legacy")
+    with app.app_context():
+        booking = db.session.get(Booking, case["booking_id"])
+        booking.status = BookingStatus.REFUND_PENDING.value
+        db.session.commit()
+        owner_email = db.session.scalar(
+            db.select(User.email).where(User.role == UserRole.OWNER.value)
+        )
+    login(client, email=owner_email)
+
+    page = client.get(
+        f"/owner/bookings/{case['booking_code']}"
+    ).get_data(as_text=True)
+    assert (
+        "Yêu cầu hoàn tiền đang được xử lý. Xem chi tiết trong lịch sử thanh toán."
+        in page
+    )
+    assert "Lịch sân vẫn được giữ" not in page

@@ -114,8 +114,8 @@ PAYMENT_PROVIDER_LABELS = {
 REFUND_STATUS_LABELS = {
     RefundStatus.PENDING.value: "Đang chờ xử lý",
     RefundStatus.PROCESSING.value: "Đang xử lý",
-    RefundStatus.SUCCESS.value: "Đã hoàn thành",
-    RefundStatus.FAILED.value: "Thất bại",
+    RefundStatus.SUCCESS.value: "Đã hoàn tiền",
+    RefundStatus.FAILED.value: "Hoàn tiền thất bại",
 }
 
 BOOKING_LIST_GROUPS = (
