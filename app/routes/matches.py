@@ -22,6 +22,7 @@ from app.forms import (
     MatchJoinForm,
     MatchSearchForm,
 )
+from app.routes.payments import resolve_watchable_vnpay_payment_id
 from app.models import (
     BookingMode,
     BookingStatus,
@@ -378,6 +379,7 @@ def detail(match_id: int):
         opponent_obligation_covered=opponent_obligation_covered,
         momo_enabled=current_app.config.get("MOMO_ENABLED", False),
         vnpay_enabled=current_app.config.get("VNPAY_ENABLED", False),
+        vnpay_payment_watch_id=resolve_watchable_vnpay_payment_id(user=current_user),
     )
 
 

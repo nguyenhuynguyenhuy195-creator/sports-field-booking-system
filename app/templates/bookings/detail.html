@@ -384,6 +384,9 @@
                     >Hủy booking</button>
                 {% endif %}
                 {% else %}
+                {% if vnpay_payment_watch_id %}
+                    <div data-vnpay-payment-watch data-status-url="{{ url_for('payments.vnpay_payment_status', payment_id=vnpay_payment_watch_id) }}" hidden></div>
+                {% endif %}
                 <h2 class="h5 fw-bold"><i class="bi bi-credit-card" aria-hidden="true"></i> Trạng thái &amp; thanh toán</h2>
                 <div class="user-booking-payment-state user-booking-payment-state-{{ effective_status|lower|replace('_', '-') }}">
                     <i class="bi {{ 'bi-check-circle-fill' if effective_status in ['PARTIALLY_PAID', 'PAID', 'COMPLETED'] else 'bi-info-circle-fill' }}" aria-hidden="true"></i>

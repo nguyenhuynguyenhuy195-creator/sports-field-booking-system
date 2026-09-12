@@ -13,7 +13,15 @@ from flask_login import current_user
 from app.decorators import roles_required
 from app.forms import BookingActionForm
 from app.extensions import csrf, db
-from app.models import ContributionType, Match, MatchParticipant, UserRole
+from app.models import (
+    ContributionType,
+    Match,
+    MatchParticipant,
+    Payment,
+    PaymentProvider,
+    PaymentStatus,
+    UserRole,
+)
 from app.services import (
     PaymentError,
     PaymentNotFoundError,
@@ -51,6 +59,7 @@ def reject_disabled_vnpay():
     if request.endpoint in {
         "payments.pay_vnpay", "payments.top_up_vnpay",
         "payments.vnpay_return", "payments.vnpay_ipn",
+        "payments.vnpay_payment_status",
     } and not current_app.config.get("VNPAY_ENABLED"):
         abort(404)
 
@@ -253,6 +262,10 @@ def vnpay_return():
             "Đang chờ VNPAY xác nhận. Vui lòng tải lại trang sau ít phút.",
             "info",
         )
+        # IPN remains the only path that may set SUCCESS (never this route).
+        # Attach a verified payment id so the page can watch it client-side
+        # and refresh itself once IPN lands, instead of staying stale.
+        return _payment_return_redirect(payment, watch=True)
     else:
         flash("Giao dịch VNPAY chưa thành công hoặc đã bị hủy.", "warning")
     return _payment_return_redirect(payment)
@@ -267,8 +280,47 @@ def vnpay_ipn():
     return jsonify(RspCode=result.rsp_code, Message=result.message)
 
 
-def _payment_return_redirect(payment):
+@payments_bp.get("/payments/vnpay/<int:payment_id>/status")
+@roles_required(UserRole.USER, UserRole.OWNER)
+def vnpay_payment_status(payment_id: int):
+    """Read-only status poll for a browser watching its own VNPAY payment.
+
+    Returns only {"status": ...}. No hash, gateway payload, secret or other
+    transaction detail. IPN is still the only path that can ever change
+    this status — this endpoint never mutates anything.
+    """
+    payment = db.session.get(Payment, payment_id)
+    if payment is None or payment.provider != PaymentProvider.VNPAY.value:
+        abort(404)
+    if payment.payer_id != current_user.id:
+        abort(403)
+    return jsonify(status=payment.status)
+
+
+def resolve_watchable_vnpay_payment_id(*, user) -> int | None:
+    """Read ?payment_watch=<id> from the current request and return it only
+    if it names a VNPAY Payment the given user actually paid and that is
+    still PENDING. Used by bookings/matches detail routes to decide whether
+    to render the client-side status-watch marker — server-side authorized,
+    never trusts the query string on its own.
+    """
+    raw_id = request.args.get("payment_watch", "")
+    if not raw_id.isdigit():
+        return None
+    payment = db.session.get(Payment, int(raw_id))
+    if (
+        payment is None
+        or payment.provider != PaymentProvider.VNPAY.value
+        or payment.payer_id != user.id
+        or payment.status != PaymentStatus.PENDING.value
+    ):
+        return None
+    return payment.id
+
+
+def _payment_return_redirect(payment, *, watch: bool = False):
     """Choose a view from verified payment relationships, never callback URLs."""
+    watch_args = {"payment_watch": payment.id} if watch else {}
     contribution = payment.contribution
     if (
         contribution.booking_id == payment.booking_id
@@ -288,14 +340,16 @@ def _payment_return_redirect(payment):
             .order_by(Match.id)
         )
         if match_id is not None:
-            return redirect(url_for("matches.detail", match_id=match_id))
+            return redirect(
+                url_for("matches.detail", match_id=match_id, **watch_args)
+            )
 
     if (
         current_user.is_authenticated
         and current_user.role in {UserRole.USER.value, UserRole.OWNER.value}
         and current_user.id == payment.booking.user_id
     ):
-        return _booking_redirect(payment.booking.booking_code)
+        return _booking_redirect(payment.booking.booking_code, **watch_args)
     return _safe_booking_return()
 
 
@@ -322,8 +376,8 @@ def momo_ipn():
     return jsonify(resultCode=0, message="Success")
 
 
-def _booking_redirect(booking_code: str):
-    return redirect(url_for("bookings.detail", booking_code=booking_code))
+def _booking_redirect(booking_code: str, **extra_args):
+    return redirect(url_for("bookings.detail", booking_code=booking_code, **extra_args))
 
 
 def _payment_redirect(booking_code: str):

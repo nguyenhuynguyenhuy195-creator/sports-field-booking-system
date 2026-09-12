@@ -31,6 +31,9 @@
     {% if match_view_status == 'CLOSED_LISTING' %}
         <p class="alert alert-info">Bài tìm đối thủ đã đóng. Lịch đặt sân và tiền cọc vẫn được giữ nguyên.</p>
     {% endif %}
+    {% if vnpay_payment_watch_id %}
+        <div data-vnpay-payment-watch data-status-url="{{ url_for('payments.vnpay_payment_status', payment_id=vnpay_payment_watch_id) }}" hidden></div>
+    {% endif %}
 
     <div class="match-detail-layout">
         <main class="match-detail-main">

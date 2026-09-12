@@ -1306,6 +1306,555 @@ def test_default_vnpay_version_and_locale_when_not_customized(app):
         assert params["vnp_Locale"] == "vn"
 
 
+# --- Step 5 Fix 1: PENDING checkout reuse must match the routing mode ---------
+
+
+def test_normal_to_normal_reuses_same_pending_checkout(app):
+    case = create_direct_booking(app, email_prefix="route-normal-normal")
+    with app.app_context():
+        player = db.session.get(User, case["player_id"])
+        first = start_vnpay_payment(
+            booking_code=case["booking_code"],
+            contribution_id=case["contribution_id"],
+            payer=player,
+            return_url="https://example.test/payments/vnpay/return",
+            ip_addr="203.0.113.9",
+        )
+        second = start_vnpay_payment(
+            booking_code=case["booking_code"],
+            contribution_id=case["contribution_id"],
+            payer=player,
+            return_url="https://example.test/payments/vnpay/return",
+            ip_addr="203.0.113.9",
+        )
+        assert first.payment.id == second.payment.id
+        assert first.pay_url == second.pay_url
+        assert (
+            db.session.scalar(
+                db.select(db.func.count(Payment.id)).where(
+                    Payment.contribution_id == case["contribution_id"]
+                )
+            )
+            == 1
+        )
+
+
+def test_qr_to_qr_reuses_same_pending_checkout(app):
+    case = create_direct_booking(app, email_prefix="route-qr-qr")
+    with app.app_context():
+        player = db.session.get(User, case["player_id"])
+        first = start_vnpay_payment(
+            booking_code=case["booking_code"],
+            contribution_id=case["contribution_id"],
+            payer=player,
+            return_url="https://example.test/payments/vnpay/return",
+            ip_addr="203.0.113.9",
+            bank_code="VNPAYQR",
+        )
+        second = start_vnpay_payment(
+            booking_code=case["booking_code"],
+            contribution_id=case["contribution_id"],
+            payer=player,
+            return_url="https://example.test/payments/vnpay/return",
+            ip_addr="203.0.113.9",
+            bank_code="VNPAYQR",
+        )
+        assert first.payment.id == second.payment.id
+        assert first.pay_url == second.pay_url
+
+
+def test_qr_to_normal_retires_old_checkout_and_creates_new_one(app):
+    case = create_direct_booking(app, email_prefix="route-qr-normal")
+    with app.app_context():
+        player = db.session.get(User, case["player_id"])
+        qr_checkout = start_vnpay_payment(
+            booking_code=case["booking_code"],
+            contribution_id=case["contribution_id"],
+            payer=player,
+            return_url="https://example.test/payments/vnpay/return",
+            ip_addr="203.0.113.9",
+            bank_code="VNPAYQR",
+        )
+        normal_checkout = start_vnpay_payment(
+            booking_code=case["booking_code"],
+            contribution_id=case["contribution_id"],
+            payer=player,
+            return_url="https://example.test/payments/vnpay/return",
+            ip_addr="203.0.113.9",
+            bank_code=None,
+        )
+        assert normal_checkout.payment.id != qr_checkout.payment.id
+        retired = db.session.get(Payment, qr_checkout.payment.id)
+        # EXPIRED, not CANCELLED: the old signed checkout URL may still be
+        # live at VNPAY, and a genuine SUCCESS IPN for it must still be
+        # processed (see test_old_expired_checkout_success_before_new_one
+        # and test_old_expired_checkout_success_after_new_one_succeeds).
+        assert retired.status == PaymentStatus.EXPIRED.value
+        assert "vnp_BankCode" not in query_dict(normal_checkout.pay_url)
+        assert (
+            db.session.scalar(
+                db.select(db.func.count(Payment.id)).where(
+                    Payment.contribution_id == case["contribution_id"],
+                    Payment.provider == PaymentProvider.VNPAY.value,
+                )
+            )
+            == 2
+        )
+        assert (
+            db.session.scalar(
+                db.select(db.func.count(Payment.id)).where(
+                    Payment.contribution_id == case["contribution_id"],
+                    Payment.status == PaymentStatus.PENDING.value,
+                )
+            )
+            == 1
+        )
+
+
+def test_normal_to_qr_retires_old_checkout_and_creates_new_one(app):
+    case = create_direct_booking(app, email_prefix="route-normal-qr")
+    with app.app_context():
+        player = db.session.get(User, case["player_id"])
+        normal_checkout = start_vnpay_payment(
+            booking_code=case["booking_code"],
+            contribution_id=case["contribution_id"],
+            payer=player,
+            return_url="https://example.test/payments/vnpay/return",
+            ip_addr="203.0.113.9",
+            bank_code=None,
+        )
+        qr_checkout = start_vnpay_payment(
+            booking_code=case["booking_code"],
+            contribution_id=case["contribution_id"],
+            payer=player,
+            return_url="https://example.test/payments/vnpay/return",
+            ip_addr="203.0.113.9",
+            bank_code="VNPAYQR",
+        )
+        assert qr_checkout.payment.id != normal_checkout.payment.id
+        retired = db.session.get(Payment, normal_checkout.payment.id)
+        assert retired.status == PaymentStatus.EXPIRED.value
+        assert query_dict(qr_checkout.pay_url)["vnp_BankCode"] == "VNPAYQR"
+
+
+def test_old_expired_checkout_success_before_new_one_applies_normally(app):
+    """Case A: the retired (EXPIRED) checkout's own SUCCESS IPN arrives
+    before the new checkout ever succeeds. It must NOT be treated as
+    already-confirmed (02) — it is the real, still-outstanding payment for
+    this contribution and must be applied exactly like any normal success.
+    """
+    case = create_direct_booking(app, email_prefix="expired-success-first")
+    vnpay = build_vnpay_client()
+    with app.app_context():
+        player = db.session.get(User, case["player_id"])
+        old_checkout = start_vnpay_payment(
+            booking_code=case["booking_code"],
+            contribution_id=case["contribution_id"],
+            payer=player,
+            return_url="https://example.test/payments/vnpay/return",
+            ip_addr="203.0.113.9",
+            bank_code="VNPAYQR",
+            client=vnpay,
+        )
+        start_vnpay_payment(  # switch routing mode -> retires old as EXPIRED
+            booking_code=case["booking_code"],
+            contribution_id=case["contribution_id"],
+            payer=player,
+            return_url="https://example.test/payments/vnpay/return",
+            ip_addr="203.0.113.9",
+            bank_code=None,
+            client=vnpay,
+        )
+        old_payment = db.session.get(Payment, old_checkout.payment.id)
+        assert old_payment.status == PaymentStatus.EXPIRED.value
+
+        payload = vnpay_callback_payload(old_payment, vnpay, transaction_no="111111")
+        result = process_vnpay_ipn(payload, client=vnpay)
+
+        assert result.rsp_code == "00"  # NOT "02" — must not be short-circuited
+        old_payment = db.session.get(Payment, old_checkout.payment.id)
+        booking = db.session.get(Booking, case["booking_id"])
+        contribution = db.session.get(BookingContribution, case["contribution_id"])
+        assert old_payment.status == PaymentStatus.SUCCESS.value
+        assert old_payment.provider_trans_id == "111111"
+        assert contribution.status == ContributionStatus.PAID.value
+        assert contribution.amount_paid == Decimal("120000")
+        assert booking.status == BookingStatus.PAID.value
+        assert booking.paid_amount == Decimal("120000")  # paid exactly once
+
+
+def test_old_expired_checkout_success_after_new_one_succeeds_queues_refund(app):
+    """Case B: the NEW checkout succeeds first (fulfils the contribution),
+    then the old EXPIRED checkout's SUCCESS IPN arrives late. It must follow
+    the existing late-payment/refund-queue path — never double-count the
+    booking, never get silently dropped either.
+    """
+    case = create_direct_booking(app, email_prefix="expired-success-second")
+    vnpay = build_vnpay_client()
+    with app.app_context():
+        player = db.session.get(User, case["player_id"])
+        old_checkout = start_vnpay_payment(
+            booking_code=case["booking_code"],
+            contribution_id=case["contribution_id"],
+            payer=player,
+            return_url="https://example.test/payments/vnpay/return",
+            ip_addr="203.0.113.9",
+            bank_code="VNPAYQR",
+            client=vnpay,
+        )
+        new_checkout = start_vnpay_payment(
+            booking_code=case["booking_code"],
+            contribution_id=case["contribution_id"],
+            payer=player,
+            return_url="https://example.test/payments/vnpay/return",
+            ip_addr="203.0.113.9",
+            bank_code=None,
+            client=vnpay,
+        )
+        old_payment = db.session.get(Payment, old_checkout.payment.id)
+        assert old_payment.status == PaymentStatus.EXPIRED.value
+
+        new_payload = vnpay_callback_payload(
+            new_checkout.payment, vnpay, transaction_no="222222"
+        )
+        new_result = process_vnpay_ipn(new_payload, client=vnpay)
+        assert new_result.rsp_code == "00"
+        booking = db.session.get(Booking, case["booking_id"])
+        contribution = db.session.get(BookingContribution, case["contribution_id"])
+        assert contribution.status == ContributionStatus.PAID.value
+        assert booking.paid_amount == Decimal("120000")
+
+        old_payload = vnpay_callback_payload(
+            old_payment, vnpay, transaction_no="111111"
+        )
+        old_result = process_vnpay_ipn(old_payload, client=vnpay)
+
+        # Processed (recorded + queued for refund) — not silently dropped.
+        assert old_result.rsp_code == "00"
+        old_payment = db.session.get(Payment, old_checkout.payment.id)
+        booking = db.session.get(Booking, case["booking_id"])
+        refund = db.session.scalar(
+            db.select(Refund).where(Refund.payment_id == old_payment.id)
+        )
+        assert old_payment.status == PaymentStatus.EXPIRED.value
+        assert old_payment.provider_trans_id == "111111"
+        assert booking.paid_amount == Decimal("120000")  # NOT doubled
+        assert refund is not None
+        assert refund.status == RefundStatus.PENDING.value
+        assert refund.amount == old_payment.amount
+
+
+def test_switching_routing_mode_does_not_alter_paid_amounts(app):
+    case = create_direct_booking(app, email_prefix="route-amounts-unchanged")
+    with app.app_context():
+        player = db.session.get(User, case["player_id"])
+        start_vnpay_payment(
+            booking_code=case["booking_code"],
+            contribution_id=case["contribution_id"],
+            payer=player,
+            return_url="https://example.test/payments/vnpay/return",
+            ip_addr="203.0.113.9",
+            bank_code="VNPAYQR",
+        )
+        start_vnpay_payment(
+            booking_code=case["booking_code"],
+            contribution_id=case["contribution_id"],
+            payer=player,
+            return_url="https://example.test/payments/vnpay/return",
+            ip_addr="203.0.113.9",
+            bank_code=None,
+        )
+        booking = db.session.get(Booking, case["booking_id"])
+        contribution = db.session.get(BookingContribution, case["contribution_id"])
+        assert booking.paid_amount == 0
+        assert contribution.amount_paid == 0
+        assert contribution.status == ContributionStatus.PENDING.value
+
+
+def test_switching_routing_mode_never_retires_a_success_payment(app):
+    case = create_direct_booking(app, email_prefix="route-success-untouched")
+    vnpay = build_vnpay_client()
+    with app.app_context():
+        player = db.session.get(User, case["player_id"])
+        checkout = start_vnpay_payment(
+            booking_code=case["booking_code"],
+            contribution_id=case["contribution_id"],
+            payer=player,
+            return_url="https://example.test/payments/vnpay/return",
+            ip_addr="203.0.113.9",
+            client=vnpay,
+        )
+        payload = vnpay_callback_payload(checkout.payment, vnpay)
+        process_vnpay_ipn(payload, client=vnpay)
+        success_payment_id = checkout.payment.id
+        assert (
+            db.session.get(Payment, success_payment_id).status
+            == PaymentStatus.SUCCESS.value
+        )
+
+        # Contribution is now PAID; any further checkout attempt (even a
+        # routing-mode switch) must be rejected before it can ever touch the
+        # SUCCESS row.
+        with pytest.raises(PaymentError):
+            start_vnpay_payment(
+                booking_code=case["booking_code"],
+                contribution_id=case["contribution_id"],
+                payer=player,
+                return_url="https://example.test/payments/vnpay/return",
+                ip_addr="203.0.113.9",
+                bank_code="VNPAYQR",
+            )
+        assert (
+            db.session.get(Payment, success_payment_id).status
+            == PaymentStatus.SUCCESS.value
+        )
+
+
+# --- Step 5 Fix 2: payment watch after Return / IPN ----------------------------
+
+
+def test_pending_return_redirects_with_payment_watch_marker(app, client):
+    case = create_direct_booking(app, email_prefix="watch-pending")
+    vnpay = build_vnpay_client()
+    with app.app_context():
+        player = db.session.get(User, case["player_id"])
+        email = player.email
+        checkout = start_vnpay_payment(
+            booking_code=case["booking_code"],
+            contribution_id=case["contribution_id"],
+            payer=player,
+            return_url="https://example.test/payments/vnpay/return",
+            ip_addr="203.0.113.9",
+            client=vnpay,
+        )
+        payment_id = checkout.payment.id
+        payload = vnpay_callback_payload(checkout.payment, vnpay)
+    login(client, email=email)
+
+    response = client.get(
+        "/payments/vnpay/return", query_string=payload, follow_redirects=False
+    )
+    assert response.status_code == 302
+    assert f"payment_watch={payment_id}" in response.headers["Location"]
+
+    with app.app_context():
+        assert db.session.get(Payment, payment_id).status == PaymentStatus.PENDING.value
+
+
+def test_booking_detail_renders_watch_marker_for_pending_vnpay_payment(app, client):
+    case = create_direct_booking(app, email_prefix="watch-marker-render")
+    vnpay = build_vnpay_client()
+    with app.app_context():
+        player = db.session.get(User, case["player_id"])
+        email = player.email
+        checkout = start_vnpay_payment(
+            booking_code=case["booking_code"],
+            contribution_id=case["contribution_id"],
+            payer=player,
+            return_url="https://example.test/payments/vnpay/return",
+            ip_addr="203.0.113.9",
+            client=vnpay,
+        )
+        payment_id = checkout.payment.id
+    login(client, email=email)
+
+    response = client.get(f"/bookings/{case['booking_code']}?payment_watch={payment_id}")
+    page = response.get_data(as_text=True)
+    assert response.status_code == 200
+    assert "data-vnpay-payment-watch" in page
+    assert f"/payments/vnpay/{payment_id}/status" in page
+
+
+def test_status_endpoint_returns_pending(app, client):
+    case = create_direct_booking(app, email_prefix="watch-status-pending")
+    vnpay = build_vnpay_client()
+    with app.app_context():
+        player = db.session.get(User, case["player_id"])
+        email = player.email
+        checkout = start_vnpay_payment(
+            booking_code=case["booking_code"],
+            contribution_id=case["contribution_id"],
+            payer=player,
+            return_url="https://example.test/payments/vnpay/return",
+            ip_addr="203.0.113.9",
+            client=vnpay,
+        )
+        payment_id = checkout.payment.id
+    login(client, email=email)
+
+    response = client.get(f"/payments/vnpay/{payment_id}/status")
+    assert response.status_code == 200
+    assert response.get_json() == {"status": "PENDING"}
+
+
+def test_status_endpoint_returns_success_after_valid_ipn(app, client):
+    case = create_direct_booking(app, email_prefix="watch-status-success")
+    vnpay = build_vnpay_client()
+    with app.app_context():
+        player = db.session.get(User, case["player_id"])
+        email = player.email
+        checkout = start_vnpay_payment(
+            booking_code=case["booking_code"],
+            contribution_id=case["contribution_id"],
+            payer=player,
+            return_url="https://example.test/payments/vnpay/return",
+            ip_addr="203.0.113.9",
+            client=vnpay,
+        )
+        payment_id = checkout.payment.id
+        payload = vnpay_callback_payload(checkout.payment, vnpay)
+        process_vnpay_ipn(payload, client=vnpay)
+    login(client, email=email)
+
+    response = client.get(f"/payments/vnpay/{payment_id}/status")
+    assert response.status_code == 200
+    assert response.get_json() == {"status": "SUCCESS"}
+
+
+def test_status_endpoint_rejects_another_user(app, client):
+    case = create_direct_booking(app, email_prefix="watch-status-otheruser")
+    intruder = create_user(
+        app, email="watch-status-otheruser-intruder@example.com"
+    )
+    vnpay = build_vnpay_client()
+    with app.app_context():
+        checkout = start_vnpay_payment(
+            booking_code=case["booking_code"],
+            contribution_id=case["contribution_id"],
+            payer=db.session.get(User, case["player_id"]),
+            return_url="https://example.test/payments/vnpay/return",
+            ip_addr="203.0.113.9",
+            client=vnpay,
+        )
+        payment_id = checkout.payment.id
+    login(client, email=intruder.email)
+
+    response = client.get(f"/payments/vnpay/{payment_id}/status")
+    assert response.status_code == 403
+
+
+def test_status_endpoint_rejects_nonexistent_payment(app, client):
+    case = create_direct_booking(app, email_prefix="watch-status-missing")
+    with app.app_context():
+        email = db.session.get(User, case["player_id"]).email
+    login(client, email=email)
+
+    response = client.get("/payments/vnpay/999999/status")
+    assert response.status_code == 404
+
+
+def test_return_still_does_not_mutate_payment_even_with_watch_flow(app, client):
+    case = create_direct_booking(app, email_prefix="watch-return-no-mutate")
+    vnpay = build_vnpay_client()
+    with app.app_context():
+        player = db.session.get(User, case["player_id"])
+        email = player.email
+        checkout = start_vnpay_payment(
+            booking_code=case["booking_code"],
+            contribution_id=case["contribution_id"],
+            payer=player,
+            return_url="https://example.test/payments/vnpay/return",
+            ip_addr="203.0.113.9",
+            client=vnpay,
+        )
+        payment_id = checkout.payment.id
+        payload = vnpay_callback_payload(checkout.payment, vnpay)
+    login(client, email=email)
+
+    client.get("/payments/vnpay/return", query_string=payload, follow_redirects=False)
+
+    with app.app_context():
+        assert db.session.get(Payment, payment_id).status == PaymentStatus.PENDING.value
+
+
+def test_watch_marker_stops_resolving_once_payment_is_terminal(app):
+    """Once status leaves PENDING the marker must stop resolving — this is
+    exactly what prevents the client-side poll from ever causing a reload
+    loop (no marker on the reloaded page => no new poll is started)."""
+    from types import SimpleNamespace
+
+    from app.routes.payments import resolve_watchable_vnpay_payment_id
+
+    case = create_direct_booking(app, email_prefix="watch-no-reload-loop")
+    vnpay = build_vnpay_client()
+    with app.app_context():
+        player_id = case["player_id"]
+        checkout = start_vnpay_payment(
+            booking_code=case["booking_code"],
+            contribution_id=case["contribution_id"],
+            payer=db.session.get(User, player_id),
+            return_url="https://example.test/payments/vnpay/return",
+            ip_addr="203.0.113.9",
+            client=vnpay,
+        )
+        payment_id = checkout.payment.id
+        payload = vnpay_callback_payload(checkout.payment, vnpay)
+
+        with app.test_request_context(f"/bookings/x?payment_watch={payment_id}"):
+            assert (
+                resolve_watchable_vnpay_payment_id(user=SimpleNamespace(id=player_id))
+                == payment_id
+            )
+
+        process_vnpay_ipn(payload, client=vnpay)
+
+        with app.test_request_context(f"/bookings/x?payment_watch={payment_id}"):
+            assert (
+                resolve_watchable_vnpay_payment_id(user=SimpleNamespace(id=player_id))
+                is None
+            )
+
+
+# --- Step 5 Fix 3: payment buttons must reset after BFCache restore -----------
+# The project has no JS execution test harness (no headless browser runner),
+# so these are source-level regression guards on app/static/js/booking-detail.js
+# — the same file bookings/detail.html and matches/detail.html both load —
+# rather than a behavioral browser test.
+
+
+def _booking_detail_js_source() -> str:
+    from pathlib import Path
+
+    js_path = (
+        Path(__file__).resolve().parents[2]
+        / "app"
+        / "static"
+        / "js"
+        / "booking-detail.js"
+    )
+    return js_path.read_text(encoding="utf-8")
+
+
+def test_payment_button_js_listens_for_pageshow_and_restores_original_label():
+    source = _booking_detail_js_source()
+    assert "pageshow" in source
+    assert "event.persisted" in source
+    assert "originalLabel" in source
+    assert "button.disabled = false" in source
+
+
+def test_payment_button_js_only_resets_buttons_it_disabled_for_submit():
+    source = _booking_detail_js_source()
+    # Marker set only inside the submit handler, so the countdown-expiry
+    # disable path (a different code path, no marker) is never re-enabled.
+    assert "data-payment-submitting" in source
+
+
+def test_payment_button_js_keeps_double_submit_protection():
+    source = _booking_detail_js_source()
+    assert "button.disabled = true" in source
+    assert "Đang xử lý" in source
+
+
+def test_payment_watch_js_polling_is_bounded_and_reloads_once():
+    source = _booking_detail_js_source()
+    assert "data-vnpay-payment-watch" in source
+    assert "MAX_ATTEMPTS" in source
+    assert "MAX_CONSECUTIVE_FAILURES" in source
+    assert "clearInterval" in source
+    assert "window.location.reload" in source
+
+
 @pytest.fixture(autouse=True)
 def enable_vnpay_in_isolated_tests(app):
     app.config.update(

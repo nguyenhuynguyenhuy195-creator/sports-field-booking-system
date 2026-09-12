@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+from urllib.parse import parse_qs, urlsplit
 from uuid import uuid4
 
 from flask import current_app
@@ -852,21 +853,53 @@ def _start_vnpay_checkout(
         )
         .order_by(Payment.id.desc())
     )
+    retiring: Payment | None = None
     if existing is not None and existing.checkout_url:
-        # Double-click / retry: reuse the same PENDING row and URL instead
-        # of creating another Payment or re-signing a new one. No config
-        # needed on this path, so it works even if VNPAY_* config is broken.
-        return VnpayCheckout(payment=existing, pay_url=existing.checkout_url)
+        if _vnpay_checkout_bank_code(existing.checkout_url) == bank_code:
+            # Double-click / retry on the SAME routing mode: reuse the same
+            # PENDING row and URL instead of creating another Payment or
+            # re-signing a new one. No config needed on this path, so it
+            # works even if VNPAY_* config is broken.
+            return VnpayCheckout(payment=existing, pay_url=existing.checkout_url)
+        # Routing mode changed (normal <-> VNPAY-QR). Reusing this URL would
+        # send the user to the wrong VNPAY screen. Retire it below (after
+        # config validation) and build a fresh checkout for the newly
+        # requested mode instead of rewriting this row's URL in place.
+        retiring = existing
+        existing = None
 
     # Validate the gateway client and return_url BEFORE any Payment row is
-    # created/committed, so a missing/invalid VNPAY_TMN_CODE, VNPAY_HASH_SECRET
-    # or return_url (VNPAY_RETURN_URL) never leaves an orphan PENDING row.
+    # created/committed/retired, so a missing/invalid VNPAY_TMN_CODE,
+    # VNPAY_HASH_SECRET or return_url (VNPAY_RETURN_URL) never leaves an
+    # orphan PENDING row or throws away a still-usable checkout.
     try:
         vnpay = client or VnpayClient.from_app_config()
     except VnpayError as exc:
         raise PaymentError(str(exc)) from exc
     if not return_url:
         raise PaymentError("Thiếu Return URL để tạo giao dịch VNPAY.")
+
+    if retiring is not None:
+        # EXPIRED, not CANCELLED: switching routing mode locally does NOT
+        # cancel the old checkout at VNPAY — that signed URL may still be
+        # live, and VNPAY may still deliver a genuine SUCCESS IPN for it.
+        # process_vnpay_ipn() treats CANCELLED as an already-finalized order
+        # (RspCode=02, no processing), which would silently drop that
+        # provider-confirmed payment. EXPIRED is the status the existing IPN
+        # path already knows how to fall through from when no success has
+        # been recorded yet (see _vnpay_success_was_recorded /
+        # _record_late_vnpay_success_for_refund): a later real SUCCESS on
+        # this row is still applied normally if it arrives before the new
+        # checkout succeeds, or queued as a late-payment refund if the new
+        # checkout already completed the contribution first — the same
+        # provider-trust model as any other late VNPAY success.
+        #
+        # This query only ever finds PENDING rows, so no SUCCESS Payment is
+        # ever touched here, and no Contribution/Booking paid amount changes
+        # here (those are only ever updated by _apply_success_to_payment /
+        # the IPN path).
+        retiring.status = PaymentStatus.EXPIRED.value
+        _commit_payment()
 
     if existing is not None:
         payment = existing
@@ -1257,3 +1290,17 @@ def _vnpay_expire_date(
         deadline = current_utc + timedelta(minutes=_VNPAY_DEFAULT_EXPIRE_MINUTES)
     vn_time = deadline.replace(tzinfo=timezone.utc).astimezone(VIETNAM_TIMEZONE)
     return vn_time.strftime("%Y%m%d%H%M%S")
+
+
+def _vnpay_checkout_bank_code(checkout_url: str | None) -> str | None:
+    """Read back vnp_BankCode from an already-built checkout URL.
+
+    Payment has no bank_code column (no migration for this) — the signed
+    checkout_url is the only record of which VNPAY routing mode (normal vs
+    VNPAYQR) a PENDING checkout was built for.
+    """
+    if not checkout_url:
+        return None
+    query = parse_qs(urlsplit(checkout_url).query)
+    values = query.get("vnp_BankCode")
+    return values[0] if values else None
