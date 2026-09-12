@@ -452,11 +452,6 @@
                                         {{ payment_form.hidden_tag() }}
                                         <button class="btn btn-outline-primary w-100" type="submit" data-payment-submit>Thanh toán qua VNPAY</button>
                                     </form>
-                                    <form class="booking-payment-action mt-2" method="post" action="{{ url_for('payments.pay_vnpay', booking_code=booking.booking_code, contribution_id=contribution.id) }}">
-                                        {{ payment_form.hidden_tag() }}
-                                        <input type="hidden" name="bank_code" value="VNPAYQR">
-                                        <button class="btn btn-outline-secondary w-100" type="submit" data-payment-submit><i class="bi bi-qr-code" aria-hidden="true"></i> Quét VNPAY-QR</button>
-                                    </form>
                                     <p class="small text-secondary mt-1 mb-0">Môi trường thanh toán thử nghiệm VNPAY Sandbox.</p>
                                 {% endif %}
                             {% endif %}
@@ -475,11 +470,6 @@
                                 <form class="mt-2" method="post" action="{{ url_for('payments.top_up_vnpay', booking_code=booking.booking_code) }}">
                                     {{ top_up_form.hidden_tag() }}
                                     <button class="btn btn-outline-primary w-100" type="submit" data-payment-submit>Trả qua VNPAY</button>
-                                </form>
-                                <form class="mt-2" method="post" action="{{ url_for('payments.top_up_vnpay', booking_code=booking.booking_code) }}">
-                                    {{ top_up_form.hidden_tag() }}
-                                    <input type="hidden" name="bank_code" value="VNPAYQR">
-                                    <button class="btn btn-outline-secondary w-100" type="submit" data-payment-submit><i class="bi bi-qr-code" aria-hidden="true"></i> Quét VNPAY-QR</button>
                                 </form>
                                 <p class="small text-secondary mt-1 mb-0">Môi trường thanh toán thử nghiệm VNPAY Sandbox.</p>
                             {% endif %}

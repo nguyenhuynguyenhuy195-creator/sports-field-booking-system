@@ -227,11 +227,6 @@
                             {{ payment_form.hidden_tag() }}
                             <button class="btn btn-outline-primary w-100" type="submit" data-payment-submit>Thanh toán qua VNPAY</button>
                         </form>
-                        <form class="mt-2" method="post" action="{{ url_for('payments.pay_vnpay', booking_code=match.booking.booking_code, contribution_id=current_request.contribution_id, return_to_match=match.id) }}">
-                            {{ payment_form.hidden_tag() }}
-                            <input type="hidden" name="bank_code" value="VNPAYQR">
-                            <button class="btn btn-outline-secondary w-100" type="submit" data-payment-submit><i class="bi bi-qr-code" aria-hidden="true"></i> Quét VNPAY-QR</button>
-                        </form>
                         <p class="small text-secondary mt-1 mb-0">Môi trường thanh toán thử nghiệm VNPAY Sandbox.</p>
                     {% endif %}
                     <form class="mt-3" method="post" action="{{ url_for('matches.withdraw', match_id=match.id) }}">

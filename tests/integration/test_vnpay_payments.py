@@ -1127,11 +1127,16 @@ def test_vnpay_buttons_visible_for_direct_booking_creator_when_enabled(app, clie
 
     assert response.status_code == 200
     assert "Thanh toán qua VNPAY" in page
-    assert "Quét VNPAY-QR" in page
     assert "Thanh toán mô phỏng" in page  # MOCK still shown alongside — no regression
 
 
-def test_vnpay_normal_button_omits_bank_code_only_qr_button_sends_it(app, client):
+def test_vnpay_qr_option_removed_from_ui_only_one_vnpay_button_remains(app, client):
+    """The separate VNPAY-QR button was removed from the User UI (VNPAYQR
+    stays fully supported at the VnpayClient/service layer for potential
+    future reuse — see test_bank_code_vnpayqr_adds_vnp_bank_code_without_changing_payment_method
+    and the QR routing-mode tests below). Only the single "Thanh toán qua
+    VNPAY" action remains, and it must never send bank_code.
+    """
     case = create_direct_booking(app, email_prefix="ui-normal")
     with app.app_context():
         email = db.session.get(User, case["player_id"]).email
@@ -1140,11 +1145,10 @@ def test_vnpay_normal_button_omits_bank_code_only_qr_button_sends_it(app, client
     response = client.get(f"/bookings/{case['booking_code']}")
     page = response.get_data(as_text=True)
 
-    # Exactly one contribution is pending here, so exactly one VNPAY form
-    # (the QR one) should carry bank_code; the normal one must not.
-    assert page.count('name="bank_code"') == 1
-    assert 'name="bank_code" value="VNPAYQR"' in page
-    assert page.count('action="/bookings/') >= 2  # both VNPAY forms present
+    assert "Quét VNPAY-QR" not in page
+    assert "VNPAYQR" not in page
+    assert page.count('name="bank_code"') == 0
+    assert page.count('action="/bookings/') >= 1  # the single VNPAY form is present
 
 
 def test_vnpay_buttons_visible_for_find_opponent_creator(app, client):
@@ -1168,7 +1172,7 @@ def test_vnpay_buttons_visible_for_find_opponent_creator(app, client):
 
     assert response.status_code == 200
     assert "Thanh toán qua VNPAY" in page
-    assert "Quét VNPAY-QR" in page
+    assert "Quét VNPAY-QR" not in page
 
 
 def test_vnpay_buttons_visible_for_find_opponent_opponent(app, client):
@@ -1216,7 +1220,7 @@ def test_vnpay_buttons_visible_for_find_opponent_opponent(app, client):
 
     assert response.status_code == 200
     assert "Thanh toán qua VNPAY" in page
-    assert "Quét VNPAY-QR" in page
+    assert "Quét VNPAY-QR" not in page
 
 
 def test_find_players_participant_has_no_online_payment_action_even_when_enabled(
