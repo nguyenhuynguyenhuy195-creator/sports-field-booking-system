@@ -29,6 +29,7 @@ from app.services import (
     PaymentExpiredError,
     create_booking,
     create_match,
+    decide_match_request,
     inspect_vnpay_return,
     pay_contribution_with_mock,
     process_vnpay_ipn,
@@ -1094,6 +1095,215 @@ def test_vnp_txn_ref_is_alphanumeric_only_and_within_length_limit(app):
         assert re.fullmatch(r"[A-Za-z0-9]+", order_id)
         assert "-" not in order_id
         assert len(order_id) <= 100
+
+
+# --- Step 4: UI visibility ------------------------------------------------------
+
+
+def test_vnpay_buttons_hidden_when_disabled(app, client):
+    case = create_direct_booking(app, email_prefix="ui-disabled")
+    app.config["VNPAY_ENABLED"] = False
+    with app.app_context():
+        email = db.session.get(User, case["player_id"]).email
+    login(client, email=email)
+
+    response = client.get(f"/bookings/{case['booking_code']}")
+    page = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "VNPAY" not in page
+    assert "payments/vnpay" not in page
+    assert "Thanh toán mô phỏng" in page  # MOCK button unaffected
+
+
+def test_vnpay_buttons_visible_for_direct_booking_creator_when_enabled(app, client):
+    case = create_direct_booking(app, email_prefix="ui-direct")
+    with app.app_context():
+        email = db.session.get(User, case["player_id"]).email
+    login(client, email=email)
+
+    response = client.get(f"/bookings/{case['booking_code']}")
+    page = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "Thanh toán qua VNPAY" in page
+    assert "Quét VNPAY-QR" in page
+    assert "Thanh toán mô phỏng" in page  # MOCK still shown alongside — no regression
+
+
+def test_vnpay_normal_button_omits_bank_code_only_qr_button_sends_it(app, client):
+    case = create_direct_booking(app, email_prefix="ui-normal")
+    with app.app_context():
+        email = db.session.get(User, case["player_id"]).email
+    login(client, email=email)
+
+    response = client.get(f"/bookings/{case['booking_code']}")
+    page = response.get_data(as_text=True)
+
+    # Exactly one contribution is pending here, so exactly one VNPAY form
+    # (the QR one) should carry bank_code; the normal one must not.
+    assert page.count('name="bank_code"') == 1
+    assert 'name="bank_code" value="VNPAYQR"' in page
+    assert page.count('action="/bookings/') >= 2  # both VNPAY forms present
+
+
+def test_vnpay_buttons_visible_for_find_opponent_creator(app, client):
+    owner = create_user(app, email="fo-ui-owner@example.com", role=UserRole.OWNER)
+    creator = create_user(app, email="fo-ui-creator@example.com")
+    _, field_id = create_bookable_field(app, owner_id=owner.id)
+    with app.app_context():
+        booking = create_booking(
+            user=db.session.get(User, creator.id),
+            field_id=field_id,
+            booking_date=booking_day(),
+            start_time=time(18, 0),
+            end_time=time(20, 0),
+            booking_mode=BookingMode.FIND_OPPONENT.value,
+        )
+        booking_code = booking.booking_code
+    login(client, email=creator.email)
+
+    response = client.get(f"/bookings/{booking_code}")
+    page = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "Thanh toán qua VNPAY" in page
+    assert "Quét VNPAY-QR" in page
+
+
+def test_vnpay_buttons_visible_for_find_opponent_opponent(app, client):
+    owner = create_user(app, email="fo-opp-owner@example.com", role=UserRole.OWNER)
+    creator = create_user(app, email="fo-opp-creator@example.com")
+    opponent = create_user(app, email="fo-opp-opponent@example.com")
+    _, field_id = create_bookable_field(app, owner_id=owner.id)
+    with app.app_context():
+        booking = create_booking(
+            user=db.session.get(User, creator.id),
+            field_id=field_id,
+            booking_date=booking_day(),
+            start_time=time(18, 0),
+            end_time=time(20, 0),
+            booking_mode=BookingMode.FIND_OPPONENT.value,
+        )
+        creator_contribution = next(
+            item for item in booking.contributions if item.user_id == creator.id
+        )
+        pay_contribution_with_mock(
+            booking_code=booking.booking_code,
+            contribution_id=creator_contribution.id,
+            payer=db.session.get(User, creator.id),
+        )
+        match = create_match(
+            booking_code=booking.booking_code,
+            creator=db.session.get(User, creator.id),
+            title="Kèo kiểm thử UI VNPAY",
+            description="Kiểm tra nút VNPAY trên trang opponent.",
+            skill_level="INTERMEDIATE",
+            contact_phone="0901000001",
+            share_contact=True,
+        )
+        request_to_join_match(
+            match_id=match.id,
+            user=db.session.get(User, opponent.id),
+            contact_phone="0901000002",
+            share_contact=True,
+        )
+        match_id = match.id
+    login(client, email=opponent.email)
+
+    response = client.get(f"/matches/{match_id}")
+    page = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "Thanh toán qua VNPAY" in page
+    assert "Quét VNPAY-QR" in page
+
+
+def test_find_players_participant_has_no_online_payment_action_even_when_enabled(
+    app, client
+):
+    from tests.integration.test_matchmaking import _create_match, _create_split_booking
+
+    owner = create_user(app, email="fp-ui-owner@example.com", role=UserRole.OWNER)
+    creator = create_user(app, email="fp-ui-creator@example.com")
+    player = create_user(app, email="fp-ui-player@example.com")
+    _, field_id = create_bookable_field(app, owner_id=owner.id)
+    booking_code = _create_split_booking(
+        app,
+        creator_id=creator.id,
+        field_id=field_id,
+        booking_mode=BookingMode.FIND_PLAYERS.value,
+        requested_players=1,
+    )
+    match_id = _create_match(app, booking_code=booking_code, creator_id=creator.id)
+    with app.app_context():
+        participant = request_to_join_match(
+            match_id=match_id,
+            user=db.session.get(User, player.id),
+            contact_phone="0901000009",
+            share_contact=True,
+        )
+        decide_match_request(
+            match_id=match_id,
+            participant_id=participant.id,
+            creator=db.session.get(User, creator.id),
+            accept=True,
+        )
+    login(client, email=player.email)
+
+    response = client.get(f"/matches/{match_id}")
+    page = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "VNPAY" not in page
+    assert "payments/vnpay" not in page
+
+
+def test_owner_view_never_shows_vnpay_action(app, client):
+    case = create_direct_booking(app, email_prefix="ui-owner")
+    login(client, email="ui-owner-owner@example.com")
+
+    response = client.get(f"/owner/bookings/{case['booking_code']}")
+    page = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "VNPAY" not in page
+    assert "payments/vnpay" not in page
+
+
+# --- Step 4: cleanup B - VNPAY_VERSION / VNPAY_LOCALE actually used ------------
+
+
+def test_custom_vnpay_version_and_locale_are_used_in_checkout_url(app):
+    case = create_direct_booking(app, email_prefix="verlocale")
+    app.config["VNPAY_VERSION"] = "2.2.0"
+    app.config["VNPAY_LOCALE"] = "en"
+    with app.app_context():
+        checkout = start_vnpay_payment(
+            booking_code=case["booking_code"],
+            contribution_id=case["contribution_id"],
+            payer=db.session.get(User, case["player_id"]),
+            return_url="https://example.test/payments/vnpay/return",
+            ip_addr="203.0.113.9",
+        )
+        params = query_dict(checkout.pay_url)
+        assert params["vnp_Version"] == "2.2.0"
+        assert params["vnp_Locale"] == "en"
+
+
+def test_default_vnpay_version_and_locale_when_not_customized(app):
+    case = create_direct_booking(app, email_prefix="verlocale-default")
+    with app.app_context():
+        checkout = start_vnpay_payment(
+            booking_code=case["booking_code"],
+            contribution_id=case["contribution_id"],
+            payer=db.session.get(User, case["player_id"]),
+            return_url="https://example.test/payments/vnpay/return",
+            ip_addr="203.0.113.9",
+        )
+        params = query_dict(checkout.pay_url)
+        assert params["vnp_Version"] == "2.1.0"
+        assert params["vnp_Locale"] == "vn"
 
 
 @pytest.fixture(autouse=True)

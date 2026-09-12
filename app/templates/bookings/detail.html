@@ -391,8 +391,9 @@
                 </div>
                 <dl class="user-booking-financials">
                     <div><dt>Tổng tiền sân</dt><dd>{{ booking.total_amount|vnd_currency }}</dd></div>
+                    <div><dt>Cọc cần thanh toán</dt><dd>{{ booking.deposit_amount|vnd_currency }}</dd></div>
                     <div><dt>Đã thanh toán</dt><dd>{{ booking.paid_amount|vnd_currency }}</dd></div>
-                    <div><dt>Còn lại trả tại sân</dt><dd>{{ booking.balance_due_at_venue|vnd_currency }}</dd></div>
+                    <div><dt>Còn lại trả tại sân sau khi cọc đủ</dt><dd>{{ (booking.total_amount - booking.deposit_amount)|vnd_currency }}</dd></div>
                 </dl>
                 {% if booking.balance_due_at_venue > 0 and effective_status not in ['CANCELLED', 'EXPIRED', 'REFUND_PENDING'] %}
                     <p class="user-booking-payment-note"><i class="bi bi-info-circle-fill" aria-hidden="true"></i><span>Bạn sẽ thanh toán phần còn lại trực tiếp tại sân khi đến chơi.</span></p>
@@ -407,8 +408,19 @@
                             {% if contribution.user_id == current_user.id and contribution.status == 'PENDING' %}
                                 <form class="booking-payment-action" method="post" action="{{ url_for('payments.pay_momo' if momo_enabled else 'payments.pay_mock', booking_code=booking.booking_code, contribution_id=contribution.id) }}">
                                     {{ payment_form.hidden_tag() }}
-                                    <button class="btn btn-primary w-100" type="submit" data-payment-submit>Thanh toán cọc {{ contribution.remaining_amount|vnd_currency }}</button>
+                                    <button class="btn btn-primary w-100" type="submit" data-payment-submit>Thanh toán mô phỏng {{ contribution.remaining_amount|vnd_currency }}</button>
                                 </form>
+                                {% if vnpay_enabled %}
+                                    <form class="booking-payment-action mt-2" method="post" action="{{ url_for('payments.pay_vnpay', booking_code=booking.booking_code, contribution_id=contribution.id) }}">
+                                        {{ payment_form.hidden_tag() }}
+                                        <button class="btn btn-outline-primary w-100" type="submit" data-payment-submit>Thanh toán qua VNPAY</button>
+                                    </form>
+                                    <form class="booking-payment-action mt-2" method="post" action="{{ url_for('payments.pay_vnpay', booking_code=booking.booking_code, contribution_id=contribution.id) }}">
+                                        {{ payment_form.hidden_tag() }}
+                                        <input type="hidden" name="bank_code" value="VNPAYQR">
+                                        <button class="btn btn-outline-secondary w-100" type="submit" data-payment-submit><i class="bi bi-qr-code" aria-hidden="true"></i> Quét VNPAY-QR</button>
+                                    </form>
+                                {% endif %}
                             {% endif %}
                         {% endfor %}
                     </div>
@@ -421,6 +433,17 @@
                                 {{ top_up_form.hidden_tag() }}
                                 <button class="btn btn-primary w-100" type="submit" data-payment-submit>Trả phần cọc đối thủ còn thiếu</button>
                             </form>
+                            {% if vnpay_enabled %}
+                                <form class="mt-2" method="post" action="{{ url_for('payments.top_up_vnpay', booking_code=booking.booking_code) }}">
+                                    {{ top_up_form.hidden_tag() }}
+                                    <button class="btn btn-outline-primary w-100" type="submit" data-payment-submit>Trả qua VNPAY</button>
+                                </form>
+                                <form class="mt-2" method="post" action="{{ url_for('payments.top_up_vnpay', booking_code=booking.booking_code) }}">
+                                    {{ top_up_form.hidden_tag() }}
+                                    <input type="hidden" name="bank_code" value="VNPAYQR">
+                                    <button class="btn btn-outline-secondary w-100" type="submit" data-payment-submit><i class="bi bi-qr-code" aria-hidden="true"></i> Quét VNPAY-QR</button>
+                                </form>
+                            {% endif %}
                             <p class="small text-secondary mt-2 mb-0">Cửa sổ trả thay kết thúc lúc {{ booking.funding_deadline|local_datetime }}.</p>
                         {% else %}
                             <p class="small text-secondary mb-0">Nút trả thay chỉ mở trong 30 phút sau hạn tìm đối thủ.</p>

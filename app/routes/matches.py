@@ -377,6 +377,7 @@ def detail(match_id: int):
         opponent_auto_join=opponent_auto_join,
         opponent_obligation_covered=opponent_obligation_covered,
         momo_enabled=current_app.config.get("MOMO_ENABLED", False),
+        vnpay_enabled=current_app.config.get("VNPAY_ENABLED", False),
     )
 
 

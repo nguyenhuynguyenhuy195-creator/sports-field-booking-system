@@ -405,6 +405,7 @@ def detail(booking_code: str):
         cancel_form=BookingActionForm(),
         owner_view=False,
         momo_enabled=current_app.config.get("MOMO_ENABLED", False),
+        vnpay_enabled=current_app.config.get("VNPAY_ENABLED", False),
     )
 
 
@@ -474,6 +475,7 @@ def _render_owner_booking_detail(
         owner_cancel_modal_open=owner_cancel_modal_open,
         owner_view=True,
         momo_enabled=current_app.config.get("MOMO_ENABLED", False),
+        vnpay_enabled=current_app.config.get("VNPAY_ENABLED", False),
     )
 
 

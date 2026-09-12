@@ -900,6 +900,8 @@ def _start_vnpay_checkout(
                 current_utc=current_utc,
             ),
             bank_code=bank_code,
+            version=current_app.config.get("VNPAY_VERSION", "2.1.0"),
+            locale=current_app.config.get("VNPAY_LOCALE", "vn"),
         )
     except VnpayError as exc:
         raise PaymentError(str(exc)) from exc
@@ -966,7 +968,7 @@ def _apply_success_to_payment(
     amount = Decimal(payment.amount)
     if amount != contribution.remaining_amount:
         raise InvalidPaymentStateError(
-            "Số tiền MoMo không còn khớp khoản cọc phải trả."
+            "Số tiền thanh toán không còn khớp khoản cọc phải trả."
         )
     new_paid_amount = Decimal(booking.paid_amount) + amount
     if new_paid_amount > Decimal(booking.deposit_amount):
