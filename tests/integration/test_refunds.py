@@ -20,6 +20,7 @@ from app.models import (
     UserRole,
 )
 from app.services import (
+    apply_funding_shortfall_refunds,
     cancel_owner_booking,
     cancel_user_booking,
     decide_match_request,
@@ -142,6 +143,145 @@ def test_owner_cancels_paid_booking_and_refunds_every_payment(app):
         assert sum(item.amount for item in refunds) == booking.deposit_amount
         assert {item.status for item in refunds} == {RefundStatus.SUCCESS.value}
         assert {item.status for item in payments} == {PaymentStatus.SUCCESS.value}
+
+
+def test_owner_cancel_refunds_each_normal_paid_contribution_to_its_own_payer(app):
+    """Rule A regression guard: the FORFEITED skip in _refund_collected_payments
+    must never swallow a normal PAID contribution — each payer still gets
+    their own, correctly-attributed refund."""
+    owner, creator, opponent, booking_code, match_id, participant_id = (
+        _prepare_joined_opponent(app)
+    )
+
+    with app.app_context():
+        booking = cancel_owner_booking(
+            booking_code=booking_code,
+            owner=db.session.get(User, owner.id),
+            reason="Sân ngập nước đột xuất.",
+        )
+        refunds = list(db.session.scalars(db.select(Refund).order_by(Refund.id)))
+
+        assert booking.status == BookingStatus.CANCELLED.value
+        assert len(refunds) == 2
+        refunds_by_recipient = {refund.recipient_id: refund for refund in refunds}
+        assert refunds_by_recipient.keys() == {creator.id, opponent.id}
+        assert refunds_by_recipient[creator.id].amount == Decimal("60000.00")
+        assert refunds_by_recipient[creator.id].status == RefundStatus.SUCCESS.value
+        assert refunds_by_recipient[opponent.id].amount == Decimal("60000.00")
+        assert refunds_by_recipient[opponent.id].status == RefundStatus.SUCCESS.value
+        assert booking.paid_amount == Decimal("0.00")
+
+
+def test_owner_cancel_does_not_refund_a_previously_forfeited_opponent(app):
+    """RULE A: a participant who already forfeited their deposit by
+    withdrawing keeps it forfeited forever — a later owner-cancel must not
+    resurrect it into a Refund, regardless of how every other payment on
+    the booking is refunded."""
+    owner, creator, opponent, booking_code, match_id, participant_id = (
+        _prepare_joined_opponent(app)
+    )
+
+    with app.app_context():
+        withdraw_match_request(
+            match_id=match_id,
+            user=db.session.get(User, opponent.id),
+        )
+        booking = db.session.scalar(
+            db.select(Booking).where(Booking.booking_code == booking_code)
+        )
+        opponent_contribution = next(
+            item
+            for item in booking.contributions
+            if item.contribution_type == "OPPONENT"
+        )
+        opponent_payment = db.session.scalar(
+            db.select(Payment).where(
+                Payment.contribution_id == opponent_contribution.id
+            )
+        )
+        assert opponent_contribution.status == ContributionStatus.FORFEITED.value
+        assert opponent_payment.status == PaymentStatus.SUCCESS.value
+
+        booking = cancel_owner_booking(
+            booking_code=booking_code,
+            owner=db.session.get(User, owner.id),
+            reason="Sân ngập nước đột xuất.",
+        )
+
+        db.session.refresh(opponent_contribution)
+        db.session.refresh(opponent_payment)
+        opponent_refund = db.session.scalar(
+            db.select(Refund).where(Refund.payment_id == opponent_payment.id)
+        )
+        creator_refund = db.session.scalar(
+            db.select(Refund).where(Refund.recipient_id == creator.id)
+        )
+
+        # Booking/Match still cancel immediately, independent of the
+        # forfeited share.
+        assert booking.status == BookingStatus.CANCELLED.value
+        assert booking.match.status == MatchStatus.CANCELLED.value
+
+        # The forfeited opponent contribution is left completely untouched.
+        assert opponent_refund is None
+        assert opponent_contribution.status == ContributionStatus.FORFEITED.value
+        assert opponent_contribution.amount_paid == Decimal("60000.00")
+        assert opponent_payment.status == PaymentStatus.SUCCESS.value
+
+        # The creator's still-normal deposit is refunded as usual (100% for
+        # an owner cancellation) — only the forfeited share is skipped.
+        assert creator_refund is not None
+        assert creator_refund.status == RefundStatus.SUCCESS.value
+        assert creator_refund.amount == Decimal("60000.00")
+        assert booking.paid_amount == Decimal("60000.00")  # the forfeited 60k stays
+
+
+def test_funding_shortfall_refund_does_not_refund_a_previously_forfeited_opponent(
+    app,
+):
+    """Same RULE A guarantee, exercised through the funding-shortfall
+    helper — the shared _refund_collected_payments fix must protect both
+    callers identically."""
+    owner, creator, opponent, booking_code, match_id, participant_id = (
+        _prepare_joined_opponent(app)
+    )
+
+    with app.app_context():
+        withdraw_match_request(
+            match_id=match_id,
+            user=db.session.get(User, opponent.id),
+        )
+        booking = db.session.scalar(
+            db.select(Booking).where(Booking.booking_code == booking_code)
+        )
+        opponent_contribution = next(
+            item
+            for item in booking.contributions
+            if item.contribution_type == "OPPONENT"
+        )
+        opponent_payment = db.session.scalar(
+            db.select(Payment).where(
+                Payment.contribution_id == opponent_contribution.id
+            )
+        )
+        assert opponent_contribution.status == ContributionStatus.FORFEITED.value
+
+        apply_funding_shortfall_refunds(
+            booking=booking,
+            reason="Lịch đặt không được đóng đủ tiền trước hạn 12 giờ.",
+        )
+        db.session.commit()
+
+        db.session.refresh(opponent_contribution)
+        db.session.refresh(opponent_payment)
+        opponent_refund = db.session.scalar(
+            db.select(Refund).where(Refund.payment_id == opponent_payment.id)
+        )
+
+        assert opponent_refund is None
+        assert opponent_contribution.status == ContributionStatus.FORFEITED.value
+        assert opponent_contribution.amount_paid == Decimal("60000.00")
+        assert opponent_payment.status == PaymentStatus.SUCCESS.value
 
 
 def test_owner_cancel_modal_requires_reason_and_shows_actual_refund_amount(app):

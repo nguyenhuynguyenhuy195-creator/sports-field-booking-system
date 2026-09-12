@@ -791,6 +791,15 @@ def _refund_collected_payments(
         contribution = db.session.get(BookingContribution, payment.contribution_id)
         if contribution is None:
             raise InvalidRefundStateError("Giao dịch không còn khoản đóng góp gốc.")
+        if contribution.status == ContributionStatus.FORFEITED.value:
+            # A participant who already forfeited this deposit by withdrawing
+            # (see withdraw_match_request) permanently lost it — the same
+            # rule apply_creator_cancellation_policy already enforces for the
+            # creator-cancel path. Owner-cancel / funding-shortfall must not
+            # silently reverse that forfeiture into a refund: no Refund, no
+            # REFUND_PENDING/REFUNDED transition, no balance change. The
+            # underlying Payment stays SUCCESS as permanent history.
+            continue
         refundable = _remaining_refundable_amount(payment)
         if refundable <= 0:
             continue

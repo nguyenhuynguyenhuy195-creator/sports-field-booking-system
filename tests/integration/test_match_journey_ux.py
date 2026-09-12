@@ -22,6 +22,7 @@ from app.models import (
 )
 from app.routes.matches import _match_view_status, _opponent_obligation_is_covered
 from app.services import (
+    cancel_owner_booking,
     current_vietnam_datetime,
     decide_match_request,
     pay_contribution_with_mock,
@@ -389,3 +390,167 @@ def test_effective_match_status_changes_at_booking_start_boundary(app, stored_st
             match,
             now=start_utc + timedelta(microseconds=1),
         ) == "PAST"
+
+
+# --- Cancelled opponent Match Detail UI (Known Issue 1) -----------------------
+
+
+def _owner_user():
+    return db.session.scalar(db.select(User).where(User.role == UserRole.OWNER.value))
+
+
+def test_cancelled_joined_opponent_shows_cancelled_notice_not_active_banner(
+    app, client
+):
+    creator, opponent, booking_code, match_id = _prepare_match(app)
+    _join(app, match_id=match_id, user_id=opponent.id, pay=True)
+
+    with app.app_context():
+        cancel_owner_booking(
+            booking_code=booking_code,
+            owner=_owner_user(),
+            reason="Sân ngập nước đột xuất.",
+        )
+
+    login(client, email=opponent.email)
+    page = client.get(f"/matches/{match_id}").get_data(as_text=True)
+
+    assert "Kèo đã bị hủy" in page
+    assert "Bạn đã tham gia kèo" not in page
+    assert "Phần cọc cam kết của đội bạn đã được xử lý thành công" not in page
+    # No contact info or update/withdraw forms once cancelled.
+    assert "Liên hệ người đăng kèo" not in page
+    assert f'action="/matches/{match_id}/contact"' not in page
+    assert f'action="/matches/{match_id}/requests/withdraw"' not in page
+    # The opponent's own refund (SUCCESS, since MOCK auto-succeeds) is shown.
+    assert "Đã hoàn tiền" in page
+
+
+@pytest.mark.parametrize(
+    ("refund_status", "expected_label"),
+    [
+        ("PENDING", "Đang chờ xử lý"),
+        ("PROCESSING", "Đang xử lý"),
+        ("SUCCESS", "Đã hoàn tiền"),
+        ("FAILED", "Hoàn tiền thất bại"),
+    ],
+)
+def test_cancelled_joined_opponent_own_refund_status_labels_render_correctly(
+    app, client, refund_status, expected_label
+):
+    creator, opponent, booking_code, match_id = _prepare_match(app)
+    _join(app, match_id=match_id, user_id=opponent.id, pay=True)
+
+    with app.app_context():
+        cancel_owner_booking(
+            booking_code=booking_code,
+            owner=_owner_user(),
+            reason="Sự cố kỹ thuật.",
+        )
+        refund = db.session.scalar(
+            db.select(Refund).where(Refund.recipient_id == opponent.id)
+        )
+        assert refund is not None
+        refund.status = refund_status
+        db.session.commit()
+
+    login(client, email=opponent.email)
+    page = client.get(f"/matches/{match_id}").get_data(as_text=True)
+    assert expected_label in page
+
+
+def test_cancelled_joined_opponent_view_never_leaks_creator_refund(app, client):
+    creator, opponent, booking_code, match_id = _prepare_match(app)
+    _join(app, match_id=match_id, user_id=opponent.id, pay=True)
+
+    with app.app_context():
+        cancel_owner_booking(
+            booking_code=booking_code,
+            owner=_owner_user(),
+            reason="Sự cố kỹ thuật.",
+        )
+        refunds = list(db.session.scalars(db.select(Refund)))
+        assert len(refunds) == 2
+        assert {item.recipient_id for item in refunds} == {creator.id, opponent.id}
+
+    login(client, email=opponent.email)
+    page = client.get(f"/matches/{match_id}").get_data(as_text=True)
+
+    # Exactly ONE refund badge (the opponent's own) — the creator's refund
+    # must never surface in the opponent's own view.
+    assert page.count('class="participant-status participant-status-success"') == 1
+
+
+def test_cancelled_replacement_opponent_with_no_payment_shows_no_fake_refund(
+    app, client
+):
+    creator, first_opponent, booking_code, match_id = _prepare_match(app)
+    replacement = create_user(app, email="replacement-no-refund@example.com")
+    _join(app, match_id=match_id, user_id=first_opponent.id, pay=True)
+
+    with app.app_context():
+        withdraw_match_request(
+            match_id=match_id,
+            user=db.session.get(User, first_opponent.id),
+        )
+    _join(app, match_id=match_id, user_id=replacement.id)  # joins free, no payment
+
+    with app.app_context():
+        replacement_participant = db.session.scalar(
+            db.select(MatchParticipant).where(
+                MatchParticipant.match_id == match_id,
+                MatchParticipant.user_id == replacement.id,
+            )
+        )
+        assert replacement_participant.contribution_id is None
+        cancel_owner_booking(
+            booking_code=booking_code,
+            owner=_owner_user(),
+            reason="Sự cố kỹ thuật.",
+        )
+
+    login(client, email=replacement.email)
+    page = client.get(f"/matches/{match_id}").get_data(as_text=True)
+
+    assert "Kèo đã bị hủy" in page
+    assert "Hoàn tiền của bạn" not in page
+    assert "Đang chờ xử lý" not in page
+    assert "Đang xử lý" not in page
+    assert "Đã hoàn tiền" not in page
+    assert "Hoàn tiền thất bại" not in page
+
+
+def test_cancelled_withdrawn_forfeited_opponent_shows_forfeiture_not_refund(
+    app, client
+):
+    creator, opponent, booking_code, match_id = _prepare_match(app)
+    _join(app, match_id=match_id, user_id=opponent.id, pay=True)
+
+    with app.app_context():
+        withdraw_match_request(
+            match_id=match_id,
+            user=db.session.get(User, opponent.id),
+        )
+
+    with app.app_context():
+        cancel_owner_booking(
+            booking_code=booking_code,
+            owner=_owner_user(),
+            reason="Sự cố kỹ thuật.",
+        )
+        # RULE A: the opponent already forfeited this deposit by withdrawing
+        # — owner-cancel must not resurrect it into a refund.
+        refund = db.session.scalar(
+            db.select(Refund).where(Refund.recipient_id == opponent.id)
+        )
+        assert refund is None
+
+    login(client, email=opponent.email)
+    page = client.get(f"/matches/{match_id}").get_data(as_text=True)
+
+    assert "Đã ghi nhận rút khỏi kèo" in page
+    assert "Khoản đã đóng không được hoàn theo chính sách rút khỏi kèo" in page
+    assert "Đang chờ xử lý" not in page
+    assert "Đang xử lý" not in page
+    assert "Đã hoàn tiền" not in page
+    assert "Hoàn tiền thất bại" not in page

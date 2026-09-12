@@ -14,6 +14,7 @@ from flask import (
 from flask_login import current_user
 
 from app.decorators import roles_required
+from app.extensions import db
 from app.forms import (
     BookingActionForm,
     MatchActionForm,
@@ -32,6 +33,9 @@ from app.models import (
     MatchParticipantType,
     MatchStatus,
     MatchType,
+    Payment,
+    Refund,
+    RefundStatus,
     UserRole,
 )
 from app.services import (
@@ -106,6 +110,12 @@ SKILL_LEVEL_LABELS = {
     "BEGINNER": "Mới chơi",
     "INTERMEDIATE": "Trung bình",
     "ADVANCED": "Khá/Tốt",
+}
+REFUND_STATUS_LABELS = {
+    RefundStatus.PENDING.value: "Đang chờ xử lý",
+    RefundStatus.PROCESSING.value: "Đang xử lý",
+    RefundStatus.SUCCESS.value: "Đã hoàn tiền",
+    RefundStatus.FAILED.value: "Hoàn tiền thất bại",
 }
 
 
@@ -377,6 +387,16 @@ def detail(match_id: int):
         ),
         opponent_auto_join=opponent_auto_join,
         opponent_obligation_covered=opponent_obligation_covered,
+        own_refunds=(
+            _own_refunds(
+                match=match,
+                current_request=current_request,
+                user=current_user,
+            )
+            if current_user.is_authenticated
+            else []
+        ),
+        refund_status_labels=REFUND_STATUS_LABELS,
         momo_enabled=current_app.config.get("MOMO_ENABLED", False),
         vnpay_enabled=current_app.config.get("VNPAY_ENABLED", False),
         vnpay_payment_watch_id=(
@@ -612,6 +632,29 @@ def _opponent_obligation_is_covered(match) -> bool:
         and Decimal(contribution.amount_due) > 0
         and Decimal(contribution.amount_paid) >= Decimal(contribution.amount_due)
         for contribution in match.booking.contributions
+    )
+
+
+def _own_refunds(*, match, current_request, user) -> list[Refund]:
+    """Refunds for the CURRENT viewer's own contribution only.
+
+    Scoped by booking_id + recipient_id + the viewer's own contribution_id
+    together, so a creator's or another participant's Payment/Refund can
+    never surface here — this view must never leak another payer's refund.
+    """
+    if current_request is None or current_request.contribution_id is None:
+        return []
+    return list(
+        db.session.scalars(
+            db.select(Refund)
+            .join(Refund.payment)
+            .where(
+                Refund.booking_id == match.booking_id,
+                Refund.recipient_id == user.id,
+                Payment.contribution_id == current_request.contribution_id,
+            )
+            .order_by(Refund.created_at)
+        )
     )
 
 
