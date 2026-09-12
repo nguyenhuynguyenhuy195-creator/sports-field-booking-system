@@ -146,11 +146,21 @@ def list_match_messages(
     )
 
 
-def serialize_message(message: MatchMessage, *, creator_id: int) -> dict:
+def serialize_message(
+    message: MatchMessage,
+    *,
+    creator_id: int,
+    viewer_id: int | None = None,
+) -> dict:
     """The single shape used by BOTH the server-rendered page and the poll API.
 
     Keeping one serializer is what stops the initial messages and the polled
-    ones from disagreeing on timezone, role label or structure.
+    ones from disagreeing on timezone, role label, sidedness or structure.
+
+    ``is_mine`` is derived here from sender_id rather than left to the
+    browser: it is what decides which side of the timeline a message sits on,
+    and it must never be inferred from a role. It exposes nothing new — the
+    viewer already knows who they are.
     """
     payload = {
         "id": message.id,
@@ -162,6 +172,7 @@ def serialize_message(message: MatchMessage, *, creator_id: int) -> dict:
         payload["sender_name"] = SYSTEM_SENDER_NAME
         payload["sender_role"] = None
         payload["event_type"] = message.event_type
+        payload["is_mine"] = False
         return payload
     payload["sender_name"] = message.sender.full_name if message.sender else ""
     payload["sender_role"] = (
@@ -169,11 +180,17 @@ def serialize_message(message: MatchMessage, *, creator_id: int) -> dict:
         if message.sender_id == creator_id
         else SENDER_ROLE_MEMBER
     )
+    payload["is_mine"] = (
+        viewer_id is not None and message.sender_id == viewer_id
+    )
     return payload
 
 
-def serialize_messages(messages, *, creator_id: int) -> list[dict]:
-    return [serialize_message(message, creator_id=creator_id) for message in messages]
+def serialize_messages(messages, *, creator_id: int, viewer_id: int | None = None):
+    return [
+        serialize_message(message, creator_id=creator_id, viewer_id=viewer_id)
+        for message in messages
+    ]
 
 
 def send_user_message(

@@ -7,6 +7,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
     }
 
+    const scroller = room.querySelector("[data-chat-scroll]");
     const timeline = room.querySelector("[data-chat-timeline]");
     const emptyState = room.querySelector("[data-chat-empty]");
     const form = room.querySelector("[data-chat-form]");
@@ -15,6 +16,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const errorBox = room.querySelector("[data-chat-error]");
     const readOnlyBox = room.querySelector("[data-chat-readonly]");
     const readOnlyText = room.querySelector("[data-chat-readonly-text]");
+    const stateBadge = room.querySelector("[data-chat-state]");
+    const stateText = room.querySelector("[data-chat-state-text]");
+    const stateIcon = room.querySelector("[data-chat-state] i");
     const messagesUrl = room.dataset.messagesUrl;
     const sendUrl = room.dataset.sendUrl;
 
@@ -30,6 +34,8 @@ document.addEventListener("DOMContentLoaded", () => {
     let timer = null;
 
     const POLL_INTERVAL_MS = 5000;
+    // Anything within this distance of the bottom counts as "following along".
+    const NEAR_BOTTOM_PX = 140;
 
     timeline.querySelectorAll("[data-message-id]").forEach((node) => {
         const id = Number.parseInt(node.dataset.messageId || "", 10);
@@ -38,8 +44,19 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
+    const isNearBottom = () => {
+        if (!scroller) {
+            return true;
+        }
+        const distance =
+            scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
+        return distance <= NEAR_BOTTOM_PX;
+    };
+
     const scrollToLatest = () => {
-        timeline.scrollTop = timeline.scrollHeight;
+        if (scroller) {
+            scroller.scrollTop = scroller.scrollHeight;
+        }
     };
 
     const showError = (message) => {
@@ -69,33 +86,68 @@ document.addEventListener("DOMContentLoaded", () => {
         return element;
     };
 
+    // Mirrors the message_item macro in matches/chat.html so a polled message
+    // is indistinguishable from a server-rendered one.
     const renderMessage = (message) => {
         const item = document.createElement("li");
         item.dataset.messageId = String(message.id);
 
         if (message.type === "SYSTEM") {
-            item.className = "match-chat-item match-chat-item-system";
+            item.className = "match-chat-row match-chat-row-system";
             if (message.event_type) {
                 item.dataset.eventType = message.event_type;
             }
-            const body = buildElement("div", "match-chat-system-body");
-            body.appendChild(buildElement("span", "match-chat-system-label", "Hệ thống"));
-            body.appendChild(buildElement("p", "match-chat-content", message.content));
-            body.appendChild(buildElement("time", "match-chat-time", message.created_at));
+            const body = buildElement("div", "match-chat-system");
+            body.appendChild(
+                buildElement("span", "match-chat-system-text", message.content)
+            );
+            body.appendChild(
+                buildElement("time", "match-chat-system-time", message.created_at)
+            );
             item.appendChild(body);
             return item;
         }
 
-        item.className = "match-chat-item match-chat-item-user";
-        const body = buildElement("div", "match-chat-user-body");
-        const meta = buildElement("div", "match-chat-meta");
-        meta.appendChild(buildElement("span", "match-chat-sender", message.sender_name));
-        meta.appendChild(buildElement("span", "match-chat-role", message.sender_role));
-        meta.appendChild(buildElement("time", "match-chat-time", message.created_at));
-        body.appendChild(meta);
-        body.appendChild(buildElement("p", "match-chat-content", message.content));
-        item.appendChild(body);
+        const mine = message.is_mine === true;
+        item.className =
+            "match-chat-row " +
+            (mine ? "match-chat-row-mine" : "match-chat-row-theirs");
+        item.dataset.mine = mine ? "true" : "false";
+
+        const group = buildElement("div", "match-chat-group");
+        if (!mine) {
+            const sender = buildElement("p", "match-chat-sender");
+            sender.appendChild(
+                buildElement("span", "match-chat-sender-name", message.sender_name)
+            );
+            sender.appendChild(
+                buildElement("span", "match-chat-role", message.sender_role)
+            );
+            group.appendChild(sender);
+        }
+        group.appendChild(buildElement("div", "match-chat-bubble", message.content));
+        group.appendChild(
+            buildElement("time", "match-chat-time", message.created_at)
+        );
+        item.appendChild(group);
         return item;
+    };
+
+    // Keeps the timeline in id order even when this browser rendered its own
+    // POST before polling caught up on an older message from someone else.
+    const insertInOrder = (node, id) => {
+        const rows = timeline.children;
+        for (let index = rows.length - 1; index >= 0; index -= 1) {
+            const existing = Number.parseInt(
+                rows[index].dataset.messageId || "",
+                10
+            );
+            if (Number.isInteger(existing) && existing < id) {
+                rows[index].after(node);
+                return;
+            }
+        }
+        timeline.prepend(node);
     };
 
     // Renders anything not rendered yet. Never touches the polling cursor.
@@ -107,16 +159,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
             renderedIds.add(id);
-            timeline.appendChild(renderMessage(message));
+            insertInOrder(renderMessage(message), id);
             appended = true;
         });
-        if (!appended) {
-            return;
-        }
-        if (emptyState) {
+        if (appended && emptyState) {
             emptyState.classList.add("d-none");
         }
-        scrollToLatest();
+        return appended;
     };
 
     // The wording lives on the server only; this just reveals what it sent.
@@ -136,6 +185,17 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         if (form) {
             form.classList.add("d-none");
+        }
+        // Presentation only: keep the header badge honest about the state the
+        // server just reported.
+        if (stateBadge) {
+            stateBadge.classList.add("match-chat-state-closed");
+        }
+        if (stateText) {
+            stateText.textContent = "Chỉ đọc";
+        }
+        if (stateIcon) {
+            stateIcon.className = "bi bi-lock";
         }
     };
 
@@ -159,7 +219,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
             const payload = await response.json();
-            appendMessages(payload.messages);
+            // Decide before inserting: a reader scrolled up must not be yanked.
+            const following = isNearBottom();
+            if (appendMessages(payload.messages) && following) {
+                scrollToLatest();
+            }
             // Only a processed poll response may move the cursor forward.
             const nextCursor = Number.parseInt(payload.last_id, 10);
             if (Number.isInteger(nextCursor) && nextCursor > pollAfterId) {
@@ -198,6 +262,21 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
+    // Matches max-height: 10rem on .match-chat-input.
+    const MAX_INPUT_HEIGHT = 160;
+
+    const autoGrow = () => {
+        if (!input) {
+            return;
+        }
+        input.style.height = "auto";
+        const contentHeight = input.scrollHeight;
+        input.style.height = `${Math.min(contentHeight, MAX_INPUT_HEIGHT)}px`;
+        // Hidden while the box still grows; scrollable only once it is capped.
+        input.style.overflowY =
+            contentHeight > MAX_INPUT_HEIGHT ? "auto" : "hidden";
+    };
+
     if (form && input && sendButton) {
         form.addEventListener("submit", async (event) => {
             event.preventDefault();
@@ -230,9 +309,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 const payload = await response.json().catch(() => null);
                 if (response.status === 201 && payload && payload.message) {
                     input.value = "";
+                    autoGrow();
                     // Rendered now, but the cursor stays where it was so the
                     // next poll still picks up anything sent in between.
                     appendMessages([payload.message]);
+                    scrollToLatest();
                 } else if (response.status === 409) {
                     applySendState(payload);
                 } else if (payload && typeof payload.message === "string") {
@@ -249,6 +330,33 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             }
         });
+
+        // Enter sends, Shift+Enter breaks the line. This never sends directly:
+        // it asks the form to submit so there is exactly one send path, the
+        // same one the Gửi button uses, with the same in-flight guard.
+        input.addEventListener("keydown", (event) => {
+            if (event.key !== "Enter" || event.shiftKey) {
+                return;
+            }
+            // Mid-composition Enter belongs to the IME, not to us.
+            if (event.isComposing || event.keyCode === 229) {
+                return;
+            }
+            event.preventDefault();
+            if (sending || !canSend || input.disabled) {
+                return;
+            }
+            if (typeof form.requestSubmit === "function") {
+                form.requestSubmit();
+            } else {
+                form.dispatchEvent(
+                    new Event("submit", { bubbles: true, cancelable: true })
+                );
+            }
+        });
+
+        input.addEventListener("input", autoGrow);
+        autoGrow();
     }
 
     scrollToLatest();

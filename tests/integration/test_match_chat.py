@@ -1122,3 +1122,254 @@ def test_chat_javascript_never_advances_the_cursor_from_a_post():
     # a second time when the next poll returns it.
     assert "renderedIds" in source
     assert "renderedIds.has(id)" in source
+# --- Message sidedness -------------------------------------------------------
+
+
+def _row_html(page, message_id):
+    """The single <li> element that carries this message."""
+    marker = 'data-message-id="%d"' % message_id
+    chunks = [chunk for chunk in page.split("<li ") if marker in chunk]
+    assert len(chunks) == 1, "expected exactly one row for message %d" % message_id
+    return "<li " + chunks[0].split("</li>", 1)[0]
+
+
+def _send_as(client, *, email, match_id, content):
+    login(client, email=email)
+    response = client.post(
+        f"/matches/{match_id}/messages", data={"content": content}
+    )
+    assert response.status_code == 201
+    message_id = response.get_json()["message"]["id"]
+    client.post("/auth/logout")
+    return message_id
+
+
+def test_is_mine_is_derived_from_the_viewer_not_from_a_role(app, client):
+    """The same message must be 'mine' for its sender and not for anyone else —
+    so sidedness can never be inferred from Chủ kèo / Thành viên."""
+    _, creator, player, _, match_id = _joined_member(app)
+    creator_message = _send_as(
+        client, email=creator.email, match_id=match_id, content="Chủ kèo nói"
+    )
+    player_message = _send_as(
+        client, email=player.email, match_id=match_id, content="Thành viên nói"
+    )
+
+    login(client, email=creator.email)
+    as_creator = {
+        item["id"]: item
+        for item in client.get(f"/matches/{match_id}/messages").get_json()["messages"]
+    }
+    client.post("/auth/logout")
+
+    login(client, email=player.email)
+    as_player = {
+        item["id"]: item
+        for item in client.get(f"/matches/{match_id}/messages").get_json()["messages"]
+    }
+
+    assert as_creator[creator_message]["is_mine"] is True
+    assert as_creator[player_message]["is_mine"] is False
+    assert as_player[creator_message]["is_mine"] is False
+    assert as_player[player_message]["is_mine"] is True
+
+    # Role labels stay viewer-independent; only is_mine flips.
+    assert as_creator[creator_message]["sender_role"] == "Chủ kèo"
+    assert as_player[creator_message]["sender_role"] == "Chủ kèo"
+
+
+def test_system_messages_are_never_mine(app, client):
+    _, creator, _, _, match_id = _joined_member(app)
+
+    login(client, email=creator.email)
+    system = [
+        item
+        for item in client.get(f"/matches/{match_id}/messages").get_json()["messages"]
+        if item["type"] == "SYSTEM"
+    ]
+
+    assert system
+    assert all(item["is_mine"] is False for item in system)
+
+
+def test_page_renders_mine_right_and_theirs_left(app, client):
+    _, creator, player, _, match_id = _joined_member(app)
+    creator_message = _send_as(
+        client, email=creator.email, match_id=match_id, content="Tối nay đá nhé"
+    )
+    player_message = _send_as(
+        client, email=player.email, match_id=match_id, content="Ok, mình tới sớm"
+    )
+
+    login(client, email=creator.email)
+    page = client.get(f"/matches/{match_id}/chat").get_data(as_text=True)
+
+    mine = _row_html(page, creator_message)
+    theirs = _row_html(page, player_message)
+
+    assert "match-chat-row-mine" in mine
+    assert 'data-mine="true"' in mine
+    assert "match-chat-row-theirs" not in mine
+    # The viewer's own name is not repeated above their own bubble.
+    assert "match-chat-sender" not in mine
+
+    assert "match-chat-row-theirs" in theirs
+    assert 'data-mine="false"' in theirs
+    assert "match-chat-row-mine" not in theirs
+    assert "match-chat-sender" in theirs
+    assert "Người kiểm thử booking" in theirs
+
+
+def test_the_same_page_flips_sides_for_the_other_viewer(app, client):
+    _, creator, player, _, match_id = _joined_member(app)
+    creator_message = _send_as(
+        client, email=creator.email, match_id=match_id, content="Tối nay đá nhé"
+    )
+
+    login(client, email=player.email)
+    page = client.get(f"/matches/{match_id}/chat").get_data(as_text=True)
+
+    assert "match-chat-row-theirs" in _row_html(page, creator_message)
+
+
+def test_system_row_is_centred_and_not_a_user_bubble(app, client):
+    _, creator, _, _, match_id = _joined_member(app)
+
+    login(client, email=creator.email)
+    page = client.get(f"/matches/{match_id}/chat").get_data(as_text=True)
+    system_id = [
+        item["id"]
+        for item in client.get(f"/matches/{match_id}/messages").get_json()["messages"]
+        if item["type"] == "SYSTEM"
+    ][0]
+
+    row = _row_html(page, system_id)
+    assert "match-chat-row-system" in row
+    assert "match-chat-system" in row
+    assert "match-chat-bubble" not in row
+    assert "match-chat-row-mine" not in row
+    assert "match-chat-row-theirs" not in row
+
+
+def test_long_message_stays_inside_its_bubble():
+    with open("app/static/css/app.css", encoding="utf-8") as handle:
+        css = handle.read()
+    bubble = css[css.index(".match-chat-bubble {") :].split("}", 1)[0]
+    assert "overflow-wrap: anywhere" in bubble
+    assert "word-break: break-word" in bubble
+
+
+# --- Enter to send -----------------------------------------------------------
+
+
+def test_chat_javascript_sends_on_enter_through_the_existing_submit_path():
+    source = _js_source()
+    handler = _js_block(source, 'input.addEventListener("keydown"', "input.addEventListener(\"input\"")
+
+    assert 'event.key !== "Enter"' in handler
+    assert "event.shiftKey" in handler          # Shift+Enter keeps the newline
+    assert "event.isComposing" in handler       # IME composition is left alone
+    assert "keyCode === 229" in handler
+    assert "event.preventDefault()" in handler
+
+    # Enter must reuse the form's submit handler, not open a second send path.
+    assert "requestSubmit" in handler
+    assert "fetch(" not in handler
+    assert source.count("method: \"POST\"") == 1
+    assert source.count("fetch(sendUrl") == 1
+
+
+def test_chat_javascript_guards_enter_while_a_send_is_in_flight():
+    source = _js_source()
+    handler = _js_block(source, 'input.addEventListener("keydown"', "input.addEventListener(\"input\"")
+    assert "sending" in handler
+    assert "canSend" in handler
+    assert "input.disabled" in handler
+
+
+# --- Auto scroll -------------------------------------------------------------
+
+
+def test_chat_javascript_does_not_yank_a_reader_who_scrolled_up():
+    source = _js_source()
+    poll_block = _js_block(source, "const poll = async", "const startPolling")
+
+    assert "isNearBottom()" in poll_block
+    assert "NEAR_BOTTOM_PX" in source
+    # The check is taken before inserting, otherwise the new row has already
+    # changed scrollHeight.
+    assert poll_block.index("const following = isNearBottom()") < poll_block.index(
+        "appendMessages(payload.messages)"
+    )
+
+    submit_handler = source[source.index('form.addEventListener("submit"') :]
+    assert "scrollToLatest()" in submit_handler
+
+
+# --- Ordering / dedupe contract still intact ---------------------------------
+
+
+def test_chat_javascript_inserts_in_id_order_not_blind_append():
+    source = _js_source()
+    assert "insertInOrder" in source
+    append_block = _js_block(source, "const appendMessages", "const applyReadOnly")
+    assert "insertInOrder(renderMessage(message), id)" in append_block
+    assert "renderedIds.has(id)" in append_block
+    assert "pollAfterId" not in append_block
+# --- Chat panel shell --------------------------------------------------------
+
+
+def test_chat_card_has_its_own_header_and_open_state_badge(app, client):
+    _, creator, _, _, match_id = _prepare(app)
+
+    login(client, email=creator.email)
+    page = client.get(f"/matches/{match_id}/chat").get_data(as_text=True)
+
+    assert "Phòng chat" in page
+    assert "Trao đổi với những người đã tham gia kèo" in page
+    assert "data-chat-state" in page
+    assert "Đang mở" in page
+    assert "Chỉ đọc" not in page
+    # The conversation is constrained and centred inside the card.
+    assert "match-chat-stream" in page
+
+
+def test_chat_card_badge_reads_closed_for_a_read_only_room(app, client):
+    _, creator, _, _, match_id = _prepare(app)
+    _set_match_status(app, match_id=match_id, status=MatchStatus.COMPLETED.value)
+
+    login(client, email=creator.email)
+    page = client.get(f"/matches/{match_id}/chat").get_data(as_text=True)
+
+    assert "Chỉ đọc" in page
+    assert "match-chat-state-closed" in page
+    assert "Đang mở" not in page
+
+
+def test_chat_javascript_flips_the_state_badge_when_the_room_closes():
+    """Presentation only, but the badge must not keep claiming 'Đang mở' after
+    the server reports can_send=false mid-session."""
+    source = _js_source()
+    read_only = _js_block(source, "const applyReadOnly", "const applySendState")
+
+    assert "match-chat-state-closed" in read_only
+    assert "Chỉ đọc" in read_only
+    # Still must not touch polling.
+    assert "stopPolling" not in read_only
+    assert "clearInterval" not in read_only
+def test_composer_hides_its_scrollbar_until_auto_grow_is_capped():
+    """A textarea defaults to overflow-y:auto, which shows a scrollbar even for
+    a single line. It must stay hidden while the box can still grow."""
+    with open("app/static/css/app.css", encoding="utf-8") as handle:
+        css = handle.read()
+    block = css[css.index(".match-chat-input {") :].split("}", 1)[0]
+    assert "overflow-y: hidden" in block
+    assert "max-height: 10rem" in block
+
+    source = _js_source()
+    grow = _js_block(source, "const autoGrow", "if (form && input && sendButton)")
+    assert "MAX_INPUT_HEIGHT" in grow
+    assert 'contentHeight > MAX_INPUT_HEIGHT ? "auto" : "hidden"' in grow
+    # Auto-grow itself is unchanged: still capped at the same height.
+    assert "Math.min(contentHeight, MAX_INPUT_HEIGHT)" in grow
+    assert "MAX_INPUT_HEIGHT = 160" in source

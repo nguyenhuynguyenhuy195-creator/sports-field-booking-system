@@ -551,6 +551,7 @@ def chat(match_id: int):
     messages = serialize_messages(
         list_match_messages(match_id=match.id),
         creator_id=match.creator_id,
+        viewer_id=current_user.id,
     )
     return render_template(
         "matches/chat.html",
@@ -582,6 +583,7 @@ def chat_messages(match_id: int):
     messages = serialize_messages(
         list_match_messages(match_id=match.id, after_id=after_id),
         creator_id=match.creator_id,
+        viewer_id=current_user.id,
     )
     return jsonify(
         ok=True,
@@ -625,7 +627,11 @@ def chat_send(match_id: int):
     return (
         jsonify(
             ok=True,
-            message=serialize_message(message, creator_id=match.creator_id),
+            message=serialize_message(
+                message,
+                creator_id=match.creator_id,
+                viewer_id=current_user.id,
+            ),
         ),
         201,
     )
