@@ -40,6 +40,11 @@ from .administrative_unit import (
     resolve_province,
 )
 from .auth import normalize_phone
+from .match_chat import (
+    record_listing_closed,
+    record_participant_joined,
+    record_participant_withdrawn,
+)
 from .locking import with_update_lock
 from .sport_catalog import SportCatalogError, get_active_sport
 
@@ -583,6 +588,7 @@ def close_opponent_listing(
         }:
             _expire_participant(participant, current_utc=current_utc)
     match.status = MatchStatus.CANCELLED.value
+    record_listing_closed(match)
     _commit_matchmaking("Không thể đóng bài tìm đối thủ lúc này.")
     return match
 
@@ -669,7 +675,10 @@ def withdraw_match_request(
             contribution.status = ContributionStatus.FORFEITED.value
     else:
         _release_unpaid_contribution(participant)
+    previous_status = participant.status
     participant.status = MatchParticipantStatus.WITHDRAWN.value
+    if previous_status == MatchParticipantStatus.JOINED.value:
+        record_participant_withdrawn(participant)
     participant.decided_at = current_utc
     participant.payment_due_at = None
     if match.status in {MatchStatus.FULL.value, MatchStatus.CONFIRMED.value}:
@@ -792,6 +801,7 @@ def mark_participant_joined_after_payment(
     participant.decided_at = paid_at
     participant.payment_due_at = None
     _refresh_match_status(participant.match)
+    record_participant_joined(participant)
     return participant
 
 
@@ -821,6 +831,7 @@ def join_waived_match_participants(
         participant.payment_due_at = None
         participant.contribution.expires_at = None
         touched_matches[participant.match_id] = participant.match
+        record_participant_joined(participant)
     for match in touched_matches.values():
         _refresh_match_status(match)
     return len(participants)
@@ -937,6 +948,22 @@ def _reserve_or_join_participant(
     participant.payment_due_at = None
     participant.status = MatchParticipantStatus.JOINED.value
     _refresh_match_status(match)
+    _record_participant_joined_event(participant)
+
+
+def _record_participant_joined_event(participant: MatchParticipant) -> None:
+    """Append the chat system event inside the caller's transaction.
+
+    request_to_join_match() reaches _reserve_or_join_participant before it
+    adds a brand-new request to the session, so the row has no identity yet
+    and the event key would be incomplete. Adding and flushing here is the
+    same add the caller performs a few lines later, in this same
+    transaction and before the same commit.
+    """
+    if participant.id is None:
+        db.session.add(participant)
+        db.session.flush()
+    record_participant_joined(participant)
 
 
 def _lock_available_contribution(match: Match) -> BookingContribution | None:

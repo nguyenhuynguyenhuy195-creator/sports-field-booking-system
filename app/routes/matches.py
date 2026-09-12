@@ -6,12 +6,13 @@ from flask import (
     abort,
     current_app,
     flash,
+    jsonify,
     redirect,
     render_template,
     request,
     url_for,
 )
-from flask_login import current_user
+from flask_login import current_user, login_required
 
 from app.decorators import roles_required
 from app.extensions import db
@@ -66,6 +67,20 @@ from app.services import (
     update_match_contact,
     validate_match_creation,
     withdraw_match_request,
+)
+from app.services.match_chat import (
+    MESSAGE_MAX_LENGTH,
+    READ_ONLY_NOTICE,
+    MatchChatClosedError,
+    MatchChatPermissionError,
+    MatchChatValidationError,
+    assert_can_read_match_chat,
+    can_read_match_chat,
+    list_match_messages,
+    match_chat_is_active,
+    send_user_message,
+    serialize_message,
+    serialize_messages,
 )
 from app.services.matchmaking import (
     close_opponent_listing,
@@ -212,6 +227,7 @@ def mine():
         participant_status_labels=PARTICIPANT_STATUS_LABELS,
         skill_level_labels=SKILL_LEVEL_LABELS,
         match_has_joined_opponent=_match_has_joined_opponent,
+        can_read_chat=lambda match: can_read_match_chat(match, current_user),
         participant_view_status=lambda participant: effective_participant_status(
             participant, now=view_now
         ),
@@ -397,6 +413,7 @@ def detail(match_id: int):
             else []
         ),
         refund_status_labels=REFUND_STATUS_LABELS,
+        can_read_chat=can_read_match_chat(match, current_user),
         momo_enabled=current_app.config.get("MOMO_ENABLED", False),
         vnpay_enabled=current_app.config.get("VNPAY_ENABLED", False),
         vnpay_payment_watch_id=(
@@ -524,6 +541,109 @@ def withdraw(match_id: int):
     else:
         flash("Đã rút khỏi kèo và áp dụng chính sách hoàn tiền tương ứng.", "success")
     return redirect(url_for("matches.detail", match_id=match_id))
+
+
+@matches_bp.get("/matches/<int:match_id>/chat")
+@login_required
+def chat(match_id: int):
+    match = _chat_match_or_404(match_id)
+    _require_chat_read(match)
+    messages = serialize_messages(
+        list_match_messages(match_id=match.id),
+        creator_id=match.creator_id,
+    )
+    return render_template(
+        "matches/chat.html",
+        match=match,
+        messages=messages,
+        last_id=messages[-1]["id"] if messages else 0,
+        can_send=match_chat_is_active(match),
+        read_only_notice=READ_ONLY_NOTICE,
+        message_max_length=MESSAGE_MAX_LENGTH,
+        match_type_labels=MATCH_TYPE_LABELS,
+        match_view_label=MATCH_VIEW_STATUS_LABELS[_match_view_status(match)],
+    )
+
+
+@matches_bp.get("/matches/<int:match_id>/messages")
+@login_required
+def chat_messages(match_id: int):
+    match = _chat_match_or_404(match_id)
+    _require_chat_read(match)
+    raw_after_id = request.args.get("after_id")
+    after_id = None
+    if raw_after_id not in (None, ""):
+        try:
+            after_id = int(raw_after_id)
+        except (TypeError, ValueError):
+            return jsonify(ok=False, message="Tham số after_id không hợp lệ."), 422
+        if after_id < 0:
+            return jsonify(ok=False, message="Tham số after_id không hợp lệ."), 422
+    messages = serialize_messages(
+        list_match_messages(match_id=match.id, after_id=after_id),
+        creator_id=match.creator_id,
+    )
+    return jsonify(
+        ok=True,
+        messages=messages,
+        last_id=messages[-1]["id"] if messages else (after_id or 0),
+        can_send=match_chat_is_active(match),
+        read_only_notice=READ_ONLY_NOTICE,
+    )
+
+
+@matches_bp.post("/matches/<int:match_id>/messages")
+@login_required
+def chat_send(match_id: int):
+    match = _chat_match_or_404(match_id)
+    content = request.form.get("content")
+    if content is None and request.is_json:
+        content = (request.get_json(silent=True) or {}).get("content")
+    try:
+        message = send_user_message(
+            match=match,
+            user=current_user,
+            content=content,
+        )
+    except MatchChatPermissionError:
+        abort(403)
+    except MatchChatClosedError as exc:
+        # The room closed while this page was open: hand the browser the same
+        # server-owned notice the template renders, so it can switch to
+        # read-only without a reload and without a second copy of the wording.
+        return (
+            jsonify(
+                ok=False,
+                message=str(exc),
+                can_send=False,
+                read_only_notice=READ_ONLY_NOTICE,
+            ),
+            409,
+        )
+    except MatchChatValidationError as exc:
+        return jsonify(ok=False, message=str(exc)), 422
+    return (
+        jsonify(
+            ok=True,
+            message=serialize_message(message, creator_id=match.creator_id),
+        ),
+        201,
+    )
+
+
+def _chat_match_or_404(match_id: int):
+    try:
+        return get_match(match_id)
+    except MatchNotFoundError:
+        abort(404)
+
+
+def _require_chat_read(match) -> None:
+    """Authorization stays in the service; the route only maps it to a status."""
+    try:
+        assert_can_read_match_chat(match=match, user=current_user)
+    except MatchChatPermissionError:
+        abort(403)
 
 
 def _decide_request(match_id: int, participant_id: int, *, accept_request: bool):

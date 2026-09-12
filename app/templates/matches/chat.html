@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}Phòng kèo · {{ match.title }} · Sân Thể Thao{% endblock %}
+
+{% macro message_item(message) %}
+    {% if message.type == 'SYSTEM' %}
+        <li class="match-chat-item match-chat-item-system" data-message-id="{{ message.id }}" data-event-type="{{ message.event_type }}">
+            <div class="match-chat-system-body">
+                <span class="match-chat-system-label"><i class="bi bi-info-circle" aria-hidden="true"></i> Hệ thống</span>
+                <p class="match-chat-content">{{ message.content }}</p>
+                <time class="match-chat-time">{{ message.created_at }}</time>
+            </div>
+        </li>
+    {% else %}
+        <li class="match-chat-item match-chat-item-user" data-message-id="{{ message.id }}">
+            <div class="match-chat-user-body">
+                <div class="match-chat-meta">
+                    <span class="match-chat-sender">{{ message.sender_name }}</span>
+                    <span class="match-chat-role">{{ message.sender_role }}</span>
+                    <time class="match-chat-time">{{ message.created_at }}</time>
+                </div>
+                <p class="match-chat-content">{{ message.content }}</p>
+            </div>
+        </li>
+    {% endif %}
+{% endmacro %}
+
+{% block content %}
+<section class="match-chat-page">
+    <div class="container marketplace-shell py-4 py-lg-5">
+        <a class="match-detail-back" href="{{ url_for('matches.detail', match_id=match.id) }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Quay lại chi tiết kèo</a>
+
+        <header class="match-chat-header">
+            <div>
+                <div class="match-detail-badges">
+                    <span class="match-type-badge match-type-{{ match.match_type|lower|replace('_', '-') }}">{{ match_type_labels[match.match_type] }}</span>
+                    <span class="match-status">{{ match_view_label }}</span>
+                </div>
+                <h1>{{ match.title }}</h1>
+                <p class="match-chat-byline">
+                    <i class="bi bi-calendar3" aria-hidden="true"></i> {{ match.booking.booking_date.strftime('%d/%m/%Y') }}
+                    <span>·</span>
+                    <i class="bi bi-clock" aria-hidden="true"></i> {{ match.booking.start_time.strftime('%H:%M') }}–{{ match.booking.end_time.strftime('%H:%M') }}
+                    <span>·</span>
+                    <i class="bi bi-geo-alt" aria-hidden="true"></i> {{ match.booking.field.venue.name }} · {{ match.booking.field.name }}
+                </p>
+            </div>
+        </header>
+
+        <div class="match-chat-card"
+             data-match-chat
+             data-messages-url="{{ url_for('matches.chat_messages', match_id=match.id) }}"
+             data-send-url="{{ url_for('matches.chat_send', match_id=match.id) }}"
+             data-last-id="{{ last_id }}">
+
+            <ol class="match-chat-timeline" data-chat-timeline aria-live="polite" aria-label="Nội dung trao đổi trong kèo">
+                {% for message in messages %}
+                    {{ message_item(message) }}
+                {% endfor %}
+            </ol>
+
+            {% if not messages %}
+                <p class="match-chat-empty" data-chat-empty>Chưa có tin nhắn nào. Hãy bắt đầu trao đổi với những người trong kèo.</p>
+            {% else %}
+                <p class="match-chat-empty d-none" data-chat-empty>Chưa có tin nhắn nào. Hãy bắt đầu trao đổi với những người trong kèo.</p>
+            {% endif %}
+
+            {% if can_send %}
+                <form class="match-chat-composer" method="post" action="{{ url_for('matches.chat_send', match_id=match.id) }}" data-chat-form>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <label class="form-label visually-hidden" for="match-chat-content">Nội dung tin nhắn</label>
+                    <textarea class="form-control" id="match-chat-content" name="content" rows="2" maxlength="{{ message_max_length }}" placeholder="Nhập tin nhắn cho những người trong kèo" data-chat-input></textarea>
+                    <div class="match-chat-composer-actions">
+                        <span class="match-chat-hint">Tối đa {{ message_max_length }} ký tự. Không gửi được ảnh hoặc tệp.</span>
+                        <button class="btn btn-primary" type="submit" data-chat-send>Gửi</button>
+                    </div>
+                    <p class="match-chat-error d-none" role="alert" data-chat-error></p>
+                </form>
+            {% endif %}
+
+            {# Rendered even while the room is active so a room that closes
+               mid-session can be revealed without reloading and without the
+               notice wording living anywhere but the server. #}
+            <div class="alert alert-secondary match-chat-readonly mb-0{% if can_send %} d-none{% endif %}" data-chat-readonly>
+                <i class="bi bi-lock" aria-hidden="true"></i>
+                <span data-chat-readonly-text>{{ read_only_notice }}</span>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/match-chat.js') }}" defer></script>
+{% endblock %}

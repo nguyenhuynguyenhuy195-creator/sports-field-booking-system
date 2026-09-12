@@ -27,6 +27,9 @@
             <h1>{{ match.title }}</h1>
             <p class="match-detail-byline"><i class="bi bi-trophy" aria-hidden="true"></i> {{ match.booking.field.field_type.sport.name }} <span>·</span> Đăng bởi {{ match.creator.full_name }}</p>
         </div>
+        {% if can_read_chat %}
+            <a class="btn btn-outline-primary match-chat-entry" href="{{ url_for('matches.chat', match_id=match.id) }}"><i class="bi bi-chat-dots" aria-hidden="true"></i> Vào phòng kèo</a>
+        {% endif %}
     </header>
     {% if match_view_status == 'CLOSED_LISTING' %}
         <p class="alert alert-info">Bài tìm đối thủ đã đóng. Lịch đặt sân và tiền cọc vẫn được giữ nguyên.</p>

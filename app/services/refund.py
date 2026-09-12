@@ -28,6 +28,7 @@ from app.models import (
     RefundStatus,
 )
 
+from .match_chat import record_match_cancelled
 from .locking import with_update_lock
 from .maintenance import VIETNAM_TIMEZONE
 
@@ -1000,6 +1001,7 @@ def _cancel_booking_now(
             participant.decided_at = current_utc
             participant.payment_due_at = None
         booking.match.status = MatchStatus.CANCELLED.value
+        record_match_cancelled(booking.match)
     booking.status = BookingStatus.CANCELLED.value
 
 

@@ -38,6 +38,7 @@ from .contribution import (
     build_contribution_plan,
     calculate_deposit_amount,
 )
+from .match_chat import record_match_cancelled, record_match_completed
 from .locking import with_update_lock
 from .maintenance import current_vietnam_datetime
 from .pricing import PriceQuote, PricingError, calculate_price_quote
@@ -476,6 +477,8 @@ def cancel_owner_booking(
             raise InvalidBookingStateError(str(exc)) from exc
     else:
         booking.status = BookingStatus.CANCELLED.value
+        if booking.match is not None:
+            record_match_cancelled(booking.match)
         booking.cancellation_reason = normalized_reason
         _set_pending_contributions_status(
             booking_ids=[booking.id],
@@ -554,13 +557,16 @@ def complete_finished_bookings(*, now: datetime | None = None) -> int:
     current_local = _normalize_local_datetime(now)
     candidates = list(
         db.session.scalars(
-            db.select(Booking).where(
-                Booking.status.in_(
-                    (
-                        BookingStatus.PARTIALLY_PAID.value,
-                        BookingStatus.PAID.value,
+            with_update_lock(
+                db.select(Booking).where(
+                    Booking.status.in_(
+                        (
+                            BookingStatus.PARTIALLY_PAID.value,
+                            BookingStatus.PAID.value,
+                        )
                     )
-                )
+                ),
+                Booking,
             )
         )
     )
@@ -611,6 +617,7 @@ def complete_finished_bookings(*, now: datetime | None = None) -> int:
         for booking in completed:
             if booking.match is not None:
                 booking.match.status = MatchStatus.COMPLETED.value
+                record_match_completed(booking.match)
     _commit_booking("Không thể hoàn tất các lịch đặt đã qua giờ sử dụng.")
     return len(completed)
 

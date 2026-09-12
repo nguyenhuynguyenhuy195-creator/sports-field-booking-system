@@ -1,4 +1,4 @@
-{% macro match_marketplace_card(match, action_label, action_url, status_label=None, status_class=None, show_description=False, secondary_status_label=None, secondary_status_class=None, actionable=True) %}
+{% macro match_marketplace_card(match, action_label, action_url, status_label=None, status_class=None, show_description=False, secondary_status_label=None, secondary_status_class=None, actionable=True, chat_url=None) %}
     {% set joined_count = match.participants|selectattr('status', 'equalto', 'JOINED')|list|length %}
     {% set venue = match.booking.field.venue %}
     {% set compact_ward = venue.ward_name or venue.district %}
@@ -72,6 +72,9 @@
                     </div>
                 {% endif %}
             </div>
+            {% if chat_url %}
+                <a class="btn btn-outline-primary match-market-chat" href="{{ chat_url }}"><i class="bi bi-chat-dots" aria-hidden="true"></i> Vào phòng kèo</a>
+            {% endif %}
             <a class="btn btn-primary match-market-action" href="{{ action_url }}">{{ action_label }} <span aria-hidden="true">→</span></a>
         </div>
     </article>
