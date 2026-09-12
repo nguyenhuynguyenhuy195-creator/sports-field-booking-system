@@ -420,6 +420,7 @@
                                         <input type="hidden" name="bank_code" value="VNPAYQR">
                                         <button class="btn btn-outline-secondary w-100" type="submit" data-payment-submit><i class="bi bi-qr-code" aria-hidden="true"></i> Quét VNPAY-QR</button>
                                     </form>
+                                    <p class="small text-secondary mt-1 mb-0">Môi trường thanh toán thử nghiệm VNPAY Sandbox.</p>
                                 {% endif %}
                             {% endif %}
                         {% endfor %}
@@ -431,7 +432,7 @@
                         {% if top_up_window_open %}
                             <form method="post" action="{{ url_for('payments.top_up_momo' if momo_enabled else 'payments.top_up_mock', booking_code=booking.booking_code) }}">
                                 {{ top_up_form.hidden_tag() }}
-                                <button class="btn btn-primary w-100" type="submit" data-payment-submit>Trả phần cọc đối thủ còn thiếu</button>
+                                <button class="btn btn-primary w-100" type="submit" data-payment-submit>Trả mô phỏng phần cọc còn thiếu</button>
                             </form>
                             {% if vnpay_enabled %}
                                 <form class="mt-2" method="post" action="{{ url_for('payments.top_up_vnpay', booking_code=booking.booking_code) }}">
@@ -443,6 +444,7 @@
                                     <input type="hidden" name="bank_code" value="VNPAYQR">
                                     <button class="btn btn-outline-secondary w-100" type="submit" data-payment-submit><i class="bi bi-qr-code" aria-hidden="true"></i> Quét VNPAY-QR</button>
                                 </form>
+                                <p class="small text-secondary mt-1 mb-0">Môi trường thanh toán thử nghiệm VNPAY Sandbox.</p>
                             {% endif %}
                             <p class="small text-secondary mt-2 mb-0">Cửa sổ trả thay kết thúc lúc {{ booking.funding_deadline|local_datetime }}.</p>
                         {% else %}

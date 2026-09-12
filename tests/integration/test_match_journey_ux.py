@@ -108,7 +108,7 @@ def test_first_opponent_still_sees_15_percent_payment_journey(app, client):
     html = response.get_data(as_text=True)
     assert response.status_code == 200
     assert "Tiền cọc đội bạn (15%)" in html
-    assert "Thanh toán cọc 60.000 đ" in html
+    assert "Thanh toán mô phỏng 60.000 đ" in html
     mine = client.get("/matches/mine").get_data(as_text=True)
     assert "Đang mở" in mine
     assert "Đang giữ suất, chờ thanh toán" in mine
