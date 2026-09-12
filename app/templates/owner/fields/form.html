@@ -17,6 +17,7 @@
             {% if field %}
                 <div class="owner-field-form-status">
                     <span class="status-badge status-{{ field.status|lower }}">{{ field_status_labels[field.status] }}</span>
+                    <p>Chỉnh sửa thông tin không thay đổi trạng thái sân. Bật hoặc tạm ngưng sân tại trang Bảng giá.</p>
                 </div>
             {% else %}
                 <div class="alert alert-info owner-field-form-note"><i class="bi bi-info-circle" aria-hidden="true"></i><span>Sân mới được tạo ở trạng thái <strong>Chưa hoạt động</strong>. Hãy tạo khung giá đang áp dụng trước khi bật sân tại trang Bảng giá.</span></div>

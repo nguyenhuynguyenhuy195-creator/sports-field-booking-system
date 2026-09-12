@@ -171,7 +171,9 @@
                                         </div>
                                         {{ form.hidden_tag() }}
                                         <input type="hidden" name="{{ form.decision.name }}" value="REJECTED">
-                                        {{ form.rejection_reason(class="form-control", rows="3", required=true, maxlength="500", placeholder="Nêu lý do từ chối hồ sơ", oninvalid="this.setCustomValidity('Vui lòng nhập lý do từ chối hồ sơ.')", oninput="this.setCustomValidity('')") }}
+                                        <label class="form-label" for="{{ form.rejection_reason.id }}">Lý do từ chối</label>
+                                        {{ form.rejection_reason(class="form-control", rows="3", required=true, maxlength="500", placeholder="Nêu lý do từ chối hồ sơ", aria_describedby='rejection-help-' ~ application.id, oninvalid="this.setCustomValidity('Vui lòng nhập lý do từ chối hồ sơ.')", oninput="this.setCustomValidity('')") }}
+                                        <div class="form-text" id="rejection-help-{{ application.id }}">Bắt buộc khi từ chối, tối đa 500 ký tự.</div>
                                         <button class="btn btn-outline-danger admin-owner-action-button" type="submit"><i class="bi bi-x-circle" aria-hidden="true"></i>Từ chối</button>
                                     </form>
                                 </div>

@@ -52,6 +52,15 @@
                 {% if match.match_type == 'FIND_PLAYERS' %}
                     <div class="match-market-progress-label">
                         <span><i class="bi bi-people" aria-hidden="true"></i> {{ joined_count }}/{{ match.required_players }} suất đã có</span>
+                        <strong>
+                            {% if actionable and match.required_players - joined_count > 0 %}
+                                Còn thiếu {{ match.required_players - joined_count }} người
+                            {% elif joined_count >= match.required_players %}
+                                Đã đủ người
+                            {% else %}
+                                Kèo đã khép lại
+                            {% endif %}
+                        </strong>
                     </div>
                     <div class="match-progress-track" role="progressbar" aria-label="Tiến độ ghép người" aria-valuemin="0" aria-valuemax="{{ match.required_players }}" aria-valuenow="{{ joined_count }}">
                         <span style="width: {{ ([joined_count, match.required_players]|min * 100 / match.required_players)|round|int }}%"></span>
