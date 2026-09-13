@@ -103,6 +103,53 @@ class BaseConfig:
         "MAP_TILE_URL",
         "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
     )
+    # --- Chatbot (RAG) -------------------------------------------------
+    # Every default here is deliberately safe: the assistant stays OFF unless
+    # it is explicitly enabled AND an API key is present. create_app() never
+    # validates these, so a missing key degrades the chatbot to "unavailable"
+    # instead of breaking Flask startup.
+    CHATBOT_ENABLED = env_flag("CHATBOT_ENABLED", False)
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+    # gemini-2.5-flash-lite is retired: the API answers 404 "no longer
+    # available to new users" and names gemini-3.5-flash-lite as the
+    # replacement. Same flash-lite cost/latency tier, pinned (not a floating
+    # -latest alias). Verified live 2026-09-13.
+    CHATBOT_MODEL = os.getenv("CHATBOT_MODEL", "gemini-3.5-flash-lite")
+    # Gemini 3.x replaced the numeric thinking_budget with thinking_level and
+    # rejects the old field with 400. Blank omits the thinking config entirely,
+    # which every tested model accepts.
+    CHATBOT_THINKING_LEVEL = os.getenv("CHATBOT_THINKING_LEVEL", "low")
+    CHATBOT_EMBEDDING_MODEL = os.getenv(
+        "CHATBOT_EMBEDDING_MODEL",
+        "gemini-embedding-001",
+    )
+    # gemini-embedding-001 supports Matryoshka truncation; 768 keeps the
+    # in-memory index small without retraining anything.
+    CHATBOT_EMBEDDING_DIMENSIONS = int(
+        os.getenv("CHATBOT_EMBEDDING_DIMENSIONS", "768")
+    )
+    CHATBOT_CHUNK_SIZE = int(os.getenv("CHATBOT_CHUNK_SIZE", "1000"))
+    CHATBOT_CHUNK_OVERLAP = int(os.getenv("CHATBOT_CHUNK_OVERLAP", "120"))
+    CHATBOT_RETRIEVAL_TOP_K = int(os.getenv("CHATBOT_RETRIEVAL_TOP_K", "4"))
+    # Cosine-similarity gates for the evidence check, calibrated 2026-09-13
+    # against gemini-embedding-001 @768d over the current docs/chatbot/ set
+    # using a 27-question Vietnamese benchmark. Measured best-score bands:
+    #   relevant   0.769 - 0.870
+    #   ambiguous  0.676 - 0.746
+    #   unrelated  0.565 - 0.650
+    # Gemini similarity has a high floor (nothing scored below 0.565 even for
+    # completely off-topic questions), so a low threshold is close to noise.
+    # 0.70 clears the whole unrelated band by 0.05 and sits 0.069 below the
+    # weakest relevant question. Re-measure if the knowledge base or the
+    # embedding model changes.
+    CHATBOT_MIN_RELEVANCE_SCORE = float(
+        os.getenv("CHATBOT_MIN_RELEVANCE_SCORE", "0.70")
+    )
+    CHATBOT_STRONG_RELEVANCE_SCORE = float(
+        os.getenv("CHATBOT_STRONG_RELEVANCE_SCORE", "0.78")
+    )
+    CHATBOT_MAX_SOURCES = int(os.getenv("CHATBOT_MAX_SOURCES", "3"))
+    CHATBOT_TIMEOUT_SECONDS = float(os.getenv("CHATBOT_TIMEOUT_SECONDS", "20"))
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
     REMEMBER_COOKIE_HTTPONLY = True

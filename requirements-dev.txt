@@ -1,0 +1,11 @@
+# Test tooling, on top of the application dependencies.
+#
+#   pip install -r requirements-dev.txt
+#
+# The chatbot tests use offline provider doubles (tests/chatbot_doubles.py),
+# so the suite never needs a Gemini API key or a network connection.
+
+-r requirements.txt
+
+pytest==9.1.1
+pytest-flask==1.3.0

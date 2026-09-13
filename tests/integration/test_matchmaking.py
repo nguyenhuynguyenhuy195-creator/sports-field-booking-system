@@ -7,6 +7,7 @@ from app.models import (
     Booking,
     BookingContribution,
     BookingMode,
+    BookingPaymentPolicy,
     BookingStatus,
     ContributionStatus,
     FieldTypeCode,
@@ -14,6 +15,7 @@ from app.models import (
     MatchParticipant,
     MatchParticipantStatus,
     MatchStatus,
+    MatchType,
     User,
     UserRole,
     Venue,
@@ -920,3 +922,90 @@ def test_existing_joined_match_can_add_missing_contacts(app, client):
         )
         assert match.creator_contact_phone == "0911111111"
         assert participant.contact_phone == "0922222222"
+
+
+@pytest.mark.parametrize(
+    "booking_status",
+    [
+        BookingStatus.CONFIRMED.value,
+        BookingStatus.PARTIALLY_PAID.value,
+        BookingStatus.PAID.value,
+    ],
+)
+def test_direct_booking_on_current_policy_can_never_open_a_match(
+    app,
+    booking_status,
+):
+    """A DIRECT_BOOKING under the current deposit policy is an internal game.
+
+    _validate_booking_can_open_match rejects it outright, with no status
+    condition attached, so the rejection is asserted across every status the
+    rule could plausibly be reached in. The DIRECT_BOOKING branches elsewhere
+    in the service (_resolve_match_type, _lock_available_contribution) exist
+    only for legacy LEGACY_FULL_ONLINE records and must not be mistaken for
+    support here.
+    """
+    owner = create_user(app, email="direct-owner@example.com", role=UserRole.OWNER)
+    creator = create_user(app, email="direct-creator@example.com")
+    _, field_id = create_bookable_field(app, owner_id=owner.id)
+
+    with app.app_context():
+        booking = create_booking(
+            user=db.session.get(User, creator.id),
+            field_id=field_id,
+            booking_date=booking_day(),
+            start_time=time(18, 0),
+            end_time=time(20, 0),
+            booking_mode=BookingMode.DIRECT_BOOKING.value,
+        )
+        booking_code = booking.booking_code
+        # Guards the premise: this rule is scoped to the current policy, so the
+        # test must fail loudly if new bookings ever stop using DEPOSIT_30.
+        assert booking.payment_policy == BookingPaymentPolicy.DEPOSIT_30.value
+
+        if booking_status != BookingStatus.CONFIRMED.value:
+            creator_contribution = next(
+                contribution
+                for contribution in booking.contributions
+                if contribution.user_id == creator.id
+            )
+            pay_contribution_with_mock(
+                booking_code=booking_code,
+                contribution_id=creator_contribution.id,
+                payer=db.session.get(User, creator.id),
+            )
+            # Paying settles the whole deposit in one go for this mode, so PAID
+            # is what it reaches naturally; PARTIALLY_PAID is forced purely to
+            # prove the rejection does not depend on the booking status.
+            booking = db.session.scalar(
+                db.select(Booking).where(Booking.booking_code == booking_code)
+            )
+            assert booking.status == BookingStatus.PAID.value
+            if booking_status == BookingStatus.PARTIALLY_PAID.value:
+                booking.status = BookingStatus.PARTIALLY_PAID.value
+                db.session.commit()
+
+    with app.app_context():
+        booking = db.session.scalar(
+            db.select(Booking).where(Booking.booking_code == booking_code)
+        )
+        assert booking.status == booking_status
+
+        # The real service entry point, not the private validator.
+        with pytest.raises(
+            InvalidMatchStateError,
+            match="không thể mở tin tìm người",
+        ):
+            create_match(
+                booking_code=booking_code,
+                creator=db.session.get(User, creator.id),
+                title="Kèo mở từ lịch đá nội bộ",
+                description="Không được phép.",
+                skill_level="INTERMEDIATE",
+                match_type=MatchType.FIND_OPPONENT.value,
+                contact_phone="0901000009",
+                share_contact=True,
+            )
+
+    with app.app_context():
+        assert db.session.scalar(db.select(db.func.count(Match.id))) == 0
