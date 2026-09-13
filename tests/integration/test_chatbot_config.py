@@ -26,6 +26,7 @@ from chatbot_doubles import (
     ExplodingEmbeddingProvider,
     FailingEmbeddingProvider,
     LexicalEmbeddingProvider,
+    RecordingChatModelProvider,
 )
 
 
@@ -253,3 +254,82 @@ def test_index_failure_never_leaks_the_api_key(app, caplog):
         )
 
     assert FAKE_KEY not in caplog.text
+
+
+# --- the chatbot is strictly read-only -------------------------------------
+
+
+def test_answering_never_writes_to_the_database(app, monkeypatch):
+    """Phase 2A answers from static knowledge only.
+
+    Enforced rather than assumed: any commit or flush during the pipeline
+    fails the test outright.
+    """
+    from app.chatbot.answering import answer_question
+    from app.chatbot.retrieval import build_knowledge_index
+    from app.extensions import db
+
+    def explode(*args, **kwargs):
+        raise AssertionError("the chatbot must not write to the database")
+
+    settings = ChatbotSettings(
+        enabled=True,
+        api_key=FAKE_KEY,
+        min_relevance_score=0.40,
+        strong_relevance_score=0.95,
+    )
+    with app.app_context():
+        index = build_knowledge_index(
+            embedding_provider=LexicalEmbeddingProvider(), settings=settings
+        )
+        monkeypatch.setattr(db.session, "commit", explode)
+        monkeypatch.setattr(db.session, "flush", explode)
+
+        answered = answer_question(
+            "Chủ sân hủy lịch thì tiền được xử lý thế nào?",
+            chat_provider=RecordingChatModelProvider(answer="Hoàn 100%."),
+            index=index,
+            settings=settings,
+        )
+        fell_back = answer_question(
+            "Công thức nấu phở bò gia truyền Hà Nội",
+            chat_provider=RecordingChatModelProvider(),
+            index=index,
+            settings=settings,
+        )
+
+        assert answered.used_model is True
+        assert fell_back.is_fallback is True
+        assert not db.session.new and not db.session.dirty and not db.session.deleted
+
+
+def test_chatbot_package_does_not_import_models_or_the_session():
+    """Structural guard: there is no data access to review in the first place.
+
+    Checked against real import statements rather than raw text, because
+    retrieval.py legitimately uses ``app.extensions`` — Flask's per-app
+    extension registry, where the knowledge index is cached — which has
+    nothing to do with the SQLAlchemy module of the same name.
+    """
+    import ast
+    from pathlib import Path
+
+    import app.chatbot as package
+
+    forbidden = {"app.models", "app.extensions", "flask_sqlalchemy", "sqlalchemy"}
+    offenders = []
+    for path in sorted(Path(package.__file__).parent.rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                names = [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom):
+                names = [node.module or ""]
+            else:
+                continue
+            for name in names:
+                root = name.split(".")[0]
+                if name in forbidden or root in {"sqlalchemy", "flask_sqlalchemy"}:
+                    offenders.append(f"{path.name}: {name}")
+
+    assert offenders == []

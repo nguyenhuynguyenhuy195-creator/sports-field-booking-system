@@ -21,6 +21,7 @@ from app.chatbot.providers.gemini import GeminiEmbeddingProvider
 from app.chatbot.retrieval import (
     INSUFFICIENT_EVIDENCE_ANSWER,
     REASON_BELOW_THRESHOLD,
+    REASON_CROSS_LANGUAGE_THRESHOLD,
     REASON_EMPTY_QUESTION,
     REASON_NO_HITS,
     REASON_STRONG_SIMILARITY,
@@ -461,3 +462,65 @@ def test_providers_refuse_to_build_when_disabled():
 
     with pytest.raises(ChatbotUnavailableError):
         build_embedding_provider(disabled)
+
+
+# --- cross-language questions (Phase 2A.5 regression) ------------------------
+#
+# The knowledge base is Vietnamese. The lexical-overlap stage compares the
+# question's words against the retrieved chunks, which can never match for an
+# English question, so applying it there rejected genuine questions: measured
+# live, 4 of 7 on-topic English questions scored 0.708-0.764 (above the floor)
+# and were then thrown away by the word check. The floor alone already
+# separates them -- English off-topic questions topped out at 0.582.
+
+
+def test_english_question_above_the_floor_is_evidence_without_word_overlap(
+    settings,
+):
+    """The exact defect: score is fine, no shared words, must still count."""
+    result = evaluate_evidence(
+        question="How much deposit do I need to pay?",
+        hits=[chunk(0.71, content="Tiền cọc là 30% tổng tiền sân.")],
+        settings=settings,
+    )
+
+    assert result.has_sufficient_evidence is True
+    assert result.reason == REASON_CROSS_LANGUAGE_THRESHOLD
+    assert result.sources
+    assert result.fallback_answer is None
+
+
+def test_english_question_below_the_floor_is_still_rejected(settings):
+    """Skipping the word check must not weaken the score floor."""
+    result = evaluate_evidence(
+        question="Who is the president of the United States?",
+        hits=[chunk(0.30, content="Tiền cọc là 30% tổng tiền sân.")],
+        settings=settings,
+    )
+
+    assert result.has_sufficient_evidence is False
+    assert result.reason == REASON_BELOW_THRESHOLD
+    assert result.sources == ()
+
+
+def test_vietnamese_question_still_needs_word_overlap(settings):
+    """The word check stays fully in force for the knowledge base's language."""
+    result = evaluate_evidence(
+        question="quantum entanglement superconductor lượng tử",
+        hits=[chunk(0.55, content="Tiền cọc là 30% tổng tiền sân.")],
+        settings=settings,
+    )
+
+    assert result.has_sufficient_evidence is False
+    assert result.reason == REASON_WEAK_WITHOUT_OVERLAP
+
+
+def test_cross_language_path_never_bypasses_the_strong_tier(settings):
+    """A strong English match is still reported as a strong match."""
+    result = evaluate_evidence(
+        question="How much deposit do I need to pay?",
+        hits=[chunk(0.97, content="Tiền cọc là 30% tổng tiền sân.")],
+        settings=settings,
+    )
+
+    assert result.reason == REASON_STRONG_SIMILARITY

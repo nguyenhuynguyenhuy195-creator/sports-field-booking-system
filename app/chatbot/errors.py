@@ -37,6 +37,14 @@ class KnowledgeBaseError(ChatbotError):
     """A curated knowledge document is missing or unreadable."""
 
 
+class ChatbotValidationError(ChatbotError):
+    """The caller's question or conversation history is unusable.
+
+    Distinct from ChatbotUnavailableError: the service is fine, the input is
+    not. Carries only a description of what is wrong, never the input itself.
+    """
+
+
 def scrub_secrets(message: object, secrets: Iterable[str] = ()) -> str:
     """Return ``message`` as text with every known secret replaced."""
     text = str(message)
@@ -48,6 +56,7 @@ def scrub_secrets(message: object, secrets: Iterable[str] = ()) -> str:
 
 __all__ = [
     "ChatbotError",
+    "ChatbotValidationError",
     "ChatbotProviderError",
     "ChatbotUnavailableError",
     "KnowledgeBaseError",

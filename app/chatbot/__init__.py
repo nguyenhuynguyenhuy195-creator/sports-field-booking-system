@@ -10,12 +10,30 @@ vendor SDK is imported lazily inside the Gemini provider -- so Flask starts
 normally with the chatbot disabled or unconfigured.
 """
 
+from .answering import (
+    CHAT_UNAVAILABLE_MESSAGE,
+    STATUS_ANSWERED,
+    STATUS_INSUFFICIENT_EVIDENCE,
+    ChatbotAnswer,
+    answer_question,
+)
 from .errors import (
     ChatbotError,
     ChatbotProviderError,
     ChatbotUnavailableError,
+    ChatbotValidationError,
     KnowledgeBaseError,
     scrub_secrets,
+)
+from .prompting import (
+    MAX_HISTORY_MESSAGES,
+    MAX_HISTORY_TURNS,
+    MAX_QUESTION_LENGTH,
+    ConversationTurn,
+    build_system_prompt,
+    build_user_prompt,
+    normalize_history,
+    normalize_question,
 )
 from .knowledge import (
     KNOWLEDGE_MANIFEST,
@@ -45,13 +63,22 @@ from .retrieval import (
 from .settings import ChatbotSettings
 
 __all__ = [
+    "CHAT_UNAVAILABLE_MESSAGE",
     "INSUFFICIENT_EVIDENCE_ANSWER",
     "KNOWLEDGE_MANIFEST",
+    "MAX_HISTORY_MESSAGES",
+    "MAX_HISTORY_TURNS",
+    "MAX_QUESTION_LENGTH",
+    "STATUS_ANSWERED",
+    "STATUS_INSUFFICIENT_EVIDENCE",
     "ChatModelProvider",
+    "ChatbotAnswer",
     "ChatbotError",
     "ChatbotProviderError",
     "ChatbotSettings",
     "ChatbotUnavailableError",
+    "ChatbotValidationError",
+    "ConversationTurn",
     "EmbeddingProvider",
     "KnowledgeBaseError",
     "KnowledgeChunk",
@@ -60,13 +87,18 @@ __all__ = [
     "RetrievalResult",
     "RetrievedChunk",
     "SourceReference",
+    "answer_question",
     "build_chat_model_provider",
     "build_embedding_provider",
     "build_knowledge_chunks",
     "build_knowledge_index",
+    "build_system_prompt",
+    "build_user_prompt",
     "evaluate_evidence",
     "get_knowledge_index",
     "load_documents",
+    "normalize_history",
+    "normalize_question",
     "reset_knowledge_index",
     "retrieve",
     "scrub_secrets",

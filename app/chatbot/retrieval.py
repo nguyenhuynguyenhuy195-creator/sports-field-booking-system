@@ -35,6 +35,7 @@ from .errors import (
     scrub_secrets,
 )
 from .knowledge import KnowledgeChunk, build_knowledge_chunks, knowledge_fingerprint
+from .language import matches_knowledge_base_language
 from .providers.base import EmbeddingProvider, LangChainEmbeddingAdapter
 from .settings import ChatbotSettings
 
@@ -59,6 +60,7 @@ REASON_BELOW_THRESHOLD = "below_threshold"
 REASON_WEAK_WITHOUT_OVERLAP = "weak_similarity_without_lexical_overlap"
 REASON_STRONG_SIMILARITY = "strong_similarity"
 REASON_THRESHOLD_WITH_OVERLAP = "threshold_with_lexical_overlap"
+REASON_CROSS_LANGUAGE_THRESHOLD = "cross_language_threshold"
 
 _TOKEN_PATTERN = re.compile(r"[0-9a-zà-ỹ]+", re.IGNORECASE)
 
@@ -333,6 +335,14 @@ def evaluate_evidence(
 
     if best_score >= settings.strong_relevance_score:
         reason = REASON_STRONG_SIMILARITY
+    elif not matches_knowledge_base_language(normalized_question):
+        # The knowledge base is Vietnamese. An English question shares no
+        # content words with it, so absence of overlap says nothing about
+        # relevance and the check can only ever reject. Measured against the
+        # live embedding model, English off-topic questions top out around
+        # 0.58 while English on-topic ones start around 0.69, so the score
+        # floor alone already separates them here.
+        reason = REASON_CROSS_LANGUAGE_THRESHOLD
     elif _has_lexical_overlap(normalized_question, retained):
         reason = REASON_THRESHOLD_WITH_OVERLAP
     else:
@@ -435,6 +445,7 @@ __all__ = [
     "INSUFFICIENT_EVIDENCE_ANSWER",
     "KnowledgeIndex",
     "REASON_BELOW_THRESHOLD",
+    "REASON_CROSS_LANGUAGE_THRESHOLD",
     "REASON_EMPTY_QUESTION",
     "REASON_NO_HITS",
     "REASON_STRONG_SIMILARITY",
