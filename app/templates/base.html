@@ -75,7 +75,7 @@
                                 {% endif %}
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
-                                    <form class="m-0" method="post" action="{{ url_for('auth.logout') }}">
+                                    <form class="m-0" method="post" action="{{ url_for('auth.logout') }}" data-logout-form>
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button class="dropdown-item text-danger" type="submit">Đăng xuất</button>
                                     </form>

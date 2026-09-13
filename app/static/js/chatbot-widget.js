@@ -70,6 +70,25 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    function removeChatbotKeys(keepOwnerMarker) {
+        // Only ever touches the chatbot's own prefix, so nothing else stored
+        // by the site can be collateral damage.
+        safeSession(() => {
+            const doomed = [];
+            for (let index = 0; index < window.sessionStorage.length; index += 1) {
+                const key = window.sessionStorage.key(index);
+                if (!key || !key.startsWith(STORAGE_PREFIX)) {
+                    continue;
+                }
+                if (keepOwnerMarker && key === OWNER_KEY) {
+                    continue;
+                }
+                doomed.push(key);
+            }
+            doomed.forEach((key) => window.sessionStorage.removeItem(key));
+        }, null);
+    }
+
     function dropOtherAccounts() {
         // A second account signing in to the same tab must not inherit the
         // first one's conversations.
@@ -78,17 +97,9 @@ document.addEventListener("DOMContentLoaded", () => {
         if (previousOwner === userId) {
             return;
         }
-        safeSession(() => {
-            const doomed = [];
-            for (let index = 0; index < window.sessionStorage.length; index += 1) {
-                const key = window.sessionStorage.key(index);
-                if (key && key.startsWith(STORAGE_PREFIX) && key !== OWNER_KEY) {
-                    doomed.push(key);
-                }
-            }
-            doomed.forEach((key) => window.sessionStorage.removeItem(key));
-            window.sessionStorage.setItem(OWNER_KEY, userId);
-        }, null);
+        removeChatbotKeys(true);
+        safeSession(
+            () => window.sessionStorage.setItem(OWNER_KEY, userId), null);
     }
 
     function loadHistory() {
@@ -204,8 +215,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function syncIntro() {
+        // Driven by the thread, not by history.length: a question that is
+        // still in flight is on screen but deliberately not yet persisted.
         if (intro) {
-            intro.hidden = history.length > 0;
+            intro.hidden = thread.children.length > 0;
         }
     }
 
@@ -219,6 +232,10 @@ document.addEventListener("DOMContentLoaded", () => {
         pending = active;
         sendButton.disabled = active;
         input.disabled = active;
+        // Clearing mid-flight would let the reply land in a conversation the
+        // user just emptied. Disabling it is the whole race fix; no request
+        // cancellation machinery is needed.
+        clearButton.disabled = active;
     }
 
     async function ask(question) {
@@ -227,9 +244,12 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
+        // Persisted history is not touched until the answer arrives. The
+        // bubble below is shown immediately for feedback, but a question that
+        // fails must not survive into the next request as context.
+        const priorHistory = history.slice(-MAX_MESSAGES);
+
         renderMessage("user", trimmed);
-        history.push({ role: "user", content: trimmed });
-        saveHistory();
         syncIntro();
 
         setPending(true);
@@ -237,8 +257,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const body = {
             question: trimmed,
-            // Everything before the question just sent.
-            history: history.slice(0, -1).slice(-MAX_MESSAGES),
+            // Only turns that previously succeeded.
+            history: priorHistory,
             context: {
                 page_type: pageType,
                 resource_id: resourceId === "general"
@@ -279,6 +299,10 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         renderMessage("assistant", payload.answer, { sources: payload.sources });
+        // The pair is appended together, only now. That is what makes an
+        // assistant-only history impossible: there is no window in which the
+        // question is stored without its answer.
+        history.push({ role: "user", content: trimmed });
         history.push({ role: "assistant", content: payload.answer });
         saveHistory();
         input.focus();
@@ -356,6 +380,16 @@ document.addEventListener("DOMContentLoaded", () => {
         event.preventDefault();
         form.requestSubmit();
     });
+
+    const logoutForm = document.querySelector("[data-logout-form]");
+    if (logoutForm) {
+        // Synchronous removal in the submit handler: it finishes before the
+        // browser navigates, and preventDefault is never called, so the
+        // logout POST itself is untouched.
+        logoutForm.addEventListener("submit", () => {
+            removeChatbotKeys(false);
+        });
+    }
 
     dropOtherAccounts();
     history = loadHistory();

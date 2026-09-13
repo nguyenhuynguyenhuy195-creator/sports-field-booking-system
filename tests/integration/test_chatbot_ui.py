@@ -75,6 +75,37 @@ def world(app):
     }
 
 
+def js_code(text: str) -> str:
+    """Strip // comments so a prose mention is never read as code.
+
+    The file explains in comments why it avoids innerHTML, preventDefault and
+    history.length. Without this, those explanations would fail the very tests
+    that check for them -- and the tempting "fix" would be to delete the
+    explanation.
+    """
+    return re.sub(r"//.*", "", text)
+
+
+def js_function(name: str) -> str:
+    """The full body of a JS function, matched by braces.
+
+    Slicing to the next "
+    }" broke on nested blocks, so the body is
+    delimited properly rather than by guessing at indentation.
+    """
+    start = JS_SOURCE.index(f"function {name}(")
+    opening = JS_SOURCE.index("{", start)
+    depth = 0
+    for index in range(opening, len(JS_SOURCE)):
+        if JS_SOURCE[index] == "{":
+            depth += 1
+        elif JS_SOURCE[index] == "}":
+            depth -= 1
+            if depth == 0:
+                return JS_SOURCE[start:index + 1]
+    raise AssertionError(f"unterminated function {name}")
+
+
 def html_of(client, path) -> str:
     response = client.get(path)
     assert response.status_code == 200, f"{path} -> {response.status_code}"
@@ -305,7 +336,7 @@ def test_rendering_never_uses_inner_html():
     comments are stripped first — otherwise this test would fail on its own
     documentation and, worse, could be "fixed" by deleting the explanation.
     """
-    code = re.sub(r"//.*", "", JS_SOURCE)
+    code = js_code(JS_SOURCE)
 
     assert "innerHTML" not in code
     assert "insertAdjacentHTML" not in code
@@ -336,12 +367,139 @@ def test_duplicate_submits_are_blocked_while_a_request_is_open():
     assert "sendButton.disabled = active" in JS_SOURCE
 
 
-def test_failed_turns_are_not_remembered():
-    """An error bubble must never become context for the next question."""
-    error_branch = JS_SOURCE[JS_SOURCE.index("if (!response.ok"):]
-    error_branch = error_branch[: error_branch.index("renderMessage(\"assistant\", payload.answer")]
+def ask_body() -> str:
+    """The body of ask(), where the persistence ordering lives."""
+    return JS_SOURCE[JS_SOURCE.index("async function ask("):
+                     JS_SOURCE.index("// --- panel")]
 
-    assert "history.push" not in error_branch
+
+def test_nothing_is_persisted_before_the_request_completes():
+    """The ordering guarantee, not a keyword search.
+
+    The first version of this test only checked that the error branch had no
+    history.push -- which passed while the user turn was already being pushed
+    and saved *above* the fetch, so a failed question still survived into the
+    next request as context. What matters is the position of every write
+    relative to the fetch and to the success check.
+    """
+    body = ask_body()
+    fetch_at = body.index("await fetch(")
+    success_guard_at = body.index("if (!response.ok")
+
+    writes = [m for m in re.finditer(r"history\.push|saveHistory\(\)", body)]
+    assert writes, "expected the success path to persist something"
+    for write in writes:
+        assert write.start() > fetch_at, (
+            f"{write.group()} runs before the request completes")
+        assert write.start() > success_guard_at, (
+            f"{write.group()} runs before the success check")
+
+
+def test_the_question_and_answer_are_persisted_as_a_pair():
+    """Appending both together is what makes assistant-only history
+    impossible: there is no window where one exists without the other."""
+    body = ask_body()
+    tail = body[body.index("if (!response.ok"):]
+
+    assert 'history.push({ role: "user", content: trimmed });' in tail
+    assert 'history.push({ role: "assistant", content: payload.answer });' in tail
+    user_at = tail.index('history.push({ role: "user"')
+    assistant_at = tail.index('history.push({ role: "assistant"')
+    save_at = tail.index("saveHistory()")
+    assert user_at < assistant_at < save_at
+
+
+def test_only_previously_successful_history_is_sent():
+    body = ask_body()
+
+    assert "const priorHistory = history.slice(-MAX_MESSAGES);" in body
+    assert "history: priorHistory," in body
+    # The old shape sliced the just-pushed turn back off; it must be gone.
+    assert "history.slice(0, -1)" not in body
+
+
+def test_error_text_is_never_stored_as_assistant_history():
+    body = ask_body()
+
+    assert 'history.push({ role: "assistant", content: message })' not in body
+    assert "history.push" not in body[: body.index("if (!response.ok")]
+
+
+# --- clear-while-pending race ------------------------------------------------
+
+
+def test_clearing_is_disabled_while_a_request_is_in_flight():
+    """Clearing mid-request could otherwise let the reply land in a thread the
+    user just emptied."""
+    pending_fn = js_function("setPending")
+
+    assert "clearButton.disabled = active" in pending_fn
+    assert "sendButton.disabled = active" in pending_fn
+    assert "input.disabled = active" in pending_fn
+
+
+def test_the_disabled_clear_button_has_a_visible_state():
+    assert ".chatbot-panel-action:disabled" in CSS_SOURCE
+
+
+def test_widget_renders_the_clear_control(app, client, world):
+    login(client, email=world["player"].email)
+    html = html_of(client, "/")
+
+    assert "data-chatbot-clear" in html
+    assert 'aria-label="Xóa cuộc trò chuyện"' in html
+
+
+# --- logout clears the chatbot's own storage ---------------------------------
+
+
+def test_logout_form_is_marked_for_the_cleanup_hook(app, client, world):
+    login(client, email=world["player"].email)
+    html = html_of(client, "/")
+
+    assert "data-logout-form" in html
+    # The hook must not disturb the POST it is attached to.
+    assert 'action="/auth/logout"' in html
+
+
+def test_logout_clears_only_chatbot_keys():
+    hook = js_code(
+        JS_SOURCE[JS_SOURCE.index('querySelector("[data-logout-form]")'):
+                  JS_SOURCE.index("dropOtherAccounts();")])
+
+    assert 'addEventListener("submit"' in hook
+    assert "removeChatbotKeys(false)" in hook
+    # Submitting must proceed normally: no interception of the logout POST.
+    assert "preventDefault" not in hook
+    assert "fetch(" not in hook
+
+    # Scoped to the function body, not to end-of-file, so the assertion below
+    # cannot pass on unrelated code further down.
+    remover = js_code(js_function("removeChatbotKeys"))
+    # Scoped to the chatbot prefix, so nothing else in sessionStorage is lost.
+    assert "key.startsWith(STORAGE_PREFIX)" in remover
+    assert "removeItem" in remover
+    assert "sessionStorage.clear()" not in js_code(JS_SOURCE)
+
+
+def test_logout_still_works_for_a_chatbot_user(app, client, world):
+    """The hook is client-side only; the server flow is untouched."""
+    login(client, email=world["player"].email)
+
+    response = client.post("/auth/logout", follow_redirects=False)
+
+    assert response.status_code == 302
+    assert WIDGET_MARKER not in html_of(client, "/")
+
+
+def test_intro_follows_the_thread_not_persisted_history():
+    """A question in flight is on screen but deliberately unsaved, so the
+    greeting must hide on what is rendered rather than on history.length."""
+    sync = js_code(js_function("syncIntro"))
+
+    assert "thread.children.length > 0" in sync
+    assert "history.length" not in sync
+
 
 
 def test_clearing_is_local_only():

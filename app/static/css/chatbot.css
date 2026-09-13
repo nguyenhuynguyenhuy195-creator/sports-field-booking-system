@@ -136,6 +136,16 @@
     color: #fff;
 }
 
+.chatbot-panel-action:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.chatbot-panel-action:disabled:hover {
+    background: transparent;
+    color: rgba(255, 255, 255, 0.82);
+}
+
 .chatbot-panel-action:focus-visible {
     outline: 2px solid var(--app-accent, #b7e45d);
     outline-offset: 1px;
