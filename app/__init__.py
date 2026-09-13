@@ -78,6 +78,7 @@ def _register_blueprints(app: Flask) -> None:
     from .routes.admin import admin_bp
     from .routes.auth import auth_bp
     from .routes.bookings import bookings_bp
+    from .routes.chatbot import chatbot_bp
     from .routes.fields import fields_bp
     from .routes.health import health_bp
     from .routes.main import main_bp
@@ -93,6 +94,7 @@ def _register_blueprints(app: Flask) -> None:
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(bookings_bp)
+    app.register_blueprint(chatbot_bp)
     app.register_blueprint(payments_bp)
     app.register_blueprint(fields_bp)
     app.register_blueprint(maintenance_bp)
@@ -119,6 +121,27 @@ def _register_template_filters(app: Flask) -> None:
 
 
 def _register_error_handlers(app: Flask) -> None:
+    from flask import jsonify, request
+    from flask_wtf.csrf import CSRFError
+
+    @app.errorhandler(CSRFError)
+    def csrf_failed(error):
+        """JSON for the chatbot API, the usual HTML page for everything else.
+
+        CSRF stays enforced either way; only the representation differs, so a
+        fetch() caller gets a parseable body instead of a 400 HTML document
+        while every existing form keeps the response it has today.
+        """
+        if request.path.startswith("/chatbot/"):
+            return (
+                jsonify(
+                    ok=False,
+                    message="Phiên làm việc đã hết hạn. Vui lòng tải lại trang.",
+                ),
+                400,
+            )
+        return error.get_response()
+
     @app.errorhandler(403)
     def forbidden(_error):
         return render_template("errors/403.html"), 403

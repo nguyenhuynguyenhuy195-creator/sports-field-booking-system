@@ -150,6 +150,18 @@ class BaseConfig:
     )
     CHATBOT_MAX_SOURCES = int(os.getenv("CHATBOT_MAX_SOURCES", "3"))
     CHATBOT_TIMEOUT_SECONDS = float(os.getenv("CHATBOT_TIMEOUT_SECONDS", "20"))
+    # HTTP endpoint limits. The body cap is far below MAX_CONTENT_LENGTH, which
+    # is sized for media uploads; a question plus eight turns of history is
+    # small. The rate limit is per authenticated user, counted in-process.
+    CHATBOT_MAX_REQUEST_BYTES = int(
+        os.getenv("CHATBOT_MAX_REQUEST_BYTES", str(32 * 1024))
+    )
+    CHATBOT_RATE_LIMIT_PER_MINUTE = int(
+        os.getenv("CHATBOT_RATE_LIMIT_PER_MINUTE", "12")
+    )
+    CHATBOT_RATE_LIMIT_WINDOW_SECONDS = int(
+        os.getenv("CHATBOT_RATE_LIMIT_WINDOW_SECONDS", "60")
+    )
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
     REMEMBER_COOKIE_HTTPONLY = True

@@ -97,11 +97,20 @@ def test_existing_pages_still_serve_with_the_chatbot_unconfigured(app):
     assert client.get("/health").status_code == 200
 
 
-def test_no_chatbot_route_is_registered_in_phase_one(app):
-    """Phase 1 is the service layer only; the endpoint arrives in Phase 2."""
-    rules = {rule.rule for rule in app.url_map.iter_rules()}
+def test_the_chatbot_exposes_exactly_one_endpoint(app):
+    """Phase 3 added POST /chatbot/query and nothing else.
 
-    assert not any(rule.startswith("/chatbot") for rule in rules)
+    Replaces the Phase 1 "no chatbot route" guard, which described a stage the
+    project has deliberately moved past. The useful invariant now is that the
+    surface stayed to a single POST: no GET variant, no debug or admin route.
+    """
+    exposed = {
+        (rule.rule, tuple(sorted(rule.methods - {"HEAD", "OPTIONS"})))
+        for rule in app.url_map.iter_rules()
+        if rule.rule.startswith("/chatbot")
+    }
+
+    assert exposed == {("/chatbot/query", ("POST",))}
 
 
 # --- configuration defaults --------------------------------------------------

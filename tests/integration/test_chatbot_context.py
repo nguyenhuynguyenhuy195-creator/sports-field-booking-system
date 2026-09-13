@@ -830,10 +830,19 @@ def test_static_rag_is_unchanged_when_no_context_is_supplied(app, world):
 # --- 25. still no route ------------------------------------------------------
 
 
-def test_phase_2b_adds_no_http_route(app):
-    rules = {rule.rule for rule in app.url_map.iter_rules()}
+def test_the_resolver_is_not_exposed_as_its_own_route(app):
+    """Dynamic context has no endpoint of its own.
 
-    assert not any(rule.startswith("/chatbot") for rule in rules)
+    It is reachable only through POST /chatbot/query, which projects it down
+    to an answer and a source list; there is no route that would hand a client
+    the resolved DTO.
+    """
+    chatbot_rules = {
+        rule.rule for rule in app.url_map.iter_rules()
+        if rule.rule.startswith("/chatbot")
+    }
+
+    assert chatbot_rules == {"/chatbot/query"}
 
 
 # --- Phase 2B.5 regression: the DTO and the prompt must agree ----------------

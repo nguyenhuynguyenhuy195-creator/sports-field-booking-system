@@ -84,12 +84,19 @@ VIETNAMESE_STOPWORDS = frozenset(
 
 @dataclass(frozen=True)
 class SourceReference:
-    """A citation. Always derived from a chunk that was actually retrieved."""
+    """A citation. Always derived from a chunk that was actually retrieved.
+
+    ``source`` is the repo-relative document path and stays server-side: it is
+    useful for auditing which file grounded an answer, but it is an internal
+    layout detail. ``doc_slug`` is the manifest's own stable identifier and is
+    what may safely be published to a browser.
+    """
 
     title: str
     section: str
     source: str
     source_revision: str
+    doc_slug: str = ""
 
     @property
     def label(self) -> str:
@@ -111,6 +118,7 @@ class RetrievedChunk:
     category: str
     source_revision: str
     policy: str | None = None
+    doc_slug: str = ""
 
     def as_source(self) -> SourceReference:
         return SourceReference(
@@ -118,6 +126,7 @@ class RetrievedChunk:
             section=self.section,
             source=self.source,
             source_revision=self.source_revision,
+            doc_slug=self.doc_slug,
         )
 
 
@@ -437,6 +446,7 @@ def _to_retrieved_chunk(document, score: float) -> RetrievedChunk:
         category=str(metadata.get("category", "")),
         source_revision=str(metadata.get("source_revision", "")),
         policy=metadata.get("policy"),
+        doc_slug=str(metadata.get("doc_slug", "")),
     )
 
 
