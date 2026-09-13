@@ -48,6 +48,7 @@ from app.services.match_chat import can_read_match_chat, match_chat_is_active
 from app.services.matchmaking import (
     effective_participant_status,
     match_accepts_actions,
+    match_view_status,
 )
 
 
@@ -286,19 +287,28 @@ def _resolve_match(*, viewer, match_id: int, now) -> ResolvedDynamicContext:
     participant = _viewer_participant(match=match, viewer_id=viewer.id)
     is_creator = match.creator_id == viewer.id
 
-    money = {"gross": "0", "net": "0", "refunded": "0",
-             "contributions": [], "payments": [], "refunds": []}
-    if participant is not None and participant.contribution_id is not None:
-        money = _viewer_money(
-            booking_id=booking.id,
-            viewer_id=viewer.id,
-            contribution_id=participant.contribution_id,
-        )
+    # Always resolve the viewer's own money from their own contributions on
+    # this booking. Scoping through participant.contribution_id alone lost the
+    # creator entirely: create_match() never makes a MatchParticipant for them,
+    # so the person who paid the booking deposit saw zero. A participant is
+    # still narrowed to their own slot; anyone with no contributions gets
+    # zeros, because the query is keyed on user_id either way.
+    money = _viewer_money(
+        booking_id=booking.id,
+        viewer_id=viewer.id,
+        contribution_id=(
+            participant.contribution_id if participant is not None else None
+        ),
+    )
 
     data = {
         "match_id": match.id,
         "match_type": match.match_type,
-        "match_status": match.status,
+        # The lifecycle a user is actually shown (PAST / CLOSED_LISTING /
+        # INACTIVE / ...), shared with the web route so the two cannot drift.
+        "match_status": match_view_status(match, now=now),
+        # The raw column, kept separately for support questions only.
+        "stored_match_status": match.status,
         "title": match.title,
         "skill_level": match.skill_level,
         "venue_name": venue.name,
@@ -333,6 +343,7 @@ def _resolve_match(*, viewer, match_id: int, now) -> ResolvedDynamicContext:
         "current_user_paid_gross": money["gross"],
         "current_user_paid_net": money["net"],
         "current_user_refunded": money["refunded"],
+        "current_user_contributions": money["contributions"],
         "current_user_payments": money["payments"],
         "current_user_refunds": money["refunds"],
     }
@@ -538,11 +549,7 @@ def _booking_lines(data: dict) -> tuple[str, ...]:
     ]
     if data.get("cancellation_reason"):
         lines.append(f"Lý do hủy: {data['cancellation_reason']}")
-    for item in data["current_user_refunds"]:
-        lines.append(
-            f"Khoản hoàn tiền của người dùng này: {item['amount']} VND"
-            f" - trạng thái {item['status']}"
-        )
+    lines.extend(_money_status_lines(data))
     return tuple(lines)
 
 
@@ -567,7 +574,40 @@ def _match_lines(data: dict) -> tuple[str, ...]:
         f" {data['current_user_paid_gross']} VND",
         f"Riêng người dùng này đã được hoàn: {data['current_user_refunded']} VND",
     ]
+    lines.extend(_money_status_lines(data))
     return tuple(lines)
+
+
+def _money_status_lines(data: dict) -> list[str]:
+    """Statuses of the viewer's OWN payments and refunds.
+
+    Shared by booking and match context so both can answer "thanh toán của tôi
+    đang ở trạng thái gì?" and "hoàn tiền của tôi đã xong chưa?".
+
+    Statuses and amounts only. The DTO deliberately never carries order ids,
+    request ids, provider transaction ids, checkout URLs or result codes, so
+    there is nothing here that could identify or replay a transaction.
+    """
+    lines: list[str] = []
+    for item in data.get("current_user_contributions") or []:
+        lines.append(
+            f"Khoản phải đóng của người dùng này ({item['type']}):"
+            f" cần {item['amount_due']} VND, đã đóng {item['amount_paid']} VND,"
+            f" trạng thái {item['status']}"
+        )
+    for item in data.get("current_user_payments") or []:
+        when = f" lúc {item['paid_at']}" if item.get("paid_at") else ""
+        lines.append(
+            f"Giao dịch thanh toán của người dùng này: {item['amount']} VND"
+            f" - trạng thái {item['status']}{when}"
+        )
+    for item in data.get("current_user_refunds") or []:
+        when = f" lúc {item['refunded_at']}" if item.get("refunded_at") else ""
+        lines.append(
+            f"Khoản hoàn tiền của người dùng này: {item['amount']} VND"
+            f" - trạng thái {item['status']}{when}"
+        )
+    return lines
 
 
 def _venue_lines(data: dict) -> tuple[str, ...]:

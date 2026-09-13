@@ -35,9 +35,15 @@ from app.chatbot.context_gate import (
     REASON_OFF_TOPIC,
     REASON_RELEVANT,
     dynamic_context_relevance,
+    strip_diacritics,
 )
 from app.chatbot.prompting import DYNAMIC_CLOSE, DYNAMIC_OPEN, EVIDENCE_CLOSE
-from app.chatbot.retrieval import INSUFFICIENT_EVIDENCE_ANSWER, build_knowledge_index
+from app.chatbot.prompting import build_system_prompt
+from app.chatbot.retrieval import (
+    INSUFFICIENT_EVIDENCE_ANSWER,
+    build_knowledge_index,
+    retrieve,
+)
 from app.chatbot.settings import ChatbotSettings
 from app.extensions import db
 from app.models import (
@@ -47,10 +53,21 @@ from app.models import (
     Match,
     MatchParticipant,
     MatchParticipantStatus,
+    MatchStatus,
+    Payment,
+    PaymentStatus,
+    Refund,
+    RefundStatus,
     User,
     UserRole,
     Venue,
     VenueStatus,
+)
+from app.services.matchmaking import (
+    MATCH_VIEW_CLOSED_LISTING,
+    MATCH_VIEW_INACTIVE,
+    MATCH_VIEW_PAST,
+    match_view_status,
 )
 from app.services import (
     create_booking,
@@ -901,3 +918,512 @@ def test_every_rendered_venue_string_field_is_actually_used(app, world):
     for key in ("name", "address", "opening_time", "closing_time"):
         value = context.data[key]
         assert value and str(value) in rendered, key
+
+
+# =============================================================================
+# Phase 2B audit follow-ups
+# =============================================================================
+
+# --- 1. the match creator's own money ----------------------------------------
+#
+# _viewer_money was reached only through MatchParticipant.contribution_id, but
+# create_match() never makes a participant row for the creator. The person who
+# paid the booking deposit therefore saw zero of their own money on the match
+# page. Money is now keyed on the viewer's own contributions either way.
+
+
+def test_match_creator_sees_their_own_paid_amount(app, world):
+    context = resolve(app, viewer_id=world["creator"].id,
+                      page_type=PAGE_MATCH_DETAIL, resource_id=world["match_id"])
+
+    assert context.data["is_creator"] is True
+    assert Decimal(context.data["current_user_paid_gross"]) > 0
+
+
+def test_creator_match_money_equals_their_booking_money(app, world):
+    """The same person must not be told two different numbers."""
+    on_match = resolve(app, viewer_id=world["creator"].id,
+                       page_type=PAGE_MATCH_DETAIL, resource_id=world["match_id"])
+    on_booking = resolve(app, viewer_id=world["creator"].id,
+                         page_type=PAGE_BOOKING_DETAIL,
+                         resource_id=world["booking_id"])
+
+    assert (
+        on_match.data["current_user_paid_gross"]
+        == on_booking.data["current_user_paid_gross"]
+    )
+    assert (
+        on_match.data["current_user_paid_net"]
+        == on_booking.data["current_user_paid_net"]
+    )
+
+
+def test_creator_match_money_excludes_the_opponent(app, world):
+    creator = resolve(app, viewer_id=world["creator"].id,
+                      page_type=PAGE_MATCH_DETAIL, resource_id=world["match_id"])
+    opponent = resolve(app, viewer_id=world["opponent"].id,
+                       page_type=PAGE_MATCH_DETAIL, resource_id=world["match_id"])
+    booking = resolve(app, viewer_id=world["creator"].id,
+                      page_type=PAGE_BOOKING_DETAIL,
+                      resource_id=world["booking_id"])
+
+    creator_own = Decimal(creator.data["current_user_paid_gross"])
+    opponent_own = Decimal(opponent.data["current_user_paid_gross"])
+    aggregate = Decimal(booking.data["booking_paid_amount"])
+
+    assert creator_own > 0 and opponent_own > 0
+    assert creator_own < aggregate
+    assert creator_own + opponent_own == aggregate
+    # Each viewer's contributions are their own type only.
+    assert [i["type"] for i in creator.data["current_user_contributions"]] == [
+        "CREATOR"
+    ]
+    assert [i["type"] for i in opponent.data["current_user_contributions"]] == [
+        "OPPONENT"
+    ]
+
+
+def test_stranger_on_the_match_page_still_sees_no_money(app, world):
+    """Widening the query must not widen disclosure."""
+    context = resolve(app, viewer_id=world["stranger"].id,
+                      page_type=PAGE_MATCH_DETAIL, resource_id=world["match_id"])
+
+    assert context.data["current_user_paid_gross"] == "0"
+    assert context.data["current_user_contributions"] == []
+    assert context.data["current_user_payments"] == []
+
+
+# --- 2. effective match status ----------------------------------------------
+
+
+def test_chatbot_match_status_matches_the_web_view_status(app, world):
+    with app.app_context():
+        match = db.session.get(Match, world["match_id"])
+        expected = match_view_status(match)
+
+    context = resolve(app, viewer_id=world["creator"].id,
+                      page_type=PAGE_MATCH_DETAIL, resource_id=world["match_id"])
+
+    assert context.data["match_status"] == expected
+
+
+def test_closed_find_opponent_listing_is_reported_as_closed(app, world):
+    """The state close_opponent_listing() leaves behind: the Match row is
+    CANCELLED while the funded booking still stands. Set directly, because the
+    fixture's opponent has already joined and the service refuses to close a
+    listing that has one."""
+    with app.app_context():
+        match = db.session.get(Match, world["match_id"])
+        assert match.match_type == "FIND_OPPONENT"
+        match.status = MatchStatus.CANCELLED.value
+        db.session.commit()
+        assert db.session.get(Booking, world["booking_id"]).status == (
+            BookingStatus.PAID.value
+        )
+
+    context = resolve(app, viewer_id=world["creator"].id,
+                      page_type=PAGE_MATCH_DETAIL, resource_id=world["match_id"])
+
+    assert context.data["match_status"] == MATCH_VIEW_CLOSED_LISTING
+    # The raw column still says CANCELLED; kept separately, not conflated.
+    assert context.data["stored_match_status"] == MatchStatus.CANCELLED.value
+
+
+def test_past_match_is_reported_as_past(app, world):
+    with app.app_context():
+        booking = db.session.get(Booking, world["booking_id"])
+        start_local = datetime.combine(booking.booking_date, booking.start_time)
+    after_start = (start_local + timedelta(hours=1)).replace(
+        tzinfo=timezone(timedelta(hours=7))
+    ).astimezone(timezone.utc)
+
+    context = resolve(app, viewer_id=world["creator"].id,
+                      page_type=PAGE_MATCH_DETAIL,
+                      resource_id=world["match_id"], now=after_start)
+
+    assert context.data["match_status"] == MATCH_VIEW_PAST
+
+
+def test_inactive_booking_makes_the_match_inactive(app, world):
+    with app.app_context():
+        booking = db.session.get(Booking, world["booking_id"])
+        booking.status = BookingStatus.EXPIRED.value
+        db.session.commit()
+
+    context = resolve(app, viewer_id=world["creator"].id,
+                      page_type=PAGE_MATCH_DETAIL, resource_id=world["match_id"])
+
+    assert context.data["match_status"] == MATCH_VIEW_INACTIVE
+
+
+def test_cancelled_booking_makes_the_match_cancelled(app, world):
+    with app.app_context():
+        booking = db.session.get(Booking, world["booking_id"])
+        booking.status = BookingStatus.CANCELLED.value
+        db.session.commit()
+
+    context = resolve(app, viewer_id=world["creator"].id,
+                      page_type=PAGE_MATCH_DETAIL, resource_id=world["match_id"])
+
+    assert context.data["match_status"] == MatchStatus.CANCELLED.value
+
+
+def test_completed_match_is_reported_as_completed(app, world):
+    with app.app_context():
+        match = db.session.get(Match, world["match_id"])
+        match.status = MatchStatus.COMPLETED.value
+        db.session.commit()
+
+    context = resolve(app, viewer_id=world["creator"].id,
+                      page_type=PAGE_MATCH_DETAIL, resource_id=world["match_id"])
+
+    assert context.data["match_status"] == MatchStatus.COMPLETED.value
+
+
+# --- 3. payment / refund status in the prompt --------------------------------
+
+
+def rendered_lines(context) -> str:
+    return chr(10).join(context.prompt_lines)
+
+
+def test_booking_prompt_reports_the_viewers_payment_status(app, world):
+    context = resolve(app, viewer_id=world["creator"].id,
+                      page_type=PAGE_BOOKING_DETAIL,
+                      resource_id=world["booking_id"])
+    rendered = rendered_lines(context)
+
+    assert "SUCCESS" in rendered
+    assert "Giao dịch thanh toán của người dùng này" in rendered
+    assert context.data["current_user_paid_gross"] in rendered
+
+
+def test_match_prompt_reports_the_viewers_payment_status(app, world):
+    context = resolve(app, viewer_id=world["opponent"].id,
+                      page_type=PAGE_MATCH_DETAIL, resource_id=world["match_id"])
+    rendered = rendered_lines(context)
+
+    assert "Giao dịch thanh toán của người dùng này" in rendered
+    assert "SUCCESS" in rendered
+
+
+def test_pending_payment_status_is_visible(app, world):
+    with app.app_context():
+        payment = db.session.scalar(
+            db.select(Payment).where(
+                Payment.booking_id == world["booking_id"],
+                Payment.payer_id == world["creator"].id,
+            )
+        )
+        payment.status = PaymentStatus.PENDING.value
+        db.session.commit()
+
+    context = resolve(app, viewer_id=world["creator"].id,
+                      page_type=PAGE_BOOKING_DETAIL,
+                      resource_id=world["booking_id"])
+    rendered = rendered_lines(context)
+
+    assert "PENDING" in rendered
+    # A pending payment is not money received.
+    assert context.data["current_user_paid_gross"] == "0"
+
+
+@pytest.mark.parametrize(
+    "status",
+    [RefundStatus.PENDING, RefundStatus.PROCESSING, RefundStatus.SUCCESS],
+)
+def test_refund_status_is_visible_on_both_pages(app, world, status):
+    with app.app_context():
+        payment = db.session.scalar(
+            db.select(Payment).where(
+                Payment.booking_id == world["booking_id"],
+                Payment.payer_id == world["creator"].id,
+            )
+        )
+        db.session.add(
+            Refund(
+                booking_id=world["booking_id"],
+                payment_id=payment.id,
+                recipient_id=world["creator"].id,
+                amount=Decimal("10000"),
+                reason="Kiem thu trang thai hoan tien.",
+                order_id=f"TEST-REFUND-{status.value}",
+                request_id=f"req-{status.value}",
+                status=status.value,
+            )
+        )
+        db.session.commit()
+
+    booking_ctx = resolve(app, viewer_id=world["creator"].id,
+                          page_type=PAGE_BOOKING_DETAIL,
+                          resource_id=world["booking_id"])
+    match_ctx = resolve(app, viewer_id=world["creator"].id,
+                        page_type=PAGE_MATCH_DETAIL, resource_id=world["match_id"])
+
+    for context in (booking_ctx, match_ctx):
+        rendered = rendered_lines(context)
+        assert "Khoản hoàn tiền của người dùng này" in rendered
+        assert status.value in rendered
+
+
+def test_rendered_money_lines_never_carry_transaction_identifiers(app, world):
+    with app.app_context():
+        payment = db.session.scalar(
+            db.select(Payment).where(
+                Payment.booking_id == world["booking_id"],
+                Payment.payer_id == world["creator"].id,
+            )
+        )
+        db.session.add(
+            Refund(
+                booking_id=world["booking_id"],
+                payment_id=payment.id,
+                recipient_id=world["creator"].id,
+                amount=Decimal("10000"),
+                reason="Kiem thu.",
+                order_id="SECRET-ORDER-XYZ",
+                request_id="SECRET-REQUEST-XYZ",
+                provider_refund_trans_id="SECRET-PROVIDER-XYZ",
+                status=RefundStatus.PROCESSING.value,
+                result_code="99",
+            )
+        )
+        payment.checkout_url = "https://secret.example/checkout/XYZ"
+        payment.provider_trans_id = "SECRET-TRANS-XYZ"
+        db.session.commit()
+
+    for page_type, resource_id in (
+        (PAGE_BOOKING_DETAIL, world["booking_id"]),
+        (PAGE_MATCH_DETAIL, world["match_id"]),
+    ):
+        context = resolve(app, viewer_id=world["creator"].id,
+                          page_type=page_type, resource_id=resource_id)
+        blob = rendered_lines(context) + json.dumps(context.data, ensure_ascii=False)
+        for secret in ("SECRET-ORDER-XYZ", "SECRET-REQUEST-XYZ",
+                       "SECRET-PROVIDER-XYZ", "SECRET-TRANS-XYZ",
+                       "secret.example", "checkout"):
+            assert secret not in blob, f"{secret} leaked on {page_type}"
+
+
+def test_another_users_refund_is_never_rendered(app, world):
+    with app.app_context():
+        opponent_payment = db.session.scalar(
+            db.select(Payment).where(
+                Payment.booking_id == world["booking_id"],
+                Payment.payer_id == world["opponent"].id,
+            )
+        )
+        db.session.add(
+            Refund(
+                booking_id=world["booking_id"],
+                payment_id=opponent_payment.id,
+                recipient_id=world["opponent"].id,
+                amount=Decimal("77777"),
+                reason="Hoan cho doi thu.",
+                order_id="OPP-REFUND-1",
+                request_id="opp-req-1",
+                status=RefundStatus.SUCCESS.value,
+            )
+        )
+        db.session.commit()
+
+    context = resolve(app, viewer_id=world["creator"].id,
+                      page_type=PAGE_BOOKING_DETAIL,
+                      resource_id=world["booking_id"])
+    blob = rendered_lines(context) + json.dumps(context.data, ensure_ascii=False)
+
+    assert "77777" not in blob
+    assert context.data["current_user_refunded"] == "0"
+
+
+# --- 4. the relevance gate no longer fires on one generic syllable ------------
+
+
+@pytest.mark.parametrize(
+    "page_type, question",
+    [
+        (PAGE_BOOKING_DETAIL, "Tôi có bao nhiêu tiền trong tài khoản?"),
+        (PAGE_BOOKING_DETAIL, "Giá tiền iPhone bao nhiêu?"),
+        (PAGE_MATCH_DETAIL, "Người chơi Messi bao nhiêu tuổi?"),
+        (PAGE_VENUE_DETAIL, "Địa chỉ Nhà Trắng ở đâu?"),
+        (PAGE_BOOKING_DETAIL, "Giá vàng hôm nay thế nào?"),
+        (PAGE_MATCH_DETAIL, "Trận chung kết World Cup mấy giờ đá?"),
+    ],
+)
+def test_generic_word_overlap_is_not_relevance(app, world, page_type, question):
+    """Each of these shares a syllable with the domain vocabulary and used to
+    slip through the old single-token rule."""
+    resource_id = {
+        PAGE_BOOKING_DETAIL: world["booking_id"],
+        PAGE_MATCH_DETAIL: world["match_id"],
+        PAGE_VENUE_DETAIL: world["venue_id"],
+    }[page_type]
+    context = resolve(app, viewer_id=world["creator"].id,
+                      page_type=page_type, resource_id=resource_id)
+    assert context.available is True
+
+    relevant, reason = dynamic_context_relevance(question=question, context=context)
+
+    assert relevant is False, question
+    assert reason == REASON_OFF_TOPIC
+
+
+@pytest.mark.parametrize(
+    "page_type, question",
+    [
+        (PAGE_BOOKING_DETAIL, "Tôi còn thiếu bao nhiêu?"),
+        (PAGE_BOOKING_DETAIL, "Tôi đã thanh toán chưa?"),
+        (PAGE_BOOKING_DETAIL, "Thanh toán của tôi đang ở trạng thái gì?"),
+        (PAGE_BOOKING_DETAIL, "Hoàn tiền của tôi đang xử lý hay đã thành công?"),
+        (PAGE_MATCH_DETAIL, "Kèo này còn thiếu bao nhiêu?"),
+        (PAGE_MATCH_DETAIL, "Tôi có vào chat được không?"),
+        (PAGE_VENUE_DETAIL, "Cơ sở này mở cửa mấy giờ?"),
+    ],
+)
+def test_short_legitimate_questions_still_work(app, world, page_type, question):
+    resource_id = {
+        PAGE_BOOKING_DETAIL: world["booking_id"],
+        PAGE_MATCH_DETAIL: world["match_id"],
+        PAGE_VENUE_DETAIL: world["venue_id"],
+    }[page_type]
+    context = resolve(app, viewer_id=world["creator"].id,
+                      page_type=page_type, resource_id=resource_id)
+
+    relevant, reason = dynamic_context_relevance(question=question, context=context)
+
+    assert relevant is True, question
+    assert reason == REASON_RELEVANT
+
+
+@pytest.mark.parametrize(
+    "page_type, accented, unaccented",
+    [
+        (PAGE_VENUE_DETAIL, "Cơ sở này mở cửa mấy giờ?", "co so nay mo cua may gio"),
+        (PAGE_BOOKING_DETAIL, "Tôi còn thiếu bao nhiêu tiền cọc?",
+         "toi con thieu bao nhieu tien coc"),
+        (PAGE_MATCH_DETAIL, "Tôi có vào phòng chat được không?",
+         "toi co vao phong chat duoc khong"),
+    ],
+)
+def test_unaccented_questions_behave_like_accented_ones(
+    app, world, page_type, accented, unaccented
+):
+    resource_id = {
+        PAGE_BOOKING_DETAIL: world["booking_id"],
+        PAGE_MATCH_DETAIL: world["match_id"],
+        PAGE_VENUE_DETAIL: world["venue_id"],
+    }[page_type]
+    context = resolve(app, viewer_id=world["creator"].id,
+                      page_type=page_type, resource_id=resource_id)
+
+    assert dynamic_context_relevance(question=accented, context=context) == (
+        dynamic_context_relevance(question=unaccented, context=context)
+    )
+    assert dynamic_context_relevance(question=unaccented, context=context)[0] is True
+
+
+def test_unaccented_off_topic_is_still_rejected(app, world):
+    """Normalisation must not become a loophole."""
+    context = resolve(app, viewer_id=world["creator"].id,
+                      page_type=PAGE_BOOKING_DETAIL,
+                      resource_id=world["booking_id"])
+
+    relevant, _ = dynamic_context_relevance(
+        question="toi co bao nhieu tien trong tai khoan", context=context
+    )
+
+    assert relevant is False
+
+
+def test_strip_diacritics_normalises_vietnamese():
+    assert strip_diacritics("Cơ sở ĐẶT SÂN") == "co so dat san"
+    assert strip_diacritics("tiền cọc") == "tien coc"
+
+
+def test_off_topic_with_context_still_falls_back_end_to_end(app, world):
+    context = resolve(app, viewer_id=world["creator"].id,
+                      page_type=PAGE_BOOKING_DETAIL,
+                      resource_id=world["booking_id"])
+    provider = RecordingChatModelProvider()
+
+    with app.app_context():
+        index = build_knowledge_index(
+            embedding_provider=LexicalEmbeddingProvider(), settings=make_settings()
+        )
+        answer = answer_question(
+            "Tôi có bao nhiêu tiền trong tài khoản?",
+            chat_provider=provider,
+            index=index,
+            settings=make_settings(),
+            context=context,
+        )
+
+    assert provider.calls == []
+    assert answer.answer == INSUFFICIENT_EVIDENCE_ANSWER
+    assert answer.used_dynamic_context is False
+
+
+# --- Phase 2B.6 regression: dynamic context alone must be answerable ---------
+#
+# Live verification caught the model returning the fallback for "co so nay mo
+# cua may gio?" even though the venue's opening hours were in the prompt. Venue
+# hours are dynamic data, so the static EVIDENCE block is legitimately empty
+# for that question -- and the system prompt then said, unconditionally, "chỉ
+# trả lời dựa trên BẰNG CHỨNG ... nếu BẰNG CHỨNG không đủ thì trả lời câu
+# fallback". That contradicted the DỮ LIỆU HIỆN TẠI section, and the model
+# resolved the contradiction differently on different runs.
+
+
+def test_venue_hours_have_no_static_evidence(app, world):
+    """Establishes the premise: this question is dynamic-only by nature."""
+    with app.app_context():
+        index = build_knowledge_index(
+            embedding_provider=LexicalEmbeddingProvider(), settings=make_settings()
+        )
+        for question in ("Cơ sở này mở cửa mấy giờ?", "co so nay mo cua may gio?"):
+            result = retrieve(question, index=index, settings=make_settings())
+            assert result.has_sufficient_evidence is False, question
+
+
+def test_dynamic_only_question_still_reaches_the_model(app, world):
+    """Empty static evidence must not stop a dynamic-only answer."""
+    context = resolve(app, viewer_id=world["creator"].id,
+                      page_type=PAGE_VENUE_DETAIL, resource_id=world["venue_id"])
+    provider = RecordingChatModelProvider(answer="Mở cửa 06:00-23:00.")
+
+    with app.app_context():
+        index = build_knowledge_index(
+            embedding_provider=LexicalEmbeddingProvider(), settings=make_settings()
+        )
+        answer = answer_question(
+            "co so nay mo cua may gio?",
+            chat_provider=provider,
+            index=index,
+            settings=make_settings(),
+            context=context,
+        )
+
+    assert len(provider.calls) == 1
+    assert answer.used_dynamic_context is True
+    assert answer.evidence_count == 0
+    prompt = provider.calls[0]["user_prompt"]
+    assert "(không có bằng chứng nào)" in prompt
+    assert "Giờ mở cửa" in prompt
+
+
+def test_system_prompt_does_not_make_the_fallback_unconditional():
+    """The rule that produced the defect: it must depend on BOTH sources."""
+    flat = " ".join(build_system_prompt().split())
+
+    assert "Chỉ khi CẢ HAI nguồn đều không đủ" in flat
+    assert "phần BẰNG CHỨNG trống KHÔNG có nghĩa là bạn phải từ chối" in flat
+    assert "đừng từ chối chỉ vì BẰNG CHỨNG trống" in flat
+
+
+def test_system_prompt_still_forbids_answering_from_prior_knowledge():
+    """The loosening must not become a licence to invent."""
+    flat = " ".join(build_system_prompt().split())
+
+    assert "Không được bịa ra quy định" in flat
+    assert "không có trong hai nguồn đó" in flat
+    assert INSUFFICIENT_EVIDENCE_ANSWER in flat

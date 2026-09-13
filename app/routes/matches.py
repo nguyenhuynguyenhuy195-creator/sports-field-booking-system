@@ -39,6 +39,12 @@ from app.models import (
     RefundStatus,
     UserRole,
 )
+from app.services.matchmaking import (
+    MATCH_VIEW_CLOSED_LISTING,
+    MATCH_VIEW_INACTIVE,
+    MATCH_VIEW_PAST,
+    match_view_status,
+)
 from app.services import (
     AdministrativeUnitError,
     BookingNotFoundError,
@@ -102,9 +108,6 @@ MATCH_STATUS_LABELS = {
     MatchStatus.CANCELLED.value: "Đã hủy",
     MatchStatus.COMPLETED.value: "Đã hoàn thành",
 }
-MATCH_VIEW_PAST = "PAST"
-MATCH_VIEW_CLOSED_LISTING = "CLOSED_LISTING"
-MATCH_VIEW_INACTIVE = "INACTIVE"
 MATCH_VIEW_STATUS_LABELS = {
     **MATCH_STATUS_LABELS,
     MATCH_VIEW_PAST: "Đã diễn ra",
@@ -701,47 +704,9 @@ def _contact_visible(booking) -> bool:
     return end_at > current_vietnam_datetime()
 
 
-def _match_view_status(match, *, now: datetime | None = None) -> str:
-    """Return a read-only status for the current user-facing Match journey."""
-    if match.status == MatchStatus.COMPLETED.value:
-        return MatchStatus.COMPLETED.value
-    if match.booking.status == BookingStatus.CANCELLED.value:
-        return MatchStatus.CANCELLED.value
-    if match.status == MatchStatus.CANCELLED.value:
-        if (
-            match.match_type == MatchType.FIND_OPPONENT.value
-            and match.booking.status
-            in {
-                BookingStatus.PARTIALLY_PAID.value,
-                BookingStatus.PAID.value,
-            }
-        ):
-            return MATCH_VIEW_CLOSED_LISTING
-        return MatchStatus.CANCELLED.value
-
-    current_utc = now or datetime.now(timezone.utc)
-    if current_utc.tzinfo is None:
-        current_utc = current_utc.replace(tzinfo=timezone.utc)
-    local_now = current_utc.astimezone(timezone(timedelta(hours=7))).replace(
-        tzinfo=None
-    )
-    start_at = datetime.combine(match.booking.booking_date, match.booking.start_time)
-    if (
-        match.status
-        in {
-            MatchStatus.OPEN.value,
-            MatchStatus.FULL.value,
-            MatchStatus.CONFIRMED.value,
-        }
-        and start_at <= local_now
-    ):
-        return MATCH_VIEW_PAST
-    if match.booking.status not in {
-        BookingStatus.PARTIALLY_PAID.value,
-        BookingStatus.PAID.value,
-    }:
-        return MATCH_VIEW_INACTIVE
-    return match.status
+# The computation now lives in the matchmaking service so the chatbot shares
+# it; the alias keeps this blueprint's existing callers and tests unchanged.
+_match_view_status = match_view_status
 
 
 def _match_view_label(match, *, now: datetime | None = None) -> str:

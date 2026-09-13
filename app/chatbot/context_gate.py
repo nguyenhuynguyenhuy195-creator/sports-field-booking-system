@@ -5,17 +5,27 @@ screen let every question through, "Giá Bitcoin hôm nay bao nhiêu?" would be
 answered by a model holding that booking in its prompt — the exact
 false-confidence failure the static evidence gate exists to prevent.
 
-So the question has to be about the kind of thing this context can answer. The
-test is a fixed per-page vocabulary, matched against the same content tokens
-the static gate uses. It is deliberately keyword-based and conservative: no
-second model call, no embedding, no scoring to tune — a reviewer can read the
-word lists and know exactly what passes.
+The gate matches **phrases**, not single syllables. A single-syllable rule was
+too loose: Vietnamese splits "tài khoản", "giá tiền", "người chơi" and "địa
+chỉ" into syllables that overlap the domain vocabulary, so "Tôi có bao nhiêu
+tiền trong tài khoản?" and "Địa chỉ Nhà Trắng ở đâu?" both looked relevant on
+the strength of one generic word. Requiring a domain *phrase* ("tiền cọc",
+"còn thiếu", "cơ sở", "phòng chat") removes that whole class of false
+positive while still accepting short real questions.
 
-Words that are common to any question ("bao nhiêu", "giá", "thế nào") are left
-out on purpose; they would let unrelated questions through.
+Text is compared with diacritics stripped, so "co so nay mo cua may gio"
+behaves exactly like "cơ sở này mở cửa mấy giờ" without loosening anything:
+the phrase requirement is what does the filtering, not the accents.
+
+Still deterministic and keyword-based on purpose: no second model call, no
+embedding, no score to tune. A reviewer can read the phrase lists and know
+exactly what passes.
 """
 
 from __future__ import annotations
+
+import re
+import unicodedata
 
 from .context import (
     PAGE_BOOKING_DETAIL,
@@ -23,44 +33,77 @@ from .context import (
     PAGE_VENUE_DETAIL,
     ResolvedDynamicContext,
 )
-from .retrieval import content_tokens
 
-
-# Vietnamese is tokenised per syllable, so multi-syllable terms are listed as
-# their parts ("thanh toán" -> "thanh", "toán").
-_MONEY_TERMS = {
-    "cọc", "tiền", "thanh", "toán", "trả", "thiếu", "nợ", "khoản", "phí",
-    "hoàn", "refund", "deposit", "paid", "pay", "payment", "owe", "remaining",
-    "balance", "money", "amount", "vnd",
-}
-_BOOKING_TERMS = {
-    "lịch", "đặt", "sân", "booking", "book", "hủy", "cancel", "trạng", "thái",
-    "status", "mã", "code", "giờ", "ngày", "date", "time", "slot",
-} | _MONEY_TERMS
-
-_MATCH_TERMS = {
-    "kèo", "match", "trận", "đối", "thủ", "opponent", "tham", "gia", "join",
-    "joined", "rút", "withdraw", "chat", "phòng", "nhắn", "tin", "message",
-    "slot", "suất", "người", "chơi", "player", "players", "trạng", "thái",
-    "status", "vai", "trò", "role", "creator", "chủ",
-} | _MONEY_TERMS
-
-_VENUE_TERMS = {
-    "cơ", "sở", "venue", "sân", "field", "địa", "chỉ", "address", "mở",
-    "đóng", "cửa", "giờ", "hours", "open", "close", "điện", "thoại", "phone",
-    "liên", "hệ", "contact", "môn", "sport", "sức", "chứa", "capacity",
-}
-
-PAGE_VOCABULARY: dict[str, frozenset[str]] = {
-    PAGE_BOOKING_DETAIL: frozenset(_BOOKING_TERMS),
-    PAGE_MATCH_DETAIL: frozenset(_MATCH_TERMS),
-    PAGE_VENUE_DETAIL: frozenset(_VENUE_TERMS),
-}
 
 REASON_NO_CONTEXT = "no_dynamic_context"
 REASON_NO_VOCABULARY = "page_has_no_vocabulary"
 REASON_OFF_TOPIC = "question_outside_page_vocabulary"
 REASON_RELEVANT = "question_matches_page_vocabulary"
+
+_WORD = re.compile(r"[0-9a-z]+")
+
+# Phrases that are unambiguously about this system's money and scheduling.
+# Written unaccented because that is how questions are normalised before
+# matching. Multi-word entries must appear as consecutive syllables.
+_MONEY_PHRASES = {
+    "coc", "tien coc", "dat coc", "tien con lai", "so tien", "con thieu",
+    "con no", "thanh toan", "da tra", "da dong", "da thanh toan", "hoan tien",
+    "duoc hoan", "tra tai san", "tai san bao nhieu", "khoan coc", "phi huy",
+    "giao dich", "deposit", "refund", "payment", "paid", "balance",
+}
+_BOOKING_PHRASES = {
+    "lich dat", "dat san", "san nay", "huy lich", "huy san", "trang thai",
+    "ma dat", "ma lich", "booking", "gio choi", "khung gio", "ngay dat",
+    "con han", "het han",
+} | _MONEY_PHRASES
+
+_MATCH_PHRASES = {
+    "keo", "keo nay", "tran nay", "doi thu", "tham gia", "da tham gia",
+    "rut khoi", "rut keo", "phong chat", "chat", "tin nhan", "nhan tin",
+    "suat", "con thieu", "con trong", "so nguoi", "nguoi tham gia",
+    "chu keo", "vai tro", "trang thai", "match", "opponent", "join",
+} | _MONEY_PHRASES
+
+_VENUE_PHRASES = {
+    "co so", "san bong", "san nay", "dia chi o dau", "dia chi cua",
+    "mo cua", "dong cua", "gio mo", "gio dong", "gio hoat dong", "lien he",
+    "so dien thoai", "suc chua", "mon the thao", "loai san", "venue",
+    "open", "close",
+}
+
+PAGE_PHRASES: dict[str, frozenset[str]] = {
+    PAGE_BOOKING_DETAIL: frozenset(_BOOKING_PHRASES),
+    PAGE_MATCH_DETAIL: frozenset(_MATCH_PHRASES),
+    PAGE_VENUE_DETAIL: frozenset(_VENUE_PHRASES),
+}
+
+# Longest phrase in any list, so only that many syllables need joining.
+_MAX_PHRASE_WORDS = max(
+    len(phrase.split())
+    for phrases in PAGE_PHRASES.values()
+    for phrase in phrases
+)
+
+
+def strip_diacritics(text: str) -> str:
+    """Lowercase and remove Vietnamese accents; 'đ' becomes 'd'."""
+    lowered = text.lower().replace("đ", "d")
+    decomposed = unicodedata.normalize("NFD", lowered)
+    return "".join(
+        char for char in decomposed if not unicodedata.combining(char)
+    )
+
+
+def question_phrases(question: str) -> set[str]:
+    """Every 1..N-syllable run in the question, normalised for comparison."""
+    words = _WORD.findall(strip_diacritics(question))
+    found: set[str] = set()
+    for start in range(len(words)):
+        for size in range(1, _MAX_PHRASE_WORDS + 1):
+            if start + size > len(words):
+                break
+            found.add(" ".join(words[start : start + size]))
+    return found
 
 
 def dynamic_context_relevance(
@@ -71,10 +114,10 @@ def dynamic_context_relevance(
     """Return ``(is_relevant, reason)`` for this question and context."""
     if context is None or not context.available:
         return False, REASON_NO_CONTEXT
-    vocabulary = PAGE_VOCABULARY.get(context.page_type)
-    if not vocabulary:
+    phrases = PAGE_PHRASES.get(context.page_type)
+    if not phrases:
         return False, REASON_NO_VOCABULARY
-    if content_tokens(question) & vocabulary:
+    if question_phrases(question) & phrases:
         return True, REASON_RELEVANT
     return False, REASON_OFF_TOPIC
 
@@ -86,11 +129,13 @@ def is_dynamic_context_relevant(
 
 
 __all__ = [
-    "PAGE_VOCABULARY",
+    "PAGE_PHRASES",
     "REASON_NO_CONTEXT",
     "REASON_NO_VOCABULARY",
     "REASON_OFF_TOPIC",
     "REASON_RELEVANT",
     "dynamic_context_relevance",
     "is_dynamic_context_relevant",
+    "question_phrases",
+    "strip_diacritics",
 ]

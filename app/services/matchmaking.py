@@ -55,6 +55,15 @@ MATCHABLE_BOOKING_STATUSES = (
     BookingStatus.PAID.value,
 )
 
+VIETNAM_TIMEZONE = timezone(timedelta(hours=7))
+
+# User-facing match lifecycle states that are derived rather than stored.
+# They live here, beside the rules that produce them, so the web route and the
+# chatbot cannot drift apart on what a match's state actually is.
+MATCH_VIEW_PAST = "PAST"
+MATCH_VIEW_CLOSED_LISTING = "CLOSED_LISTING"
+MATCH_VIEW_INACTIVE = "INACTIVE"
+
 MATCH_SORT_SOONEST = "soonest"
 MATCH_SORT_NEWEST = "newest"
 MATCH_SORT_OPTIONS = frozenset({MATCH_SORT_SOONEST, MATCH_SORT_NEWEST})
@@ -528,6 +537,47 @@ def match_accepts_actions(match: Match, *, now: datetime | None = None) -> bool:
         and match.booking.status in MATCHABLE_BOOKING_STATUSES
         and not _booking_has_started(match.booking, current_utc=_normalize_utc(now))
     )
+
+
+def match_view_status(match: Match, *, now: datetime | None = None) -> str:
+    """The match state a user is shown, derived from stored state and time.
+
+    Pure: reads only. Moved here from the matches blueprint so the chatbot
+    reports the same lifecycle the web pages do -- a closed FIND_OPPONENT
+    listing, a match whose kick-off has passed and a match whose booking is no
+    longer live all read very differently from the raw Match.status they are
+    computed from.
+    """
+    if match.status == MatchStatus.COMPLETED.value:
+        return MatchStatus.COMPLETED.value
+    if match.booking.status == BookingStatus.CANCELLED.value:
+        return MatchStatus.CANCELLED.value
+    if match.status == MatchStatus.CANCELLED.value:
+        if (
+            match.match_type == MatchType.FIND_OPPONENT.value
+            and match.booking.status in MATCHABLE_BOOKING_STATUSES
+        ):
+            return MATCH_VIEW_CLOSED_LISTING
+        return MatchStatus.CANCELLED.value
+
+    current_utc = now or datetime.now(timezone.utc)
+    if current_utc.tzinfo is None:
+        current_utc = current_utc.replace(tzinfo=timezone.utc)
+    local_now = current_utc.astimezone(VIETNAM_TIMEZONE).replace(tzinfo=None)
+    start_at = datetime.combine(match.booking.booking_date, match.booking.start_time)
+    if (
+        match.status
+        in {
+            MatchStatus.OPEN.value,
+            MatchStatus.FULL.value,
+            MatchStatus.CONFIRMED.value,
+        }
+        and start_at <= local_now
+    ):
+        return MATCH_VIEW_PAST
+    if match.booking.status not in MATCHABLE_BOOKING_STATUSES:
+        return MATCH_VIEW_INACTIVE
+    return match.status
 
 
 def effective_participant_status(
