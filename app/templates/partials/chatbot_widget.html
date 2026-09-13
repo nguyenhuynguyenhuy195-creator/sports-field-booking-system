@@ -1,0 +1,119 @@
+{#
+  Floating chatbot widget.
+
+  Included from base.html only, so it never reaches the Owner or Admin layouts.
+  The page context is resolved here from the objects the view already passed to
+  the template -- never by parsing the URL or scraping visible text -- and only
+  the numeric primary key travels to the browser. Nothing private (money,
+  payments, refunds, contact details, booking_code) is placed in an attribute:
+  the backend resolves all of that itself from the authenticated session.
+#}
+{% set chatbot = namespace(page_type='general', resource_id='') %}
+{% if request.endpoint == 'bookings.detail' and booking is defined
+      and not owner_view|default(false) %}
+    {% set chatbot.page_type = 'booking_detail' %}
+    {# The numeric id, not booking_code: the API validates an int. #}
+    {% set chatbot.resource_id = booking.id %}
+{% elif request.endpoint == 'matches.detail' and match is defined %}
+    {% set chatbot.page_type = 'match_detail' %}
+    {% set chatbot.resource_id = match.id %}
+{% elif request.endpoint == 'venues.detail' and venue is defined %}
+    {% set chatbot.page_type = 'venue_detail' %}
+    {% set chatbot.resource_id = venue.id %}
+{% endif %}
+
+<div class="chatbot-widget"
+     data-chatbot-widget
+     data-chatbot-query-url="{{ url_for('chatbot.query') }}"
+     data-chatbot-csrf="{{ csrf_token() }}"
+     data-chatbot-user="{{ current_user.id }}"
+     data-chatbot-page-type="{{ chatbot.page_type }}"
+     data-chatbot-resource-id="{{ chatbot.resource_id }}">
+
+    <button class="chatbot-launcher"
+            type="button"
+            data-chatbot-launcher
+            aria-expanded="false"
+            aria-controls="chatbotPanel"
+            aria-label="Mở trợ lý sân thể thao">
+        <i class="bi bi-chat-dots-fill" aria-hidden="true"></i>
+    </button>
+
+    <section class="chatbot-panel"
+             id="chatbotPanel"
+             data-chatbot-panel
+             role="dialog"
+             aria-modal="false"
+             aria-label="Trợ lý sân thể thao"
+             hidden>
+        <header class="chatbot-panel-header">
+            <span class="chatbot-panel-mark" aria-hidden="true">
+                <i class="bi bi-chat-dots-fill"></i>
+            </span>
+            <span class="chatbot-panel-heading">
+                <strong>Trợ lý sân thể thao</strong>
+                <small>Hỗ trợ đặt sân và tìm kèo</small>
+            </span>
+            <button class="chatbot-panel-action"
+                    type="button"
+                    data-chatbot-clear
+                    aria-label="Xóa cuộc trò chuyện">
+                <i class="bi bi-trash3" aria-hidden="true"></i>
+            </button>
+            <button class="chatbot-panel-action"
+                    type="button"
+                    data-chatbot-close
+                    aria-label="Đóng trợ lý">
+                <i class="bi bi-x-lg" aria-hidden="true"></i>
+            </button>
+        </header>
+
+        <div class="chatbot-panel-body" data-chatbot-scroll>
+            <div class="chatbot-intro" data-chatbot-intro>
+                <p class="chatbot-greeting">
+                    Xin chào! Bạn có thể hỏi về đặt sân, tìm kèo, thanh toán hoặc
+                    thông tin trên trang đang xem.
+                </p>
+                <div class="chatbot-chips" data-chatbot-chips>
+                    {% if chatbot.page_type == 'booking_detail' %}
+                        <button class="chatbot-chip" type="button" data-chatbot-chip>Lịch đặt này đang ở trạng thái gì?</button>
+                        <button class="chatbot-chip" type="button" data-chatbot-chip>Tôi còn thiếu bao nhiêu tiền cọc?</button>
+                        <button class="chatbot-chip" type="button" data-chatbot-chip>Tôi còn phải trả tại sân bao nhiêu?</button>
+                        <button class="chatbot-chip" type="button" data-chatbot-chip>Khoản hoàn tiền của tôi đang ở trạng thái gì?</button>
+                    {% elif chatbot.page_type == 'match_detail' %}
+                        <button class="chatbot-chip" type="button" data-chatbot-chip>Kèo này đang ở trạng thái gì?</button>
+                        <button class="chatbot-chip" type="button" data-chatbot-chip>Kèo này còn thiếu bao nhiêu người?</button>
+                        <button class="chatbot-chip" type="button" data-chatbot-chip>Tôi có vào phòng chat được không?</button>
+                        <button class="chatbot-chip" type="button" data-chatbot-chip>Thanh toán của tôi đang ở trạng thái gì?</button>
+                    {% elif chatbot.page_type == 'venue_detail' %}
+                        <button class="chatbot-chip" type="button" data-chatbot-chip>Cơ sở này mở cửa mấy giờ?</button>
+                        <button class="chatbot-chip" type="button" data-chatbot-chip>Địa chỉ cơ sở này ở đâu?</button>
+                        <button class="chatbot-chip" type="button" data-chatbot-chip>Cơ sở này có những loại sân nào?</button>
+                    {% else %}
+                        <button class="chatbot-chip" type="button" data-chatbot-chip>Tôi cần làm gì để đặt sân?</button>
+                        <button class="chatbot-chip" type="button" data-chatbot-chip>Tiền cọc khi đặt sân được tính thế nào?</button>
+                        <button class="chatbot-chip" type="button" data-chatbot-chip>Tôi có thể tìm kèo như thế nào?</button>
+                    {% endif %}
+                </div>
+            </div>
+            <ol class="chatbot-thread" data-chatbot-thread></ol>
+            <div class="chatbot-status" data-chatbot-status aria-live="polite"></div>
+        </div>
+
+        <form class="chatbot-composer" data-chatbot-form>
+            <label class="visually-hidden" for="chatbotInput">Câu hỏi của bạn</label>
+            <textarea class="chatbot-input"
+                      id="chatbotInput"
+                      data-chatbot-input
+                      rows="1"
+                      maxlength="2000"
+                      placeholder="Nhập câu hỏi của bạn..."></textarea>
+            <button class="chatbot-send"
+                    type="submit"
+                    data-chatbot-send
+                    aria-label="Gửi câu hỏi">
+                <i class="bi bi-send-fill" aria-hidden="true"></i>
+            </button>
+        </form>
+    </section>
+</div>
