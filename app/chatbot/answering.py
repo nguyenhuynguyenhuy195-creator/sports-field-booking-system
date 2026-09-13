@@ -14,8 +14,14 @@ starts inventing rules:
   ChatbotProviderError carrying only an exception type name -- never provider
   text, which can contain the API key.
 
-Phase 2A scope: static curated knowledge only. No route, no per-user data, no
-database access of any kind.
+Phase 2B adds a second, independent source of grounding: read-only dynamic
+context for the logged-in viewer (see :mod:`.context`). Static evidence
+explains policy; dynamic context explains the viewer's current state. Either
+one can justify answering, but neither is automatic -- context only counts for
+a question its page can actually answer (see :mod:`.context_gate`), so having
+a booking on screen never turns an off-topic question into an answerable one.
+
+Still no route and still no writes: the resolver issues SELECTs only.
 """
 
 from __future__ import annotations
@@ -24,6 +30,8 @@ import logging
 from dataclasses import dataclass
 from typing import Iterable
 
+from .context import ResolvedDynamicContext
+from .context_gate import dynamic_context_relevance
 from .errors import ChatbotError, ChatbotProviderError, scrub_secrets
 from .prompting import (
     ConversationTurn,
@@ -72,6 +80,9 @@ class ChatbotAnswer:
     language: str
     history_turns_used: int
     model_name: str | None = None
+    used_dynamic_context: bool = False
+    dynamic_context_reason: str = ""
+    context_page_type: str | None = None
 
     @property
     def used_model(self) -> bool:
@@ -89,6 +100,7 @@ def answer_question(
     index: KnowledgeIndex | None,
     settings: ChatbotSettings,
     history: Iterable | None = None,
+    context: ResolvedDynamicContext | None = None,
 ) -> ChatbotAnswer:
     """Answer one question from curated static knowledge.
 
@@ -102,7 +114,17 @@ def answer_question(
 
     result = retrieve(normalized_question, index=index, settings=settings)
 
-    if not result.has_sufficient_evidence:
+    # Dynamic context is a second, independent source of grounding -- but only
+    # for questions it can actually answer. "Context exists" is never enough.
+    context_relevant, context_reason = dynamic_context_relevance(
+        question=normalized_question, context=context
+    )
+    dynamic_lines = (
+        context.prompt_lines if context_relevant and context is not None else ()
+    )
+    context_page_type = context.page_type if context is not None else None
+
+    if not result.has_sufficient_evidence and not context_relevant:
         # The model is never consulted here. This is the whole point of the
         # gate: no evidence means no chance to improvise an answer.
         return ChatbotAnswer(
@@ -114,6 +136,9 @@ def answer_question(
             language=language,
             history_turns_used=len(turns),
             model_name=None,
+            used_dynamic_context=False,
+            dynamic_context_reason=context_reason,
+            context_page_type=context_page_type,
         )
 
     system_prompt = build_system_prompt()
@@ -122,6 +147,7 @@ def answer_question(
         result=result,
         history=turns,
         language=language,
+        dynamic_lines=dynamic_lines,
     )
 
     answer_text = _generate(
@@ -142,6 +168,9 @@ def answer_question(
         language=language,
         history_turns_used=len(turns),
         model_name=getattr(chat_provider, "model_name", None),
+        used_dynamic_context=bool(dynamic_lines),
+        dynamic_context_reason=context_reason,
+        context_page_type=context_page_type,
     )
 
 

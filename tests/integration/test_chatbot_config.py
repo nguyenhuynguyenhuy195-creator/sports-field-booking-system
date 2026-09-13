@@ -303,8 +303,14 @@ def test_answering_never_writes_to_the_database(app, monkeypatch):
         assert not db.session.new and not db.session.dirty and not db.session.deleted
 
 
-def test_chatbot_package_does_not_import_models_or_the_session():
-    """Structural guard: there is no data access to review in the first place.
+def test_only_the_context_resolver_may_touch_the_data_layer():
+    """Structural guard, narrowed for Phase 2B.
+
+    Phase 2B gives the chatbot read-only access to the viewer's own records, so
+    a blanket "imports no models" rule no longer describes the design. What
+    still holds is that the data layer is reachable from exactly one module:
+    retrieval, prompting and answering stay pure, so there is only one file to
+    audit for data access.
 
     Checked against real import statements rather than raw text, because
     retrieval.py legitimately uses ``app.extensions`` — Flask's per-app
@@ -316,9 +322,13 @@ def test_chatbot_package_does_not_import_models_or_the_session():
 
     import app.chatbot as package
 
-    forbidden = {"app.models", "app.extensions", "flask_sqlalchemy", "sqlalchemy"}
+    DATA_LAYER = {"app.models", "app.extensions", "flask_sqlalchemy", "sqlalchemy"}
+    ALLOWED_TO_IMPORT_DATA = {"context.py"}
+
     offenders = []
     for path in sorted(Path(package.__file__).parent.rglob("*.py")):
+        if path.name in ALLOWED_TO_IMPORT_DATA:
+            continue
         tree = ast.parse(path.read_text(encoding="utf-8"))
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
@@ -329,7 +339,41 @@ def test_chatbot_package_does_not_import_models_or_the_session():
                 continue
             for name in names:
                 root = name.split(".")[0]
-                if name in forbidden or root in {"sqlalchemy", "flask_sqlalchemy"}:
+                if name in DATA_LAYER or root in {"sqlalchemy", "flask_sqlalchemy"}:
                     offenders.append(f"{path.name}: {name}")
 
     assert offenders == []
+
+
+def test_the_context_resolver_never_imports_a_mutating_service():
+    """The resolver may read; it must not be able to start a state change.
+
+    Named explicitly so that adding, say, ``cancel_user_booking`` to its
+    imports fails here rather than being noticed in review.
+    """
+    import ast
+    from pathlib import Path
+
+    import app.chatbot.context as module
+
+    FORBIDDEN = {
+        "cancel_user_booking", "cancel_owner_booking", "create_booking",
+        "expire_stale_bookings", "complete_finished_bookings",
+        "expire_stale_match_participants", "request_to_join_match",
+        "decide_match_request", "withdraw_match_request", "create_match",
+        "close_opponent_listing", "pay_contribution_with_mock",
+        "top_up_booking_with_mock", "start_vnpay_payment", "process_vnpay_ipn",
+        "process_pending_provider_refunds", "process_pending_vnpay_refunds",
+        "apply_owner_cancellation_refunds", "apply_creator_cancellation_policy",
+        "refund_joined_participant", "send_user_message", "record_system_event",
+    }
+
+    tree = ast.parse(Path(module.__file__).read_text(encoding="utf-8"))
+    imported = {
+        alias.name
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ImportFrom)
+        for alias in node.names
+    }
+
+    assert not (imported & FORBIDDEN), sorted(imported & FORBIDDEN)
