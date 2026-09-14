@@ -45,8 +45,6 @@ from app.routes.admin import (
 )
 from app.services import (
     get_admin_dashboard_summary,
-    get_admin_monitoring_location,
-    get_admin_monitoring_summary,
     register_user,
 )
 
@@ -1113,12 +1111,10 @@ def test_admin_pages_require_admin_role(app, client):
         "/admin/users/999",
         "/admin/owner-applications",
         "/admin/venues",
-        "/admin/monitoring",
         "/admin/bookings",
         "/admin/bookings/UNKNOWN",
         "/admin/matches",
         "/admin/matches/999",
-        "/admin/monitoring/bookings/UNKNOWN",
     )
     for path in admin_paths:
         assert client.get(path).status_code == 403
@@ -1151,6 +1147,15 @@ def test_admin_dashboard_and_navigation_are_available(app, client):
     assert "app-footer" not in page
     assert "/admin/users" in page
     assert 'href="/admin/bookings" title="Lịch đặt sân"' in page
+    assert "/admin/monitoring" not in page
+
+
+def test_admin_legacy_monitoring_routes_are_removed(app, client):
+    admin = create_user(app, email="removed-monitor-admin@example.com", role=UserRole.ADMIN)
+    login(client, email=admin.email)
+
+    assert client.get("/admin/monitoring").status_code == 404
+    assert client.get("/admin/monitoring/bookings/UNKNOWN").status_code == 404
 
 
 def test_admin_dashboard_uses_database_counts_for_phase_one_kpis(app, client):
@@ -2202,35 +2207,8 @@ def test_admin_match_get_routes_do_not_mutate_domain_data(app, client):
         ) == counts
 
 
-def test_admin_match_legacy_mapping_sidebar_and_booking_cross_link(app, client):
+def test_admin_match_sidebar_and_booking_cross_link(app, client):
     data = setup_admin_match_operations(app, client, "compat")
-
-    legacy = client.get(
-        "/admin/monitoring",
-        query_string={
-            "section": "matches",
-            "q": "BK-MATCH-OPS",
-            "status": MatchStatus.OPEN.value,
-            "venue": data["venue_id"],
-            "field": data["field_id"],
-            "page": 2,
-            "focus": "payment_issue",
-            "venue_q": "khong-mang-theo",
-        },
-    )
-    assert legacy.status_code == 302
-    assert legacy.location.startswith("/admin/matches?")
-    for expected in (
-        "q=BK-MATCH-OPS",
-        "status=OPEN",
-        f'venue={data["venue_id"]}',
-        f'field={data["field_id"]}',
-        "page=2",
-    ):
-        assert expected in legacy.location
-    assert "section=" not in legacy.location
-    assert "focus=" not in legacy.location
-    assert "venue_q=" not in legacy.location
 
     match_page = client.get(
         f'/admin/matches/{data["players_match_id"]}'
@@ -2250,72 +2228,8 @@ def test_admin_match_legacy_mapping_sidebar_and_booking_cross_link(app, client):
     assert "Không tìm thấy kèo chơi cần theo dõi" in missing.get_data(as_text=True)
 
 
-def test_admin_monitoring_lists_all_mvp_records(app, client):
-    admin = create_user(app, email="monitor-admin@example.com", role=UserRole.ADMIN)
-    owner = create_user(app, email="monitor-owner@example.com", role=UserRole.OWNER)
-    player = create_user(app, email="monitor-player@example.com")
-    booking_code = seed_monitoring_data(app, user_id=player.id, owner_id=owner.id)
-    login(client, email=admin.email)
-
-    expected = {
-        "bookings": booking_code,
-        "catalog": "Sân bóng đá 5 người",
-    }
-    for section, marker in expected.items():
-        response = client.get(f"/admin/monitoring?section={section}")
-        assert response.status_code == 200
-        assert marker in response.get_data(as_text=True)
 
 
-def test_admin_monitoring_explains_data_and_opens_booking_detail(app, client):
-    admin = create_user(app, email="monitor-ui-admin@example.com", role=UserRole.ADMIN)
-    owner = create_user(app, email="monitor-ui-owner@example.com", role=UserRole.OWNER)
-    player = create_user(app, email="monitor-ui-player@example.com")
-    booking_code = seed_monitoring_data(app, user_id=player.id, owner_id=owner.id)
-    login(client, email=admin.email)
-
-    monitoring = client.get("/admin/monitoring?section=bookings")
-    monitoring_page = monitoring.get_data(as_text=True)
-
-    assert monitoring.status_code == 200
-    assert "Tình trạng cần kiểm tra" not in monitoring_page
-    assert "Lịch đặt sân &amp; dòng tiền" in monitoring_page
-    assert "Chọn cơ sở" in monitoring_page
-    assert "Cơ sở Admin Test" in monitoring_page
-    assert "Sân kiểm thử" in monitoring_page
-    assert "Tiến độ tiền cọc" in monitoring_page
-    assert "Xem thanh toán và hoàn tiền" in monitoring_page
-    assert "PAY-ADMIN-MONITOR" in monitoring_page
-    assert "REFUND-ADMIN-MONITOR" in monitoring_page
-    assert "Xem hồ sơ đầy đủ" in monitoring_page
-    assert "data-admin-workspace-detail-link" in monitoring_page
-    assert f"/admin/monitoring/bookings/{booking_code}" in monitoring_page
-
-    legacy_detail = client.get(f"/admin/monitoring/bookings/{booking_code}")
-    assert legacy_detail.status_code == 302
-    assert legacy_detail.headers["Location"].endswith(
-        f"/admin/bookings/{booking_code}"
-    )
-
-    detail = client.get(f"/admin/bookings/{booking_code}")
-    detail_page = detail.get_data(as_text=True)
-
-    assert detail.status_code == 200
-    assert booking_code in detail_page
-    assert "Thông tin booking" in detail_page
-    assert "Tài chính" in detail_page
-    assert "Diễn biến booking" in detail_page
-    assert "Thông tin liên quan" in detail_page
-    assert "Lịch sử thanh toán" in detail_page
-    assert "Lịch sử hoàn tiền" in detail_page
-    assert "TÓM TẮT KIỂM TRA" not in detail_page
-    assert "PAY-ADMIN-MONITOR" in detail_page
-    assert "REFUND-ADMIN-MONITOR" in detail_page
-    assert "Kèo Admin Test" in detail_page
-    assert "90.000 đ" in detail_page
-    assert "10.000 đ" in detail_page
-    assert "80.000 đ" in detail_page
-    assert "220.000 đ" in detail_page
 
 
 def test_admin_booking_detail_shows_canonical_read_only_deposit_record(app, client):
@@ -2517,37 +2431,6 @@ def test_admin_booking_detail_separates_recorded_events_from_current_state(app, 
     assert 'data-event-type="refund_success"' in cancelled_page
 
 
-def test_admin_booking_detail_legacy_route_redirects_to_canonical_with_safe_filters(
-    app,
-    client,
-):
-    admin = create_user(app, email="detail-route-admin@example.com", role=UserRole.ADMIN)
-    owner = create_user(app, email="detail-route-owner@example.com", role=UserRole.OWNER)
-    player = create_user(app, email="detail-route-player@example.com")
-    data = seed_booking_detail_data(app, user_id=player.id, owner_id=owner.id)
-    login(client, email=admin.email)
-
-    response = client.get(
-        f"/admin/monitoring/bookings/{data['normal']}",
-        query_string={
-            "q": "safe",
-            "province_code": data["province_code"],
-            "venue": data["venue_id"],
-            "page": 2,
-            "next": "https://example.com/not-allowed",
-            "section": "payments",
-        },
-    )
-
-    assert response.status_code == 302
-    location = response.headers["Location"]
-    assert location.startswith(f"/admin/bookings/{data['normal']}?")
-    assert "q=safe" in location
-    assert f"province_code={data['province_code']}" in location
-    assert f"venue={data['venue_id']}" in location
-    assert "page=2" in location
-    assert "example.com" not in location
-    assert "section=" not in location
 
 
 def test_admin_booking_detail_redirects_when_booking_does_not_exist(app, client):
@@ -2555,7 +2438,7 @@ def test_admin_booking_detail_redirects_when_booking_does_not_exist(app, client)
     login(client, email=admin.email)
 
     response = client.get(
-        "/admin/monitoring/bookings/DOES-NOT-EXIST",
+        "/admin/bookings/DOES-NOT-EXIST",
         follow_redirects=True,
     )
 
@@ -2563,192 +2446,14 @@ def test_admin_booking_detail_redirects_when_booking_does_not_exist(app, client)
     assert "Không tìm thấy lịch đặt sân cần theo dõi" in response.get_data(as_text=True)
 
 
-def test_admin_monitoring_filters_by_venue_and_field_with_friendly_labels(
-    app,
-    client,
-):
-    admin = create_user(app, email="location-admin@example.com", role=UserRole.ADMIN)
-    owner = create_user(app, email="location-owner@example.com", role=UserRole.OWNER)
-    player = create_user(app, email="location-player@example.com")
-    booking_code = seed_monitoring_data(app, user_id=player.id, owner_id=owner.id)
-    with app.app_context():
-        booking = db.session.scalar(
-            db.select(Booking).where(Booking.booking_code == booking_code)
-        )
-        venue_id = booking.field.venue_id
-        field_id = booking.field_id
-    login(client, email=admin.email)
-
-    for section in ("bookings",):
-        response = client.get(
-            f"/admin/monitoring?section={section}&venue={venue_id}&field={field_id}"
-        )
-        page = response.get_data(as_text=True)
-        assert response.status_code == 200
-        assert "Cơ sở Admin Test" in page
-        assert "Sân kiểm thử" in page
-
-    payments_page = client.get(
-        f"/admin/monitoring?section=bookings&venue={venue_id}&field={field_id}"
-    ).get_data(as_text=True)
-    assert "Thanh toán thử nghiệm" in payments_page
-    assert ">MOCK<" not in payments_page
-
-    invalid_field = client.get(
-        f"/admin/monitoring?section=bookings&venue={venue_id}&field=999999",
-        follow_redirects=True,
-    )
-    assert "Không tìm thấy sân đã chọn" in invalid_field.get_data(as_text=True)
 
 
-def test_admin_monitoring_searches_regions_and_paginates_many_venues(app, client):
-    admin = create_user(app, email="many-venues-admin@example.com", role=UserRole.ADMIN)
-    owner = create_user(app, email="many-venues-owner@example.com", role=UserRole.OWNER)
-    with app.app_context():
-        venue_ids = []
-        field_type = db.session.scalar(
-            db.select(FieldType).where(
-                FieldType.code == FieldTypeCode.FOOTBALL_5.value
-            )
-        )
-        for index in range(1, 51):
-            venue = Venue(
-                owner_id=owner.id,
-                name=f"Cơ sở mở rộng {index:02d}",
-                address=f"{index} Đường mở rộng {index:02d}",
-                district="Quận 7" if index % 2 == 0 else "Quận 9",
-                city="TP. Hồ Chí Minh",
-                opening_time=time(6, 0),
-                closing_time=time(23, 0),
-                status=VenueStatus.ACTIVE.value,
-            )
-            db.session.add(venue)
-            db.session.flush()
-            venue_ids.append(venue.id)
-        for index in range(1, 31):
-            db.session.add(
-                Field(
-                    venue_id=venue_ids[-1],
-                    name=f"Sân mở rộng {index:02d}",
-                    field_type_id=field_type.id,
-                    capacity=10,
-                    status=FieldStatus.ACTIVE.value,
-                )
-            )
-        db.session.commit()
-    login(client, email=admin.email)
-
-    first_page = client.get(
-        "/admin/monitoring",
-        query_string={"section": "bookings", "venue_q": "Cơ sở mở rộng"},
-    ).get_data(as_text=True)
-    assert "50 cơ sở phù hợp" in first_page
-    assert "Cơ sở mở rộng 01" in first_page
-    assert "Cơ sở mở rộng 10" in first_page
-    assert "Cơ sở mở rộng 11" not in first_page
-    assert "Trang 1/5" in first_page
-
-    second_page = client.get(
-        "/admin/monitoring",
-        query_string={
-            "section": "bookings",
-            "venue_q": "Cơ sở mở rộng",
-            "venue_page": 5,
-        },
-    ).get_data(as_text=True)
-    assert "Cơ sở mở rộng 41" in second_page
-    assert "Cơ sở mở rộng 50" in second_page
-    assert "Cơ sở mở rộng 01" not in second_page
-    assert "Trang 5/5" in second_page
-
-    district_page = client.get(
-        "/admin/monitoring",
-        query_string={
-            "section": "bookings",
-            "venue_q": "Cơ sở mở rộng",
-            "venue_city": "TP. Hồ Chí Minh",
-            "venue_district": "Quận 7",
-        },
-    ).get_data(as_text=True)
-    assert "25 cơ sở phù hợp" in district_page
-    assert "Cơ sở mở rộng 02" in district_page
-    assert "Cơ sở mở rộng 01" not in district_page
-
-    selected_page = client.get(
-        "/admin/monitoring",
-        query_string={
-            "section": "bookings",
-            "venue": venue_ids[-1],
-            "venue_q": "Cơ sở mở rộng",
-            "venue_page": 5,
-        },
-    ).get_data(as_text=True)
-    assert "Cơ sở mở rộng 50" in selected_page
-    assert "30 sân" in selected_page
-    assert "data-admin-field-search" in selected_page
-    assert "Xem thêm 22 sân" in selected_page
-    assert 'data-field-search-value="Sân mở rộng 30' in selected_page
-    assert "hidden data-admin-field-extra" in selected_page
 
 
-def test_admin_monitoring_validates_filters(app, client):
-    admin = create_user(app, email="filter-admin@example.com", role=UserRole.ADMIN)
-    login(client, email=admin.email)
-
-    invalid_section = client.get(
-        "/admin/monitoring?section=secrets",
-        follow_redirects=True,
-    )
-    assert "không hợp lệ" in invalid_section.get_data(as_text=True)
-
-    invalid_status = client.get(
-        "/admin/monitoring?section=bookings&status=UNKNOWN",
-        follow_redirects=True,
-    )
-    assert "Trạng thái lịch đặt sân không hợp lệ" in invalid_status.get_data(
-        as_text=True
-    )
-
-    invalid_date = client.get(
-        "/admin/monitoring?section=bookings&date=not-a-date",
-        follow_redirects=True,
-    )
-    assert "Ngày lọc phải có định dạng hợp lệ" in invalid_date.get_data(
-        as_text=True
-    )
 
 
-def test_admin_monitoring_loads_partial_navigation_assets(app, client):
-    admin = create_user(app, email="smooth-monitoring-admin@example.com", role=UserRole.ADMIN)
-    login(client, email=admin.email)
-
-    response = client.get("/admin/monitoring?section=bookings")
-    page = response.get_data(as_text=True)
-
-    assert response.status_code == 200
-    assert "data-admin-monitoring-root" in page
-    assert "data-admin-monitoring-status" in page
-    assert "/static/js/admin-monitoring.js" in page
 
 
-def test_admin_monitoring_redirects_legacy_finance_sections(app, client):
-    admin = create_user(app, email="legacy-monitor-admin@example.com", role=UserRole.ADMIN)
-    login(client, email=admin.email)
-
-    expected_focus = {
-        "contributions": "incomplete_deposit",
-        "payments": "payment_issue",
-        "refunds": "refund_pending",
-    }
-    for legacy_section, focus in expected_focus.items():
-        response = client.get(
-            "/admin/monitoring",
-            query_string={"section": legacy_section, "venue": 7},
-        )
-        assert response.status_code == 302
-        assert f"section=bookings" in response.location
-        assert f"focus={focus}" in response.location
-        assert "venue=7" in response.location
 
 
 def test_admin_match_detail_shows_participant_states_without_private_contacts(
@@ -2816,8 +2521,6 @@ def test_admin_uses_effective_expired_status_without_mutating_booking(app, clien
         booking.status = BookingStatus.CONFIRMED.value
         booking.paid_amount = Decimal("0.00")
         booking.initial_payment_due_at = utc_now() - timedelta(minutes=1)
-        venue_id = booking.field.venue_id
-        field_id = booking.field_id
         db.session.execute(
             db.delete(Refund).where(Refund.booking_id == booking.id)
         )
@@ -2832,12 +2535,6 @@ def test_admin_uses_effective_expired_status_without_mutating_booking(app, clien
         db.session.commit()
 
         assert get_admin_dashboard_summary().active_bookings == 0
-        assert get_admin_monitoring_summary().incomplete_deposit_bookings == 0
-        location = get_admin_monitoring_location(venue_id)
-        field_summary = next(
-            item for item in location.fields if item.field.id == field_id
-        )
-        assert field_summary.incomplete_deposit_bookings == 0
 
     login(client, email=admin.email)
 
@@ -2866,13 +2563,6 @@ def test_admin_uses_effective_expired_status_without_mutating_booking(app, clien
     ).get_data(as_text=True)
     assert f'<strong class="admin-booking-code">{booking_code}</strong>' in expired_filter
     assert f'<strong class="admin-booking-code">{booking_code}</strong>' not in confirmed_filter
-
-    monitoring_page = client.get(
-        "/admin/monitoring",
-        query_string={"section": "bookings", "q": booking_code},
-    ).get_data(as_text=True)
-    assert booking_code in monitoring_page
-    assert "Đã hết hạn" in monitoring_page
 
     with app.app_context():
         booking = db.session.scalar(

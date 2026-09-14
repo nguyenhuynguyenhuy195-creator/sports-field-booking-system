@@ -16,7 +16,6 @@ from app.models import (
     BookingContribution,
     BookingPaymentPolicy,
     BookingStatus,
-    ContributionStatus,
     Field,
     FieldType,
     Match,
@@ -51,10 +50,8 @@ from .booking import get_effective_booking_status
 
 
 ADMIN_PAGE_SIZE = 20
-ADMIN_MONITORING_PAGE_SIZE = 6
 ADMIN_BOOKING_PAGE_SIZE = 6
 ADMIN_MATCH_PAGE_SIZE = 6
-ADMIN_VENUE_PAGE_SIZE = 10
 ADMIN_MATCH_EFFECTIVE_ENDED_STATUS = "ENDED"
 ADMIN_MATCH_OPERATIONAL_STATUSES = frozenset(
     {
@@ -101,14 +98,6 @@ class AdminDashboardSummary:
 
 
 @dataclass(frozen=True)
-class AdminMonitoringSummary:
-    incomplete_deposit_bookings: int
-    payment_issues: int
-    pending_refunds: int
-    open_matches: int
-
-
-@dataclass(frozen=True)
 class AdminAccountSummary:
     total: int
     active: int
@@ -124,20 +113,6 @@ class AdminAccountDetail:
     latest_owner_application: OwnerApplication | None
     venue_count: int
     booking_count: int
-
-
-@dataclass(frozen=True)
-class AdminFieldLocationSummary:
-    field: Field
-    total_bookings: int
-    incomplete_deposit_bookings: int
-
-
-@dataclass(frozen=True)
-class AdminVenueLocationSummary:
-    venue: Venue
-    fields: tuple[AdminFieldLocationSummary, ...]
-    total_bookings: int
 
 
 @dataclass(frozen=True)
@@ -309,29 +284,6 @@ def get_admin_dashboard_summary() -> AdminDashboardSummary:
     )
 
 
-def get_admin_monitoring_summary() -> AdminMonitoringSummary:
-    return AdminMonitoringSummary(
-        incomplete_deposit_bookings=_count_bookings_with_effective_statuses(
-            {
-                BookingStatus.CONFIRMED.value,
-                BookingStatus.PARTIALLY_PAID.value,
-            },
-            Booking.paid_amount < Booking.deposit_amount,
-        ),
-        payment_issues=_count(
-            Payment,
-            Payment.status.in_(
-                {PaymentStatus.PENDING.value, PaymentStatus.FAILED.value}
-            ),
-        ),
-        pending_refunds=_count(
-            Refund,
-            Refund.status.in_(
-                {RefundStatus.PENDING.value, RefundStatus.PROCESSING.value}
-            ),
-        ),
-        open_matches=_count(Match, Match.status == MatchStatus.OPEN.value),
-    )
 
 
 def get_admin_account_summary() -> AdminAccountSummary:
@@ -345,159 +297,14 @@ def get_admin_account_summary() -> AdminAccountSummary:
     )
 
 
-def list_admin_monitoring_provinces() -> tuple[str, ...]:
-    location_province = func.coalesce(Venue.province_name, Venue.city)
-    statement = (
-        db.select(location_province)
-        .where(location_province.is_not(None), location_province != "")
-        .distinct()
-        .order_by(location_province.asc())
-    )
-    return tuple(db.session.scalars(statement))
 
 
-def list_admin_monitoring_wards(
-    *,
-    province: str | None = None,
-) -> tuple[str, ...]:
-    location_province = func.coalesce(Venue.province_name, Venue.city)
-    location_ward = func.coalesce(Venue.ward_name, Venue.district)
-    statement = db.select(location_ward).where(
-        location_ward.is_not(None),
-        location_ward != "",
-    )
-    if province:
-        statement = statement.where(location_province == province)
-    statement = statement.distinct().order_by(location_ward.asc())
-    return tuple(value for value in db.session.scalars(statement) if value)
 
 
-def list_admin_monitoring_locations(
-    *,
-    query: str | None = None,
-    province: str | None = None,
-    ward: str | None = None,
-    page: int = 1,
-) -> AdminPage:
-    statement = db.select(Venue)
-    normalized_query = _normalize_query(query)
-    if normalized_query:
-        pattern = _contains_pattern(normalized_query)
-        statement = statement.where(
-            or_(
-                func.lower(Venue.name).like(pattern, escape="\\"),
-                func.lower(Venue.address).like(pattern, escape="\\"),
-                func.lower(
-                    func.coalesce(Venue.province_name, Venue.city, "")
-                ).like(pattern, escape="\\"),
-                func.lower(
-                    func.coalesce(Venue.ward_name, Venue.district, "")
-                ).like(
-                    pattern,
-                    escape="\\",
-                ),
-            )
-        )
-    if province:
-        statement = statement.where(
-            func.coalesce(Venue.province_name, Venue.city) == province
-        )
-    if ward:
-        statement = statement.where(
-            func.coalesce(Venue.ward_name, Venue.district) == ward
-        )
-
-    normalized_page = max(page, 1)
-    pagination = db.paginate(
-        statement.order_by(Venue.name.asc(), Venue.id.asc()),
-        page=normalized_page,
-        per_page=ADMIN_VENUE_PAGE_SIZE,
-        error_out=False,
-    )
-    return AdminPage(
-        items=_build_admin_venue_summaries(tuple(pagination.items)),
-        page=pagination.page,
-        per_page=pagination.per_page,
-        total=pagination.total,
-    )
 
 
-def get_admin_monitoring_location(
-    venue_id: int,
-) -> AdminVenueLocationSummary | None:
-    venue = db.session.get(Venue, venue_id)
-    if venue is None:
-        return None
-    return _build_admin_venue_summaries((venue,))[0]
 
 
-def _build_admin_venue_summaries(
-    venues: tuple[Venue, ...],
-) -> tuple[AdminVenueLocationSummary, ...]:
-    if not venues:
-        return ()
-
-    venue_ids = tuple(venue.id for venue in venues)
-    fields = tuple(
-        db.session.scalars(
-            db.select(Field)
-            .where(Field.venue_id.in_(venue_ids))
-            .options(
-                joinedload(Field.venue),
-                joinedload(Field.field_type).joinedload(FieldType.sport),
-            )
-            .order_by(Field.venue_id.asc(), Field.name.asc(), Field.id.asc())
-        )
-    )
-    field_ids = tuple(field.id for field in fields)
-    booking_stats = {}
-    if field_ids:
-        bookings_by_field: dict[int, list[Booking]] = {}
-        for booking in db.session.scalars(
-            db.select(Booking).where(Booking.field_id.in_(field_ids))
-        ):
-            bookings_by_field.setdefault(booking.field_id, []).append(booking)
-        active_deposit_statuses = {
-            BookingStatus.CONFIRMED.value,
-            BookingStatus.PARTIALLY_PAID.value,
-        }
-        booking_stats = {
-            field_id: (
-                len(field_bookings),
-                sum(
-                    1
-                    for booking in field_bookings
-                    if get_effective_booking_status(booking)
-                    in active_deposit_statuses
-                    and booking.paid_amount < booking.deposit_amount
-                ),
-            )
-            for field_id, field_bookings in bookings_by_field.items()
-        }
-
-    fields_by_venue: dict[int, list[AdminFieldLocationSummary]] = {
-        venue.id: [] for venue in venues
-    }
-    for field in fields:
-        total, incomplete = booking_stats.get(field.id, (0, 0))
-        fields_by_venue.setdefault(field.venue_id, []).append(
-            AdminFieldLocationSummary(
-                field=field,
-                total_bookings=total,
-                incomplete_deposit_bookings=incomplete,
-            )
-        )
-
-    return tuple(
-        AdminVenueLocationSummary(
-            venue=venue,
-            fields=tuple(fields_by_venue.get(venue.id, [])),
-            total_bookings=sum(
-                item.total_bookings for item in fields_by_venue.get(venue.id, [])
-            ),
-        )
-        for venue in venues
-    )
 
 
 def get_admin_booking(booking_code: str) -> Booking:
@@ -1161,318 +968,14 @@ def list_admin_match_operations(
     )
 
 
-def list_admin_bookings(
-    *,
-    query: str | None = None,
-    status: str | None = None,
-    sport_code: str | None = None,
-    booking_date: date | None = None,
-    venue_id: int | None = None,
-    field_id: int | None = None,
-    focus: str | None = None,
-    page: int = 1,
-) -> AdminPage:
-    statement = (
-        db.select(Booking)
-        .join(Field, Field.id == Booking.field_id)
-        .join(FieldType, FieldType.id == Field.field_type_id)
-        .join(Sport, Sport.id == FieldType.sport_id)
-        .options(
-            joinedload(Booking.user),
-            joinedload(Booking.field).joinedload(Field.venue),
-            joinedload(Booking.field)
-            .joinedload(Field.field_type)
-            .joinedload(FieldType.sport),
-            selectinload(Booking.contributions).joinedload(
-                BookingContribution.user
-            ),
-            selectinload(Booking.payments).joinedload(Payment.payer),
-            selectinload(Booking.payments).joinedload(Payment.contribution),
-            selectinload(Booking.refunds).joinedload(Refund.recipient),
-            selectinload(Booking.refunds).joinedload(Refund.payment),
-        )
-    )
-    normalized_query = _normalize_query(query)
-    if normalized_query:
-        pattern = _contains_pattern(normalized_query)
-        statement = statement.where(
-            or_(
-                func.lower(Booking.booking_code).like(pattern, escape="\\"),
-                func.lower(User.email).like(pattern, escape="\\"),
-                Booking.payments.any(
-                    func.lower(Payment.order_id).like(pattern, escape="\\")
-                ),
-                Booking.refunds.any(
-                    func.lower(Refund.order_id).like(pattern, escape="\\")
-                ),
-            )
-        ).join(User, User.id == Booking.user_id)
-    if status:
-        _require_choice(status, BookingStatus, "Trạng thái lịch đặt sân")
-    if sport_code:
-        statement = statement.where(Sport.code == sport_code)
-    if booking_date:
-        statement = statement.where(Booking.booking_date == booking_date)
-    if venue_id:
-        statement = statement.where(Field.venue_id == venue_id)
-    if field_id:
-        statement = statement.where(Field.id == field_id)
-    effective_statuses = None
-    if focus == "incomplete_deposit":
-        statement = statement.where(Booking.paid_amount < Booking.deposit_amount)
-        effective_statuses = {
-            BookingStatus.CONFIRMED.value,
-            BookingStatus.PARTIALLY_PAID.value,
-        }
-    elif focus == "payment_issue":
-        statement = statement.where(
-            Booking.payments.any(
-                Payment.status.in_(
-                    (
-                        PaymentStatus.FAILED.value,
-                        PaymentStatus.CANCELLED.value,
-                        PaymentStatus.EXPIRED.value,
-                    )
-                )
-            )
-        )
-    elif focus == "refund_pending":
-        statement = statement.where(
-            or_(
-                Booking.status == BookingStatus.REFUND_PENDING.value,
-                Booking.refunds.any(
-                    Refund.status.in_(
-                        (
-                            RefundStatus.PENDING.value,
-                            RefundStatus.PROCESSING.value,
-                        )
-                    )
-                ),
-            )
-        )
-    elif focus == "completed":
-        effective_statuses = {BookingStatus.COMPLETED.value}
-    booking_page = _paginate_bookings_by_effective_status(
-        statement.order_by(Booking.created_at.desc(), Booking.id.desc()),
-        page,
-        per_page=ADMIN_MONITORING_PAGE_SIZE,
-        status=status,
-        allowed_statuses=effective_statuses,
-    )
-    return AdminPage(
-        items=tuple(
-            _admin_booking_list_item(booking, set(), set())
-            for booking in booking_page.items
-        ),
-        page=booking_page.page,
-        per_page=booking_page.per_page,
-        total=booking_page.total,
-    )
 
 
-def list_admin_contributions(
-    *,
-    query: str | None = None,
-    status: str | None = None,
-    venue_id: int | None = None,
-    field_id: int | None = None,
-    page: int = 1,
-) -> AdminPage:
-    statement = (
-        db.select(BookingContribution)
-        .join(Booking, Booking.id == BookingContribution.booking_id)
-        .join(Field, Field.id == Booking.field_id)
-        .options(
-            joinedload(BookingContribution.booking)
-            .joinedload(Booking.field)
-            .joinedload(Field.venue),
-            joinedload(BookingContribution.booking)
-            .joinedload(Booking.field)
-            .joinedload(Field.field_type)
-            .joinedload(FieldType.sport),
-            joinedload(BookingContribution.user),
-        )
-    )
-    normalized_query = _normalize_query(query)
-    if normalized_query:
-        pattern = _contains_pattern(normalized_query)
-        statement = statement.where(
-            func.lower(Booking.booking_code).like(pattern, escape="\\")
-        )
-    if status:
-        _require_choice(status, ContributionStatus, "Trạng thái tiền cọc")
-        statement = statement.where(BookingContribution.status == status)
-    if venue_id:
-        statement = statement.where(Field.venue_id == venue_id)
-    if field_id:
-        statement = statement.where(Field.id == field_id)
-    return _paginate(
-        statement.order_by(
-            BookingContribution.created_at.desc(),
-            BookingContribution.id.desc(),
-        ),
-        page,
-        per_page=ADMIN_MONITORING_PAGE_SIZE,
-    )
 
 
-def list_admin_payments(
-    *,
-    query: str | None = None,
-    status: str | None = None,
-    venue_id: int | None = None,
-    field_id: int | None = None,
-    page: int = 1,
-) -> AdminPage:
-    statement = (
-        db.select(Payment)
-        .join(Booking, Booking.id == Payment.booking_id)
-        .join(Field, Field.id == Booking.field_id)
-        .options(
-            joinedload(Payment.booking)
-            .joinedload(Booking.field)
-            .joinedload(Field.venue),
-            joinedload(Payment.booking)
-            .joinedload(Booking.field)
-            .joinedload(Field.field_type)
-            .joinedload(FieldType.sport),
-            joinedload(Payment.contribution),
-            joinedload(Payment.payer),
-        )
-    )
-    normalized_query = _normalize_query(query)
-    if normalized_query:
-        pattern = _contains_pattern(normalized_query)
-        statement = statement.where(
-            or_(
-                func.lower(Booking.booking_code).like(pattern, escape="\\"),
-                func.lower(Payment.order_id).like(pattern, escape="\\"),
-                func.lower(Payment.request_id).like(pattern, escape="\\"),
-                func.lower(func.coalesce(Payment.provider_trans_id, "")).like(
-                    pattern,
-                    escape="\\",
-                ),
-            )
-        )
-    if status:
-        _require_choice(status, PaymentStatus, "Trạng thái thanh toán")
-        statement = statement.where(Payment.status == status)
-    if venue_id:
-        statement = statement.where(Field.venue_id == venue_id)
-    if field_id:
-        statement = statement.where(Field.id == field_id)
-    return _paginate(
-        statement.order_by(Payment.created_at.desc(), Payment.id.desc()),
-        page,
-        per_page=ADMIN_MONITORING_PAGE_SIZE,
-    )
 
 
-def list_admin_refunds(
-    *,
-    query: str | None = None,
-    status: str | None = None,
-    venue_id: int | None = None,
-    field_id: int | None = None,
-    page: int = 1,
-) -> AdminPage:
-    statement = (
-        db.select(Refund)
-        .join(Booking, Booking.id == Refund.booking_id)
-        .join(Field, Field.id == Booking.field_id)
-        .options(
-            joinedload(Refund.booking)
-            .joinedload(Booking.field)
-            .joinedload(Field.venue),
-            joinedload(Refund.booking)
-            .joinedload(Booking.field)
-            .joinedload(Field.field_type)
-            .joinedload(FieldType.sport),
-            joinedload(Refund.payment),
-            joinedload(Refund.recipient),
-        )
-    )
-    normalized_query = _normalize_query(query)
-    if normalized_query:
-        pattern = _contains_pattern(normalized_query)
-        statement = statement.where(
-            or_(
-                func.lower(Booking.booking_code).like(pattern, escape="\\"),
-                func.lower(Refund.order_id).like(pattern, escape="\\"),
-                func.lower(Refund.request_id).like(pattern, escape="\\"),
-                func.lower(func.coalesce(Refund.provider_refund_trans_id, "")).like(
-                    pattern,
-                    escape="\\",
-                ),
-            )
-        )
-    if status:
-        _require_choice(status, RefundStatus, "Trạng thái hoàn tiền")
-        statement = statement.where(Refund.status == status)
-    if venue_id:
-        statement = statement.where(Field.venue_id == venue_id)
-    if field_id:
-        statement = statement.where(Field.id == field_id)
-    return _paginate(
-        statement.order_by(Refund.created_at.desc(), Refund.id.desc()),
-        page,
-        per_page=ADMIN_MONITORING_PAGE_SIZE,
-    )
 
 
-def list_admin_matches(
-    *,
-    query: str | None = None,
-    status: str | None = None,
-    sport_code: str | None = None,
-    booking_date: date | None = None,
-    venue_id: int | None = None,
-    field_id: int | None = None,
-    page: int = 1,
-) -> AdminPage:
-    statement = (
-        db.select(Match)
-        .join(Booking, Booking.id == Match.booking_id)
-        .join(Field, Field.id == Booking.field_id)
-        .join(FieldType, FieldType.id == Field.field_type_id)
-        .join(Sport, Sport.id == FieldType.sport_id)
-        .options(
-            joinedload(Match.creator),
-            joinedload(Match.booking)
-            .joinedload(Booking.field)
-            .joinedload(Field.venue),
-            joinedload(Match.booking)
-            .joinedload(Booking.field)
-            .joinedload(Field.field_type)
-            .joinedload(FieldType.sport),
-            selectinload(Match.participants).joinedload(MatchParticipant.user),
-        )
-    )
-    normalized_query = _normalize_query(query)
-    if normalized_query:
-        pattern = _contains_pattern(normalized_query)
-        statement = statement.where(
-            or_(
-                func.lower(Match.title).like(pattern, escape="\\"),
-                func.lower(Booking.booking_code).like(pattern, escape="\\"),
-            )
-        )
-    if status:
-        _require_choice(status, MatchStatus, "Trạng thái kèo")
-        statement = statement.where(Match.status == status)
-    if sport_code:
-        statement = statement.where(Sport.code == sport_code)
-    if booking_date:
-        statement = statement.where(Booking.booking_date == booking_date)
-    if venue_id:
-        statement = statement.where(Field.venue_id == venue_id)
-    if field_id:
-        statement = statement.where(Field.id == field_id)
-    return _paginate(
-        statement.order_by(Match.created_at.desc(), Match.id.desc()),
-        page,
-        per_page=ADMIN_MONITORING_PAGE_SIZE,
-    )
 
 
 def _count(model: Any, *conditions: Any) -> int:

@@ -1278,16 +1278,6 @@ def test_admin_booking_detail_shows_cancelled_booking_independent_of_refund_stat
     assert "Đã hủy" in detail_page
     assert "<dt>Đã hoàn</dt><dd>0 đ</dd>" in detail_page
 
-    monitoring_page = client.get(
-        "/admin/monitoring?focus=refund_pending"
-    ).get_data(as_text=True)
-    # 8b: the monitoring workspace independently shows this same refund's
-    # own PROCESSING status, purely for reading — see the admin.py grep
-    # audit confirming no admin route can trigger/submit a refund.
-    assert case["booking_code"] in monitoring_page
-    assert "Đang xử lý" in monitoring_page
-
-
 # --- Manual reconciliation for VNPAY refunds stuck at PROCESSING -------------
 # VNPAY's queryDr cannot safely identify a specific refund (see
 # reconcile_vnpay_refund_manually's docstring), so PROCESSING is only ever

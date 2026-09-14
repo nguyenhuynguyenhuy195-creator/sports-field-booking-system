@@ -68,7 +68,7 @@
                                     <h3>Thanh toán cần kiểm tra</h3>
                                     <p>{{ summary.pending_payments }} giao dịch đang chờ xác nhận · {{ summary.failed_payments }} giao dịch thất bại.</p>
                                 </div>
-                                <a class="admin-priority-action" href="{{ url_for('admin.monitoring', section='bookings', focus='payment_issue') }}">Kiểm tra thanh toán<i class="bi bi-arrow-right-short" aria-hidden="true"></i></a>
+                                <a class="admin-priority-action" href="{{ url_for('admin.booking_operations') }}">Kiểm tra trong lịch đặt<i class="bi bi-arrow-right-short" aria-hidden="true"></i></a>
                             </article>
                         {% endif %}
 
@@ -82,7 +82,7 @@
                                     <h3>Hoàn tiền chưa hoàn tất</h3>
                                     <p>Kiểm tra các yêu cầu đang chờ hoặc đang được cổng thanh toán xử lý.</p>
                                 </div>
-                                <a class="admin-priority-action" href="{{ url_for('admin.monitoring', section='bookings', focus='refund_pending') }}">Theo dõi hoàn tiền<i class="bi bi-arrow-right-short" aria-hidden="true"></i></a>
+                                <a class="admin-priority-action" href="{{ url_for('admin.booking_operations') }}">Kiểm tra trong lịch đặt<i class="bi bi-arrow-right-short" aria-hidden="true"></i></a>
                             </article>
                         {% endif %}
 

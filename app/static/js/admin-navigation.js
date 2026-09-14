@@ -41,9 +41,6 @@
         if (path === "/admin/venues") {
             return "venues";
         }
-        if (path === "/admin/monitoring") {
-            return "monitoring";
-        }
         return "";
     }
 
@@ -297,8 +294,7 @@
 
         if (
             currentWorkspace &&
-            currentWorkspace === targetWorkspace &&
-            !(currentWorkspace === "monitoring" && link.closest("[data-admin-monitoring-root]"))
+            currentWorkspace === targetWorkspace
         ) {
             savePending(targetUrl, targetWorkspace, position);
         }
@@ -316,8 +312,7 @@
         const workspace = getWorkspace(currentUrl);
         if (
             workspace &&
-            workspace === getWorkspace(targetUrl) &&
-            !(workspace === "monitoring" && form.closest("[data-admin-monitoring-root]"))
+            workspace === getWorkspace(targetUrl)
         ) {
             savePending(targetUrl, workspace, { x: window.scrollX, y: window.scrollY });
         }
