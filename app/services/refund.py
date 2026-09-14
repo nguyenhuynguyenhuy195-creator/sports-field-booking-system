@@ -10,6 +10,7 @@ from flask import current_app
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.extensions import db
+from .notification import queue_business_notification, queue_cancellation_notification
 from app.integrations import MomoAPIError, MomoClient, VnpayClient, VnpayError
 from app.models import (
     Booking,
@@ -925,6 +926,7 @@ def _apply_refund_success(
     # is always set by the caller before invoking this function — do not
     # overwrite it here with a MoMo-only sentinel.
     refund.refunded_at = current_utc
+    queue_business_notification("refund_success", refund)
 
 
 def _remaining_refundable_amount(payment: Payment) -> Decimal:
@@ -973,6 +975,7 @@ def _cancel_booking_now(
     contribution REFUNDED) — that only ever happens in _apply_refund_success,
     once a Refund actually reaches SUCCESS.
     """
+    rejected_recipient_ids = []
     pending_contributions = db.session.scalars(
         db.select(BookingContribution).where(
             BookingContribution.booking_id == booking.id,
@@ -997,12 +1000,14 @@ def _cancel_booking_now(
             )
         )
         for participant in unresolved_participants:
+            rejected_recipient_ids.append(participant.user_id)
             participant.status = MatchParticipantStatus.REJECTED.value
             participant.decided_at = current_utc
             participant.payment_due_at = None
         booking.match.status = MatchStatus.CANCELLED.value
         record_match_cancelled(booking.match)
     booking.status = BookingStatus.CANCELLED.value
+    queue_cancellation_notification(booking, rejected_recipient_ids=tuple(rejected_recipient_ids))
 
 
 def normalize_utc(value: datetime | None) -> datetime:

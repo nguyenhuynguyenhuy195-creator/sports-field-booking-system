@@ -9,6 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.extensions import db
+from .notification import queue_cancellation_notification
 from app.models import (
     Booking,
     BookingContribution,
@@ -442,6 +443,7 @@ def cancel_user_booking(
         raise InvalidBookingStateError(
             "Lịch đặt sân này không còn ở trạng thái có thể tự hủy."
         )
+    queue_cancellation_notification(booking)
     _commit_booking("Không thể hủy lịch đặt sân lúc này.")
     _attempt_provider_refunds(booking.id)
     return booking
@@ -484,6 +486,7 @@ def cancel_owner_booking(
             booking_ids=[booking.id],
             status=ContributionStatus.WAIVED.value,
         )
+    queue_cancellation_notification(booking)
     _commit_booking("Không thể hủy lịch đặt sân lúc này.")
     _attempt_provider_refunds(booking.id)
     return booking

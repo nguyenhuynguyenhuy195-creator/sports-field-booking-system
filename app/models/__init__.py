@@ -37,9 +37,12 @@ from .payment import Payment, PaymentMethod, PaymentProvider, PaymentStatus
 from .refund import Refund, RefundStatus
 from .sport import CatalogStatus, Sport, SportCode
 from .user import User, UserRole, UserStatus
+from .notification import Notification, NotificationType
 from .venue import Venue, VenueStatus
 
 __all__ = [
+    "Notification",
+    "NotificationType",
     "Booking",
     "BookingMode",
     "BookingPaymentPolicy",

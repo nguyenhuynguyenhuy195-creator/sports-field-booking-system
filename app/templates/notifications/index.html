@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Thông báo · Sân Thể Thao{% endblock %}
+{% block content %}
+<section class="container py-4 notification-history">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <h1 class="h3 mb-0">Thông báo của tôi</h1>
+        <form method="post" action="{{ url_for('notifications.read_all') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-outline-success" type="submit">Đánh dấu tất cả đã đọc</button>
+        </form>
+    </div>
+    <div class="list-group">
+    {% for item in notifications %}
+        <article class="list-group-item p-3{% if not item.is_read %} notification-unread{% endif %}">
+            <h2 class="h6">{{ item.title }} {% if not item.is_read %}<span class="badge text-bg-success">Chưa đọc</span>{% endif %}</h2>
+            <p class="mb-2 notification-message">{{ item.message }}</p>
+            <time class="small text-secondary" datetime="{{ item.created_at }}" data-notification-time>{{ item.created_at }}</time>
+            <div class="d-flex flex-wrap gap-3 align-items-center mt-2">
+                <a href="{{ item.target_url }}">Xem chi tiết</a>
+                {% if not item.is_read %}
+                <form method="post" action="{{ url_for('notifications.read', notification_id=item.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn btn-sm btn-outline-secondary" type="submit">Đánh dấu đã đọc</button>
+                </form>
+                {% endif %}
+            </div>
+        </article>
+    {% else %}
+        <p class="text-secondary">Bạn chưa có thông báo nào.</p>
+    {% endfor %}
+    </div>
+    {% if pagination.pages > 1 %}
+    <nav class="d-flex justify-content-between align-items-center mt-4" aria-label="Phân trang thông báo">
+        {% if pagination.has_prev %}<a href="{{ url_for('notifications.index', page=pagination.prev_num) }}">Trang trước</a>{% endif %}
+        <span>Trang {{ pagination.page }} / {{ pagination.pages }}</span>
+        {% if pagination.has_next %}<a href="{{ url_for('notifications.index', page=pagination.next_num) }}">Trang sau</a>{% endif %}
+    </nav>
+    {% endif %}
+</section>
+{% endblock %}

@@ -10,6 +10,7 @@ from flask import current_app
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.extensions import db
+from .notification import queue_business_notification
 from app.integrations import (
     MomoAPIError,
     MomoClient,
@@ -987,6 +988,7 @@ def _record_mock_success(
         contribution,
         paid_at=current_utc,
     )
+    queue_business_notification("payment_success", payment)
     return payment
 
 
@@ -1031,6 +1033,8 @@ def _apply_success_to_payment(
             booking_id=booking.id,
             joined_at=paid_at,
         )
+
+    queue_business_notification("payment_success", payment)
 
 
 def _record_late_momo_success_for_refund(

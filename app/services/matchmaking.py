@@ -11,6 +11,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.extensions import db
+from .notification import queue_business_notification, queue_listing_closed_notification
 from app.models import (
     ACTIVE_PARTICIPANT_STATUSES,
     Booking,
@@ -426,6 +427,8 @@ def request_to_join_match(
             current_utc=current_utc,
         )
     db.session.add(participant)
+    if match.match_type == MatchType.FIND_PLAYERS.value:
+        queue_business_notification("join_request", participant)
     _commit_matchmaking(
         "Không thể giữ suất thanh toán lúc này."
         if opponent_join_is_automatic(match)
@@ -515,6 +518,7 @@ def decide_match_request(
     if not accept:
         participant.status = MatchParticipantStatus.REJECTED.value
         participant.decided_at = current_utc
+        queue_business_notification("request_rejected", participant)
         _commit_matchmaking("Không thể từ chối yêu cầu lúc này.")
         return participant
 
@@ -526,6 +530,7 @@ def decide_match_request(
         current_utc=current_utc,
     )
 
+    queue_business_notification("request_accepted", participant)
     _commit_matchmaking("Không thể chấp nhận yêu cầu lúc này.")
     return participant
 
@@ -631,6 +636,7 @@ def close_opponent_listing(
         or any(p.status == MatchParticipantStatus.JOINED.value for p in match.participants)
     ):
         raise InvalidMatchStateError("Bài tìm đối thủ này không thể đóng lúc này.")
+    queue_listing_closed_notification(match)
     for participant in match.participants:
         if participant.status in {
             MatchParticipantStatus.PENDING.value,
@@ -733,6 +739,7 @@ def withdraw_match_request(
     participant.payment_due_at = None
     if match.status in {MatchStatus.FULL.value, MatchStatus.CONFIRMED.value}:
         match.status = MatchStatus.OPEN.value
+    queue_business_notification("participant_withdrawn", participant)
     _commit_matchmaking("Không thể rút yêu cầu lúc này.")
     from .refund import process_pending_provider_refunds
 
@@ -852,6 +859,7 @@ def mark_participant_joined_after_payment(
     participant.payment_due_at = None
     _refresh_match_status(participant.match)
     record_participant_joined(participant)
+    queue_business_notification("opponent_joined", participant)
     return participant
 
 
@@ -882,6 +890,7 @@ def join_waived_match_participants(
         participant.contribution.expires_at = None
         touched_matches[participant.match_id] = participant.match
         record_participant_joined(participant)
+        queue_business_notification("opponent_joined", participant)
     for match in touched_matches.values():
         _refresh_match_status(match)
     return len(participants)
@@ -1014,6 +1023,7 @@ def _record_participant_joined_event(participant: MatchParticipant) -> None:
         db.session.add(participant)
         db.session.flush()
     record_participant_joined(participant)
+    queue_business_notification("opponent_joined", participant)
 
 
 def _lock_available_contribution(match: Match) -> BookingContribution | None:
