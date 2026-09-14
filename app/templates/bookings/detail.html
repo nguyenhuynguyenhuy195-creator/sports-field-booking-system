@@ -36,8 +36,12 @@
     {% set cancelled_refund_heading = namespace(text='') %}
     {% if effective_status == 'CANCELLED' %}
         {% set already_refunded_text = 'Đã hoàn tiền' if owner_compact else 'Đã hoàn cho người thanh toán' %}
+        {# No Refund row at all is not "refunded": either nothing was ever
+           collected, or what was paid was forfeited under the self-cancel
+           policy. Saying "Đã hoàn tiền · 0 đ" claimed a refund that does not
+           exist and never will. #}
         {% if not booking.refunds %}
-            {% set cancelled_refund_heading.text = already_refunded_text %}
+            {% set cancelled_refund_heading.text = 'Không phát sinh hoàn tiền' %}
         {% elif refund_state.has_pending %}
             {% set cancelled_refund_heading.text = 'Hoàn tiền đang chờ xử lý' %}
         {% elif refund_state.has_processing %}
@@ -56,7 +60,8 @@
             </div>
             {% if effective_status == 'CANCELLED' %}
                 <span>{{ cancelled_refund_heading.text }}</span>
-                <strong>{{ successful_refund_total|vnd_currency }}</strong>
+                {# A refund total is only a figure when a refund exists. #}
+                {% if booking.refunds %}<strong>{{ successful_refund_total|vnd_currency }}</strong>{% endif %}
                 <div class="owner-booking-payment-lines">
                     <small><span>Tiền sân ban đầu</span><b>{{ booking.total_amount|vnd_currency }}</b></small>
                     {% if not booking.payments %}<small>Lịch đặt này chưa phát sinh thanh toán.</small>{% endif %}
@@ -88,7 +93,8 @@
             {% if effective_status == 'CANCELLED' %}
                 <div class="booking-total-heading">
                     <span>{{ cancelled_refund_heading.text }}</span>
-                    <strong>{{ successful_refund_total|vnd_currency }}</strong>
+                    {# A refund total is only a figure when a refund exists. #}
+                    {% if booking.refunds %}<strong>{{ successful_refund_total|vnd_currency }}</strong>{% endif %}
                 </div>
                 <small>Tiền sân ban đầu: {{ booking.total_amount|vnd_currency }}</small>
                 {% if not booking.payments %}<small>Lịch đặt này chưa phát sinh thanh toán.</small>{% endif %}
@@ -428,11 +434,14 @@
                     <div><dt>Tổng tiền sân</dt><dd>{{ booking.total_amount|vnd_currency }}</dd></div>
                     <div><dt>Cọc cần thanh toán</dt><dd>{{ booking.deposit_amount|vnd_currency }}</dd></div>
                     <div><dt>Đã thanh toán</dt><dd>{{ booking.paid_amount|vnd_currency }}</dd></div>
-                    {% if effective_status not in ['CANCELLED', 'EXPIRED', 'REFUND_PENDING'] %}
+                    {# COMPLETED belongs with the other terminal states here: the
+                       booking has been played, so the venue balance was settled
+                       in person and is no longer something still to pay. #}
+                    {% if effective_status not in ['CANCELLED', 'EXPIRED', 'REFUND_PENDING', 'COMPLETED'] %}
                         <div><dt>Còn lại trả tại sân sau khi cọc đủ</dt><dd>{{ (booking.total_amount - booking.deposit_amount)|vnd_currency }}</dd></div>
                     {% endif %}
                 </dl>
-                {% if booking.balance_due_at_venue > 0 and effective_status not in ['CANCELLED', 'EXPIRED', 'REFUND_PENDING'] %}
+                {% if booking.balance_due_at_venue > 0 and effective_status not in ['CANCELLED', 'EXPIRED', 'REFUND_PENDING', 'COMPLETED'] %}
                     <p class="user-booking-payment-note"><i class="bi bi-info-circle-fill" aria-hidden="true"></i><span>Bạn sẽ thanh toán phần còn lại trực tiếp tại sân khi đến chơi.</span></p>
                 {% endif %}
 

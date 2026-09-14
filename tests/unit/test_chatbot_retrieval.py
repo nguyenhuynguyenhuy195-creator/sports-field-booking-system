@@ -524,3 +524,114 @@ def test_cross_language_path_never_bypasses_the_strong_tier(settings):
     )
 
     assert result.reason == REASON_STRONG_SIMILARITY
+
+
+# =============================================================================
+# Phase 5: "what can you do?" must not hit the generic fallback
+# =============================================================================
+#
+# Live verification found the capability questions returning
+# INSUFFICIENT_EVIDENCE_ANSWER, because the knowledge base said nothing about
+# the assistant itself. The cure is a curated document, so the answer stays
+# behind the evidence gate rather than being hard-coded in the widget.
+#
+# The lexical double is bag-of-words, so it cannot stand in for Gemini's
+# semantic match on a question as function-word-heavy as "Bạn có thể làm được
+# gì?" (its only content token is "thể"). These tests therefore assert the two
+# things that are deterministic offline -- that the capability chunks exist and
+# are retrievable, and that the pipeline answers rather than falls back once
+# they are retrieved. The live scores are pinned in
+# tests/unit/test_chatbot_live_calibration.py.
+
+
+def assistant_chunks(index):
+    return [
+        (text, metadata)
+        for _, text, metadata in index.stored_documents()
+        if metadata.get("doc_slug") == "assistant"
+    ]
+
+
+def test_the_index_carries_the_assistant_capability_chunks(index):
+    stored = assistant_chunks(index)
+
+    assert stored, "the assistant document must be indexed"
+    joined = "\n".join(text for text, _ in stored)
+    assert "chỉ đọc dữ liệu" in joined
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "Trợ lý ảo làm được những gì?",
+        "Trợ lý ảo này giúp được gì cho tôi?",
+        "Trợ lý ảo hỗ trợ những nội dung nào?",
+    ],
+)
+def test_a_capability_question_retrieves_the_assistant_document(
+    index, settings, question
+):
+    result = retrieve(question, index=index, settings=settings)
+
+    assert result.has_sufficient_evidence, result.reason
+    assert result.fallback_answer is None
+    assert any(chunk.doc_slug == "assistant" for chunk in result.chunks)
+
+
+def test_a_capability_question_does_not_return_the_generic_fallback(
+    index, settings
+):
+    """The regression itself: evidence exists, so no fallback."""
+    result = retrieve("Trợ lý ảo làm được những gì?", index=index, settings=settings)
+
+    assert result.fallback_answer != INSUFFICIENT_EVIDENCE_ANSWER
+    assert result.context_text
+    assert "INSUFFICIENT" not in result.reason.upper()
+
+
+def test_the_capability_section_carries_the_read_only_boundary(index):
+    """A chunk that lists abilities must also carry the limits.
+
+    Chunking is heading-aware, so a chunk is what the model may see on its own.
+    The section that answers "what can you do?" therefore has to state the
+    read-only boundary itself; relying on a *different* chunk being retrieved
+    alongside it would make the disclaimer a coincidence.
+    """
+    # Collapsed: the document is hard-wrapped, so a phrase can straddle lines.
+    section = " ".join(
+        next(
+            text for text, metadata in assistant_chunks(index)
+            if metadata.get("section") == "Bạn có thể làm được gì"
+        ).split()
+    )
+
+    assert "chỉ đọc và tư vấn" in section
+    for cannot in ("không đặt sân", "không hủy lịch", "không thanh toán",
+                   "không hoàn tiền", "không tham gia kèo"):
+        assert cannot in section, cannot
+
+
+def test_the_capability_document_is_cited_by_its_public_title(index, settings):
+    """The citation is a human label, never a file path."""
+    result = retrieve("Trợ lý ảo làm được những gì?", index=index, settings=settings)
+    assistant_sources = [
+        source for source in result.sources
+        if source.doc_slug == "assistant"
+    ]
+
+    assert assistant_sources
+    for source in assistant_sources:
+        assert source.title == "Trợ lý ảo hỗ trợ được gì"
+        assert not source.label.startswith("docs/")
+        assert ".md" not in source.label
+
+
+def test_an_off_topic_question_is_not_rescued_by_the_capability_document(
+    index, settings
+):
+    """Adding a document about the assistant must not widen the gate."""
+    for question in ("Giá bitcoin hôm nay bao nhiêu?",
+                     "Công thức nấu phở bò gia truyền Hà Nội"):
+        result = retrieve(question, index=index, settings=settings)
+        assert not result.has_sufficient_evidence, question
+        assert result.fallback_answer == INSUFFICIENT_EVIDENCE_ANSWER

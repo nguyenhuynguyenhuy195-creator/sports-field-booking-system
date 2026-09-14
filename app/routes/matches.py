@@ -119,7 +119,13 @@ PARTICIPANT_STATUS_LABELS = {
     MatchParticipantStatus.ACCEPTED_AWAITING_PAYMENT.value: "Đang giữ suất, chờ thanh toán",
     MatchParticipantStatus.JOINED.value: "Đã tham gia",
     MatchParticipantStatus.REJECTED.value: "Đã từ chối",
-    MatchParticipantStatus.EXPIRED.value: "Đã hết hạn thanh toán",
+    # Neutral on purpose: EXPIRED does not imply a missed payment.
+    # effective_participant_status() also returns it for a still-PENDING
+    # request whose booking simply reached kick-off, and a FIND_PLAYERS joiner
+    # has no contribution and no payment_due_at -- they never owed anything
+    # online. This is the wording detail.html already uses for the viewer's own
+    # expired request, so the badge and that message now agree.
+    MatchParticipantStatus.EXPIRED.value: "Yêu cầu tham gia đã hết hạn",
     MatchParticipantStatus.WITHDRAWN.value: "Đã rút yêu cầu",
 }
 SKILL_LEVEL_LABELS = {

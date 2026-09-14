@@ -31,6 +31,8 @@ from app.extensions import db
 from app.models import (
     Booking,
     BookingContribution,
+    BookingStatus,
+    ContributionStatus,
     Field,
     FieldStatus,
     Match,
@@ -49,6 +51,20 @@ from app.services.matchmaking import (
     effective_participant_status,
     match_accepts_actions,
     match_view_status,
+)
+
+from .labels import (
+    BOOKING_MODE_LABELS,
+    BOOKING_STATUS_LABELS,
+    CONTRIBUTION_STATUS_LABELS,
+    CONTRIBUTION_TYPE_LABELS,
+    MATCH_TYPE_LABELS,
+    MATCH_VIEW_STATUS_LABELS,
+    PARTICIPANT_STATUS_LABELS,
+    PAYMENT_STATUS_LABELS,
+    REFUND_STATUS_LABELS,
+    VIEWER_ROLE_LABELS,
+    label_for,
 )
 
 
@@ -76,6 +92,25 @@ REASON_VIEWER_NOT_ELIGIBLE = "viewer_not_eligible"
 # Cap on any single free-text field copied into the prompt, so one long
 # owner-authored description cannot crowd out the curated evidence.
 MAX_CONTEXT_TEXT = 400
+
+# Bookings that can no longer take money. booking.remaining_amount and
+# booking.balance_due_at_venue are plain arithmetic on stored columns
+# (deposit - paid, total - paid); they keep reporting a positive figure long
+# after a booking is dead, because nothing zeroes them on cancellation and
+# nothing should -- the history has to stay intact. Presenting those numbers
+# verbatim told a user with a cancelled booking they still owed 120.000 VND
+# online and 400.000 VND at the venue. The arithmetic is right; only the
+# sentence around it was wrong, so the status check lives here and the model
+# properties are left alone.
+CLOSED_BOOKING_STATUSES = frozenset(
+    {
+        BookingStatus.CANCELLED.value,
+        BookingStatus.EXPIRED.value,
+        BookingStatus.REJECTED.value,
+    }
+)
+FINISHED_BOOKING_STATUSES = frozenset({BookingStatus.COMPLETED.value})
+TERMINAL_BOOKING_STATUSES = CLOSED_BOOKING_STATUSES | FINISHED_BOOKING_STATUSES
 
 
 @dataclass(frozen=True)
@@ -136,6 +171,22 @@ def _vnd(value: Decimal | int | float | None) -> str:
     if amount == amount.to_integral_value():
         return str(int(amount))
     return str(amount.quantize(Decimal("0.01")))
+
+
+def _money(value: Decimal | int | float | str | None) -> str:
+    """Money as a person would read it: 30000 -> "30.000 VND".
+
+    Presentation only, and deliberately separate from ``_vnd``: ``_vnd`` feeds
+    the ``data`` DTO, which is an exact machine-readable projection, while this
+    is what the model is handed. Grouping with dots matches the ``vnd_currency``
+    template filter the web pages already use, so a number never reads one way
+    on screen and another way in the assistant.
+    """
+    amount = Decimal(str(value if value not in (None, "") else 0))
+    if amount == amount.to_integral_value():
+        return f"{int(amount):,}".replace(",", ".") + " VND"
+    whole, _, cents = f"{amount.quantize(Decimal('0.01')):,}".partition(".")
+    return f"{whole.replace(',', '.')},{cents} VND"
 
 
 def _local(value: datetime | None) -> str | None:
@@ -225,7 +276,7 @@ def _resolve_booking(*, viewer, booking_id: int, now) -> ResolvedDynamicContext:
     if booking is None:
         return _unavailable(PAGE_BOOKING_DETAIL, REASON_NOT_AVAILABLE)
 
-    money = _viewer_money(booking_id=booking.id, viewer_id=viewer.id)
+    money = _viewer_money(booking_id=booking.id, viewer_id=viewer.id, now=now)
     field_ = booking.field
     venue = field_.venue
 
@@ -255,6 +306,8 @@ def _resolve_booking(*, viewer, booking_id: int, now) -> ResolvedDynamicContext:
         "current_user_paid_gross": money["gross"],
         "current_user_paid_net": money["net"],
         "current_user_refunded": money["refunded"],
+        # This viewer's OWN remaining online obligation, not the booking's.
+        "current_user_outstanding": money["outstanding"],
         "current_user_contributions": money["contributions"],
         "current_user_payments": money["payments"],
         "current_user_refunds": money["refunds"],
@@ -299,6 +352,7 @@ def _resolve_match(*, viewer, match_id: int, now) -> ResolvedDynamicContext:
         contribution_id=(
             participant.contribution_id if participant is not None else None
         ),
+        now=now,
     )
 
     data = {
@@ -343,6 +397,8 @@ def _resolve_match(*, viewer, match_id: int, now) -> ResolvedDynamicContext:
         "current_user_paid_gross": money["gross"],
         "current_user_paid_net": money["net"],
         "current_user_refunded": money["refunded"],
+        # This viewer's OWN remaining online obligation, not the booking's.
+        "current_user_outstanding": money["outstanding"],
         "current_user_contributions": money["contributions"],
         "current_user_payments": money["payments"],
         "current_user_refunds": money["refunds"],
@@ -418,11 +474,43 @@ def _viewer_participant(*, match: Match, viewer_id: int) -> MatchParticipant | N
     return sorted(candidates, key=lambda item: item.id)[-1]
 
 
+def _contribution_is_payable(
+    contribution: BookingContribution, *, now: datetime | None
+) -> bool:
+    """Whether this viewer can still pay this contribution.
+
+    PENDING is not enough. When an opponent's hold lapses, the participant
+    reads as EXPIRED through effective_participant_status() but the
+    contribution row stays PENDING with its expires_at in the past -- no
+    sweeper has run yet. Reporting the raw status alone produced a prompt that
+    said "your request expired" and "you still owe 60.000 VND, awaiting
+    payment" at the same time. expires_at is the field that settles it.
+    """
+    if contribution.status != ContributionStatus.PENDING.value:
+        return False
+    if contribution.remaining_amount <= 0:
+        return False
+    deadline = contribution.expires_at
+    if deadline is None:
+        return True
+    moment = _naive_utc(now)
+    if moment is None:
+        return True
+    return deadline > moment
+
+
+def _naive_utc(now: datetime | None) -> datetime | None:
+    """Naive UTC, which is how contribution.expires_at is stored."""
+    aware = _aware_utc(now) or datetime.now(timezone.utc)
+    return aware.astimezone(timezone.utc).replace(tzinfo=None)
+
+
 def _viewer_money(
     *,
     booking_id: int,
     viewer_id: int,
     contribution_id: int | None = None,
+    now: datetime | None = None,
 ) -> dict:
     """Every money figure here is the viewer's own.
 
@@ -491,16 +579,33 @@ def _viewer_money(
         Decimal("0"),
     )
 
+    # What this viewer personally still has to pay online -- as opposed to
+    # booking.remaining_amount, which is the whole booking's shortfall across
+    # every contributor. On a FIND_OPPONENT booking the creator who has paid
+    # their half owes nothing while the booking still shows half outstanding,
+    # and conflating the two told them they were short their own deposit.
+    outstanding = sum(
+        (
+            item.remaining_amount
+            for item in contributions
+            if _contribution_is_payable(item, now=now)
+        ),
+        Decimal("0"),
+    )
+
     return {
         "gross": _vnd(gross),
         "net": _vnd(net),
         "refunded": _vnd(refunded),
+        "outstanding": _vnd(outstanding),
         "contributions": [
             {
                 "type": item.contribution_type,
                 "amount_due": _vnd(item.amount_due),
                 "amount_paid": _vnd(item.amount_paid),
+                "remaining": _vnd(item.remaining_amount),
                 "status": item.status,
+                "payable": _contribution_is_payable(item, now=now),
             }
             for item in contributions
         ],
@@ -528,51 +633,114 @@ def _viewer_money(
 
 
 def _booking_lines(data: dict) -> tuple[str, ...]:
+    # Statuses are rendered with the same Vietnamese wording the booking pages
+    # show. `data` keeps the raw code; only what the model reads is translated,
+    # so the assistant stops reading "PARTIALLY_PAID" aloud to a player.
+    status = data["status"]
+    closed = status in CLOSED_BOOKING_STATUSES
+    finished = status in FINISHED_BOOKING_STATUSES
     lines = [
         f"Mã lịch đặt: {data['booking_code']}",
-        f"Trạng thái: {data['status']}",
-        f"Hình thức đặt sân: {data['booking_mode']}",
+        f"Trạng thái: {label_for(BOOKING_STATUS_LABELS, status)}",
+        f"Hình thức đặt sân:"
+        f" {label_for(BOOKING_MODE_LABELS, data['booking_mode'])}",
         f"Sân: {data['field_name']} - {data['venue_name']}",
         f"Thời gian: {data['booking_date']} {data['start_time']}-{data['end_time']}",
-        f"Tổng tiền sân: {data['total_amount']} VND",
-        f"Khoản cọc phải đóng: {data['deposit_amount']} VND",
+        f"Tổng tiền sân: {_money(data['total_amount'])}",
+        f"Khoản cọc của cả lịch đặt: {_money(data['deposit_amount'])}",
         f"Tổng đã đóng của cả lịch đặt (mọi người cộng lại):"
-        f" {data['booking_paid_amount']} VND",
-        f"Khoản cọc còn thiếu (phải trả trực tuyến):"
-        f" {data['deposit_remaining']} VND",
-        f"Số tiền trả tại sân: {data['balance_due_at_venue']} VND",
-        f"Riêng người dùng này đã thanh toán thành công:"
-        f" {data['current_user_paid_gross']} VND",
-        f"Riêng người dùng này còn được ghi nhận sau hoàn tiền:"
-        f" {data['current_user_paid_net']} VND",
-        f"Riêng người dùng này đã được hoàn: {data['current_user_refunded']} VND",
+        f" {_money(data['booking_paid_amount'])}",
     ]
+
+    if closed:
+        # Nothing more can be collected on this booking, so the leftover
+        # arithmetic must not be read out as a debt.
+        lines.append(
+            "Lịch đặt này đã kết thúc, không còn khoản nào phải thanh toán"
+            " trực tuyến và cũng không còn khoản nào phải trả tại sân."
+        )
+    elif finished:
+        lines.append(
+            "Lịch đặt này đã hoàn thành. Không còn khoản nào phải thanh toán"
+            " trực tuyến; phần tiền sân còn lại đã được thanh toán tại sân."
+        )
+    else:
+        lines.append(
+            f"Khoản cọc cả lịch đặt còn thiếu (tính chung mọi người, không"
+            f" phải riêng người dùng này): {_money(data['deposit_remaining'])}"
+        )
+        lines.append(
+            f"Số tiền dự kiến trả tại sân cho cả lịch đặt:"
+            f" {_money(data['balance_due_at_venue'])}"
+        )
+        # The number the viewer actually asked for when they say "tôi còn
+        # thiếu bao nhiêu?".
+        lines.append(
+            f"Riêng người dùng này còn phải thanh toán trực tuyến:"
+            f" {_money(data['current_user_outstanding'])}"
+        )
+
+    lines.extend(
+        [
+            f"Riêng người dùng này đã thanh toán thành công:"
+            f" {_money(data['current_user_paid_gross'])}",
+            f"Riêng người dùng này còn được ghi nhận sau hoàn tiền:"
+            f" {_money(data['current_user_paid_net'])}",
+            f"Riêng người dùng này đã được hoàn:"
+            f" {_money(data['current_user_refunded'])}",
+        ]
+    )
     if data.get("cancellation_reason"):
         lines.append(f"Lý do hủy: {data['cancellation_reason']}")
     lines.extend(_money_status_lines(data))
+    if closed and not (data.get("current_user_refunds") or []):
+        # Cancelled/expired with no Refund row is not "refund pending" and not
+        # "already refunded": either nothing was collected, or what was paid
+        # was forfeited. Saying so stops the model inventing a refund timeline.
+        lines.append(
+            "Người dùng này không có khoản hoàn tiền nào cho lịch đặt này:"
+            " phần đã đóng (nếu có) được ghi nhận là không hoàn lại theo chính"
+            " sách, phần chưa đóng thì không phát sinh hoàn tiền."
+        )
     return tuple(lines)
 
 
 def _match_lines(data: dict) -> tuple[str, ...]:
+    participant_status = data["viewer_participant_status"]
+    participant_label = (
+        label_for(PARTICIPANT_STATUS_LABELS, participant_status)
+        if participant_status
+        else "chưa tham gia"
+    )
     lines = [
         f"Kèo: {data['title']}",
-        f"Loại kèo: {data['match_type']}",
-        f"Trạng thái kèo: {data['match_status']}",
+        f"Loại kèo: {label_for(MATCH_TYPE_LABELS, data['match_type'])}",
+        f"Trạng thái kèo:"
+        f" {label_for(MATCH_VIEW_STATUS_LABELS, data['match_status'])}",
         f"Sân: {data['field_name']} - {data['venue_name']}",
-        f"Thời gian: {data['booking_date']} {data['start_time']}-{data['end_time']}",
+        f"Thời gian diễn ra kèo:"
+        f" {data['booking_date']} {data['start_time']}-{data['end_time']}",
+        # Said plainly because the model kept answering "when does this match
+        # expire?" with the 15-minute opponent payment hold, which is a
+        # different rule entirely. There is no separate listing-expiry field.
+        "Dữ liệu kèo này không có mốc hết hạn riêng cho bài kèo;"
+        " chỉ có thời gian diễn ra ở trên và trạng thái hiện tại.",
         f"Đã tham gia: {data['joined_count']}/{data['required_players']}",
         f"Còn thiếu: {data['remaining_slots']}",
         f"Kèo còn nhận thao tác: {'có' if data['accepts_actions'] else 'không'}",
-        f"Vai trò của người dùng này: {data['viewer_role']}",
-        f"Trạng thái tham gia của người dùng này:"
-        f" {data['viewer_participant_status'] or 'chưa tham gia'}",
+        f"Vai trò của người dùng này:"
+        f" {label_for(VIEWER_ROLE_LABELS, data['viewer_role'])}",
+        f"Trạng thái tham gia của người dùng này: {participant_label}",
         f"Người dùng này xem được phòng chat:"
         f" {'có' if data['chat_can_read'] else 'không'}",
         f"Người dùng này gửi được tin nhắn:"
         f" {'có' if data['chat_can_send'] else 'không'}",
         f"Riêng người dùng này đã thanh toán thành công:"
-        f" {data['current_user_paid_gross']} VND",
-        f"Riêng người dùng này đã được hoàn: {data['current_user_refunded']} VND",
+        f" {_money(data['current_user_paid_gross'])}",
+        f"Riêng người dùng này đã được hoàn:"
+        f" {_money(data['current_user_refunded'])}",
+        f"Riêng người dùng này còn phải thanh toán trực tuyến:"
+        f" {_money(data['current_user_outstanding'])}",
     ]
     lines.extend(_money_status_lines(data))
     return tuple(lines)
@@ -590,22 +758,33 @@ def _money_status_lines(data: dict) -> list[str]:
     """
     lines: list[str] = []
     for item in data.get("current_user_contributions") or []:
-        lines.append(
-            f"Khoản phải đóng của người dùng này ({item['type']}):"
-            f" cần {item['amount_due']} VND, đã đóng {item['amount_paid']} VND,"
-            f" trạng thái {item['status']}"
+        kind = label_for(CONTRIBUTION_TYPE_LABELS, item["type"])
+        state = label_for(CONTRIBUTION_STATUS_LABELS, item["status"])
+        line = (
+            f"Khoản phải đóng của người dùng này ({kind}):"
+            f" cần {_money(item['amount_due'])},"
+            f" đã đóng {_money(item['amount_paid'])}, trạng thái {state}"
         )
+        if not item.get("payable", False) and Decimal(item["remaining"]) > 0:
+            # Still shows an unpaid balance, but the viewer can no longer pay
+            # it: the hold lapsed, or the booking closed. Stated as a fact,
+            # not as an order -- everything in the dynamic block is data, and
+            # the rule for what to do about it lives in the system prompt.
+            line += ". Khoản này không còn thanh toán được nữa"
+        lines.append(line)
     for item in data.get("current_user_payments") or []:
         when = f" lúc {item['paid_at']}" if item.get("paid_at") else ""
         lines.append(
-            f"Giao dịch thanh toán của người dùng này: {item['amount']} VND"
-            f" - trạng thái {item['status']}{when}"
+            f"Giao dịch thanh toán của người dùng này: {_money(item['amount'])}"
+            f" - trạng thái {label_for(PAYMENT_STATUS_LABELS, item['status'])}"
+            f"{when}"
         )
     for item in data.get("current_user_refunds") or []:
         when = f" lúc {item['refunded_at']}" if item.get("refunded_at") else ""
         lines.append(
-            f"Khoản hoàn tiền của người dùng này: {item['amount']} VND"
-            f" - trạng thái {item['status']}{when}"
+            f"Khoản hoàn tiền của người dùng này: {_money(item['amount'])}"
+            f" - trạng thái {label_for(REFUND_STATUS_LABELS, item['status'])}"
+            f"{when}"
         )
     return lines
 
@@ -636,6 +815,8 @@ def _venue_lines(data: dict) -> tuple[str, ...]:
 
 __all__ = [
     "ALLOWED_PAGE_TYPES",
+    "CLOSED_BOOKING_STATUSES",
+    "FINISHED_BOOKING_STATUSES",
     "PAGE_BOOKING_DETAIL",
     "PAGE_GENERAL",
     "PAGE_MATCH_DETAIL",
@@ -648,5 +829,6 @@ __all__ = [
     "REASON_VIEWER_NOT_ELIGIBLE",
     "RESOURCE_PAGE_TYPES",
     "ResolvedDynamicContext",
+    "TERMINAL_BOOKING_STATUSES",
     "resolve_dynamic_context",
 ]

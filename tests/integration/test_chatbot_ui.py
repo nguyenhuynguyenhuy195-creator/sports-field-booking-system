@@ -542,3 +542,111 @@ def test_suggestions_never_propose_an_action(app, client, world):
         for action in ("Hủy lịch giúp", "Thanh toán giúp", "Đặt sân giúp",
                        "hủy giúp tôi"):
             assert action not in widget_html, f"{action} on {path}"
+
+
+# =============================================================================
+# Phase 5
+# =============================================================================
+
+# --- raw Markdown is fixed in the prompt, never in the renderer --------------
+#
+# Live answers came back containing "**OPEN**" and "**15 phút**", which the
+# widget showed verbatim because every string goes through textContent. The
+# tempting fix -- render the Markdown -- would reintroduce exactly the HTML
+# injection path this widget was built to avoid, so the contract was moved to
+# the prompt instead (see test_chatbot_answering.py). These tests exist so a
+# later "fix" cannot quietly take the other road.
+
+
+def test_no_markdown_renderer_was_introduced():
+    code = js_code(JS_SOURCE)
+
+    for library in ("marked", "markdown", "DOMPurify", "sanitize",
+                    "dangerouslySetInnerHTML"):
+        assert library.lower() not in code.lower(), library
+
+
+def test_model_text_is_still_written_with_text_content():
+    """The one place an answer becomes DOM."""
+    render = js_code(js_function("renderMessage"))
+
+    assert "bubble.textContent = content" in render
+    assert "innerHTML" not in render
+    assert "createElement" in render
+
+
+def test_the_widget_loads_no_third_party_script():
+    code = js_code(JS_SOURCE)
+
+    assert "<script" not in code
+    assert "createElement(\"script\")" not in code
+    assert "eval(" not in code
+    assert "new Function(" not in code
+
+
+def test_answers_keep_their_line_breaks_without_markup():
+    """Plain text with newlines still reads correctly, via CSS not HTML."""
+    assert "pre-wrap" in CSS_SOURCE
+
+
+# --- Phase 4.1 fixes are still in place --------------------------------------
+#
+# Re-asserted here as a group so a later edit to ask() cannot pick them off one
+# at a time without a visible failure.
+
+
+def test_the_conversation_state_rules_all_still_hold():
+    body = ask_body()
+    pending_fn = js_code(js_function("setPending"))
+
+    # 1. clearing is disabled while a request is open
+    assert "clearButton.disabled = active" in pending_fn
+    # 2/3. nothing is written before the success check
+    guard = body.index("if (!response.ok")
+    assert "history.push" not in body[:guard]
+    assert "saveHistory()" not in body[:guard]
+    # 4. the pair is appended together, then saved once
+    tail = body[guard:]
+    assert tail.index('role: "user"') < tail.index('role: "assistant"')
+    assert tail.index('role: "assistant"') < tail.index("saveHistory()")
+    # 5/6/7. logout touches only this widget's own keys
+    code = js_code(JS_SOURCE)
+    assert "sessionStorage.clear()" not in code
+    assert "localStorage" not in code
+    assert "STORAGE_PREFIX = \"chatbot:v1:\"" in code
+
+
+def test_the_storage_prefix_is_namespaced_to_this_widget():
+    """Every key the cleanup can reach is under one prefix."""
+    code = js_code(JS_SOURCE)
+    remover = js_code(js_function("removeChatbotKeys"))
+
+    assert 'STORAGE_PREFIX = "chatbot:v1:"' in code
+    assert 'OWNER_KEY = "chatbot:v1:owner"' in code
+    assert "key.startsWith(STORAGE_PREFIX)" in remover
+    # No unconditional removal of anything outside the prefix.
+    assert "removeItem" in remover
+
+
+# --- the source list stays a collapsed, deduplicated, capped label list -------
+
+
+def test_sources_stay_collapsed_capped_and_deduplicated():
+    render = js_code(js_function("renderSources"))
+    dedupe = js_code(js_function("dedupeSources"))
+    code = js_code(JS_SOURCE)
+
+    # <details> is closed until the user opens it: no `open` attribute.
+    assert 'createElement("details")' in render
+    assert ".open = true" not in render
+    assert "setAttribute(\"open\"" not in render
+    assert "MAX_SOURCES = 3" in code
+    assert "slice(0, MAX_SOURCES)" in dedupe
+    assert "seen.has(key)" in dedupe
+
+
+def test_no_internal_slug_or_path_is_displayed():
+    render = js_code(js_function("renderSources"))
+
+    assert "entry.textContent = source.label" in render
+    assert "source.source" not in render

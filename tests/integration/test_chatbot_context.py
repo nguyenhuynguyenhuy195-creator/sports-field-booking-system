@@ -9,6 +9,7 @@ against real rows built through the real services, not mocks.
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, time, timedelta, timezone
 from decimal import Decimal
 
@@ -18,6 +19,8 @@ from sqlalchemy import event
 from app.chatbot.answering import answer_question
 from app.chatbot.context import (
     ALLOWED_PAGE_TYPES,
+    CLOSED_BOOKING_STATUSES,
+    FINISHED_BOOKING_STATUSES,
     MAX_CONTEXT_TEXT,
     PAGE_BOOKING_DETAIL,
     PAGE_GENERAL,
@@ -31,11 +34,24 @@ from app.chatbot.context import (
     REASON_VIEWER_NOT_ELIGIBLE,
     resolve_dynamic_context,
 )
+from app.chatbot.context import _money
 from app.chatbot.context_gate import (
     REASON_OFF_TOPIC,
     REASON_RELEVANT,
     dynamic_context_relevance,
     strip_diacritics,
+)
+from app.chatbot.labels import (
+    BOOKING_MODE_LABELS,
+    BOOKING_STATUS_LABELS,
+    CONTRIBUTION_STATUS_LABELS,
+    CONTRIBUTION_TYPE_LABELS,
+    MATCH_TYPE_LABELS,
+    MATCH_VIEW_STATUS_LABELS,
+    PARTICIPANT_STATUS_LABELS,
+    PAYMENT_STATUS_LABELS,
+    REFUND_STATUS_LABELS,
+    label_for,
 )
 from app.chatbot.prompting import DYNAMIC_CLOSE, DYNAMIC_OPEN, EVIDENCE_CLOSE
 from app.chatbot.prompting import build_system_prompt
@@ -50,10 +66,13 @@ from app.models import (
     Booking,
     BookingMode,
     BookingStatus,
+    ContributionStatus,
+    ContributionType,
     Match,
     MatchParticipant,
     MatchParticipantStatus,
     MatchStatus,
+    MatchType,
     Payment,
     PaymentStatus,
     Refund,
@@ -67,9 +86,11 @@ from app.services.matchmaking import (
     MATCH_VIEW_CLOSED_LISTING,
     MATCH_VIEW_INACTIVE,
     MATCH_VIEW_PAST,
+    effective_participant_status,
     match_view_status,
 )
 from app.services import (
+    cancel_user_booking,
     create_booking,
     create_match,
     pay_contribution_with_mock,
@@ -1102,9 +1123,17 @@ def test_booking_prompt_reports_the_viewers_payment_status(app, world):
                       resource_id=world["booking_id"])
     rendered = rendered_lines(context)
 
-    assert "SUCCESS" in rendered
+    # Phase 5: the prompt carries the Vietnamese wording the booking page
+    # shows, not the raw enum, so the model stops answering with "SUCCESS".
+    assert "Thành công" in rendered
+    assert "SUCCESS" not in rendered
     assert "Giao dịch thanh toán của người dùng này" in rendered
-    assert context.data["current_user_paid_gross"] in rendered
+    # The amount is grouped for reading (60000 -> "60.000 VND"); the DTO keeps
+    # the exact machine-readable figure.
+    assert _money(context.data["current_user_paid_gross"]) in rendered
+    assert context.data["current_user_paid_gross"] == "60000"
+    # The raw code stays in the DTO for support questions.
+    assert context.data["current_user_payments"][0]["status"] == "SUCCESS"
 
 
 def test_match_prompt_reports_the_viewers_payment_status(app, world):
@@ -1113,7 +1142,8 @@ def test_match_prompt_reports_the_viewers_payment_status(app, world):
     rendered = rendered_lines(context)
 
     assert "Giao dịch thanh toán của người dùng này" in rendered
-    assert "SUCCESS" in rendered
+    assert "Thành công" in rendered
+    assert "SUCCESS" not in rendered
 
 
 def test_pending_payment_status_is_visible(app, world):
@@ -1132,7 +1162,8 @@ def test_pending_payment_status_is_visible(app, world):
                       resource_id=world["booking_id"])
     rendered = rendered_lines(context)
 
-    assert "PENDING" in rendered
+    assert PAYMENT_STATUS_LABELS[PaymentStatus.PENDING.value] in rendered
+    assert "PENDING" not in rendered
     # A pending payment is not money received.
     assert context.data["current_user_paid_gross"] == "0"
 
@@ -1172,7 +1203,8 @@ def test_refund_status_is_visible_on_both_pages(app, world, status):
     for context in (booking_ctx, match_ctx):
         rendered = rendered_lines(context)
         assert "Khoản hoàn tiền của người dùng này" in rendered
-        assert status.value in rendered
+        assert REFUND_STATUS_LABELS[status.value] in rendered
+        assert context.data["current_user_refunds"][0]["status"] == status.value
 
 
 def test_rendered_money_lines_never_carry_transaction_identifiers(app, world):
@@ -1436,3 +1468,758 @@ def test_system_prompt_still_forbids_answering_from_prior_knowledge():
     assert "Không được bịa ra quy định" in flat
     assert "không có trong hai nguồn đó" in flat
     assert INSUFFICIENT_EVIDENCE_ANSWER in flat
+
+
+# =============================================================================
+# Phase 5: status codes reach the model as Vietnamese, not as raw enums
+# =============================================================================
+#
+# Live output read "**OPEN**" and "**15 phút**" back to a player. The Markdown
+# half is a prompt-contract problem (see test_chatbot_answering.py); this half
+# is a rendering problem: the prompt lines handed the model a backend enum and
+# it dutifully repeated it. `data` still carries the raw code, because support
+# questions and the API contract need it -- only the prompt is translated.
+
+
+LABEL_MAPS_UNDER_TEST = (
+    ("BOOKING_STATUS_LABELS", BOOKING_STATUS_LABELS, BookingStatus),
+    ("BOOKING_MODE_LABELS", BOOKING_MODE_LABELS, BookingMode),
+    ("MATCH_TYPE_LABELS", MATCH_TYPE_LABELS, MatchType),
+    ("PARTICIPANT_STATUS_LABELS", PARTICIPANT_STATUS_LABELS,
+     MatchParticipantStatus),
+    ("CONTRIBUTION_TYPE_LABELS", CONTRIBUTION_TYPE_LABELS, ContributionType),
+    ("CONTRIBUTION_STATUS_LABELS", CONTRIBUTION_STATUS_LABELS,
+     ContributionStatus),
+    ("PAYMENT_STATUS_LABELS", PAYMENT_STATUS_LABELS, PaymentStatus),
+    ("REFUND_STATUS_LABELS", REFUND_STATUS_LABELS, RefundStatus),
+)
+
+
+@pytest.mark.parametrize(
+    "name,mapping,enum",
+    LABEL_MAPS_UNDER_TEST,
+    ids=[item[0] for item in LABEL_MAPS_UNDER_TEST],
+)
+def test_every_enum_value_has_an_approved_vietnamese_label(name, mapping, enum):
+    """A new enum value must not silently start leaking as a raw code."""
+    missing = {item.value for item in enum} - set(mapping)
+
+    assert missing == set(), f"{name} is missing {sorted(missing)}"
+
+
+def test_the_match_view_labels_cover_the_derived_statuses():
+    """PAST / CLOSED_LISTING / INACTIVE exist only as view states."""
+    for value in (
+        *(item.value for item in MatchStatus),
+        MATCH_VIEW_PAST,
+        MATCH_VIEW_CLOSED_LISTING,
+        MATCH_VIEW_INACTIVE,
+    ):
+        assert value in MATCH_VIEW_STATUS_LABELS, value
+        assert MATCH_VIEW_STATUS_LABELS[value] != value
+
+
+@pytest.mark.parametrize(
+    "chatbot_map,route_attr",
+    [
+        (BOOKING_STATUS_LABELS, "BOOKING_STATUS_LABELS"),
+        (BOOKING_MODE_LABELS, "BOOKING_MODE_LABELS"),
+        (CONTRIBUTION_TYPE_LABELS, "CONTRIBUTION_TYPE_LABELS"),
+        (CONTRIBUTION_STATUS_LABELS, "CONTRIBUTION_STATUS_LABELS"),
+        (PAYMENT_STATUS_LABELS, "PAYMENT_STATUS_LABELS"),
+        (REFUND_STATUS_LABELS, "REFUND_STATUS_LABELS"),
+    ],
+)
+def test_booking_labels_match_the_wording_the_booking_pages_show(
+    chatbot_map, route_attr
+):
+    """The assistant and the page must not describe one record two ways."""
+    from app.routes import bookings as bookings_routes
+
+    assert chatbot_map == getattr(bookings_routes, route_attr)
+
+
+@pytest.mark.parametrize(
+    "chatbot_map,route_attr",
+    [
+        (MATCH_VIEW_STATUS_LABELS, "MATCH_VIEW_STATUS_LABELS"),
+        (MATCH_TYPE_LABELS, "MATCH_TYPE_LABELS"),
+        (PARTICIPANT_STATUS_LABELS, "PARTICIPANT_STATUS_LABELS"),
+    ],
+)
+def test_match_labels_match_the_wording_the_match_pages_show(
+    chatbot_map, route_attr
+):
+    from app.routes import matches as matches_routes
+
+    assert chatbot_map == getattr(matches_routes, route_attr)
+
+
+def test_expired_participant_label_names_no_payment_obligation():
+    """EXPIRED must not assert a cause the user may never have had.
+
+    effective_participant_status() returns EXPIRED for any PENDING request
+    whose booking reached kick-off -- including a FIND_PLAYERS joiner who has
+    no contribution and no payment_due_at and never owed anything online.
+    The assistant, the match pages and matches/detail.html's own message all
+    use one neutral wording, so no surface can contradict another.
+    """
+    from pathlib import Path
+
+    from app.routes import matches as matches_routes
+
+    expired = MatchParticipantStatus.EXPIRED.value
+    label = PARTICIPANT_STATUS_LABELS[expired]
+    detail_template = Path("app/templates/matches/detail.html").read_text(
+        encoding="utf-8"
+    )
+
+    assert label == "Yêu cầu tham gia đã hết hạn"
+    assert "thanh toán" not in label
+    assert matches_routes.PARTICIPANT_STATUS_LABELS[expired] == label
+    assert label in detail_template
+
+
+def test_the_awaiting_payment_state_still_names_its_payment_everywhere():
+    """Guards the opposite error: the genuinely money-bound state keeps saying so."""
+    from app.routes import matches as matches_routes
+
+    awaiting = MatchParticipantStatus.ACCEPTED_AWAITING_PAYMENT.value
+
+    assert PARTICIPANT_STATUS_LABELS[awaiting] == "Đang giữ suất, chờ thanh toán"
+    assert matches_routes.PARTICIPANT_STATUS_LABELS[awaiting] == (
+        PARTICIPANT_STATUS_LABELS[awaiting]
+    )
+
+
+def test_an_unknown_code_is_repeated_rather_than_invented():
+    """A gap in the table shows the code; it never guesses a meaning."""
+    assert label_for(BOOKING_STATUS_LABELS, "SOME_NEW_STATUS") == "SOME_NEW_STATUS"
+    assert label_for(BOOKING_STATUS_LABELS, None) == ""
+
+
+# --- what the model actually receives ----------------------------------------
+
+
+def test_booking_prompt_states_the_status_in_vietnamese(app, world):
+    context = resolve(app, viewer_id=world["creator"].id,
+                      page_type=PAGE_BOOKING_DETAIL,
+                      resource_id=world["booking_id"])
+    rendered = rendered_lines(context)
+
+    assert BOOKING_STATUS_LABELS[context.data["status"]] in rendered
+    assert BOOKING_MODE_LABELS[context.data["booking_mode"]] in rendered
+    # The raw codes stay in the DTO and out of the prompt.
+    assert context.data["status"] not in rendered
+    assert context.data["booking_mode"] not in rendered
+
+
+def test_match_prompt_states_the_status_in_vietnamese(app, world):
+    context = resolve(app, viewer_id=world["creator"].id,
+                      page_type=PAGE_MATCH_DETAIL, resource_id=world["match_id"])
+    rendered = rendered_lines(context)
+
+    assert MATCH_VIEW_STATUS_LABELS[context.data["match_status"]] in rendered
+    assert MATCH_TYPE_LABELS[context.data["match_type"]] in rendered
+    assert context.data["match_status"] not in rendered
+    assert context.data["match_type"] not in rendered
+
+
+def test_participant_status_reaches_the_prompt_in_vietnamese(app, world):
+    context = resolve(app, viewer_id=world["opponent"].id,
+                      page_type=PAGE_MATCH_DETAIL, resource_id=world["match_id"])
+    rendered = rendered_lines(context)
+    status = context.data["viewer_participant_status"]
+
+    assert status, "the opponent should have a participant status"
+    assert PARTICIPANT_STATUS_LABELS[status] in rendered
+    assert status not in rendered
+
+
+def test_the_viewer_role_is_not_an_english_keyword_in_the_prompt(app, world):
+    context = resolve(app, viewer_id=world["creator"].id,
+                      page_type=PAGE_MATCH_DETAIL, resource_id=world["match_id"])
+    rendered = rendered_lines(context)
+
+    assert "Vai trò của người dùng này: người tạo kèo" in rendered
+
+
+@pytest.mark.parametrize(
+    "view_status",
+    [MATCH_VIEW_PAST, MATCH_VIEW_CLOSED_LISTING, MATCH_VIEW_INACTIVE],
+)
+def test_derived_match_statuses_are_also_translated(view_status):
+    """PAST / CLOSED_LISTING / INACTIVE must not reach a user untranslated."""
+    label = MATCH_VIEW_STATUS_LABELS[view_status]
+
+    assert label_for(MATCH_VIEW_STATUS_LABELS, view_status) == label
+    assert view_status not in label
+
+
+def test_no_raw_enum_code_survives_into_any_rendered_line(app, world):
+    """The class of bug, not just the instances above.
+
+    Any SCREAMING_SNAKE token in a prompt line is a backend code that escaped
+    translation. Money amounts, times and names are unaffected.
+    """
+    contexts = [
+        resolve(app, viewer_id=world["creator"].id,
+                page_type=PAGE_BOOKING_DETAIL, resource_id=world["booking_id"]),
+        resolve(app, viewer_id=world["creator"].id,
+                page_type=PAGE_MATCH_DETAIL, resource_id=world["match_id"]),
+        resolve(app, viewer_id=world["opponent"].id,
+                page_type=PAGE_MATCH_DETAIL, resource_id=world["match_id"]),
+    ]
+    pattern = re.compile(r"\b[A-Z][A-Z0-9]{2,}(?:_[A-Z0-9]+)*\b")
+
+    for context in contexts:
+        for line in context.prompt_lines:
+            # booking_code is an identifier the user is shown, not a status.
+            if line.startswith("Mã lịch đặt:"):
+                continue
+            leaked = [token for token in pattern.findall(line) if token != "VND"]
+            assert leaked == [], f"{leaked} in {line!r}"
+
+
+# --- match timing is not a payment deadline ----------------------------------
+
+
+def test_match_prompt_labels_the_time_as_when_the_match_is_played(app, world):
+    context = resolve(app, viewer_id=world["creator"].id,
+                      page_type=PAGE_MATCH_DETAIL, resource_id=world["match_id"])
+    rendered = rendered_lines(context)
+
+    assert "Thời gian diễn ra kèo:" in rendered
+    assert context.data["start_time"] in rendered
+    assert context.data["end_time"] in rendered
+    assert context.data["booking_date"] in rendered
+
+
+def test_match_prompt_says_there_is_no_separate_listing_expiry(app, world):
+    """The authoritative fact, stated so the model stops reaching for the
+    15-minute opponent payment hold when asked when a match expires."""
+    context = resolve(app, viewer_id=world["creator"].id,
+                      page_type=PAGE_MATCH_DETAIL, resource_id=world["match_id"])
+    rendered = rendered_lines(context)
+
+    assert "không có mốc hết hạn riêng cho bài kèo" in rendered
+    # And it offers no invented deadline of its own.
+    assert "15 phút" not in rendered
+
+
+# =============================================================================
+# Phase 5.1: EXPIRED must not name a payment obligation the user never had
+# =============================================================================
+#
+# effective_participant_status() returns EXPIRED from two different causes:
+#
+#   1. an ACCEPTED_AWAITING_PAYMENT opponent whose payment_due_at passed, and
+#   2. ANY still-PENDING request whose booking simply reached kick-off.
+#
+# Only the first is about money. A FIND_PLAYERS joiner waiting on the creator's
+# approval has no contribution and no payment_due_at -- under the current flow
+# they never pay online at all -- so telling them "Đã hết hạn thanh toán" names
+# a deadline that never existed. These tests build that exact situation through
+# the real services rather than asserting on the label table alone.
+
+
+@pytest.fixture()
+def find_players_world(app):
+    """A FIND_PLAYERS booking with one PENDING join request, never approved."""
+    owner = create_user(app, email="p51-owner@example.com", role=UserRole.OWNER)
+    creator = create_user(app, email="p51-creator@example.com")
+    player = create_user(app, email="p51-player@example.com")
+    _, field_id = create_bookable_field(app, owner_id=owner.id)
+
+    with app.app_context():
+        booking = create_booking(
+            user=user_of(creator.id),
+            field_id=field_id,
+            booking_date=booking_day(),
+            start_time=time(18, 0),
+            end_time=time(20, 0),
+            booking_mode=BookingMode.FIND_PLAYERS.value,
+            requested_players=2,
+        )
+        booking_code, booking_date = booking.booking_code, booking.booking_date
+        # The creator pays the whole required deposit, as FIND_PLAYERS does.
+        own = next(
+            item for item in booking.contributions if item.user_id == creator.id
+        )
+        pay_contribution_with_mock(
+            booking_code=booking_code,
+            contribution_id=own.id,
+            payer=user_of(creator.id),
+        )
+        match_id = create_match(
+            booking_code=booking_code,
+            creator=user_of(creator.id),
+            title="Kèo tìm thêm người",
+            contact_phone="0901000001",
+            share_contact=True,
+        ).id
+
+    with app.app_context():
+        # Requested, never decided: stays PENDING with no money attached.
+        participant_id = request_to_join_match(
+            match_id=match_id,
+            user=user_of(player.id),
+            contact_phone="0902000002",
+            share_contact=True,
+        ).id
+
+    # One minute after kick-off. Booking times are Vietnam-local (UTC+7).
+    after_kickoff = (
+        datetime.combine(booking_date, time(18, 0)) - timedelta(hours=7)
+    ).replace(tzinfo=timezone.utc) + timedelta(minutes=1)
+
+    return {
+        "creator": creator, "player": player, "match_id": match_id,
+        "participant_id": participant_id, "after_kickoff": after_kickoff,
+    }
+
+
+def test_a_pending_find_players_request_owes_nothing_and_expires_at_kickoff(
+    app, find_players_world
+):
+    """The premise, asserted before the label: no payment was ever due."""
+    with app.app_context():
+        participant = db.session.get(
+            MatchParticipant, find_players_world["participant_id"]
+        )
+
+        assert participant.status == MatchParticipantStatus.PENDING.value
+        assert participant.contribution_id is None
+        assert participant.payment_due_at is None
+        assert effective_participant_status(
+            participant, now=find_players_world["after_kickoff"]
+        ) == MatchParticipantStatus.EXPIRED.value
+
+
+def test_expired_find_players_request_is_not_called_a_payment_deadline(
+    app, find_players_world
+):
+    """The regression: what the chatbot is told about that participant."""
+    context = resolve(
+        app,
+        viewer_id=find_players_world["player"].id,
+        page_type=PAGE_MATCH_DETAIL,
+        resource_id=find_players_world["match_id"],
+        now=find_players_world["after_kickoff"],
+    )
+    rendered = rendered_lines(context)
+    line = next(
+        item for item in context.prompt_lines
+        if item.startswith("Trạng thái tham gia của người dùng này:")
+    )
+
+    assert context.data["viewer_participant_status"] == (
+        MatchParticipantStatus.EXPIRED.value
+    )
+    assert line == (
+        "Trạng thái tham gia của người dùng này: Yêu cầu tham gia đã hết hạn"
+    )
+    assert "Đã hết hạn thanh toán" not in rendered
+    # And no payment obligation is implied anywhere on that line.
+    assert "thanh toán" not in line
+    # The raw code still lives in the DTO for support questions.
+    assert "EXPIRED" not in rendered
+
+
+def test_the_expired_find_players_participant_has_no_money_lines(
+    app, find_players_world
+):
+    """Nothing in the prompt suggests this user owes or paid anything."""
+    context = resolve(
+        app,
+        viewer_id=find_players_world["player"].id,
+        page_type=PAGE_MATCH_DETAIL,
+        resource_id=find_players_world["match_id"],
+        now=find_players_world["after_kickoff"],
+    )
+    rendered = rendered_lines(context)
+
+    assert context.data["current_user_contributions"] == []
+    assert context.data["current_user_payments"] == []
+    assert "Khoản phải đóng của người dùng này" not in rendered
+    assert context.data["current_user_paid_gross"] == "0"
+
+
+def test_an_expired_find_opponent_slot_is_worded_the_same_neutral_way(app, world):
+    """FIND_OPPONENT keeps working; one wording covers both causes.
+
+    The opponent here really did have a payment window, so the neutral phrase
+    has to stay accurate for them too -- it says the request expired, which is
+    true in both cases, rather than asserting a cause.
+    """
+    with app.app_context():
+        participant = db.session.scalar(
+            db.select(MatchParticipant).where(
+                MatchParticipant.match_id == world["match_id"],
+                MatchParticipant.user_id == world["opponent"].id,
+            )
+        )
+        participant.status = MatchParticipantStatus.EXPIRED.value
+        db.session.commit()
+
+    context = resolve(app, viewer_id=world["opponent"].id,
+                      page_type=PAGE_MATCH_DETAIL, resource_id=world["match_id"])
+    rendered = rendered_lines(context)
+
+    assert context.data["viewer_participant_status"] == (
+        MatchParticipantStatus.EXPIRED.value
+    )
+    assert "Yêu cầu tham gia đã hết hạn" in rendered
+    assert "EXPIRED" not in rendered
+
+
+def test_the_awaiting_payment_label_still_names_the_payment(app, world):
+    """The genuinely payment-bound state must not be neutralised by mistake.
+
+    ACCEPTED_AWAITING_PAYMENT is the state where money really is owed and a
+    clock really is running, so it keeps saying so.
+    """
+    awaiting = MatchParticipantStatus.ACCEPTED_AWAITING_PAYMENT.value
+    with app.app_context():
+        participant = db.session.scalar(
+            db.select(MatchParticipant).where(
+                MatchParticipant.match_id == world["match_id"],
+                MatchParticipant.user_id == world["opponent"].id,
+            )
+        )
+        participant.status = awaiting
+        db.session.commit()
+
+    context = resolve(app, viewer_id=world["opponent"].id,
+                      page_type=PAGE_MATCH_DETAIL, resource_id=world["match_id"])
+    rendered = rendered_lines(context)
+
+    assert PARTICIPANT_STATUS_LABELS[awaiting] == "Đang giữ suất, chờ thanh toán"
+    assert "Đang giữ suất, chờ thanh toán" in rendered
+
+
+# =============================================================================
+# Final consistency sweep: what the assistant says about money and state
+# =============================================================================
+#
+# Every test here builds a real booking through the real services and reads the
+# lines the model is actually handed. The recurring bug shape is the same one:
+# booking.remaining_amount and booking.balance_due_at_venue are honest
+# arithmetic on stored columns (deposit - paid, total - paid) that nothing
+# zeroes when a booking dies -- and nothing should, because the history has to
+# survive. Printing them verbatim, with no regard for status or for WHOSE money
+# they represent, is what produced "you still owe 120.000 VND" on a booking the
+# user had already cancelled. The arithmetic is untouched; only the sentence
+# around it changed.
+
+
+@pytest.fixture()
+def money_world(app):
+    """A FIND_OPPONENT booking where the creator paid their half and nobody else did."""
+    owner = create_user(app, email="sweep-owner@example.com", role=UserRole.OWNER)
+    creator = create_user(app, email="sweep-creator@example.com")
+    joiner = create_user(app, email="sweep-joiner@example.com")
+    _, field_id = create_bookable_field(app, owner_id=owner.id)
+
+    with app.app_context():
+        booking = create_booking(
+            user=user_of(creator.id),
+            field_id=field_id,
+            booking_date=booking_day(),
+            start_time=time(18, 0),
+            end_time=time(20, 0),
+            booking_mode=BookingMode.FIND_OPPONENT.value,
+        )
+        code, booking_id = booking.booking_code, booking.id
+        own = next(i for i in booking.contributions if i.user_id == creator.id)
+        pay_contribution_with_mock(
+            booking_code=code, contribution_id=own.id, payer=user_of(creator.id)
+        )
+        match_id = create_match(
+            booking_code=code, creator=user_of(creator.id),
+            title="Kèo quét nhất quán", contact_phone="0901000001",
+            share_contact=True,
+        ).id
+
+    return {
+        "creator": creator, "joiner": joiner,
+        "booking_id": booking_id, "booking_code": code, "match_id": match_id,
+    }
+
+
+def booking_lines_for(app, world, viewer_id=None, now=None):
+    return rendered_lines(
+        resolve(
+            app,
+            viewer_id=viewer_id or world["creator"].id,
+            page_type=PAGE_BOOKING_DETAIL,
+            resource_id=world["booking_id"],
+            now=now,
+        )
+    )
+
+
+def force_status(app, booking_id, status):
+    with app.app_context():
+        db.session.get(Booking, booking_id).status = status
+        db.session.commit()
+
+
+# --- 1. a terminal booking owes nothing --------------------------------------
+
+
+@pytest.mark.parametrize("status", sorted(CLOSED_BOOKING_STATUSES))
+def test_a_closed_booking_is_never_described_as_still_owing(app, money_world, status):
+    """CANCELLED / EXPIRED / REJECTED: no online debt, no venue balance.
+
+    The stored figures stay non-zero -- this test asserts the wording, not the
+    columns, and checks the columns are untouched at the end.
+    """
+    force_status(app, money_world["booking_id"], status)
+    rendered = booking_lines_for(app, money_world)
+
+    assert "Lịch đặt này đã kết thúc" in rendered
+    assert "không còn khoản nào phải thanh toán trực tuyến" in rendered
+    for forbidden in ("Khoản cọc cả lịch đặt còn thiếu",
+                      "Số tiền dự kiến trả tại sân",
+                      "Riêng người dùng này còn phải thanh toán trực tuyến"):
+        assert forbidden not in rendered, forbidden
+
+    with app.app_context():
+        booking = db.session.get(Booking, money_world["booking_id"])
+        assert booking.remaining_amount == Decimal("60000.00")
+        assert booking.balance_due_at_venue == Decimal("340000.00")
+
+
+def test_a_completed_booking_says_the_venue_balance_was_settled(app, money_world):
+    force_status(app, money_world["booking_id"], BookingStatus.COMPLETED.value)
+    rendered = booking_lines_for(app, money_world)
+
+    assert "Lịch đặt này đã hoàn thành" in rendered
+    assert "đã được thanh toán tại sân" in rendered
+    assert "Khoản cọc cả lịch đặt còn thiếu" not in rendered
+    assert "Số tiền dự kiến trả tại sân" not in rendered
+
+
+def test_a_live_booking_still_reports_both_amounts(app, money_world):
+    """The guard must not blank out a booking that really is collecting."""
+    rendered = booking_lines_for(app, money_world)
+
+    assert "Khoản cọc cả lịch đặt còn thiếu" in rendered
+    assert "Số tiền dự kiến trả tại sân" in rendered
+    assert "Lịch đặt này đã kết thúc" not in rendered
+
+
+# --- 2. the booking's shortfall is not the viewer's own ----------------------
+
+
+def test_the_creator_who_paid_their_half_owes_nothing(app, money_world):
+    """The headline bug: booking.remaining_amount is everyone's, not theirs.
+
+    On FIND_OPPONENT the creator pays half. The booking is still short the
+    opponent's half, and reading that number out as the creator's debt told a
+    fully-paid user they still owed 60.000 VND.
+    """
+    context = resolve(app, viewer_id=money_world["creator"].id,
+                      page_type=PAGE_BOOKING_DETAIL,
+                      resource_id=money_world["booking_id"])
+    rendered = rendered_lines(context)
+
+    assert context.data["deposit_remaining"] == "60000"
+    assert context.data["current_user_outstanding"] == "0"
+    assert "Riêng người dùng này còn phải thanh toán trực tuyến: 0 VND" in rendered
+    # And the aggregate is labelled as everyone's, on its own line.
+    assert "tính chung mọi người, không phải riêng người dùng này" in rendered
+
+
+def test_an_unpaid_creator_does_owe_their_own_share(app, money_world):
+    """The other direction: a real debt must still be reported."""
+    owner = create_user(app, email="sweep-owner2@example.com", role=UserRole.OWNER)
+    payer = create_user(app, email="sweep-unpaid@example.com")
+    _, field_id = create_bookable_field(app, owner_id=owner.id)
+    with app.app_context():
+        booking = create_booking(
+            user=user_of(payer.id), field_id=field_id,
+            booking_date=booking_day(), start_time=time(8, 0), end_time=time(10, 0),
+            booking_mode=BookingMode.FIND_OPPONENT.value,
+        )
+        booking_id = booking.id
+
+    context = resolve(app, viewer_id=payer.id, page_type=PAGE_BOOKING_DETAIL,
+                      resource_id=booking_id)
+    rendered = rendered_lines(context)
+
+    assert Decimal(context.data["current_user_outstanding"]) > 0
+    assert "Riêng người dùng này còn phải thanh toán trực tuyến: 0 VND" not in rendered
+
+
+def test_the_viewers_own_figure_never_exceeds_the_bookings(app, money_world):
+    """A viewer can never personally owe more than the booking is short."""
+    context = resolve(app, viewer_id=money_world["creator"].id,
+                      page_type=PAGE_BOOKING_DETAIL,
+                      resource_id=money_world["booking_id"])
+
+    assert Decimal(context.data["current_user_outstanding"]) <= Decimal(
+        context.data["deposit_remaining"]
+    )
+
+
+# --- 3. an expired hold is not an outstanding debt ---------------------------
+
+
+def test_a_lapsed_opponent_hold_is_not_reported_as_still_payable(app, money_world):
+    """Item 3: the participant reads EXPIRED while the contribution row is
+    still PENDING, because no sweeper has run. The prompt used to assert both
+    at once: "your request expired" and "you owe 60.000 VND, awaiting payment".
+    """
+    with app.app_context():
+        participant = request_to_join_match(
+            match_id=money_world["match_id"], user=user_of(money_world["joiner"].id),
+            contact_phone="0902000002", share_contact=True,
+        )
+        participant_id = participant.id
+    with app.app_context():
+        participant = db.session.get(MatchParticipant, participant_id)
+        lapsed = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(seconds=1)
+        participant.payment_due_at = lapsed
+        participant.contribution.expires_at = lapsed
+        db.session.commit()
+        # The premise: the row really is still PENDING.
+        assert participant.contribution.status == ContributionStatus.PENDING.value
+
+    context = resolve(app, viewer_id=money_world["joiner"].id,
+                      page_type=PAGE_MATCH_DETAIL, resource_id=money_world["match_id"])
+    rendered = rendered_lines(context)
+
+    assert context.data["viewer_participant_status"] == (
+        MatchParticipantStatus.EXPIRED.value
+    )
+    assert "Yêu cầu tham gia đã hết hạn" in rendered
+    assert "Khoản này không còn thanh toán được nữa" in rendered
+    assert context.data["current_user_outstanding"] == "0"
+    assert "Riêng người dùng này còn phải thanh toán trực tuyến: 0 VND" in rendered
+
+
+def test_a_live_opponent_hold_is_still_reported_as_payable(app, money_world):
+    """The guard must not silence a hold that is genuinely still open."""
+    with app.app_context():
+        request_to_join_match(
+            match_id=money_world["match_id"], user=user_of(money_world["joiner"].id),
+            contact_phone="0902000002", share_contact=True,
+        )
+
+    context = resolve(app, viewer_id=money_world["joiner"].id,
+                      page_type=PAGE_MATCH_DETAIL, resource_id=money_world["match_id"])
+    rendered = rendered_lines(context)
+
+    assert Decimal(context.data["current_user_outstanding"]) > 0
+    assert "Khoản này không còn thanh toán được nữa" not in rendered
+
+
+# --- 5. no refund exists, so none is implied ---------------------------------
+
+
+def test_a_cancelled_booking_with_no_refund_says_so(app, money_world):
+    with app.app_context():
+        cancel_user_booking(
+            booking_code=money_world["booking_code"],
+            user=user_of(money_world["creator"].id),
+        )
+        booking = db.session.get(Booking, money_world["booking_id"])
+        assert booking.refunds == []
+
+    context = resolve(app, viewer_id=money_world["creator"].id,
+                      page_type=PAGE_BOOKING_DETAIL,
+                      resource_id=money_world["booking_id"])
+    rendered = rendered_lines(context)
+
+    assert context.data["current_user_refunds"] == []
+    assert "không có khoản hoàn tiền nào cho lịch đặt này" in rendered
+    assert "không hoàn lại theo chính sách" in rendered
+
+
+def test_a_refund_that_exists_is_still_reported(app, money_world):
+    """The no-refund sentence must not appear when a refund does exist."""
+    with app.app_context():
+        payment = db.session.scalar(
+            db.select(Payment).where(
+                Payment.booking_id == money_world["booking_id"],
+                Payment.payer_id == money_world["creator"].id,
+            )
+        )
+        db.session.add(
+            Refund(
+                booking_id=money_world["booking_id"], payment_id=payment.id,
+                recipient_id=money_world["creator"].id, amount=Decimal("10000"),
+                reason="Kiem thu.", order_id="SWEEP-REFUND-1",
+                request_id="sweep-req-1", status=RefundStatus.SUCCESS.value,
+            )
+        )
+        db.session.get(Booking, money_world["booking_id"]).status = (
+            BookingStatus.CANCELLED.value
+        )
+        db.session.commit()
+
+    rendered = booking_lines_for(app, money_world)
+
+    assert "Khoản hoàn tiền của người dùng này" in rendered
+    assert "không có khoản hoàn tiền nào cho lịch đặt này" not in rendered
+
+
+# --- 7. money reads the way a person writes it -------------------------------
+
+
+def test_amounts_are_grouped_for_reading(app, money_world):
+    rendered = booking_lines_for(app, money_world)
+
+    assert "400.000 VND" in rendered
+    assert "120.000 VND" in rendered
+    # The ungrouped form must not survive anywhere in the prompt.
+    assert "400000" not in rendered
+    assert "120000" not in rendered
+
+
+def test_the_dto_keeps_exact_machine_readable_amounts(app, money_world):
+    """Formatting is presentation only: `data` stays parseable."""
+    context = resolve(app, viewer_id=money_world["creator"].id,
+                      page_type=PAGE_BOOKING_DETAIL,
+                      resource_id=money_world["booking_id"])
+
+    for key in ("total_amount", "deposit_amount", "deposit_remaining",
+                "balance_due_at_venue", "current_user_outstanding"):
+        value = context.data[key]
+        assert "." not in value and "VND" not in value, key
+        Decimal(value)  # parses
+
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        (0, "0 VND"),
+        (30000, "30.000 VND"),
+        ("400000", "400.000 VND"),
+        (1234567, "1.234.567 VND"),
+        (None, "0 VND"),
+        ("1234.50", "1.234,50 VND"),
+    ],
+)
+def test_money_formatter(raw, expected):
+    assert _money(raw) == expected
+
+
+def test_no_bare_five_digit_amount_survives_into_any_line(app, money_world):
+    """The class of bug: an unformatted amount anywhere in the prompt."""
+    for page, rid in (
+        (PAGE_BOOKING_DETAIL, money_world["booking_id"]),
+        (PAGE_MATCH_DETAIL, money_world["match_id"]),
+    ):
+        context = resolve(app, viewer_id=money_world["creator"].id,
+                          page_type=page, resource_id=rid)
+        for line in context.prompt_lines:
+            # Times (18:00-20:00) and dates are not money; only check the
+            # tokens immediately preceding a VND unit.
+            for token in re.findall(r"([0-9][0-9.,]*)\s+VND", line):
+                digits = token.replace(".", "").replace(",", "")
+                assert len(digits) <= 3 or "." in token, (
+                    f"ungrouped amount {token!r} in {line!r}"
+                )

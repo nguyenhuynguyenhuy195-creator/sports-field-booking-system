@@ -15,6 +15,8 @@ import pytest
 from sqlalchemy import event
 
 from app.chatbot.errors import ChatbotProviderError, ChatbotUnavailableError
+from app.chatbot.labels import BOOKING_MODE_LABELS, BOOKING_STATUS_LABELS
+from app.chatbot.prompting import DYNAMIC_CLOSE, DYNAMIC_OPEN
 from app.chatbot.rate_limit import FixedWindowRateLimiter, reset_rate_limiter
 from app.chatbot.retrieval import INSUFFICIENT_EVIDENCE_ANSWER, reset_knowledge_index
 from app.extensions import db
@@ -891,3 +893,180 @@ def test_limiter_runs_before_any_provider_work(app, client, world, chat):
     assert post(client, {"question": GROUNDED}).status_code == 429
 
     assert len(chat["chat"].calls) == calls_after_first
+
+
+# =============================================================================
+# Phase 5
+# =============================================================================
+
+# --- capability questions are answered, not refused --------------------------
+#
+# "Bạn có thể làm được gì?" used to come back as the generic
+# insufficient-evidence sentence. The fix is a curated document, so the whole
+# route -- gate included -- is what has to be exercised here.
+
+CAPABILITY = "Trợ lý ảo làm được những gì?"
+
+
+def test_a_capability_question_is_answered_by_the_api(app, client, world, chat):
+    login(client, email=world["creator"].email)
+
+    response = post(client, {"question": CAPABILITY})
+    body = response.get_json()
+
+    assert response.status_code == 200
+    assert body["ok"] is True
+    assert body["status"] == "ANSWERED"
+    assert body["answer"] != INSUFFICIENT_EVIDENCE_ANSWER
+    # The model really was consulted: this is not a canned string.
+    assert chat["chat"].calls
+
+
+def test_a_capability_question_grounds_on_the_assistant_document(
+    app, client, world, chat
+):
+    login(client, email=world["creator"].email)
+
+    response = post(client, {"question": CAPABILITY})
+    body = response.get_json()
+
+    assert any(source["source"] == "assistant" for source in body["sources"])
+    # A slug, never a repository path.
+    for source in body["sources"]:
+        assert "docs/" not in source["source"]
+        assert ".md" not in source["source"]
+
+
+def test_the_capability_answer_is_not_hard_coded_in_the_frontend():
+    """The answer must come from the evidence gate, not from the widget.
+
+    A hard-coded reply in JavaScript would be an ungrounded claim about the
+    system sitting entirely outside the RAG pipeline, and would drift the
+    moment the assistant's scope changed.
+    """
+    from pathlib import Path
+
+    widget = Path("app/static/js/chatbot-widget.js").read_text(encoding="utf-8")
+
+    for claim in ("hướng dẫn đặt sân", "tiền cọc", "tìm đối thủ",
+                  "chỉ đọc", "không thể đặt sân"):
+        assert claim not in widget, claim
+
+
+def test_the_capability_prompt_carries_the_read_only_rule(app, client, world, chat):
+    """What the model is told when it answers "what can you do?"."""
+    login(client, email=world["creator"].email)
+
+    post(client, {"question": CAPABILITY})
+    call = chat["chat"].calls[0]
+    system = " ".join(call["system_prompt"].split())
+
+    assert "Bạn chỉ đọc thông tin" in system
+    assert "Không được nói rằng bạn đã đặt sân" in system
+
+
+# --- the model is still never called without grounding -----------------------
+
+
+def test_no_model_call_when_static_and_dynamic_grounding_both_fail(
+    app, client, world, chat
+):
+    """Adding assistant.md must not have opened a path around the gate."""
+    login(client, email=world["creator"].email)
+
+    response = post(client, {
+        "question": OFF_TOPIC,
+        "context": {"page_type": "booking_detail",
+                    "resource_id": world["booking_id"]},
+    })
+    body = response.get_json()
+
+    assert response.status_code == 200
+    assert body["status"] == "INSUFFICIENT_EVIDENCE"
+    assert body["answer"] == INSUFFICIENT_EVIDENCE_ANSWER
+    assert body["sources"] == []
+    assert chat["chat"].calls == []
+
+
+def test_the_fallback_sentence_is_unchanged():
+    """Pinned verbatim: other code and the tests both depend on it."""
+    assert INSUFFICIENT_EVIDENCE_ANSWER == (
+        "Tôi chưa có đủ thông tin để trả lời chính xác câu này."
+    )
+
+
+@pytest.mark.parametrize(
+    "question",
+    ["Hủy lịch này giúp tôi.", "Đặt sân giúp tôi.", "Thanh toán giúp tôi.",
+     "Tham gia kèo giúp tôi.", "Hoàn tiền cho tôi."],
+)
+def test_an_action_request_writes_nothing(app, client, world, chat, question):
+    """Read-only, asserted per action phrasing rather than in one batch."""
+    login(client, email=world["creator"].email)
+    with app.app_context():
+        engine = db.engine
+    statements: list[str] = []
+
+    def record(conn, cursor, statement, parameters, context, executemany):
+        statements.append(statement.lstrip().split(" ", 1)[0].upper())
+
+    event.listen(engine, "before_cursor_execute", record)
+    try:
+        response = post(client, {
+            "question": question,
+            "context": {"page_type": "booking_detail",
+                        "resource_id": world["booking_id"]},
+        })
+    finally:
+        event.remove(engine, "before_cursor_execute", record)
+
+    assert response.status_code == 200
+    assert not ({"INSERT", "UPDATE", "DELETE"} & set(statements)), statements
+
+
+# --- the prompt contract reaches the real HTTP surface -----------------------
+
+
+def test_the_live_prompt_bans_markdown_and_raw_status_codes(
+    app, client, world, chat
+):
+    login(client, email=world["creator"].email)
+
+    post(client, {
+        "question": PERSONAL,
+        "context": {"page_type": "booking_detail",
+                    "resource_id": world["booking_id"]},
+    })
+    call = chat["chat"].calls[0]
+    system = " ".join(call["system_prompt"].split())
+    user = " ".join(call["user_prompt"].split())
+
+    assert "VĂN BẢN THUẦN" in system
+    assert "Không đọc lại mã trạng thái kỹ thuật" in system
+    assert "không dùng Markdown" in user
+    # And the contradiction that made the assistant refuse good context is gone.
+    assert "Chỉ dùng BẰNG CHỨNG ở trên" not in user
+    assert "DỮ LIỆU HIỆN TẠI" in user
+
+
+def test_the_dynamic_block_states_statuses_in_vietnamese(app, client, world, chat):
+    """End to end: no backend enum reaches the model through the API."""
+    login(client, email=world["creator"].email)
+
+    post(client, {
+        "question": PERSONAL,
+        "context": {"page_type": "booking_detail",
+                    "resource_id": world["booking_id"]},
+    })
+    user_prompt = chat["chat"].calls[0]["user_prompt"]
+    block = user_prompt.split(DYNAMIC_OPEN, 1)[1].split(DYNAMIC_CLOSE, 1)[0]
+
+    for raw_code in ("PARTIALLY_PAID", "PAID", "CONFIRMED", "FIND_OPPONENT",
+                     "SUCCESS", "CREATOR", "OPPONENT"):
+        assert raw_code not in block, raw_code
+    # Whatever this booking's status is, the model is handed the wording the
+    # booking page shows for it.
+    with app.app_context():
+        status = db.session.get(Booking, world["booking_id"]).status
+    assert BOOKING_STATUS_LABELS[status] in block
+    assert BOOKING_MODE_LABELS[BookingMode.FIND_OPPONENT.value] in block

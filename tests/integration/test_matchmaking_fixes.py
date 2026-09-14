@@ -264,8 +264,14 @@ def test_user_gets_render_stale_state_without_commit_or_orm_mutation(app, monkey
                 mine = client.get("/matches/mine")
                 assert detail.status_code == mine.status_code == 200
                 html = detail.get_data(as_text=True)
+                mine_html = mine.get_data(as_text=True)
                 assert "Yêu cầu tham gia đã hết hạn" in html
-                assert "Đã hết hạn thanh toán" in mine.get_data(as_text=True)
+                # The list badge now uses the same neutral wording as the
+                # detail message: EXPIRED can be reached with no payment ever
+                # due (a PENDING FIND_PLAYERS request at kick-off).
+                assert "Yêu cầu tham gia đã hết hạn" in mine_html
+                assert "Đã hết hạn thanh toán" not in mine_html
+                assert "Đã hết hạn thanh toán" not in html
                 assert "data-payment-submit" not in html
                 assert f'action="/matches/{match_id}/requests/withdraw"' not in html
                 assert not db.session.dirty
@@ -274,7 +280,9 @@ def test_user_gets_render_stale_state_without_commit_or_orm_mutation(app, monkey
     client.post("/auth/logout")
     login(client, email=creator.email)
     html = client.get(f"/matches/{match_id}").get_data(as_text=True)
-    assert "Đã hết hạn thanh toán" in html
+    # The creator's participant badge uses the same neutral wording.
+    assert "Yêu cầu tham gia đã hết hạn" in html
+    assert "Đã hết hạn thanh toán" not in html
     assert f'/requests/{participant_id}/accept' not in html
 
 
@@ -301,3 +309,114 @@ def test_late_momo_success_after_listing_close_queues_refund_without_joining(app
         assert match.status == "CANCELLED"
         assert snapshot(Booking) == booking_before
         assert db.session.scalar(db.select(Refund)).recipient_id == player.id
+
+
+# =============================================================================
+# EXPIRED must not name a payment obligation the user never had
+# =============================================================================
+#
+# effective_participant_status() returns EXPIRED from two unrelated causes:
+# an ACCEPTED_AWAITING_PAYMENT slot whose payment_due_at passed, and ANY
+# still-PENDING request whose booking simply reached kick-off. Only the first
+# is about money. A FIND_PLAYERS joiner waiting on the creator's approval has
+# no contribution and no payment_due_at and never pays online at all, so the
+# old badge ("Đã hết hạn thanh toán") named a deadline that never existed.
+#
+# The mutation-guard test above also covers these strings, but its subject is
+# "a GET must not write". These tests exist so the wording itself cannot be
+# regressed without a failure that says so.
+
+NEUTRAL_EXPIRED = "Yêu cầu tham gia đã hết hạn"
+PAYMENT_EXPIRED = "Đã hết hạn thanh toán"
+
+
+def _expire_at_kickoff(app, match_id):
+    """Move the booking into the past so a PENDING request reads as EXPIRED."""
+    with app.app_context():
+        match = db.session.get(Match, match_id)
+        match.booking.booking_date = (
+            datetime.now(timezone.utc) - timedelta(days=1)
+        ).date()
+        db.session.commit()
+
+
+def test_expired_find_players_request_owes_nothing(app):
+    """The premise: no contribution, no payment window, still EXPIRED."""
+    from app.services.matchmaking import effective_participant_status
+
+    _, _, match_id, participant_id = prepare(app, mode="FIND_PLAYERS")
+    _expire_at_kickoff(app, match_id)
+
+    with app.app_context():
+        participant = db.session.get(MatchParticipant, participant_id)
+
+        assert participant.status == "PENDING"
+        assert participant.contribution_id is None
+        assert participant.payment_due_at is None
+        assert effective_participant_status(participant) == "EXPIRED"
+
+
+def test_expired_find_players_request_is_not_called_a_payment_deadline(app):
+    """The regression: /matches/mine must not invent a missed payment."""
+    client = app.test_client()
+    _, player, match_id, _ = prepare(app, mode="FIND_PLAYERS")
+    _expire_at_kickoff(app, match_id)
+    login(client, email=player.email)
+
+    html = client.get("/matches/mine").get_data(as_text=True)
+
+    assert NEUTRAL_EXPIRED in html
+    assert PAYMENT_EXPIRED not in html
+
+
+def test_expired_find_opponent_slot_uses_the_same_neutral_wording(app):
+    """FIND_OPPONENT still renders correctly.
+
+    This opponent really did have a payment window, so the neutral phrase has
+    to stay accurate for them too. It says the request expired -- true under
+    both causes -- rather than asserting which one applied.
+    """
+    client = app.test_client()
+    _, player, match_id, participant_id = prepare(app, mode="FIND_OPPONENT")
+    with app.app_context():
+        participant = db.session.get(MatchParticipant, participant_id)
+        assert participant.contribution_id is not None
+        participant.payment_due_at = (
+            datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(seconds=1)
+        )
+        participant.contribution.expires_at = participant.payment_due_at
+        db.session.commit()
+    login(client, email=player.email)
+
+    mine = client.get("/matches/mine").get_data(as_text=True)
+    detail = client.get(f"/matches/{match_id}").get_data(as_text=True)
+
+    assert NEUTRAL_EXPIRED in mine
+    assert PAYMENT_EXPIRED not in mine
+    assert NEUTRAL_EXPIRED in detail
+
+
+def test_the_awaiting_payment_badge_still_names_the_payment(app):
+    """The opposite error: a slot that really does owe money must say so."""
+    client = app.test_client()
+    _, player, match_id, participant_id = prepare(app, mode="FIND_OPPONENT")
+    login(client, email=player.email)
+
+    with app.app_context():
+        assert db.session.get(
+            MatchParticipant, participant_id
+        ).status == "ACCEPTED_AWAITING_PAYMENT"
+
+    html = client.get("/matches/mine").get_data(as_text=True)
+
+    assert "Đang giữ suất, chờ thanh toán" in html
+    assert NEUTRAL_EXPIRED not in html
+
+
+def test_the_page_and_the_assistant_word_expired_identically():
+    """One wording across the badge, the detail message and the chatbot."""
+    from app.chatbot.labels import PARTICIPANT_STATUS_LABELS as CHATBOT_LABELS
+    from app.routes.matches import PARTICIPANT_STATUS_LABELS as PAGE_LABELS
+
+    assert PAGE_LABELS["EXPIRED"] == CHATBOT_LABELS["EXPIRED"] == NEUTRAL_EXPIRED
+    assert PAGE_LABELS == CHATBOT_LABELS

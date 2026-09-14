@@ -42,6 +42,35 @@ chuyển thẳng sang Đã tham gia mà không cần thanh toán.
 Số người cần tìm do người đặt sân khai báo lúc đặt sân, và phải nhỏ hơn sức
 chứa của sân.
 
+## Bài kèo mở tới khi nào
+
+Bài kèo **không có một mốc hết hạn riêng**. Hệ thống không lưu thời điểm hết hạn
+cho bài đăng kèo và không tự gỡ bài theo đồng hồ đếm ngược.
+
+Một bài kèo ngừng nhận người mới khi xảy ra một trong các việc sau:
+
+- đã tới **giờ bắt đầu** của lịch đặt sân, hoặc
+- người tạo kèo chủ động đóng bài tìm đối thủ, hoặc
+- kèo đã đủ người hoặc đã có đối thủ thanh toán thành công, hoặc
+- kèo bị hủy, hoặc lịch đặt sân gắn với kèo bị hủy hay hết hiệu lực.
+
+Vì vậy, khi người dùng hỏi "kèo này khi nào hết hạn", câu trả lời đúng là nêu
+**thời gian diễn ra trận** và **trạng thái hiện tại của kèo**, đồng thời nói rõ
+hệ thống không có mốc hết hạn riêng cho bài kèo.
+
+## Hạn 15 phút không phải là hạn của bài kèo
+
+Đây là hai thứ hoàn toàn khác nhau và rất dễ nhầm:
+
+- **Hạn giữ suất 15 phút**: chỉ áp dụng cho một người vừa bấm nhận kèo tìm đối
+  thủ. Hết 15 phút mà người đó chưa thanh toán thì **suất của riêng người đó**
+  bị hủy, còn bài kèo vẫn mở lại cho người khác.
+- **Thời điểm bài kèo đóng**: là giờ bắt đầu của lịch đặt sân, như mô tả ở mục
+  trên.
+
+Không dùng hạn 15 phút để trả lời câu hỏi về thời điểm diễn ra trận hay thời
+điểm bài kèo kết thúc.
+
 ## Không tìm được đối thủ thì sao
 
 Nếu tới giờ mà không có đội nào nhận kèo, **lịch đặt sân vẫn có hiệu lực**. Hệ

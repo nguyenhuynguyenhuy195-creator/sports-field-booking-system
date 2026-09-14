@@ -35,6 +35,9 @@ EXPECTED_SLUGS = {
     "match-chat",
     "faq",
     "user-guide",
+    # Phase 5: the assistant's own scope, so "Bạn có thể làm được gì?" has
+    # something to retrieve instead of hitting the fallback.
+    "assistant",
 }
 
 
@@ -316,3 +319,103 @@ def test_legacy_policies_are_labelled_as_legacy_where_mentioned(chunks):
                 marker in chunk.content
                 for marker in ("cũ", "lịch sử", "trước đây", "không áp dụng")
             ), chunk.chunk_id
+
+
+# =============================================================================
+# Phase 5: the assistant's own scope is curated knowledge
+# =============================================================================
+#
+# Live verification found "Bạn có thể làm được gì?" hitting the generic
+# insufficient-evidence fallback, because nothing in the knowledge base
+# described the assistant itself. Hard-coding that answer in the widget's
+# JavaScript would have put an ungrounded claim outside the evidence gate, so
+# it is a curated document like every other rule.
+
+
+def assistant_text(chunks) -> str:
+    return "\n".join(
+        chunk.content for chunk in chunks if chunk.doc_slug == "assistant"
+    )
+
+
+def test_the_knowledge_base_describes_the_assistant_itself(chunks):
+    produced = {chunk.doc_slug for chunk in chunks}
+
+    assert "assistant" in produced
+    assert assistant_text(chunks).strip()
+
+
+@pytest.mark.parametrize(
+    "capability",
+    ["tìm sân", "đặt sân", "tiền cọc", "thanh toán", "hoàn tiền",
+     "đối thủ", "tìm thêm người", "phòng chat", "Chủ sân"],
+)
+def test_the_assistant_document_lists_what_it_can_explain(chunks, capability):
+    assert capability in assistant_text(chunks), capability
+
+
+@pytest.mark.parametrize(
+    "refusal",
+    ["đặt sân giúp người dùng", "hủy lịch đặt sân giúp người dùng",
+     "thanh toán hoặc tạo giao dịch giúp người dùng",
+     "yêu cầu hoàn tiền giúp người dùng", "tham gia kèo"],
+)
+def test_the_assistant_document_states_what_it_cannot_do(chunks, refusal):
+    """Capability knowledge must carry the read-only boundary with it.
+
+    A document that only advertises what the assistant does would let the
+    model answer "what can you do?" without ever saying it cannot act.
+    """
+    assert refusal in assistant_text(chunks), refusal
+
+
+def test_the_assistant_document_states_it_is_read_only(chunks):
+    text = assistant_text(chunks)
+
+    assert "chỉ đọc dữ liệu, không thay đổi bất cứ thứ gì" in text
+    assert "tự thao tác" in text
+
+
+def test_the_assistant_document_claims_no_ability_it_lacks(chunks):
+    """It advises; it must never promise to carry an action out."""
+    text = assistant_text(chunks).lower()
+
+    for overclaim in ("tôi đã đặt", "tôi đã hủy", "tôi đã thanh toán",
+                      "đã hoàn tiền cho bạn", "tôi sẽ đặt", "tôi sẽ hủy"):
+        assert overclaim not in text, overclaim
+
+
+# --- match listing lifetime, as distinct from the payment hold ---------------
+#
+# "Kèo này khi nào hết hạn?" drifted onto the 15-minute opponent payment hold.
+# ADR-027 and _match_request_cutoff() agree: a current FIND_OPPONENT post lives
+# until kick-off, and there is no separate listing-expiry field at all.
+
+
+def matchmaking_text(chunks) -> str:
+    return "\n".join(
+        chunk.content for chunk in chunks if chunk.doc_slug == "matchmaking"
+    )
+
+
+def test_knowledge_says_a_match_post_has_no_separate_expiry(chunks):
+    text = matchmaking_text(chunks)
+
+    assert "không có một mốc hết hạn riêng" in text
+    assert "giờ bắt đầu" in text
+
+
+def test_knowledge_separates_the_payment_hold_from_the_listing(chunks):
+    text = matchmaking_text(chunks)
+
+    assert "Hạn 15 phút không phải là hạn của bài kèo" in text
+    assert "suất của riêng người đó" in text
+
+
+def test_knowledge_invents_no_new_expiry_duration(chunks):
+    """No hour/day countdown may appear as a match-post lifetime."""
+    text = matchmaking_text(chunks)
+
+    for invented in ("hết hạn sau 24", "hết hạn sau 48", "hết hạn sau 7 ngày",
+                     "tự động gỡ bài sau"):
+        assert invented not in text, invented

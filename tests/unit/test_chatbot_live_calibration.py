@@ -127,3 +127,78 @@ def test_recording_chat_provider_captures_what_would_be_sent():
     assert answer == "OK"
     assert provider.calls[0]["system_prompt"] == "hệ thống"
     assert provider.calls[0]["user_prompt"] == "câu hỏi"
+
+
+# =============================================================================
+# Phase 5 live verification, 2026-09-13
+# =============================================================================
+#
+# Measured with gemini-embedding-001 @768d over docs/chatbot/ including the new
+# assistant.md. Same method as the bands above: best top-k score per question.
+
+# The capability questions that used to hit the insufficient-evidence fallback
+# because nothing in the knowledge base described the assistant. With
+# assistant.md indexed they score 0.7093 - 0.7896 and every one clears the gate.
+MEASURED_CAPABILITY_BAND = (0.7093, 0.7896)
+
+# English on-topic questions, measured on the same run. Two of eight sit BELOW
+# the configured floor, so they fall back rather than being answered in English
+# -- see test_english_on_topic_questions_sit_partly_below_the_floor.
+MEASURED_ENGLISH_RELEVANT_BAND = (0.6845, 0.7556)
+MEASURED_ENGLISH_UNRELATED_BAND = (0.5155, 0.5475)
+
+
+def test_capability_questions_clear_the_configured_floor():
+    """The Phase 5 fix, pinned: "Bạn có thể làm được gì?" is answerable."""
+    settings = ChatbotSettings()
+
+    assert MEASURED_CAPABILITY_BAND[0] > settings.min_relevance_score, (
+        "a capability question would fall back to the generic refusal"
+    )
+
+
+def test_the_capability_margin_is_recorded_as_thin():
+    """Documents how little headroom the weakest capability phrasing has.
+
+    0.7093 against a 0.70 floor is ~0.009. Raising CHATBOT_MIN_RELEVANCE_SCORE
+    or rewording assistant.md can silently push these back into the fallback,
+    so a change to either must be re-measured with scripts/chatbot_live_check.py
+    rather than assumed safe.
+    """
+    settings = ChatbotSettings()
+    margin = MEASURED_CAPABILITY_BAND[0] - settings.min_relevance_score
+
+    assert 0 < margin < 0.02
+
+
+def test_capability_questions_stay_below_the_strong_shortcut():
+    """Most capability phrasings still face the lexical-overlap check."""
+    assert MEASURED_CAPABILITY_BAND[0] < ChatbotSettings().strong_relevance_score
+
+
+def test_english_off_topic_stays_far_below_the_floor():
+    """Whatever happens to English support, off-topic English must not pass."""
+    settings = ChatbotSettings()
+
+    assert MEASURED_ENGLISH_UNRELATED_BAND[1] < settings.min_relevance_score
+    assert settings.min_relevance_score - MEASURED_ENGLISH_UNRELATED_BAND[1] > 0.1
+
+
+def test_english_on_topic_questions_sit_partly_below_the_floor():
+    """A known, deliberately unfixed gap, recorded so it is not forgotten.
+
+    The system prompt promises to answer an English question in English, but
+    the evidence gate drops the weakest English phrasings first: the measured
+    English on-topic band starts at 0.6845, under the 0.70 floor, so those
+    questions get the fallback and never reach the model at all.
+
+    Not changed in Phase 5: the floor is the anti-hallucination gate for every
+    language, and moving it -- or giving non-Vietnamese questions a lower floor
+    -- is a calibration decision that needs its own benchmark run, not a
+    side-effect of a polish pass. The off-topic English band (max 0.5475) shows
+    the headroom exists if that change is ever made deliberately.
+    """
+    settings = ChatbotSettings()
+
+    assert MEASURED_ENGLISH_RELEVANT_BAND[0] < settings.min_relevance_score
+    assert MEASURED_ENGLISH_RELEVANT_BAND[1] > settings.min_relevance_score

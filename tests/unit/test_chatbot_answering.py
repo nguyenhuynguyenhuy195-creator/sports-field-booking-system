@@ -20,6 +20,7 @@ from app.chatbot.errors import ChatbotProviderError, ChatbotValidationError
 from app.chatbot.knowledge import KnowledgeChunk
 from app.chatbot.prompting import (
     ASSISTANT_ROLE,
+    CLOSING_REMINDER,
     EVIDENCE_CLOSE,
     EVIDENCE_OPEN,
     HISTORY_OPEN,
@@ -669,3 +670,239 @@ def test_no_secret_appears_in_a_successful_prompt(index, settings):
 
     assert FAKE_KEY not in call["system_prompt"]
     assert FAKE_KEY not in call["user_prompt"]
+
+
+# =============================================================================
+# Phase 5: the prompt contract
+# =============================================================================
+
+# --- 1. the two sources must not contradict each other -----------------------
+#
+# The closing line of the user message used to read "Chỉ dùng BẰNG CHỨNG ở
+# trên", which flatly contradicted the system prompt's two-source rule sitting
+# a few hundred characters above it. Live verification showed the consequence:
+# a venue page question answerable purely from DỮ LIỆU HIỆN TẠI was at risk of
+# being refused because the static evidence block was empty.
+
+
+def test_the_closing_reminder_names_both_trusted_sources():
+    flat = flatten(CLOSING_REMINDER)
+
+    assert "BẰNG CHỨNG" in flat
+    assert "DỮ LIỆU HIỆN TẠI" in flat
+    assert "một trong hai đủ thì trả lời" in flat
+
+
+def test_no_instruction_anywhere_restricts_the_model_to_evidence_alone():
+    """The exact contradiction, as a string, must not come back."""
+    whole = flatten(build_system_prompt() + " " + CLOSING_REMINDER)
+
+    assert "Chỉ dùng BẰNG CHỨNG ở trên" not in whole
+    for forbidden in (
+        "Chỉ dùng BẰNG CHỨNG;",
+        "Chỉ được dùng BẰNG CHỨNG",
+        "chỉ dựa vào BẰNG CHỨNG",
+    ):
+        assert forbidden not in whole, forbidden
+
+
+def test_the_built_prompt_ends_with_the_two_source_reminder(index, settings):
+    provider = RecordingChatModelProvider()
+
+    answer_question(
+        GROUNDED_QUESTION, chat_provider=provider, index=index, settings=settings
+    )
+    prompt = flatten(provider.calls[0]["user_prompt"])
+
+    assert flatten(CLOSING_REMINDER) in prompt
+    assert "Chỉ dùng BẰNG CHỨNG ở trên" not in prompt
+
+
+def test_system_prompt_still_forbids_unsupported_outside_knowledge():
+    """Permitting both sources must not become permission to improvise."""
+    flat = flatten(build_system_prompt())
+
+    assert "Không được bịa ra quy định" in flat
+    assert "kể cả khi bạn tin là mình biết câu trả lời" in flat
+    assert INSUFFICIENT_EVIDENCE_ANSWER in flat
+
+
+# --- 2. plain text, never Markdown -------------------------------------------
+#
+# The widget renders every string with textContent (deliberately: no innerHTML,
+# no Markdown renderer), so "**OPEN**" reached the user as literal asterisks.
+# The fix is a prompt contract, not a renderer.
+
+MARKDOWN_RULES = (
+    "VĂN BẢN THUẦN",
+    "không dùng Markdown",
+    "dấu sao",
+    "dấu thăng",
+    "bảng Markdown",
+)
+
+
+@pytest.mark.parametrize("rule", MARKDOWN_RULES)
+def test_the_prompt_bans_markdown_syntax(rule):
+    whole = flatten(build_system_prompt() + " " + CLOSING_REMINDER)
+
+    assert rule in whole, rule
+
+
+def test_the_prompt_offers_a_plain_text_alternative_to_bullets():
+    flat = flatten(build_system_prompt())
+
+    assert 'đánh số "1." "2." "3."' in flat
+    assert "Viết câu ngắn" in flat
+
+
+def test_the_markdown_ban_survives_into_a_real_request(index, settings):
+    provider = RecordingChatModelProvider()
+
+    answer_question(
+        GROUNDED_QUESTION, chat_provider=provider, index=index, settings=settings
+    )
+    call = provider.calls[0]
+
+    assert "VĂN BẢN THUẦN" in flatten(call["system_prompt"])
+    assert "không dùng Markdown" in flatten(call["user_prompt"])
+
+
+# --- 3. status codes are spoken in Vietnamese --------------------------------
+
+
+def test_the_prompt_tells_the_model_not_to_read_raw_status_codes():
+    flat = flatten(build_system_prompt())
+
+    assert "Không đọc lại mã trạng thái kỹ thuật" in flat
+    for wording in ("Đang mở", "Đã đủ người", "Đã xác nhận", "Đã hủy",
+                    "Đã hoàn thành"):
+        assert wording in flat, wording
+
+
+def test_an_unlabelled_code_is_repeated_verbatim_not_invented():
+    """No approved wording means say the code, never guess a meaning."""
+    flat = flatten(build_system_prompt())
+
+    assert "nêu lại đúng mã đó và không tự dịch" in flat
+
+
+# --- 4. match expiry is not the 15-minute payment hold -----------------------
+
+
+def test_the_prompt_separates_match_timing_from_the_payment_hold():
+    flat = flatten(build_system_prompt())
+
+    assert "Đó KHÔNG phải hạn thanh toán" in flat
+    assert "Hạn giữ suất 15 phút" in flat
+    assert "đừng dùng nó để trả lời câu hỏi về thời điểm của trận" in flat
+
+
+def test_the_prompt_forbids_inventing_a_new_expiry_rule():
+    flat = flatten(build_system_prompt())
+
+    assert "Không tự đặt ra một mốc hết hạn mới" in flat
+    assert "thời gian diễn ra và trạng thái hiện tại" in flat
+
+
+# =============================================================================
+# Final consistency sweep: prompt contract
+# =============================================================================
+
+# --- 6. internal vocabulary never reaches a user ------------------------------
+#
+# "BẰNG CHỨNG" and "DỮ LIỆU HIỆN TẠI" are block names invented for the trust
+# boundary. They are meaningful to this codebase and meaningless to a player, so
+# an answer that cites them reads as a leak of internal machinery. Live runs did
+# not show one, but nothing forbade it either -- these tests make the ban part
+# of the contract rather than a happy accident.
+
+INTERNAL_TERMS = (
+    "BẰNG CHỨNG",
+    "DỮ LIỆU HIỆN TẠI",
+    "LỊCH SỬ HỘI THOẠI",
+    "CÂU HỎI NGƯỜI DÙNG",
+    "evidence",
+    "dynamic context",
+    "system prompt",
+    "RAG",
+)
+
+
+@pytest.mark.parametrize("term", INTERNAL_TERMS)
+def test_the_prompt_forbids_naming_its_own_blocks(term):
+    flat = flatten(build_system_prompt())
+
+    assert f'"{term}"' in flat, term
+
+
+def test_the_prompt_offers_natural_wording_instead():
+    flat = flatten(build_system_prompt())
+
+    assert "Không nhắc tới tên các phần trong tin nhắn này khi trả lời" in flat
+    assert "theo quy định của hệ thống" in flat
+    assert "theo thông tin lịch đặt của bạn" in flat
+
+
+def test_the_ban_reaches_a_real_request(index, settings):
+    provider = RecordingChatModelProvider()
+
+    answer_question(
+        GROUNDED_QUESTION, chat_provider=provider, index=index, settings=settings
+    )
+
+    assert "Không nhắc tới tên các phần" in flatten(
+        provider.calls[0]["system_prompt"]
+    )
+
+
+# --- 1/2. money is attributed to the right person and the right state ---------
+
+
+def test_the_prompt_separates_the_bookings_money_from_the_viewers():
+    flat = flatten(build_system_prompt())
+
+    assert "Phân biệt rõ số của CẢ LỊCH ĐẶT với số của RIÊNG người đang hỏi" in flat
+    assert "Riêng người dùng này còn phải thanh toán trực tuyến" in flat
+    assert "Con số của cả lịch đặt gồm phần của người khác" in flat
+
+
+def test_the_prompt_forbids_chasing_payment_on_a_dead_booking():
+    flat = flatten(build_system_prompt())
+
+    assert "đã kết thúc, đã hủy, đã hết hạn hay đã hoàn thành" in flat
+    assert "không còn khoản nào phải đóng" in flat
+    assert "Đừng nhắc họ thanh toán" in flat
+
+
+def test_the_prompt_handles_an_unpayable_amount():
+    flat = flatten(build_system_prompt())
+
+    assert "không còn thanh toán được nữa" in flat
+    assert "đừng nói người dùng vẫn đang nợ" in flat
+
+
+def test_the_prompt_only_promises_a_refund_that_exists():
+    flat = flatten(build_system_prompt())
+
+    assert "Chỉ nói về hoàn tiền khi DỮ LIỆU HIỆN TẠI thực sự có khoản hoàn tiền" in flat
+    assert "không hứa hẹn" in flat
+    assert "không nêu thời gian tiền về" in flat
+
+
+def test_the_deposit_versus_venue_distinction_is_still_there():
+    """The older rule must survive alongside the new ones."""
+    flat = flatten(build_system_prompt())
+
+    assert '"Khoản cọc còn thiếu" và "Số tiền trả tại sân" là hai con số khác nhau' in flat
+
+
+# --- 7. amounts are written the way the data writes them ----------------------
+
+
+def test_the_prompt_pins_the_money_format():
+    flat = flatten(build_system_prompt())
+
+    assert '"30.000 VND"' in flat
+    assert "Không bỏ dấu chấm phân cách" in flat
+    assert "không tự tính lại" in flat

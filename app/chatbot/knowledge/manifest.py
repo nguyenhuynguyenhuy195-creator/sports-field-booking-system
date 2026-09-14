@@ -82,6 +82,16 @@ KNOWLEDGE_MANIFEST: tuple[KnowledgeDocument, ...] = (
         title="Hướng dẫn sử dụng",
         category="user_guide",
     ),
+    # "Bạn có thể làm được gì?" is one of the first things a user types, and
+    # without this document it retrieved nothing and hit the insufficient
+    # -evidence fallback. The assistant's own scope is curated knowledge like
+    # any other rule, not something the frontend should hard-code.
+    KnowledgeDocument(
+        slug="assistant",
+        filename="assistant.md",
+        title="Trợ lý ảo hỗ trợ được gì",
+        category="assistant",
+    ),
 )
 
 APPROVED_FILENAMES: frozenset[str] = frozenset(
