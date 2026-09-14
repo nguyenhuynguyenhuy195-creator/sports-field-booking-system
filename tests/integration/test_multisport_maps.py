@@ -526,6 +526,7 @@ def test_find_venue_geolocation_script_handles_browser_errors(client):
     script = script_response.get_data(as_text=True)
 
     assert 'id="use-current-location"' in listing
+    assert 'id="retry-current-location"' in listing
     assert "venue-nearby-search.js" in listing
     assert script_response.status_code == 200
     assert 'locationButton.addEventListener("click"' in script
@@ -533,8 +534,31 @@ def test_find_venue_geolocation_script_handles_browser_errors(client):
     assert "Không thể xác định vị trí hiện tại" in script
     assert "Hết thời gian chờ vị trí" in script
     assert "không hỗ trợ xác định vị trí" in script
+    assert "position.coords.accuracy" in script
+    assert "enableHighAccuracy: true" in script
+    assert "maximumAge: 0" in script
+    assert "timeout: 10000" in script
     assert "localStorage" not in script
     assert "sessionStorage" not in script
+
+
+def test_find_venue_warns_when_browser_location_accuracy_is_low(client):
+    response = client.get(
+        "/venues",
+        query_string={
+            "latitude": "10.000000",
+            "longitude": "106.000000",
+            "accuracy": "1500",
+            "sort": "nearest",
+        },
+    )
+    page = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "Vị trí hiện tại có độ chính xác thấp." in page
+    assert "Khoảng cách hiển thị chỉ mang tính ước lượng." in page
+    assert "Thử lấy lại vị trí" in page
+    assert 'id="accuracy" name="accuracy" type="hidden" value="1500"' in page
 
 
 def test_text_search_still_includes_legacy_venue_without_coordinates(app):

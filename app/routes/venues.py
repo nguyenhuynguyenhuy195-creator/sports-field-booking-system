@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from flask import (
     Blueprint,
     abort,
@@ -52,8 +54,10 @@ venues_bp = Blueprint("venues", __name__)
 
 VENUE_SEARCH_CONTEXT_KEYS = (
     "q", "province_code", "ward_code", "sport", "field_type",
-    "min_price", "max_price", "latitude", "longitude", "sort", "page",
+    "min_price", "max_price", "latitude", "longitude", "accuracy", "sort", "page",
 )
+
+LOW_LOCATION_ACCURACY_THRESHOLD_METERS = 1000
 
 
 def _venue_search_context():
@@ -111,6 +115,7 @@ def index():
     venue_results = []
     search_page = None
     nearby_active = False
+    location_accuracy_low = False
     user_location = None
     search_is_valid = form.validate()
     if search_is_valid:
@@ -130,6 +135,11 @@ def index():
             )
             venue_results = search_page.items
             nearby_active = bool(form.latitude.data and form.longitude.data)
+            if nearby_active and form.accuracy.data:
+                location_accuracy_low = (
+                    Decimal(form.accuracy.data)
+                    > LOW_LOCATION_ACCURACY_THRESHOLD_METERS
+                )
             if nearby_active:
                 user_location = {
                     "latitude": form.latitude.data,
@@ -157,6 +167,7 @@ def index():
         search_page=search_page,
         venue_map_results=venue_map_results,
         nearby_active=nearby_active,
+        location_accuracy_low=location_accuracy_low,
         user_location=user_location,
         map_tile_url=current_app.config["MAP_TILE_URL"],
         pagination_params={
@@ -183,6 +194,7 @@ def index():
                 "max_price",
                 "latitude",
                 "longitude",
+                "accuracy",
                 "sort",
             )
         ),

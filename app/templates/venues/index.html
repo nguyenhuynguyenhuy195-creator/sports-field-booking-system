@@ -21,6 +21,7 @@
     <form id="venue-search-form" class="venue-search-panel marketplace-card" method="get" action="{{ url_for('venues.index') }}" role="search">
         {{ form.latitude() }}
         {{ form.longitude() }}
+        {{ form.accuracy() }}
         {{ form.sort() }}
         <div class="venue-search-primary">
             <div class="venue-search-primary-field venue-search-keyword-field">
@@ -79,7 +80,7 @@
             </div>
         </div>
 
-        {% set nearby_errors = form.latitude.errors + form.longitude.errors + form.sort.errors %}
+        {% set nearby_errors = form.latitude.errors + form.longitude.errors + form.accuracy.errors + form.sort.errors %}
         <div class="venue-nearby-bar{% if nearby_active %} is-active{% endif %}">
             <button id="use-current-location" class="btn btn-outline-primary" type="button">
                 <i class="bi bi-crosshair" aria-hidden="true"></i>
@@ -88,11 +89,14 @@
             <p id="location-search-status" class="mb-0{% if nearby_errors %} is-error{% endif %}" role="status" aria-live="polite">
                 {% if nearby_errors %}
                     {{ nearby_errors[0] }}
+                {% elif location_accuracy_low %}
+                    Vị trí hiện tại có độ chính xác thấp. Khoảng cách hiển thị chỉ mang tính ước lượng.
                 {% elif nearby_active %}
                     Đang hiển thị các cơ sở gần bạn nhất.
                 {% else %}
                 {% endif %}
             </p>
+            <button id="retry-current-location" class="btn btn-link venue-nearby-retry" type="button"{% if not location_accuracy_low %} hidden{% endif %}>Thử lấy lại vị trí</button>
             {% if nearby_active %}
                 <a class="venue-nearby-clear" href="{{ url_for('venues.index', q=pagination_params.q, province_code=pagination_params.province_code, ward_code=pagination_params.ward_code, sport=pagination_params.sport, field_type=pagination_params.field_type, min_price=pagination_params.min_price, max_price=pagination_params.max_price) }}">Tắt tìm gần tôi</a>
             {% endif %}

@@ -86,12 +86,14 @@ class VenueSearchForm(FlaskForm):
     )
     latitude = HiddenField("Vĩ độ vị trí hiện tại")
     longitude = HiddenField("Kinh độ vị trí hiện tại")
+    accuracy = HiddenField("Độ chính xác vị trí hiện tại")
     sort = HiddenField("Sắp xếp")
 
     def validate(self, extra_validators=None) -> bool:
         is_valid = super().validate(extra_validators=extra_validators)
         raw_latitude = (self.latitude.data or "").strip()
         raw_longitude = (self.longitude.data or "").strip()
+        raw_accuracy = (self.accuracy.data or "").strip()
         normalized_sort = (self.sort.data or "").strip().lower()
 
         if normalized_sort not in ("", "nearest"):
@@ -122,6 +124,17 @@ class VenueSearchForm(FlaskForm):
             if not in_range:
                 field.errors.append(
                     "Thông tin vị trí hiện tại không hợp lệ. Vui lòng thử lại."
+                )
+                is_valid = False
+        if raw_accuracy:
+            try:
+                accuracy = Decimal(raw_accuracy)
+                accuracy_is_valid = accuracy.is_finite() and accuracy >= 0
+            except (ArithmeticError, ValueError):
+                accuracy_is_valid = False
+            if not accuracy_is_valid:
+                self.accuracy.errors.append(
+                    "Độ chính xác vị trí hiện tại không hợp lệ. Vui lòng thử lại."
                 )
                 is_valid = False
         if is_valid and not normalized_sort:

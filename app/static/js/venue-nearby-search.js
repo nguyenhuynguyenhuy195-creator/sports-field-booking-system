@@ -3,9 +3,11 @@
 
     const form = document.getElementById("venue-search-form");
     const locationButton = document.getElementById("use-current-location");
+    const retryButton = document.getElementById("retry-current-location");
     const statusElement = document.getElementById("location-search-status");
     const latitudeInput = document.getElementById("latitude");
     const longitudeInput = document.getElementById("longitude");
+    const accuracyInput = document.getElementById("accuracy");
     const sortInput = document.getElementById("sort");
     if (
         !form
@@ -13,12 +15,16 @@
         || !statusElement
         || !latitudeInput
         || !longitudeInput
+        || !accuracyInput
         || !sortInput
     ) {
         return;
     }
 
-    locationButton.addEventListener("click", () => {
+    locationButton.addEventListener("click", requestCurrentPosition);
+    retryButton?.addEventListener("click", requestCurrentPosition);
+
+    function requestCurrentPosition() {
         if (!navigator.geolocation) {
             showError(
                 "Trình duyệt của bạn không hỗ trợ xác định vị trí. Bạn vẫn có thể tìm sân bằng các bộ lọc thông thường."
@@ -33,16 +39,17 @@
             useCurrentPosition,
             handleLocationError,
             {
-                enableHighAccuracy: false,
-                maximumAge: 300000,
+                enableHighAccuracy: true,
+                maximumAge: 0,
                 timeout: 10000,
             }
         );
-    });
+    }
 
     function useCurrentPosition(position) {
         const latitude = Number(position.coords.latitude);
         const longitude = Number(position.coords.longitude);
+        const accuracy = Number(position.coords.accuracy);
         if (
             !Number.isFinite(latitude)
             || !Number.isFinite(longitude)
@@ -50,6 +57,8 @@
             || latitude > 90
             || longitude < -180
             || longitude > 180
+            || !Number.isFinite(accuracy)
+            || accuracy < 0
         ) {
             showError(
                 "Vị trí trình duyệt trả về không hợp lệ. Vui lòng thử lại hoặc dùng các bộ lọc thông thường."
@@ -59,6 +68,7 @@
 
         latitudeInput.value = latitude.toFixed(6);
         longitudeInput.value = longitude.toFixed(6);
+        accuracyInput.value = accuracy.toFixed(0);
         sortInput.value = "nearest";
         statusElement.textContent = "Đã lấy vị trí. Đang tìm các sân gần bạn…";
         setLoading(false);
@@ -85,10 +95,16 @@
         setLoading(false);
         statusElement.classList.add("is-error");
         statusElement.textContent = message;
+        if (retryButton) {
+            retryButton.hidden = false;
+        }
     }
 
     function setLoading(isLoading) {
         locationButton.disabled = isLoading;
         locationButton.setAttribute("aria-busy", String(isLoading));
+        if (retryButton) {
+            retryButton.disabled = isLoading;
+        }
     }
 })();
