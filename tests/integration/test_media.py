@@ -5,6 +5,8 @@ from pathlib import Path
 
 import pytest
 from PIL import Image
+from sqlalchemy import event
+from sqlalchemy.dialects import mssql
 from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.datastructures import FileStorage
 
@@ -118,6 +120,57 @@ def upload_image(
         content_type="multipart/form-data",
         follow_redirects=True,
     )
+
+
+@pytest.mark.parametrize("scope", ["venue", "field"])
+def test_set_cover_uses_sqlserver_bit_equality_and_preserves_scope(app, scope):
+    owner = create_user(app, email="cover-bit@example.test", role=UserRole.OWNER)
+    venue_id = create_venue_for_owner(app, owner_id=owner.id, name="Cover venue")
+    field_id = create_field_for_owner(
+        app, owner_id=owner.id, venue_id=venue_id, name="Cover field"
+    )
+    with app.app_context():
+        images = []
+        for parent in ("venue", "field"):
+            for position in range(2):
+                images.append(MediaImage(
+                    venue_id=venue_id if parent == "venue" else None,
+                    field_id=field_id if parent == "field" else None,
+                    storage_path=f"{parent}-{position}.png",
+                    original_filename="cover.png",
+                    content_type="image/png", size_bytes=1,
+                    is_cover=position == 0,
+                ))
+        db.session.add_all(images)
+        db.session.commit()
+        ids = [image.id for image in images]
+        statements = []
+
+        def capture(_conn, clause, _multiparams, _params, _options):
+            if getattr(clause, "is_select", False):
+                statements.append(str(clause.compile(
+                    dialect=mssql.dialect()
+                )))
+
+        event.listen(db.engine, "before_execute", capture)
+        try:
+            if scope == "venue":
+                media_service.set_venue_cover(
+                    owner_id=owner.id, venue_id=venue_id, media_id=ids[1]
+                )
+            else:
+                media_service.set_field_cover(
+                    owner_id=owner.id, venue_id=venue_id,
+                    field_id=field_id, media_id=ids[3],
+                )
+        finally:
+            event.remove(db.engine, "before_execute", capture)
+        assert any("media_images.is_cover = 1" in sql for sql in statements)
+        assert all("media_images.is_cover IS 1" not in sql for sql in statements)
+        db.session.expire_all()
+        flags = [db.session.get(MediaImage, image_id).is_cover for image_id in ids]
+        assert flags == ([False, True, True, False] if scope == "venue"
+                         else [True, False, False, True])
 
 
 def test_venue_media_lifecycle_cover_fallback_and_placeholder(app, client):

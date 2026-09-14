@@ -369,7 +369,7 @@ def _set_cover(image: MediaImage) -> MediaImage:
         db.session.scalars(
             with_update_lock(
                 db.select(MediaImage)
-                .where(parent_filter, MediaImage.is_cover.is_(True)),
+                .where(parent_filter, MediaImage.is_cover == db.true()),
                 MediaImage,
             )
         )
