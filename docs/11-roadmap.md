@@ -1,6 +1,6 @@
 # ROADMAP – SPORTS FIELD BOOKING SYSTEM
 
-> Scope nghiệm thu từ 08/09/2026 (GVHD xác nhận, ADR-039): **Hệ thống sử dụng thanh toán mô phỏng trong môi trường thử nghiệm.** MVP chỉ dùng MOCK/SIMULATED PAYMENT; MoMo Sandbox không phải runtime provider. Nội dung MoMo/HMAC/IPN/query còn được giữ dưới đây là thiết kế hoặc kiểm thử legacy, không phải tính năng đang hoạt động hay điều kiện nghiệm thu.
+> Trạng thái hiện tại đã vượt các snapshot lịch sử bên dưới: MOCK phục vụ phát triển/demo; VNPAY Sandbox có thể bật bằng cấu hình; chatbot RAG, match chat và Notification Center đã được triển khai. Các tổng test và quyết định cũ trong roadmap là mốc lịch sử, không phải kết quả xác minh hiện tại.
 
 ## Mục tiêu sản phẩm
 

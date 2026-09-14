@@ -1,13 +1,13 @@
 # CONTRACT – PHASE 2 ADMIN OPERATIONS
 
 **Trạng thái:** ACCEPTED – phạm vi MVP sau Step 2.1, Step 2.2, Step 2.3 và ADR-038
-**Baseline áp dụng:** `5a67ed0`, Alembic `a6d8e4f2c913`
+**Baseline hiện hành:** Alembic `e5a9c2b7d601`
 **Tài liệu liên quan:** `docs/11-roadmap.md`, `docs/10-decision-log.md`, ADR-037 và ADR-038
 
 ## 1. Mục tiêu và phạm vi
 
-Phase 2 tách các Admin Operations còn lại thành module nghiệp vụ độc lập, thay
-vì tiếp tục mở rộng trang `/admin/monitoring` đang gộp nhiều loại dữ liệu.
+Phase 2 tách Admin Operations thành các module nghiệp vụ độc lập. Workspace
+legacy `/admin/monitoring` đã được xóa sau khi các màn hình canonical hoàn tất.
 Booking là workspace điều tra cho Payment/Refund liên quan; không tạo module
 Payment hoặc Refund primary riêng.
 
@@ -53,9 +53,8 @@ HỆ THỐNG
 - Tiến độ link: Step 2.1 đã đưa Booking vào vận hành và Step 2.3 đã đưa Match
   vào vận hành. Theo ADR-038, MVP không có link Settlement/Đối soát, Thanh toán
   hoặc Hoàn tiền riêng.
-- Khi đã vận hành, mỗi link dẫn tới module dedicated tương ứng, không dẫn tới
-  một `focus` của `/admin/monitoring`; chỉ link của module hoặc detail đang xem
-  được active.
+- Mỗi link dẫn tới module canonical tương ứng; chỉ link của module hoặc detail
+  đang xem được active.
 - Tổng quan, kiểm duyệt, tài khoản và các route Admin Foundation giữ nguyên
   permission, action, URL và hành vi accepted.
 
@@ -81,13 +80,9 @@ Quy tắc route:
   Không có route primary `/admin/payments`, `/admin/payments/<id>`,
   `/admin/refunds` hoặc `/admin/refunds/<id>`.
 - Booking ↔ Match chỉ dùng canonical detail sau khi Step 2.3 được accepted.
-- `/admin/monitoring` là Admin Foundation accepted và có thể tạm thời tồn tại
-  để compatibility trong Phase 2. Không tiếp tục xây capability Phase 2 mới
-  tại đó. Khi một module dedicated được accepted, legacy link/URL liên quan
-  nên được redirect hoặc map tới canonical route nếu an toàn, có kiểm thử và
-  được thực hiện trong đúng step. Đến cuối Phase 2, `/admin/monitoring` không
-  còn là workspace Admin Operations chính; không duy trì hai primary UI cạnh
-  tranh cho cùng một module. Contract này không triển khai redirect.
+- `/admin/monitoring` và `/admin/monitoring/bookings/<booking_code>` đã bị xóa;
+  không giữ redirect hoặc primary UI cạnh tranh. Payment/Refund chỉ được xem
+  trong canonical Booking Detail.
 - Không dành trước hoặc đăng ký route Settlement trong MVP.
 
 ## 4. Ranh giới Phase 2.1 đến 2.6

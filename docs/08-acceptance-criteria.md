@@ -1,6 +1,6 @@
 # 8. Tiêu chí nghiệm thu
 
-> Scope nghiệm thu từ 08/09/2026 (GVHD xác nhận, ADR-039): **Hệ thống sử dụng thanh toán mô phỏng trong môi trường thử nghiệm.** MVP chỉ dùng MOCK/SIMULATED PAYMENT; MoMo Sandbox không phải runtime provider. Nội dung MoMo/HMAC/IPN/query còn được giữ dưới đây là thiết kế hoặc kiểm thử legacy, không phải tính năng đang hoạt động hay điều kiện nghiệm thu.
+> Phạm vi runtime hiện tại: MOCK phục vụ phát triển/demo; VNPAY Sandbox được bật bằng cấu hình và chỉ IPN hợp lệ mới xác nhận giao dịch. MoMo đã bị vô hiệu hóa. Source, migration và test hiện hành là nguồn sự thật.
 
 ## AC-001: Tài khoản và phân quyền
 
@@ -86,10 +86,12 @@
 - FIND_OPPONENT tạo CREATOR/OPPONENT; tổng hai phần đúng deposit_amount.
 - Tiền lẻ do làm tròn được điều chỉnh ở phần cuối, không thu dư.
 
-## AC-011: MOCK-only MVP
+## AC-011: Thanh toán MOCK và VNPAY Sandbox
 
 - MOCK lấy amount từ contribution, không nhận amount từ form và ghi rõ không trừ tiền thật.
 - MOCK ghi nhận payment thành công tối đa một lần cho contribution; gọi lại không thu trùng.
+- VNPAY lấy amount và mã tham chiếu từ dữ liệu persisted; Return URL chỉ hiển thị, IPN hợp lệ mới xác nhận trạng thái.
+- IPN lặp không ghi nhận payment hoặc notification trùng; late success tạo refund theo rule hiện hành.
 - URL/service MoMo disabled không làm thay đổi DB và không gọi mạng.
 - Chỉ transaction MOCK đã commit mới ghi nhận thành công; query string không là bằng chứng.
 - Kiểm thử chữ ký/IPN được giữ trong suite legacy cô lập, không là điều kiện nghiệm thu runtime.

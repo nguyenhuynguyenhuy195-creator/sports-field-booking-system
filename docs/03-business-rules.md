@@ -1,6 +1,6 @@
 # 3. Quy tắc nghiệp vụ
 
-> Scope nghiệm thu từ 08/09/2026 (GVHD xác nhận, ADR-039): **Hệ thống sử dụng thanh toán mô phỏng trong môi trường thử nghiệm.** MVP chỉ dùng MOCK/SIMULATED PAYMENT; MoMo Sandbox không phải runtime provider. Nội dung MoMo/HMAC/IPN/query còn được giữ dưới đây là thiết kế hoặc kiểm thử legacy, không phải tính năng đang hoạt động hay điều kiện nghiệm thu.
+> Phạm vi runtime hiện tại: MOCK phục vụ phát triển/demo; VNPAY Sandbox được bật bằng cấu hình và chỉ IPN hợp lệ mới xác nhận giao dịch. MoMo đã bị vô hiệu hóa. Source, migration và test hiện hành là nguồn sự thật khi ADR lịch sử khác với triển khai.
 
 ## 3.1. Tài khoản, phân quyền và liên hệ
 
@@ -205,8 +205,9 @@ Booking PAID hoặc FIND_OPPONENT PARTIALLY_PAID hợp lệ được chuyển CO
 
 ### BR-027: Ranh giới provider
 
-- MOCK là provider duy nhất trong MVP, dùng trong môi trường thử nghiệm và không trừ tiền thật.
-- MoMo Sandbox disabled và không là điều kiện nghiệm thu; field và lịch sử provider được giữ nguyên.
+- MOCK dùng cho phát triển/demo và không trừ tiền thật.
+- VNPAY Sandbox chỉ hoạt động khi được cấu hình; Return URL không authoritative, IPN hợp lệ mới mutate trạng thái và callback lặp phải idempotent.
+- MoMo disabled; field và lịch sử provider được giữ nguyên.
 - MoMo Production, QR ngân hàng thật, ví admin, Settlement và mọi hình thức
   payout/disbursement cho Owner không thuộc MVP.
 
@@ -319,6 +320,6 @@ Trong MVP hiện tại, Payment và Refund vẫn là lịch sử tài chính onl
 `paid_amount` là số tiền online ròng và phần còn lại chỉ được trả trực tiếp tại
 sân. Admin chỉ điều tra chứng cứ Payment/Refund trong Booking Detail.
 
-### Quy tắc VND sau audit MOCK-only
+### Quy tắc VND hiện hành
 
 Đơn giá mới phải là số nguyên VND dương. Mỗi đoạn thuê nhân đơn giá với số phút/60 rồi làm tròn HALF_UP đến một đồng; tổng booking là tổng các subtotal đã làm tròn. API và Numeric(12,2) vẫn biểu diễn hai chữ số thập phân `.00`. Cọc tiếp tục 30%, chia contribution theo rule hiện có; không đổi snapshot booking cũ. Đơn giá lẻ legacy không bị sửa hàng loạt, báo giá mới vẫn làm tròn subtotal đến đồng.

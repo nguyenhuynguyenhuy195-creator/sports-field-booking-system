@@ -1,6 +1,6 @@
 # 9. Test cases
 
-> Scope nghiệm thu từ 08/09/2026 (GVHD xác nhận, ADR-039): **Hệ thống sử dụng thanh toán mô phỏng trong môi trường thử nghiệm.** MVP chỉ dùng MOCK/SIMULATED PAYMENT; MoMo Sandbox không phải runtime provider. Nội dung MoMo/HMAC/IPN/query còn được giữ dưới đây là thiết kế hoặc kiểm thử legacy, không phải tính năng đang hoạt động hay điều kiện nghiệm thu.
+> Bộ test hiện tại bao phủ MOCK, VNPAY Sandbox, chatbot RAG, Notification Center và ProductionConfig. MoMo chỉ còn regression legacy cô lập và bị vô hiệu hóa trong runtime. Source, migration và test hiện hành là nguồn sự thật.
 
 ## 9.1. Authentication và authorization
 
@@ -326,7 +326,7 @@ Serialization/template/log không làm lộ contact_phone ngoài creator sau khi
 
 ### TC-ADMIN-001: Phân quyền khu quản trị
 
-USER/OWNER truy cập dashboard, tài khoản hoặc giám sát Admin → backend trả 403.
+USER/OWNER truy cập dashboard, tài khoản, Booking Operations hoặc Match Operations của Admin → backend trả 403.
 
 ### TC-ADMIN-002: Khóa và mở khóa tài khoản
 
@@ -336,29 +336,29 @@ Admin khóa user → user không đăng nhập được, dữ liệu lịch sử
 
 Lọc theo tên/email, role và status → kết quả đúng; HTML không chứa password hash, secret key hoặc connection string.
 
-### TC-ADMIN-004: Giám sát dữ liệu MVP
+### TC-ADMIN-004: Booking và Match Operations
 
-Admin xem được sport/field type, booking và match; contribution, payment, refund được gom đúng dưới booking liên quan. Bộ lọc trạng thái/sport/ngày/mã hoạt động và màn hình không có thao tác xóa lịch sử.
+Admin xem được booking và match; contribution, payment, refund được gom đúng trong Booking Detail. Bộ lọc trạng thái/sport/ngày/mã hoạt động và màn hình không có thao tác xóa lịch sử.
 
 ### TC-ADMIN-005: Tổng hợp cảnh báo và chi tiết booking
 
-Dashboard tổng quan giữ các số liệu cảnh báo; màn hình giám sát không lặp lại khối cảnh báo lớn. Admin lọc booking chưa đủ cọc, lỗi payment, refund đang xử lý hoặc đã hoàn thành; mở một booking → xem được thông tin sân, người đặt, tiến độ cọc, contribution, payment, refund, match và dòng thời gian ở chế độ chỉ xem; mã booking không tồn tại được xử lý an toàn.
+Dashboard tổng quan giữ các số liệu cảnh báo và liên kết tới `/admin/bookings`. Mở một booking → xem được thông tin sân, người đặt, tiến độ cọc, contribution, payment, refund, match và dòng thời gian ở chế độ chỉ xem; mã booking không tồn tại được xử lý an toàn.
 
-### TC-ADMIN-006: Nhóm dữ liệu quản trị và nội dung thân thiện
+### TC-ADMIN-006: Nội dung quản trị thân thiện
 
-Admin chọn cơ sở rồi chọn sân → “Đặt sân & dòng tiền” và “Kèo thi đấu” chỉ hiển thị dữ liệu của sân đã chọn; khi xem toàn hệ thống, dữ liệu được gom thành từng sân có thể thu gọn. Mỗi booking chỉ có một thẻ và dòng tiền có thể mở rộng. Trang tài khoản gom theo vai trò rồi trạng thái. Nội dung dùng tiếng Việt dành cho người sử dụng, không hiển thị trực tiếp mã kỹ thuật như MOCK hoặc OWNER.
+Booking/Match Operations lọc theo tỉnh, phường/xã, cơ sở và sân; trang tài khoản gom theo vai trò rồi trạng thái. Nội dung dùng tiếng Việt dành cho người sử dụng, không hiển thị trực tiếp mã kỹ thuật như MOCK hoặc OWNER.
 
-### TC-ADMIN-007: Tìm kiếm và phân trang khi có nhiều cơ sở
+### TC-ADMIN-007: Tìm kiếm và phân trang Operations
 
-Tạo 50 cơ sở ở nhiều phường/xã → Admin tìm được theo tên hoặc địa chỉ, lọc đúng tỉnh/thành phố và phường/xã/đặc khu, mỗi trang chỉ hiển thị tối đa 10 cơ sở. Cơ sở có 30 sân vẫn tìm được mọi sân, chỉ hiện 8 sân đầu và nút “Xem thêm”. Chuyển trang vẫn giữ điều kiện lọc; chọn một cơ sở ở trang sau vẫn hiển thị đúng danh sách sân.
+Admin tìm/lọc Booking và Match theo dữ liệu canonical; chuyển trang giữ điều kiện lọc và detail có liên kết quay lại danh sách.
 
 ### TC-ADMIN-009: Người nhận kèo thực tế
 
 Kèo có 5 bản ghi participant gồm 1 `JOINED` và 4 `WITHDRAWN` → màn hình hiển thị 1 người đã nhận kèo cùng đúng tên; 4 bản ghi đã rút chỉ xuất hiện dưới dạng số lịch sử, không bị tính thành người tham gia.
 
-### TC-ADMIN-008: Cập nhật trang giám sát tại chỗ
+### TC-ADMIN-008: Loại bỏ route legacy
 
-Admin chọn cơ sở, sân, nhóm dữ liệu, bộ lọc hoặc phân trang → chỉ vùng giám sát được cập nhật, thanh điều hướng không tải lại; URL thay đổi đúng và nút Back/Forward khôi phục được trạng thái trước đó.
+`/admin/monitoring` và detail legacy trả 404; dashboard, sidebar và template không còn link stale. Payment/Refund vẫn hiển thị trong Booking Detail.
 
 ## 9.13. Kiểm tra hồi quy
 

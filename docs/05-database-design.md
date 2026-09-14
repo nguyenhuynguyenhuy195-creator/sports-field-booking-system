@@ -1,6 +1,6 @@
 # 5. Thiết kế cơ sở dữ liệu
 
-> Scope nghiệm thu từ 08/09/2026 (GVHD xác nhận, ADR-039): **Hệ thống sử dụng thanh toán mô phỏng trong môi trường thử nghiệm.** MVP chỉ dùng MOCK/SIMULATED PAYMENT; MoMo Sandbox không phải runtime provider. Nội dung MoMo/HMAC/IPN/query còn được giữ dưới đây là thiết kế hoặc kiểm thử legacy, không phải tính năng đang hoạt động hay điều kiện nghiệm thu.
+> Phạm vi runtime hiện tại: SQL Server là database chính và Alembic quản lý schema. MOCK phục vụ phát triển/demo, VNPAY Sandbox được bật bằng cấu hình, MoMo đã bị vô hiệu hóa. Source, migration và test hiện hành là nguồn sự thật khi ADR lịch sử khác với triển khai.
 
 ## 5.1. Nguyên tắc chung
 
@@ -358,11 +358,16 @@ Với FIND_OPPONENT mới, contribution CREATOR `PAID` bằng 15% đã đủ là
 | provider_trans_id | VARCHAR(100) | NULL |
 | status | VARCHAR(20) | NOT NULL |
 | result_code | VARCHAR(20) | NULL |
+| checkout_url | NVARCHAR(2000) | NULL |
 | paid_at | DATETIME2 | NULL |
 | created_at | DATETIME2 | NOT NULL |
 | updated_at | DATETIME2 | NULL |
 
-Provider: `MOCK`, `MOMO`. `MOCK` chỉ dùng cho phát triển/kiểm thử; `MOMO` dành cho Sandbox khi tích hợp client thật.
+Provider trong schema: `MOCK`, `MOMO`, `VNPAY`. `MOCK` dùng cho phát triển/demo; `VNPAY` dành cho Sandbox khi được cấu hình; `MOMO` chỉ còn để đọc dữ liệu legacy và bị disable trong runtime.
+
+Payment method: `SIMULATED` (MOCK), `MOMO_WALLET` (legacy), `VNPAY_GATEWAY`.
+
+`checkout_url` lưu URL cổng thanh toán VNPAY Sandbox được sinh khi tạo Payment `PENDING`; provider `MOCK` không dùng cột này.
 
 Status: `PENDING`, `SUCCESS`, `FAILED`, `CANCELLED`, `EXPIRED`.
 
@@ -466,6 +471,62 @@ Service phải ngăn một user có hai yêu cầu đang hoạt động cho cùn
 
 Filtered unique index hoặc cơ chế khóa tương đương cần áp dụng cho `(match_id, user_id)` ở các trạng thái `PENDING`, `ACCEPTED_AWAITING_PAYMENT` và `JOINED`.
 
+## 5.18b. Bảng `match_messages`
+
+| Cột | Kiểu dữ liệu | Ràng buộc |
+|---|---|---|
+| id | INT | PK, IDENTITY |
+| match_id | INT | FK → matches.id, NOT NULL |
+| sender_id | INT | FK → users.id, NULL |
+| message_type | VARCHAR(20) | NOT NULL |
+| content | NVARCHAR(500) | NOT NULL |
+| event_type | VARCHAR(40) | NULL |
+| event_key | VARCHAR(120) | NULL |
+| created_at | DATETIME2 | NOT NULL |
+
+Message type: `USER`, `SYSTEM`. Event type (chỉ với `SYSTEM`): `participant_joined`, `participant_withdrawn`, `listing_closed`, `match_cancelled`, `match_completed`.
+
+Đây là chat theo từng kèo (Match), không phải inbox tổng quát. Chỉ creator của match và participant đang `JOINED` được đọc/gửi tin; quyền được backend kiểm tra ở route/service, không suy diễn từ client.
+
+Bản ghi `USER` bắt buộc có `sender_id`, không có `event_type`/`event_key`. Bản ghi `SYSTEM` không có `sender_id`, bắt buộc có `event_type` và `event_key` để một callback hoặc job retry không tạo trùng cùng một sự kiện (unique `(match_id, event_key)` khi `message_type = 'SYSTEM'`).
+
+Không hỗ trợ gửi file/ảnh, voice/video, typing indicator, read receipt hoặc trạng thái online; chỉ text message polling qua AJAX.
+
+## 5.18c. Bảng `notifications`
+
+| Cột | Kiểu dữ liệu | Ràng buộc |
+|---|---|---|
+| id | INT | PK, IDENTITY |
+| user_id | INT | FK → users.id, NOT NULL |
+| event_key | VARCHAR(160) | NOT NULL |
+| type | VARCHAR(40) | NOT NULL |
+| title | NVARCHAR(160) | NOT NULL |
+| message | NVARCHAR(500) | NOT NULL |
+| target_url | VARCHAR(250) | NOT NULL |
+| is_read | BIT | NOT NULL, DEFAULT 0 |
+| created_at | DATETIME2 | NOT NULL |
+| read_at | DATETIME2 | NULL |
+
+Type: `payment_success`, `join_request`, `request_accepted`, `request_rejected`, `opponent_joined`, `participant_withdrawn`, `booking_cancelled`, `match_cancelled`, `refund_success`.
+
+Chỉ dành cho USER (không phải Admin/Owner). Unique `(user_id, event_key)` chống ghi trùng cùng một sự kiện. Gửi thông báo chạy best-effort sau khi transaction nghiệp vụ chính đã commit; lỗi ghi notification không được rollback booking/payment/refund. Giao diện đọc bằng chuông + số chưa đọc, AJAX polling khoảng 30 giây; không có push realtime.
+
+## 5.18d. Bảng `media_images`
+
+| Cột | Kiểu dữ liệu | Ràng buộc |
+|---|---|---|
+| id | INT | PK, IDENTITY |
+| venue_id | INT | FK → venues.id (CASCADE), NULL |
+| field_id | INT | FK → fields.id (CASCADE), NULL |
+| storage_path | VARCHAR(255) | UNIQUE, NOT NULL |
+| original_filename | NVARCHAR(255) | NOT NULL |
+| content_type | VARCHAR(50) | NOT NULL |
+| size_bytes | INT | NOT NULL, CHECK > 0 |
+| is_cover | BIT | NOT NULL, DEFAULT 0 |
+| created_at | DATETIME2 | NOT NULL |
+
+Mỗi ảnh thuộc đúng một cha: `venue_id` hoặc `field_id`, không cả hai (check constraint). Filtered unique index đảm bảo tối đa một `is_cover = 1` cho mỗi venue và mỗi field. Xóa venue/field cascade xóa ảnh liên quan.
+
 ## 5.19. Quan hệ chính
 
 - User 1–N OwnerApplication; Admin 1–N OwnerApplication đã review.
@@ -482,6 +543,9 @@ Filtered unique index hoặc cơ chế khóa tương đương cần áp dụng c
 - Booking 1–0..1 Match.
 - Match 1–N MatchParticipant.
 - MatchParticipant 1–0..1 BookingContribution đang hoạt động.
+- Match 1–N MatchMessage; User 0..1–N MatchMessage với vai trò sender (NULL khi `SYSTEM`).
+- User 1–N Notification.
+- Venue 0..1–N MediaImage; Field 0..1–N MediaImage (một ảnh chỉ thuộc một trong hai).
 
 ## 5.20. Ràng buộc cần kiểm tra trong service và transaction
 
@@ -502,6 +566,9 @@ Filtered unique index hoặc cơ chế khóa tương đương cần áp dụng c
 - Việc participant xuất hiện trong lịch cá nhân được suy ra từ `match_participants.user_id/status`; không tạo booking thứ hai và không thay đổi `bookings.user_id`.
 - Tìm kiếm công khai chỉ dùng venue `ACTIVE`; không lọc theo bán kính.
 - Không lưu venue mới với province/ward không tồn tại hoặc ward không thuộc province đã chọn.
+- Chỉ creator của match và participant đang `JOINED` được đọc/gửi `match_messages`; backend kiểm tra quyền, không suy diễn từ client.
+- Không ghi hai `notifications` cùng `(user_id, event_key)`; lỗi ghi notification không rollback transaction nghiệp vụ chính.
+- Return URL của VNPAY chỉ đọc trạng thái để hiển thị; chỉ IPN đã xác minh chữ ký, đối chiếu số tiền và mã tham chiếu mới được phép chuyển Payment sang `SUCCESS`/`FAILED`.
 
 ## 5.21. Tương thích dữ liệu khi triển khai ADR-027
 

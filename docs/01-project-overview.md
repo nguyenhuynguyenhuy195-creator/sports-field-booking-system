@@ -1,6 +1,6 @@
 # 1. Tổng quan dự án
 
-> Scope nghiệm thu từ 08/09/2026 (GVHD xác nhận, ADR-039): **Hệ thống sử dụng thanh toán mô phỏng trong môi trường thử nghiệm.** MVP chỉ dùng MOCK/SIMULATED PAYMENT; MoMo Sandbox không phải runtime provider. Nội dung MoMo/HMAC/IPN/query còn được giữ dưới đây là thiết kế hoặc kiểm thử legacy, không phải tính năng đang hoạt động hay điều kiện nghiệm thu.
+> Phạm vi runtime hiện tại: MOCK phục vụ phát triển/demo; VNPAY Sandbox được bật bằng cấu hình và chỉ IPN hợp lệ mới xác nhận giao dịch. MoMo đã bị vô hiệu hóa. Source, migration và test hiện hành là nguồn sự thật khi ADR lịch sử khác với triển khai.
 
 ## 1.1. Tên đề tài
 
@@ -81,7 +81,7 @@ Ba hình thức booking:
 
 Số còn lại tại sân được tính từ tiền cọc thực thu: 85% với FIND_OPPONENT chỉ có cọc creator và 70% khi cả creator lẫn đối thủ đã cọc. Người chủ động hủy/rút hoặc no-show mất phần cọc của mình; chủ sân hủy hoặc lỗi hệ thống phải hoàn 100% cho bên không có lỗi.
 
-MOCK là provider duy nhất trong MVP; MoMo Sandbox bị disable và chỉ giữ code lịch sử. MoMo Production, QR ngân hàng thật, ví admin, Settlement và mọi hình thức chi trả từ nền tảng cho Owner nằm ngoài phạm vi MVP.
+MOCK phục vụ phát triển/demo. VNPAY Sandbox có thể bật bằng cấu hình; Return URL không xác nhận giao dịch và IPN hợp lệ mới được phép mutate trạng thái. MoMo bị disable và chỉ giữ code lịch sử. MoMo Production, QR ngân hàng thật, ví admin, Settlement và mọi hình thức chi trả từ nền tảng cho Owner nằm ngoài phạm vi.
 
 ## 1.8. Trạng thái triển khai
 

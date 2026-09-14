@@ -1,6 +1,6 @@
 # Thư mục kiểm thử
 
-> Scope nghiệm thu từ 08/09/2026 (GVHD xác nhận, ADR-039): **Hệ thống sử dụng thanh toán mô phỏng trong môi trường thử nghiệm.** MVP chỉ dùng MOCK/SIMULATED PAYMENT; MoMo Sandbox không phải runtime provider. Nội dung MoMo/HMAC/IPN/query còn được giữ dưới đây là thiết kế hoặc kiểm thử legacy, không phải tính năng đang hoạt động hay điều kiện nghiệm thu.
+> Bộ test hiện tại bao phủ cả MOCK và VNPAY Sandbox bằng transport giả; MoMo chỉ còn regression legacy cô lập và bị vô hiệu hóa trong runtime. Kết quả cuối phải lấy từ lần chạy full suite mới nhất.
 
 - `conftest.py`: tạo Flask app và database SQLite độc lập cho từng test.
 - `integration/`: kiểm tra application factory, health, xác thực, owner application, venue, field, pricing, maintenance, trạng thái lưới giờ booking, phân bổ tiền, thanh toán mô phỏng, creator top-up và vòng đời tìm đối thủ/ghép người.
@@ -15,4 +15,4 @@ Testing config dùng SQLite trong bộ nhớ để test nhanh và độc lập. 
 
 Fixture SQLite bật `PRAGMA foreign_keys=ON` trên mỗi connection. `test_migration_head.py` dựng database SQLite rỗng qua đủ migration, đối chiếu metadata và kiểm tra foreign_key_check; không thay thế kiểm thử nâng cấp SQL Server chứa dữ liệu legacy. Các module test MoMo chủ động bật cờ chỉ trên app testing và dùng fake transport; test đó không chứng minh Sandbox thật hoạt động. Fixture ảnh cũ chỉ chứa magic bytes đã được thay bằng PNG thật để đáp ứng validation, không bỏ assertion.
 
-Xem `AUDIT_REPORT_FINAL.md` ở root để lấy số case và kết quả lần chạy cuối. Không sử dụng số đếm lịch sử trong tài liệu như kết quả hiện tại.
+Kết quả canonical của lần chạy full suite cuối: **1308 passed, 8 warnings, 0 failed** (xem `README.md` mục 8). Không sử dụng số đếm lịch sử trong tài liệu như kết quả hiện tại; chạy lại `pytest` để lấy số mới nhất sau mỗi thay đổi.

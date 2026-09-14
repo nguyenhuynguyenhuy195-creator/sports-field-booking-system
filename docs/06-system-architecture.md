@@ -1,6 +1,6 @@
 # 6. Kiến trúc hệ thống
 
-> Scope nghiệm thu từ 08/09/2026 (GVHD xác nhận, ADR-039): **Hệ thống sử dụng thanh toán mô phỏng trong môi trường thử nghiệm.** MVP chỉ dùng MOCK/SIMULATED PAYMENT; MoMo Sandbox không phải runtime provider. Nội dung MoMo/HMAC/IPN/query còn được giữ dưới đây là thiết kế hoặc kiểm thử legacy, không phải tính năng đang hoạt động hay điều kiện nghiệm thu.
+> Phạm vi runtime hiện tại: Flask/Jinja/JavaScript gọi service và SQLAlchemy trên SQL Server; MOCK phục vụ phát triển/demo, VNPAY Sandbox được bật bằng cấu hình và MoMo đã bị vô hiệu hóa. Source, migration và test hiện hành là nguồn sự thật.
 
 ## 6.1. Kiến trúc tổng quát
 
@@ -39,25 +39,30 @@ Frontend không quyết định quyền, trạng thái availability cuối cùng
 
 ## 6.3. Route Layer
 
-Các blueprint hiện có gồm `auth`, `owner_applications`, `venues`, `fields`, `pricing`, `maintenance`, `bookings`, `payments`, `matches` và health checks. Code hiện hỗ trợ danh mục đa môn, địa chỉ hành chính và liên kết chỉ đường Google Maps, ba booking mode, cọc 30%, `MOCK` (MoMo chỉ giữ legacy disabled); booking lịch sử được giữ riêng bằng `LEGACY_FULL_ONLINE`.
+Các blueprint hiện có gồm `main`, `auth`, `owner_applications`, `owner`, `venues`, `fields`, `pricing`, `maintenance`, `bookings`, `payments`, `matches`, `chatbot`, `notifications`, `media`, `admin` và `health`. Code hiện hỗ trợ danh mục đa môn, địa chỉ hành chính và liên kết chỉ đường Google Maps, ba booking mode, cọc 30%, `MOCK` và `VNPAY` Sandbox (MoMo chỉ giữ legacy disabled); booking lịch sử được giữ riêng bằng `LEGACY_FULL_ONLINE`.
 
-Thiết kế đích của các blueprint thanh toán:
+Thiết kế đích của các blueprint chính:
 - `auth`: đăng ký, đăng nhập, đăng xuất.
 - `owner_applications`: gửi và xét duyệt yêu cầu owner.
-- `venues`: tìm/lọc theo sport, field type, giá, địa chỉ hành chính và hiển thị venue.
+- `owner`: dashboard và lịch vận hành của Chủ sân.
+- `venues`: tìm/lọc theo sport, field type, giá, địa chỉ hành chính, `Sân gần tôi` và hiển thị venue.
 - `fields`: quản lý field theo danh mục sport/field type.
+- `media`: upload/xóa ảnh venue/field và chọn ảnh bìa.
 - `bookings`: trả lịch trống theo ngày, báo giá, tạo giữ chỗ tự động, xem và hủy booking.
-- `payments`: thanh toán mô phỏng; URL MoMo legacy bị chặn khi disabled.
-- `refunds`: yêu cầu/query refund theo quyền.
-- `matches`: tạo kèo, tự giữ suất đối thủ, gửi/duyệt yêu cầu ghép người và xử lý rút.
-- `admin`: tài khoản, venue, booking, payment, refund và match.
+- `payments`: khởi tạo thanh toán MOCK/VNPAY, Return URL (chỉ đọc), IPN (mutate) và poll trạng thái; URL MoMo legacy bị chặn khi disabled. Refund được điều tra trong Booking Detail, không có blueprint riêng.
+- `matches`: tạo kèo, tự giữ suất đối thủ, gửi/duyệt yêu cầu ghép người, xử lý rút và chat theo match.
+- `chatbot`: nhận câu hỏi USER, trả lời bằng RAG chỉ đọc; không tạo/sửa/hủy booking hay payment.
+- `notifications`: danh sách, đánh dấu đã đọc và poll số chưa đọc cho USER.
+- `admin`: tài khoản, venue, booking (gồm điều tra payment/refund) và match; không còn workspace `/admin/monitoring`.
 
 Route chỉ nhận request, kiểm tra authentication/authorization, validate form, gọi service và trả response.
 
-Endpoint IPN phải:
+Endpoint IPN (MoMo legacy và VNPAY) phải:
 - Công khai qua HTTPS khi tích hợp sandbox.
 - Miễn CSRF vì được gọi server-to-server.
-- Bắt buộc xác minh HMAC và idempotency trước khi thay đổi dữ liệu.
+- Bắt buộc xác minh chữ ký (HMAC với MoMo, secure hash với VNPAY) và idempotency trước khi thay đổi dữ liệu.
+
+Return URL của trình duyệt (VNPAY) chỉ được đọc trạng thái Payment hiện có để hiển thị cho user; route Return URL không được tự quyết định hoặc ghi `SUCCESS`. Chỉ IPN đã xác minh chữ ký, đối chiếu mã tham chiếu và số tiền mới được phép mutate Payment/Contribution/Booking/MatchParticipant.
 
 ## 6.4. Service Layer
 
@@ -69,25 +74,32 @@ Các service chính:
 - `booking_service`: validate play format, tính mức cọc mục tiêu 30%, tạo booking, xử lý hủy/mất cọc và chuyển trạng thái.
 - `contribution_service`: phân bổ tiền cọc creator/opponent; không tạo nghĩa vụ online cho người ghép.
 - `payment_service`: tạo payment attempt, xử lý IPN và tổng tiền đã thu.
-- `refund_service`: chỉ hoàn các khoản bắt buộc do owner/hệ thống hoặc trả lại cho bên không chủ động gây hủy; hoàn tiền MOCK và hoàn tất hủy; nhánh MoMo chỉ giữ legacy disabled.
+- `refund_service`: chỉ hoàn các khoản bắt buộc do owner/hệ thống hoặc trả lại cho bên không chủ động gây hủy; hoàn tiền MOCK hoàn tất ngay, refund VNPAY theo vòng đời `PENDING/PROCESSING/SUCCESS/FAILED`; nhánh MoMo chỉ giữ legacy disabled.
 - `match_service`: tạo kèo, khóa match/contribution để tự giữ duy nhất một suất đối thủ trong 15 phút, duyệt yêu cầu FIND_PLAYERS, bảo vệ số Zalo, đóng bài theo giờ bắt đầu và mở lại vị trí khi hết hạn/rút.
+- `match_chat_service`: kiểm tra quyền creator/participant `JOINED` trước khi đọc hoặc gửi `match_messages`, ghi các sự kiện hệ thống (tham gia, rút, đóng bài, hủy, hoàn tất) bằng `event_key` idempotent.
+- `notification_service`: tạo notification USER-only sau khi transaction nghiệp vụ chính đã commit (best-effort, không rollback nghiệp vụ nếu lỗi), chống trùng bằng `(user_id, event_key)`, phục vụ chuông và poll ~30 giây.
 - `owner_application_service`: xử lý yêu cầu chuyển role.
+- `media_service`: upload, xóa và chọn ảnh bìa cho venue/field; mỗi ảnh chỉ thuộc một venue hoặc một field.
 - `expiration_service`: hết hạn giữ chỗ đầu tiên, yêu cầu thanh toán đối thủ, bài tìm kèo và booking hoàn thành; funding deadline chỉ còn cho dữ liệu legacy.
+
+Package `app/chatbot` (không đặt trong `app/services`) cung cấp chatbot RAG chỉ đọc: `retrieval.py` dùng LangChain `InMemoryVectorStore` (`langchain-core`) để tìm tài liệu `docs/chatbot` liên quan; `providers/gemini.py` gọi Gemini qua `google-genai` để sinh embedding (`gemini-embedding-001`) và câu trả lời; `context.py`/`context_gate.py` gắn ngữ cảnh động của user hiện tại và chặn câu hỏi ngoài phạm vi (evidence gate); `answering.py` tổng hợp câu trả lời có fallback xác định khi không đủ bằng chứng. Chatbot không có quyền gọi service ghi dữ liệu; không tạo, sửa, hủy booking/payment hoặc thao tác thay user.
 
 Service chịu trách nhiệm kiểm tra quyền sở hữu, khóa dữ liệu cần thiết, quản lý transaction và rollback khi lỗi.
 
-## 6.5. MoMo Client — LEGACY, không thuộc runtime MVP
+## 6.5. VNPAY Client và MoMo Client (legacy)
 
-MoMo Client là lớp hạ tầng riêng, không đặt trực tiếp trong route.
+`app/integrations/vnpay.py` là lớp hạ tầng cho VNPAY Sandbox, không đặt trực tiếp trong route:
+- Sinh URL thanh toán từ dữ liệu Payment đã persisted (amount, mã tham chiếu), không nhận amount từ form/query string của client.
+- Ký và xác minh secure hash theo đúng thuật toán VNPAY.
+- Xác minh chữ ký, đối chiếu mã tham chiếu và amount trước khi coi kết quả là hợp lệ.
+- Chuẩn hóa timeout, response code và message.
+- Không log secret hoặc dữ liệu nhạy cảm.
 
-Trách nhiệm:
-- Tạo chuỗi raw signature đúng thứ tự trường.
-- Ký và xác minh HMAC SHA-256.
-- Gọi create payment, query transaction, refund và query refund.
-- Chuẩn hóa timeout, mã lỗi và response.
-- Không log secret key hoặc dữ liệu nhạy cảm.
+`VNPAY_ENABLED=true` và đủ cấu hình Sandbox mới bật được provider này; `payment_service` giữ MOCK làm fallback khi VNPAY tắt.
 
-Credential và endpoint phải đọc từ biến môi trường. Sandbox và production phải tách cấu hình; MVP chỉ bật sandbox.
+`app/integrations/momo.py` — LEGACY, không thuộc runtime hiện tại. MoMo Client vẫn giữ nguyên trách nhiệm cũ (raw signature, HMAC SHA-256, create/query payment, refund/query refund) nhưng bị chặn trước khi chạm DB/mạng khi `MOMO_ENABLED=false`.
+
+Credential và endpoint của cả hai provider phải đọc từ biến môi trường, không commit vào Git. Sandbox và production phải tách cấu hình; runtime hiện tại chỉ bật sandbox.
 
 ## 6.6. Địa chỉ, bản đồ và tìm gần tôi
 
@@ -104,7 +116,7 @@ Credential và endpoint phải đọc từ biến môi trường. Sandbox và pr
 ## 6.7. Model Layer
 
 Trách nhiệm:
-- Định nghĩa 18 bảng nghiệp vụ hiện tại và quan hệ trong `docs/05-database-design.md`.
+- Định nghĩa 20 bảng nghiệp vụ hiện tại và quan hệ trong `docs/05-database-design.md`.
 - Khai báo primary key, foreign key, unique/check constraint và index.
 - Dùng `DECIMAL` cho tiền và `DATETIME2` cho timestamp UTC.
 - Không chứa orchestration nghiệp vụ dài trong model.
@@ -117,8 +129,12 @@ app/
 ├── forms/
 ├── routes/
 ├── services/
+├── chatbot/
+│   ├── providers/
+│   └── knowledge/
 ├── integrations/
-│   └── momo/
+│   ├── momo.py
+│   └── vnpay.py
 ├── cli/
 ├── templates/
 ├── static/
@@ -157,25 +173,30 @@ Mục tiêu là tránh hai request đồng thời cùng vượt qua bước ki�
 
 ## 6.11. Transaction xử lý IPN
 
-1. Xác minh chữ ký và đối chiếu dữ liệu MoMo.
-2. Tìm payment theo `order_id` và khóa payment/contribution/booking.
-3. Nếu payment đã có kết quả cuối cùng, trả response idempotent.
-4. Cập nhật payment và contribution.
-5. Tính lại tổng tiền cọc thành công của booking.
-6. Chuyển `PARTIALLY_PAID` hoặc `PAID` khi đúng điều kiện. `PARTIALLY_PAID` sau cọc creator FIND_OPPONENT đã là booking giữ sân hợp lệ.
-7. Cập nhật match participant nếu đây là payment của đại diện đối thủ; người ghép không đi qua IPN.
-8. Commit một lần; lỗi thì rollback.
+Áp dụng cho cả MoMo IPN (legacy, disabled) và VNPAY IPN (runtime hiện tại):
 
-Thiết kế legacy mong muốn (chưa là bảo đảm implementation, xem H04–H07/M01 audit cũ): không giữ transaction database mở trong lúc chờ HTTP call ra MoMo. Tạo bản ghi `PENDING`, commit, gọi MoMo, rồi xử lý kết quả trong transaction riêng.
+1. Xác minh chữ ký (HMAC với MoMo, secure hash với VNPAY) và đối chiếu dữ liệu provider.
+2. Tìm payment theo `order_id`/mã tham chiếu và khóa payment/contribution/booking.
+3. Nếu payment đã có kết quả cuối cùng, trả response idempotent — callback lặp không ghi trùng.
+4. Đối chiếu amount với payment đã persisted trước khi chấp nhận kết quả.
+5. Cập nhật payment và contribution.
+6. Tính lại tổng tiền cọc thành công của booking.
+7. Chuyển `PARTIALLY_PAID` hoặc `PAID` khi đúng điều kiện. `PARTIALLY_PAID` sau cọc creator FIND_OPPONENT đã là booking giữ sân hợp lệ.
+8. Cập nhật match participant nếu đây là payment của đại diện đối thủ; người ghép không đi qua IPN.
+9. Commit một lần; lỗi thì rollback.
+
+Với VNPAY, Return URL (route trình duyệt quay về) chỉ được đọc trạng thái Payment hiện có để hiển thị; nó không xác minh chữ ký theo cùng mức độ IPN và không được coi là nguồn xác nhận giao dịch. IPN là đường duy nhất được phép chuyển Payment sang `SUCCESS`/`FAILED`; success đến muộn sau khi booking đã bị hủy vẫn được ghi nhận rồi tạo refund theo rule hiện hành thay vì bị bỏ qua.
+
+Thiết kế legacy mong muốn cho MoMo (chưa là bảo đảm implementation, xem H04–H07/M01 audit cũ): không giữ transaction database mở trong lúc chờ HTTP call ra MoMo. Tạo bản ghi `PENDING`, commit, gọi MoMo, rồi xử lý kết quả trong transaction riêng.
 
 ## 6.12. Transaction refund
 
 1. Service xác định đây là trường hợp được hoàn (owner hủy, lỗi/thu trùng hệ thống hoặc trả lại bên không chủ động gây hủy) rồi tạo refund `PENDING` với request id duy nhất.
-2. Commit refund intent trước khi gọi MoMo.
-3. Gọi refund API ngoài transaction database dài.
-4. Trong transaction mới, cập nhật refund và contribution.
-5. Chỉ chuyển booking `CANCELLED` khi mọi refund bắt buộc đã `SUCCESS`.
-6. Kết quả đang xử lý được query lại; retry phải idempotent.
+2. Refund MOCK hoàn tất ngay trong transaction. Refund MoMo (legacy) commit refund intent trước khi gọi MoMo, gọi refund API ngoài transaction database dài rồi cập nhật trong transaction mới. Refund VNPAY đi qua vòng đời `PENDING → PROCESSING → SUCCESS/FAILED`; `PROCESSING` bị kẹt được đối soát thủ công vì VNPAY queryDr không định danh chắc chắn một refund cụ thể.
+3. Cập nhật refund và contribution cùng transaction với bước ghi kết quả.
+4. Chỉ chuyển booking `CANCELLED` khi mọi refund bắt buộc đã `SUCCESS`.
+5. Kết quả đang xử lý được query lại; retry phải idempotent.
+6. Payment gốc luôn giữ nguyên `SUCCESS`; không đổi thành `REFUNDED`. Mỗi lần hoàn là một bản ghi `refunds` riêng.
 
 ## 6.13. Xử lý thời hạn
 
@@ -192,12 +213,13 @@ Availability service cũng phải bỏ qua dữ liệu đã quá hạn theo time
 ## 6.14. Nguyên tắc bảo mật và lỗi
 
 - Bật CSRF cho form người dùng.
-- IPN không dùng CSRF nhưng phải xác minh HMAC.
-- Secret, connection string và MoMo key chỉ nằm trong biến môi trường.
+- IPN không dùng CSRF nhưng phải xác minh chữ ký (HMAC với MoMo, secure hash với VNPAY).
+- Secret, connection string, MoMo key và VNPAY hash secret/TMN code chỉ nằm trong biến môi trường, không commit vào Git.
 - Liên kết Google Maps không chứa API key; `google_place_id` không được dùng trong form mới. Latitude/longitude nằm ở trường ẩn và chỉ được lưu sau khi Owner xác nhận ghim.
-- Không log password, secret key hoặc toàn bộ payload nhạy cảm.
+- Không log password, secret key, Gemini API key hoặc toàn bộ payload nhạy cảm.
 - Không log/công khai số điện thoại của hai bên. Service lưu snapshot có sự đồng ý và template chỉ trả số khi participant `JOINED`, booking còn hiệu lực và user hiện tại là creator hoặc chính participant đó.
 - Trang lịch cá nhân hợp nhất booking do user tạo với match user đã `JOINED`; match tham gia là liên kết chỉ xem, không làm thay đổi kiểm tra quyền sở hữu booking ở service.
+- Chatbot chỉ đọc dữ liệu allowlist của chính user đang đăng nhập (không phải ORM object thô, không lộ order/request/transaction id, checkout URL hay dữ liệu người khác) và không thể gọi service ghi dữ liệu.
 - Backend luôn kiểm tra quyền và quyền sở hữu.
 - Rollback khi commit thất bại.
 - Hiển thị thông báo thân thiện cho user; ghi log kỹ thuật bằng correlation id.

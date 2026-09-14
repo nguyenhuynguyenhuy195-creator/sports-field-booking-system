@@ -1,6 +1,6 @@
 # 2. Phạm vi MVP
 
-> Scope nghiệm thu từ 08/09/2026 (GVHD xác nhận, ADR-039): **Hệ thống sử dụng thanh toán mô phỏng trong môi trường thử nghiệm.** MVP chỉ dùng MOCK/SIMULATED PAYMENT; MoMo Sandbox không phải runtime provider. Nội dung MoMo/HMAC/IPN/query còn được giữ dưới đây là thiết kế hoặc kiểm thử legacy, không phải tính năng đang hoạt động hay điều kiện nghiệm thu.
+> Phạm vi runtime hiện tại: MOCK phục vụ phát triển/demo; VNPAY Sandbox được bật bằng cấu hình và chỉ IPN hợp lệ mới xác nhận giao dịch. MoMo đã bị vô hiệu hóa. Source, migration và test hiện hành là nguồn sự thật khi ADR lịch sử khác với triển khai.
 
 ## 2.1. Must Have
 
@@ -124,9 +124,9 @@
 - Google Routes/traffic, theo dõi vị trí thời gian thực hoặc dữ liệu venue ngoài hệ thống.
 - Phân loại mặt sân tennis, thuê dụng cụ, huấn luyện viên và giải đấu.
 - Chấm điểm hoặc xử phạt no-show tự động.
-- AI lọc spam, phân tích cảm xúc, recommendation hoặc RAG chatbot.
+- AI lọc spam, phân tích cảm xúc, recommendation hoặc agent có quyền thao tác hệ thống. Chatbot RAG chỉ đọc đã thuộc phạm vi hiện tại.
 - Chat thời gian thực, mobile application và mạng xã hội thể thao.
 
 ## 2.5. Ranh giới triển khai hiện tại
 
-Danh mục đa môn, địa chỉ hành chính, bản đồ/vị trí theo ADR-036, cọc 30%, người ghép trả tại sân, thanh toán mô phỏng và khu quản trị Admin đã có code/test. Admin có dashboard, khóa/mở tài khoản và các module canonical read-only cho Booking/Match; Payment/Refund được điều tra trong Booking Detail và lịch sử giao dịch không có thao tác xóa. Leaflet/Nominatim thay thế phần no-map của ADR-032 nhưng không đưa Google Maps/Places API trở lại; nearby chỉ sắp xếp Venue trong database có tọa độ hợp lệ và chưa có radius filter. ADR-027 và ADR-028 đã được triển khai ở service/UI/test; deadline, top-up, refund 80/20 và bước duyệt đối thủ chỉ còn phục vụ dữ liệu legacy có deadline. Theo ADR-039, MoMo Sandbox không còn thuộc scope và bị disable; không yêu cầu credential hay giao dịch Sandbox để nghiệm thu. ADR-038 đưa Settlement và Owner payout ra khỏi capstone MVP; ADR-037 được giữ như thiết kế lịch sử/future scope, không có model, migration, service, CLI, route hoặc UI tương ứng trong hệ thống hiện tại.
+Danh mục đa môn, địa chỉ hành chính, bản đồ/vị trí theo ADR-036, cọc 30%, người ghép trả tại sân, MOCK/VNPAY Sandbox, match chat, chatbot RAG, Notification Center và khu quản trị Admin đã có code/test. Admin có dashboard, khóa/mở tài khoản và các module canonical read-only cho Booking/Match; Payment/Refund được điều tra trong Booking Detail, không còn `/admin/monitoring` hoặc refund UI riêng. Leaflet/Nominatim không đưa Google Maps/Places API vào runtime; nearby chỉ sắp xếp Venue có tọa độ hợp lệ, cảnh báo accuracy thấp và chưa có radius filter. Deadline, top-up, refund 80/20 và bước duyệt đối thủ chỉ còn phục vụ dữ liệu legacy có deadline. MoMo bị disable. Settlement và Owner payout nằm ngoài capstone MVP.

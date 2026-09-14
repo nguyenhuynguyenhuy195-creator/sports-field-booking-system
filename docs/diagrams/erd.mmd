@@ -185,6 +185,7 @@ erDiagram
         VARCHAR provider_trans_id
         VARCHAR status
         VARCHAR result_code
+        NVARCHAR checkout_url
         DATETIME2 paid_at
         DATETIME2 created_at
         DATETIME2 updated_at
@@ -215,6 +216,7 @@ erDiagram
         NVARCHAR title
         NVARCHAR description
         VARCHAR skill_level
+        VARCHAR creator_contact_phone
         INT total_players
         INT required_players
         VARCHAR status
@@ -235,6 +237,42 @@ erDiagram
         DATETIME2 created_at
         DATETIME2 decided_at
         DATETIME2 updated_at
+    }
+
+    MATCH_MESSAGES {
+        INT id PK
+        INT match_id FK
+        INT sender_id FK
+        VARCHAR message_type
+        NVARCHAR content
+        VARCHAR event_type
+        VARCHAR event_key
+        DATETIME2 created_at
+    }
+
+    NOTIFICATIONS {
+        INT id PK
+        INT user_id FK
+        VARCHAR event_key
+        VARCHAR type
+        NVARCHAR title
+        NVARCHAR message
+        VARCHAR target_url
+        BIT is_read
+        DATETIME2 created_at
+        DATETIME2 read_at
+    }
+
+    MEDIA_IMAGES {
+        INT id PK
+        INT venue_id FK
+        INT field_id FK
+        VARCHAR storage_path UK
+        NVARCHAR original_filename
+        VARCHAR content_type
+        INT size_bytes
+        BIT is_cover
+        DATETIME2 created_at
     }
 
     USERS ||--o{ OWNER_APPLICATIONS : submits
@@ -267,3 +305,8 @@ erDiagram
     MATCHES ||--o{ MATCH_PARTICIPANTS : accepts
     USERS ||--o{ MATCH_PARTICIPANTS : joins
     BOOKING_CONTRIBUTIONS o|--o{ MATCH_PARTICIPANTS : assigns_opponent_deposit
+    MATCHES ||--o{ MATCH_MESSAGES : contains
+    USERS o|--o{ MATCH_MESSAGES : sends
+    USERS ||--o{ NOTIFICATIONS : receives
+    VENUES o|--o{ MEDIA_IMAGES : shows
+    FIELDS o|--o{ MEDIA_IMAGES : shows

@@ -1,6 +1,6 @@
 # Sports Field Booking System
 
-> Scope nghiệm thu từ 08/09/2026 (GVHD xác nhận, ADR-039): **Hệ thống sử dụng thanh toán mô phỏng trong môi trường thử nghiệm.** MVP chỉ dùng MOCK/SIMULATED PAYMENT; MoMo Sandbox không phải runtime provider. Nội dung MoMo/HMAC/IPN/query còn được giữ dưới đây là thiết kế hoặc kiểm thử legacy, không phải tính năng đang hoạt động hay điều kiện nghiệm thu.
+> Phạm vi runtime hiện tại: MOCK phục vụ phát triển/demo; VNPAY Sandbox được bật bằng cấu hình và chỉ IPN hợp lệ mới xác nhận giao dịch. MoMo đã bị vô hiệu hóa. Source, migration và test hiện hành là nguồn sự thật khi tài liệu lịch sử khác với triển khai.
 
 ## 1. Giới thiệu
 
@@ -15,7 +15,7 @@ Sports Field Booking System là website quản lý đặt sân thể thao đa m�
 → Chọn sân con, thời gian và hình thức thi đấu
 → Đặt sân
 → Hệ thống kiểm tra và giữ chỗ 15 phút
-→ Thanh toán mô phỏng khoản cọc đầu tiên
+→ Thanh toán khoản cọc bằng MOCK hoặc VNPAY Sandbox khi được bật
 → Tạo kèo nếu cần
 → Đối thủ cọc phần cam kết hoặc người ghép để lại số Zalo
 → Thanh toán số còn lại tại sân
@@ -28,7 +28,7 @@ Ba hình thức booking mục tiêu:
 
 Với `FIND_OPPONENT`, bài tìm đối thủ tồn tại đến giờ trận bắt đầu. Nếu không có đối thủ, creator vẫn giữ sân và trả 85% còn lại tại sân; nếu đối thủ đã cọc, hai bên đã thanh toán tổng cộng 30% và còn 70% tại sân. Người chủ động hủy/rút hoặc no-show không được hoàn phần cọc của mình. Refund chỉ áp dụng khi chủ sân hủy, lỗi/thu trùng phía hệ thống hoặc cần trả lại tiền cho bên không có lỗi.
 
-MVP dùng provider `MOCK` cho thanh toán và hoàn tiền mô phỏng; không trừ tiền thật. MoMo Sandbox, MoMo Production, QR ngân hàng thật, ví admin và owner rút tiền không thuộc phạm vi nghiệm thu.
+`MOCK` phục vụ phát triển/demo và không trừ tiền thật. VNPAY Sandbox là tích hợp có thể bật bằng cấu hình; Return URL chỉ hiển thị kết quả, còn IPN đã xác thực mới được phép chuyển trạng thái giao dịch. MoMo bị vô hiệu hóa; MoMo Production, QR ngân hàng thật, ví admin và owner rút tiền không thuộc phạm vi.
 
 ## 3. Công nghệ
 
@@ -82,7 +82,9 @@ pip install -r requirements.txt
 
 Sao chép `.env.example` thành `.env` và cập nhật thông tin SQL Server. Không commit `.env` hoặc secret key. Bản đồ nhúng dùng Leaflet với tile tương thích OpenStreetMap; tra cứu địa chỉ của Chủ sân dùng Nominatim và không cần Maps API key. Liên kết Google Maps chỉ mở chỉ đường ngoài hệ thống.
 
-`MOMO_ENABLED=false` được cố định trong cấu hình MVP, kể cả khi biến môi trường cũ đặt true. Không cần khóa MoMo hay URL callback HTTPS. Endpoint MoMo bị chặn; service MoMo từ chối trước truy cập DB/mạng, job refund MoMo trả 0. Chỉ các test legacy cô lập chủ động bật cờ trên test app để giữ kiểm thử lịch sử bằng transport giả.
+`MOMO_ENABLED=false` được cố định trong cấu hình. Endpoint MoMo bị chặn; service MoMo từ chối trước truy cập DB/mạng. VNPAY chỉ hoạt động khi `VNPAY_ENABLED=true` và đủ cấu hình Sandbox; không commit TMN code, hash secret hoặc credential vào Git.
+
+Mặc định local vẫn dùng `DevelopmentConfig`. Khi chọn `ProductionConfig`, ứng dụng chạy với `DEBUG=False`, cookie session/remember có `Secure`, `HttpOnly`, `SameSite=Lax` và từ chối khởi động nếu `SECRET_KEY` thiếu hoặc là placeholder.
 
 Cấu hình development hiện dùng Windows Authentication với SQL Server mặc định trên `localhost`. Database khởi tạo là `sports_field_booking`.
 
@@ -116,7 +118,7 @@ GET http://127.0.0.1:5000/venues
 
 ## 7. Trạng thái triển khai
 
-Các nền tảng chính đã được triển khai vào model, migration, service, route, giao diện và test: danh mục đa môn + địa chỉ hành chính; booking theo chính sách cọc 30%; thanh toán và hoàn tiền mô phỏng; cùng luồng vị trí/bản đồ theo ADR-036. Hệ thống không tải Google Maps/Places API: Leaflet hiển thị bản đồ, Nominatim gợi ý vị trí khi Chủ sân chủ động tra cứu, và tọa độ chỉ được tin cậy sau khi Chủ sân xác nhận ghim. Dữ liệu payment cũ được giữ nhãn `LEGACY_FULL_ONLINE`, không đổi nghĩa thành cọc 30%. Code/field/migration MoMo được giữ làm legacy và bị disable trong runtime MVP; không tuyên bố tích hợp Sandbox đang hoạt động.
+Các nền tảng chính đã có model, migration, service, route, giao diện và test: danh mục đa môn + địa chỉ hành chính; booking theo chính sách cọc 30%; MOCK/VNPAY Sandbox; refund; match chat; chatbot RAG; Notification Center; cùng luồng vị trí/bản đồ theo ADR-036. Hệ thống không tải Google Maps/Places API: Leaflet hiển thị bản đồ, Nominatim gợi ý vị trí khi Chủ sân chủ động tra cứu, và tọa độ chỉ được tin cậy sau khi Chủ sân xác nhận ghim. Dữ liệu payment cũ được giữ nhãn `LEGACY_FULL_ONLINE`, không đổi nghĩa thành cọc 30%. MoMo chỉ còn mã tương thích lịch sử và bị disable trong runtime.
 
 **Cập nhật ngày 14/08/2026:** chính sách `FIND_OPPONENT` mới theo ADR-027 đã được triển khai: cọc 15% của creator đủ giữ sân, bài tìm đối thủ tồn tại đến giờ bắt đầu, không có top-up bắt buộc và người chủ động hủy không được hoàn cọc. Booking legacy có deadline vẫn được diễn giải theo chính sách cũ.
 
@@ -137,7 +139,7 @@ Các nền tảng chính đã được triển khai vào model, migration, servi
 - Giao diện responsive dùng Jinja2, Bootstrap 5 và CSS riêng.
 - OWNER tạo, sửa và xem danh sách cơ sở của chính mình; venue mới luôn chờ admin duyệt.
 - ADMIN duyệt công khai hoặc ẩn venue và hệ thống lưu dấu vết kiểm duyệt.
-- ADMIN có dashboard tổng quan, tìm kiếm/khóa/mở khóa tài khoản và màn hình giám sát theo hồ sơ booking. Contribution, payment, refund được gom trong dòng tiền của từng booking; kèo hiển thị đúng người đã `JOINED`. Màn hình chỉ xem, không cho xóa hoặc sửa lịch sử giao dịch.
+- ADMIN có dashboard tổng quan, tìm kiếm/khóa/mở khóa tài khoản, `/admin/bookings` và `/admin/matches`. Booking Detail là nơi duy nhất theo dõi contribution, payment và refund; không còn workspace `/admin/monitoring` hay giao diện refund riêng.
 - Khách chỉ xem được danh sách và chi tiết venue có trạng thái `ACTIVE`.
 - Danh sách công khai cho tìm theo tên/địa chỉ/quận-thành phố, lọc loại sân và khoảng “giá từ”; chỉ field `ACTIVE` tham gia bộ lọc, kết quả được phân trang và giữ nguyên điều kiện khi chuyển trang.
 - OWNER tạo, sửa và xem các sân con thuộc cơ sở của chính mình; sân mới luôn có trạng thái `INACTIVE`.
@@ -153,29 +155,31 @@ Các nền tảng chính đã được triển khai vào model, migration, servi
 - Lệnh `flask bookings expire` cập nhật idempotent các booking giữ chỗ đã quá hạn thanh toán đầu tiên.
 - Khi tạo booking, backend dùng `DIRECT_BOOKING`, `FIND_OPPONENT` hoặc `FIND_PLAYERS`, snapshot cọc 30% và phần 70% trả tại sân; booking lịch sử vẫn giữ chính sách cũ.
 - Với `FIND_OPPONENT`, người tạo và đại diện đối thủ mỗi bên thanh toán 15% tổng tiền sân. Với `FIND_PLAYERS`, người tạo thanh toán cả khoản cọc 30%, còn người ghép trả tại sân.
-- Provider `MOCK` tuân theo giới hạn khoản cọc, chống thu lặp và chuyển `PARTIALLY_PAID`/`PAID`; trạng thái chỉ đổi sau kết quả hợp lệ.
+- Provider `MOCK` tuân theo giới hạn khoản cọc và chống thu lặp. Với VNPAY, Return URL không mutate trạng thái; IPN hợp lệ là nguồn authoritative, callback lặp được xử lý idempotent và late success tạo refund theo rule hiện hành.
 - Người tạo mở tối đa một kèo từ booking đủ điều kiện. Booking mới không chọn SINGLES/DOUBLES; `play_format` chỉ giữ cho dữ liệu legacy (ADR-033).
 - Người đăng và người xin tham gia đều cung cấp số điện thoại dùng Zalo, đồng ý chia sẻ có điều kiện; hai bên chỉ xem được số của nhau sau khi participant chính thức `JOINED`.
 - Với FIND_OPPONENT mới, đội bấm nhận kèo tự giữ vị trí thanh toán tối đa 15 phút nhưng không vượt giờ trận bắt đầu; payment thành công là tự động tham gia. Người ghép FIND_PLAYERS không có bước thanh toán online và vẫn cần creator xác nhận.
 - Người đã `JOINED` thấy kèo trong “Lịch & kèo của tôi” và mở chi tiết để liên hệ; họ không được xem/sửa/hủy booking với tư cách chủ booking.
 - Lệnh `flask matches expire` xử lý idempotent các suất đối thủ giữ quá hạn thanh toán.
-- Chủ sân hủy booking đã thu cọc sẽ hoàn 100% khoản đã thu. Refund `MOCK` hoàn tất ngay trong transaction; lịch sử refund MoMo được giữ nguyên, không gọi API trong MVP.
+- Chủ sân hủy booking hoàn 100% các khoản hợp lệ cho bên không có lỗi; khoản đã forfeited không được hoàn lại. Refund `MOCK` hoàn tất ngay, còn refund VNPAY theo vòng đời `PENDING/PROCESSING/SUCCESS/FAILED`; chỉ `SUCCESS` mới giảm số tiền đã thu.
 - Payment gốc tiếp tục giữ `SUCCESS`; mỗi lần hoàn được lưu riêng trong `refunds`, cập nhật số tiền cọc ròng của contribution/booking và hiển thị trên trang chi tiết.
 - Lệnh `flask refunds funding-expire` chỉ xử lý booking legacy có `funding_deadline`; booking ADR-027 mới không đi qua luồng này.
 - Lệnh `flask bookings complete` hoàn tất booking đã qua giờ sử dụng, gồm FIND_OPPONENT chỉ có phần cọc creator nhưng booking vẫn hợp lệ.
 - Lệnh legacy `flask refunds momo-pending` không xử lý hay gọi mạng khi MoMo disabled.
+- Chatbot USER-only dùng RAG với tài liệu `docs/chatbot`, LangChain `InMemoryVectorStore`, Gemini `gemini-embedding-001` ở 768 chiều, evidence gate và fallback xác định; chatbot chỉ đọc, không gọi tool hay thao tác booking/payment.
+- Notification Center lưu trong SQL Server cho USER, có chuông, số chưa đọc, lịch sử và polling 30 giây. `event_key` xác định chống trùng; delivery chạy best-effort sau commit để lỗi thông báo không rollback nghiệp vụ chính.
 
 ### 7.2. Phạm vi đã chốt và giới hạn môi trường
 
 - Danh mục `sports` và `field_types` hỗ trợ bóng đá, cầu lông, pickleball và tennis.
 - Mỗi field thuộc đúng một loại sân và qua đó thuộc đúng một bộ môn.
 - Cầu lông, pickleball và tennis dùng loại sân từ catalog; không yêu cầu chọn SINGLES/DOUBLES khi booking mới.
-- Venue dùng địa chỉ hành chính để tìm kiếm; Chủ sân xác nhận vị trí qua Nominatim gợi ý và ghim Leaflet. Trang chi tiết và Tìm sân chỉ hiển thị marker cho Venue có tọa độ hợp lệ; `Sân gần tôi` dùng browser geolocation theo hành động người dùng và tính khoảng cách Haversine ở backend mà không lưu vị trí người dùng. Nút chỉ đường vẫn mở Google Maps ở tab mới, không dùng Google Maps API.
+- Venue dùng địa chỉ hành chính để tìm kiếm; Chủ sân xác nhận vị trí qua Nominatim gợi ý và ghim Leaflet. Trang chi tiết và Tìm sân chỉ hiển thị marker cho Venue có tọa độ hợp lệ; `Sân gần tôi` dùng browser geolocation theo hành động người dùng, cảnh báo khi accuracy trên 1.000 m và tính khoảng cách Haversine ở backend mà không lưu vị trí người dùng. Tọa độ tìm gần vẫn nằm trong query string để giữ phân trang. Nút chỉ đường mở Google Maps ở tab mới, không dùng Google Maps API nội bộ.
 - DIRECT_BOOKING/FIND_PLAYERS thu cọc 30%; FIND_OPPONENT thu 15% từ creator và thêm 15% nếu có đối thủ.
 - Số còn lại tại sân bằng tổng tiền trừ số cọc online thực thu: 85% khi FIND_OPPONENT chưa có đối thủ, 70% khi đã đủ hai phía.
 - Kèo tìm đối thủ chia đôi khoản cọc; kèo tìm thêm người chỉ thu cọc từ người tạo.
 - Người ghép để lại số điện thoại dùng Zalo; số chỉ hiện cho người tạo sau khi yêu cầu được chấp nhận.
-- MoMo Sandbox không thuộc scope; không cần giao dịch Sandbox đầu-cuối để nghiệm thu MVP MOCK-only.
+- VNPAY Sandbox có thể bật bằng cấu hình; kiểm thử tự động dùng transport giả và SQL Server dev/test được xác minh riêng. MoMo không thuộc runtime hiện tại.
 - Không triển khai chấm điểm, phạt no-show, MoMo Production, QR ngân hàng thật, ví admin hoặc payout trong MVP.
 
 Tạo tài khoản quản trị viên đầu tiên:
@@ -191,6 +195,8 @@ Lệnh sẽ hỏi họ tên, email và mật khẩu. Mật khẩu được nhậ
 ```bash
 .\.venv\Scripts\python.exe -m pytest
 ```
+
+Kết quả xác minh canonical (full suite, SQLite test DB qua `conftest.py`): **1308 passed, 8 warnings, 0 failed**. Không dùng các tổng test lịch sử trong roadmap làm kết quả hiện tại; chạy lại `pytest` để lấy số mới nhất sau mỗi thay đổi.
 
 ## 9. Tài liệu quan trọng
 
