@@ -7,6 +7,19 @@ from config import CONFIG_BY_NAME
 from .extensions import csrf, db, login_manager, migrate
 
 
+_PRODUCTION_SECRET_PLACEHOLDERS = frozenset({"secret", "secretkey"})
+_PRODUCTION_SECRET_PLACEHOLDER_MARKERS = (
+    "changeme",
+    "defaultsecret",
+    "demosecret",
+    "developmentsecret",
+    "examplesecret",
+    "placeholder",
+    "replace",
+    "yoursecret",
+)
+
+
 def create_app(config_name: str | None = None) -> Flask:
     """Create and configure a Flask application instance."""
     app = Flask(__name__)
@@ -34,6 +47,23 @@ def create_app(config_name: str | None = None) -> Flask:
 def _validate_required_config(app: Flask) -> None:
     if not app.config.get("SECRET_KEY"):
         raise RuntimeError("SECRET_KEY must be configured in the environment.")
+    if app.config.get("APP_ENV_NAME") == "production":
+        secret_key = app.config["SECRET_KEY"]
+        normalized_secret = "".join(
+            character for character in str(secret_key).casefold() if character.isalnum()
+        )
+        if (
+            not isinstance(secret_key, str)
+            or not secret_key.strip()
+            or normalized_secret in _PRODUCTION_SECRET_PLACEHOLDERS
+            or any(
+                marker in normalized_secret
+                for marker in _PRODUCTION_SECRET_PLACEHOLDER_MARKERS
+            )
+        ):
+            raise RuntimeError(
+                "Production requires a non-placeholder SECRET_KEY."
+            )
     if app.config.get("MOMO_ENABLED"):
         required = (
             "MOMO_PARTNER_CODE",

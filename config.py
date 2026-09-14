@@ -176,6 +176,13 @@ class DevelopmentConfig(BaseConfig):
     DEBUG = True
 
 
+class ProductionConfig(BaseConfig):
+    DEBUG = False
+    TESTING = False
+    SESSION_COOKIE_SECURE = True
+    REMEMBER_COOKIE_SECURE = True
+
+
 class TestingConfig(BaseConfig):
     TESTING = True
     WTF_CSRF_ENABLED = False
@@ -185,5 +192,6 @@ class TestingConfig(BaseConfig):
 
 CONFIG_BY_NAME = {
     "development": DevelopmentConfig,
+    "production": ProductionConfig,
     "testing": TestingConfig,
 }
