@@ -2265,6 +2265,7 @@ a:hover {
     margin: 0 auto;
     max-width: 900px;
     padding: 0;
+    scroll-margin-top: 6rem;
 }
 
 .booking-stepper li {
