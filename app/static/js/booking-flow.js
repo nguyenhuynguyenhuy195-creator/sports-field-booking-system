@@ -462,6 +462,10 @@
             const badge = indicator.querySelector("span");
             if (badge) badge.textContent = indicatorStep < step ? "✓" : String(indicatorStep);
         });
+        // Step 4 already shows the full payment breakdown in the main panel;
+        // hide the sidebar's "Tạm tính" line there to avoid repeating it.
+        const summaryTotalRow = document.querySelector(".booking-summary-total");
+        if (summaryTotalRow) summaryTotalRow.hidden = step === 4;
         document.querySelector(".booking-stepper")?.scrollIntoView({
             behavior: "smooth",
             block: "start",
@@ -533,11 +537,20 @@
         const findingOpponent = selectedMode?.value === "FIND_OPPONENT";
         const opponentRow = form.querySelector("[data-review-opponent-row]");
         if (opponentRow) opponentRow.hidden = !findingOpponent;
+
+        const total = Number(quote.total);
+        const creatorAmount = Number(quote.contribution_plan.creator_amount);
+        const externalAmount = Number(quote.contribution_plan.external_amount);
+        const venueBalance = Number(quote.venue_balance);
+        const percentOf = (amount) => (total > 0 ? Math.round((amount / total) * 100) : 0);
+
+        setText("[data-review-creator-label]", `Thanh toán trước (${percentOf(creatorAmount)}%)`);
+        setText("[data-review-external-label]", `Đối thủ thanh toán (${percentOf(externalAmount)}%)`);
         setText(
             "[data-review-venue-balance-label]",
             findingOpponent
-                ? "Trả tại sân khi đối thủ đã cọc (70%)"
-                : "Còn lại thanh toán tại sân (70%)",
+                ? `Trả tại sân khi đối thủ đã cọc (${percentOf(venueBalance)}%)`
+                : `Thanh toán tại sân (${percentOf(venueBalance)}%)`,
         );
         const selectedModeLabel = selectedMode
             ?.closest("label")
@@ -545,22 +558,16 @@
             ?.textContent?.trim() || "—";
 
         setText("[data-review-mode]", selectedModeLabel);
-        setText(
-            "[data-review-creator-amount]",
-            moneyFormatter.format(Number(quote.contribution_plan.creator_amount)),
-        );
-        setText(
-            "[data-review-external-amount]",
-            moneyFormatter.format(Number(quote.contribution_plan.external_amount)),
-        );
-        setText(
-            "[data-review-venue-balance]",
-            moneyFormatter.format(Number(quote.venue_balance)),
-        );
-        setText(
-            "[data-review-contribution-note]",
-            contributionNote(quote.contribution_plan),
-        );
+        setText("[data-review-creator-amount]", moneyFormatter.format(creatorAmount));
+        setText("[data-review-external-amount]", moneyFormatter.format(externalAmount));
+        setText("[data-review-venue-balance]", moneyFormatter.format(venueBalance));
+
+        const note = contributionNote(quote.contribution_plan);
+        const noteElement = form.querySelector("[data-review-contribution-note]");
+        if (noteElement) {
+            noteElement.textContent = note;
+            noteElement.hidden = !note;
+        }
     }
 
     function syncPlayerSplitFields() {
@@ -580,7 +587,7 @@
         if (Number(plan.external_amount) === 0) {
             return plan.requested_players
                 ? `${plan.requested_players} người ghép không cần cọc và thanh toán tại sân.`
-                : "Bạn thanh toán toàn bộ khoản cọc 30%.";
+                : "";
         }
         return "Bạn cọc 15% để giữ sân. Khi đối thủ cọc thêm 15%, tổng cọc là 30% và còn 70% trả tại sân. Nếu chưa có đối thủ thanh toán, phần cọc 15% của bạn vẫn giữ lịch sân hợp lệ và còn 85% trả tại sân.";
     }

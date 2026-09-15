@@ -227,36 +227,46 @@
                     </dl>
 
                     <div class="booking-quote-box mt-4">
-                        <div class="d-flex justify-content-between align-items-center gap-3">
-                            <span>Tổng tiền sân</span>
-                            <strong data-review-total>Chưa tính</strong>
+                        <span class="eyebrow">THANH TOÁN</span>
+                        <div class="booking-contribution-preview mt-2" data-review-contribution>
+                            <div>
+                                <span>Tổng tiền sân</span>
+                                <strong data-review-total>Chưa tính</strong>
+                            </div>
+                            <div>
+                                <span data-review-creator-label>Thanh toán trước</span>
+                                <strong data-review-creator-amount>—</strong>
+                            </div>
+                            <div data-review-opponent-row hidden>
+                                <span data-review-external-label>Đối thủ thanh toán</span>
+                                <strong data-review-external-amount>—</strong>
+                            </div>
+                            <div>
+                                <span data-review-venue-balance-label>Thanh toán tại sân</span>
+                                <strong data-review-venue-balance>—</strong>
+                            </div>
                         </div>
-                        <div class="table-responsive mt-3">
+                        <p class="small text-secondary mb-0 mt-2" data-review-contribution-note hidden></p>
+                    </div>
+
+                    <details class="booking-disclosure mt-3">
+                        <summary>
+                            <i class="bi bi-coin" aria-hidden="true"></i>
+                            <span>
+                                <strong>Xem chi tiết cách tính giá</strong>
+                            </span>
+                            <span class="booking-disclosure-icon" aria-hidden="true"><i class="bi bi-chevron-down"></i></span>
+                        </summary>
+                        <div class="booking-disclosure-body table-responsive">
                             <table class="table table-sm align-middle mb-0">
                                 <thead><tr><th>Khung giá</th><th>Thời lượng</th><th class="text-end">Thành tiền</th></tr></thead>
                                 <tbody data-review-segments></tbody>
                             </table>
                         </div>
-                        <div class="booking-contribution-preview mt-3" data-review-contribution>
-                            <div>
-                                <span>Bạn thanh toán trước</span>
-                                <strong data-review-creator-amount>—</strong>
-                            </div>
-                            <div data-review-opponent-row hidden>
-                                <span>Phần chờ đội đối thủ thanh toán</span>
-                                <strong data-review-external-amount>—</strong>
-                            </div>
-                            <div>
-                                <span data-review-venue-balance-label>Còn lại thanh toán tại sân</span>
-                                <strong data-review-venue-balance>—</strong>
-                            </div>
-                            <p class="small text-secondary mb-0" data-review-contribution-note></p>
-                        </div>
-                    </div>
+                    </details>
 
                     <div class="booking-hold-note my-4">
-                        <strong>Xác nhận tức thì:</strong> không cần chờ chủ sân duyệt. Sau khi tạo lịch đặt sân,
-                        bạn có 15 phút để hoàn tất khoản thanh toán đầu tiên. Nếu tự hủy, khoản cọc của bạn không được hoàn.
+                        <strong>Xác nhận tức thì:</strong> Sau khi giữ chỗ, bạn có 15 phút để hoàn tất khoản thanh toán trước.
                     </div>
                     <div class="alert alert-danger d-none" role="alert" tabindex="-1" data-flow-error></div>
                     <div class="booking-flow-actions">

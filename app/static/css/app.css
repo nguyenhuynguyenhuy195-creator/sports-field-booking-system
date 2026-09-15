@@ -2720,6 +2720,10 @@ a:hover {
     text-align: center;
 }
 
+.booking-summary-total[hidden] {
+    display: none;
+}
+
 .booking-summary-total span {
     color: #6c7e91;
     font-size: 0.82rem;
@@ -2743,6 +2747,11 @@ a:hover {
     padding: 1.5rem;
     position: sticky;
     top: 1.5rem;
+}
+
+.booking-summary-card {
+    position: static;
+    top: auto;
 }
 
 .booking-help-card li + li {
@@ -2814,6 +2823,10 @@ a:hover {
     display: flex;
     gap: 1rem;
     justify-content: space-between;
+}
+
+.booking-contribution-preview > div[hidden] {
+    display: none;
 }
 
 .booking-contribution-preview strong {
